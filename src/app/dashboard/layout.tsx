@@ -29,7 +29,7 @@ export default function DashboardLayout({
   const navItems = [
     { icon: <Home size={16} />, label: "Home", path: "/dashboard" },
     { icon: <Users size={16} />, label: "Team", path: "/dashboard/team" },
-    { icon: <Activity size={16} />, label: "Health", path: "/dashboard/health" },
+    { icon: <Activity size={16} />, label: "Performance", path: "/dashboard/performance" },
     { icon: <AlertTriangle size={16} />, label: "Alerts", path: "/dashboard/alerts" },
   ];
 

@@ -1,20 +1,20 @@
 "use client";
 
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
-import { AlertCircle, CheckCircle2, TrendingUp, Users, Clock, Loader2, LayoutList, PieChart, Star } from "lucide-react";
+import { AlertCircle, CheckCircle2, TrendingUp, Users, Clock, Loader2, LayoutList, PieChart, Star, X, Building2, Network } from "lucide-react";
 import { ClickUpTask } from "@/types/clickup";
-import { Doughnut } from 'react-chartjs-2';
-import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
+import { playNotificationSound } from "@/lib/notificationSound";
+import { Line } from 'react-chartjs-2';
+import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Filler, Tooltip, Legend } from 'chart.js';
 import toast, { Toaster } from 'react-hot-toast';
 
-ChartJS.register(ArcElement, Tooltip, Legend);
+ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Filler, Tooltip, Legend);
 
 export default function DashboardHome() {
   const [tasks, setTasks] = useState<ClickUpTask[]>([]);
   const [liveEmployeeCount, setLiveEmployeeCount] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [lastSynced, setLastSynced] = useState<Date | null>(null);
-  const [selectedDept, setSelectedDept] = useState<string>('All');
   
   const previousTasksRef = useRef<Set<string>>(new Set());
 
@@ -36,27 +36,36 @@ export default function DashboardHome() {
             if (!previousTasksRef.current.has(task.id)) {
               const deadline = task.due_date ? new Date(parseInt(task.due_date)).toLocaleDateString() : 'No Deadline';
               const dept = task.department || 'General';
+              playNotificationSound("alert-info");
               toast.custom((t) => (
                 <div
                   className={`${
                     t.visible
-                      ? 'opacity-100 translate-y-0 scale-100 animate-toast-pop-out'
-                      : 'opacity-0 translate-y-2 scale-95'
-                  } max-w-md w-full bg-white dark:bg-zinc-800 shadow-lg rounded-xl pointer-events-auto flex ring-1 ring-black/5 transform-gpu transition-all duration-300`}
+                      ? 'animate-toast-enter'
+                      : 'animate-toast-exit'
+                  } max-w-md w-full bg-white dark:bg-zinc-800 shadow-lg rounded-xl pointer-events-auto flex ring-1 ring-black/5 transform-gpu will-change-transform`}
                 >
                   <div className="flex-1 w-0 p-4">
                     <div className="flex items-start">
                       <div className="flex-shrink-0 pt-0.5">
-                        <AlertCircle className="h-10 w-10 text-blue-500" />
+                        <AlertCircle className="h-9 w-9 text-blue-500" />
                       </div>
                       <div className="ml-3 flex-1">
-                        <p className="text-sm font-bold text-gray-900 dark:text-white">Incoming Task!</p>
+                        <p className="text-sm font-bold text-gray-900 dark:text-white">New Incoming Task</p>
                         <p className="mt-1 text-xs text-gray-600 dark:text-gray-300">
-                          <span className="font-semibold">{task.name}</span><br/>
-                          Department: {dept}<br/>
-                          Deadline: {deadline}
+                          <span className="font-semibold">{task.name}</span>
+                          <br />
+                          Department: {dept} • Deadline: {deadline}
                         </p>
                       </div>
+                      <button
+                        type="button"
+                        onClick={() => toast.dismiss(t.id)}
+                        className="ml-2 rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-zinc-700 dark:hover:text-zinc-200"
+                        aria-label="Dismiss notification"
+                      >
+                        <X size={14} />
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -82,12 +91,8 @@ export default function DashboardHome() {
     return () => clearInterval(intervalId);
   }, [fetchDashboardData]);
 
-  const departments = ['All', 'IDEA', 'Marketing', 'Finance', 'HR'];
-
-  const filteredTasks = useMemo(() => {
-    if (selectedDept === 'All') return tasks;
-    return tasks.filter(t => t.department === selectedDept);
-  }, [tasks, selectedDept]);
+  const totalDepartments = 4;
+  const totalTeams = 7;
 
   const getDisplayStatus = (statusStr: string) => {
     const s = statusStr.toLowerCase();
@@ -95,7 +100,7 @@ export default function DashboardHome() {
     return statusStr;
   };
 
-  const activeTasks = filteredTasks.filter(t => t.status.type !== 'closed' && t.status.status.toLowerCase() !== 'done' && t.status.status.toLowerCase() !== 'complete' && t.status.status.toLowerCase() !== 'completed');
+  const activeTasks = tasks.filter(t => t.status.type !== 'closed' && t.status.status.toLowerCase() !== 'done' && t.status.status.toLowerCase() !== 'complete' && t.status.status.toLowerCase() !== 'completed');
   const totalActive = activeTasks.length;
 
   const overdueTasks = activeTasks.filter(t => {
@@ -126,36 +131,38 @@ export default function DashboardHome() {
     return { dept: topDept, count: maxCount };
   }, [tasks]);
 
-  const pieChartData = useMemo(() => {
-    const statusCounts: Record<string, number> = {};
-    const statusColors: Record<string, string> = {};
+  const overallPerformanceData = useMemo(() => {
+    const monthLabels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const monthlyTotals = Array(12).fill(0) as number[];
+    const monthlyCompleted = Array(12).fill(0) as number[];
 
-    filteredTasks.forEach(task => {
-      const status = getDisplayStatus(task.status.status).toUpperCase();
-      statusCounts[status] = (statusCounts[status] || 0) + 1;
-      if (!statusColors[status]) {
-        statusColors[status] = task.status.color || '#ccc';
+    tasks.forEach((task) => {
+      const createdMs = parseInt(task.date_created || '0', 10);
+      if (!createdMs) return;
+
+      const monthIndex = new Date(createdMs).getMonth();
+      monthlyTotals[monthIndex] += 1;
+
+      const status = task.status.status.toLowerCase();
+      const isCompleted = task.status.type === 'closed' || ['completed', 'complete', 'done', 'closed'].includes(status);
+      if (isCompleted) {
+        monthlyCompleted[monthIndex] += 1;
       }
     });
 
-    return {
-      labels: Object.keys(statusCounts),
-      datasets: [
-        {
-          data: Object.values(statusCounts),
-          backgroundColor: Object.keys(statusCounts).map(s => statusColors[s]),
-          borderWidth: 1,
-          borderColor: 'rgba(255, 255, 255, 0.1)'
-        },
-      ],
-    };
-  }, [filteredTasks]);
+    const values = monthLabels.map((_, i) => {
+      const total = monthlyTotals[i];
+      return total === 0 ? 0 : Math.round((monthlyCompleted[i] / total) * 100);
+    });
+
+    return { labels: monthLabels, values };
+  }, [tasks]);
 
   const completedHistory = useMemo(() => {
-    return filteredTasks
+    return tasks
       .filter(t => t.status.type === 'closed' || t.status.status.toLowerCase() === 'completed' || t.status.status.toLowerCase() === 'complete' || t.status.status.toLowerCase() === 'done')
       .sort((a, b) => parseInt(b.date_closed || b.date_created || '0') - parseInt(a.date_closed || a.date_created || '0'));
-  }, [filteredTasks]);
+  }, [tasks]);
 
   return (
     <div className="space-y-6 pb-6 animate-in fade-in duration-500">
@@ -175,24 +182,8 @@ export default function DashboardHome() {
         </div>
       </div>
 
-      <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-        {departments.map(dept => (
-          <button
-            key={dept}
-            onClick={() => setSelectedDept(dept)}
-            className={`whitespace-nowrap px-4 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 ${
-              selectedDept === dept 
-                ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/30 scale-105' 
-                : 'bg-white/70 dark:bg-zinc-800/70 text-slate-600 dark:text-gray-300 border border-slate-200/60 dark:border-zinc-700/60 hover:bg-white dark:hover:bg-zinc-700 hover:scale-105'
-            }`}
-          >
-            {dept}
-          </button>
-        ))}
-      </div>
-
-      <div className="grid grid-cols-3 gap-3">
-        <div className="glass-card p-5 flex flex-col justify-between overflow-hidden relative">
+      <div className="flex flex-nowrap gap-4">
+        <div className="glass-card flex-1 min-w-0 p-5 flex flex-col justify-between overflow-hidden relative min-h-[108px]">
           <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-blue-500 to-indigo-500 rounded-t-2xl"></div>
           <div className="flex justify-between items-start mb-2">
             <span className="text-3xl font-bold text-slate-800 dark:text-white">
@@ -205,7 +196,7 @@ export default function DashboardHome() {
           <p className="text-xs font-medium text-slate-500 dark:text-gray-400">Active Tasks</p>
         </div>
 
-        <div className="glass-card p-5 flex flex-col justify-between overflow-hidden relative border-red-500/20">
+        <div className="glass-card flex-1 min-w-0 p-5 flex flex-col justify-between overflow-hidden relative border-red-500/20 min-h-[108px]">
           <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-red-500 to-rose-500 rounded-t-2xl"></div>
           <div className="flex justify-between items-start mb-2">
             <span className="text-3xl font-bold text-red-600 dark:text-red-400 drop-shadow-[0_0_8px_rgba(239,68,68,0.4)]">
@@ -218,7 +209,7 @@ export default function DashboardHome() {
           <p className="text-xs font-medium text-slate-500 dark:text-gray-400">Overdue</p>
         </div>
 
-        <div className="glass-card p-5 flex flex-col justify-between overflow-hidden relative">
+        <div className="glass-card flex-1 min-w-0 p-5 flex flex-col justify-between overflow-hidden relative min-h-[108px]">
           <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-purple-500 to-pink-500 rounded-t-2xl"></div>
           <div className="flex justify-between items-start mb-2">
             <span className="text-3xl font-bold text-slate-800 dark:text-white">
@@ -229,6 +220,32 @@ export default function DashboardHome() {
             </div>
           </div>
           <p className="text-xs font-medium text-slate-500 dark:text-gray-400">Employees</p>
+        </div>
+
+        <div className="glass-card flex-1 min-w-0 p-5 flex flex-col justify-between overflow-hidden relative min-h-[108px] border-cyan-400/20">
+          <div className="absolute inset-x-0 top-0 z-20 h-1 bg-cyan-400 rounded-t-2xl shadow-[0_0_12px_rgba(34,211,238,0.65)]"></div>
+          <div className="flex justify-between items-start mb-2">
+            <span className="text-3xl font-bold text-cyan-700 dark:text-cyan-300">
+              {totalDepartments}
+            </span>
+            <div className="p-2 bg-cyan-500/15 text-cyan-700 dark:text-cyan-300 rounded-lg">
+              <Building2 size={18} />
+            </div>
+          </div>
+          <p className="text-xs font-medium text-slate-500 dark:text-gray-400">Departments</p>
+        </div>
+
+        <div className="glass-card flex-1 min-w-0 p-5 flex flex-col justify-between overflow-hidden relative min-h-[108px]">
+          <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-fuchsia-500 to-pink-500 rounded-t-2xl"></div>
+          <div className="flex justify-between items-start mb-2">
+            <span className="text-3xl font-bold text-slate-800 dark:text-white">
+              {totalTeams}
+            </span>
+            <div className="p-2 bg-fuchsia-500/10 text-fuchsia-600 dark:text-fuchsia-400 rounded-lg">
+              <Network size={18} />
+            </div>
+          </div>
+          <p className="text-xs font-medium text-slate-500 dark:text-gray-400">Teams</p>
         </div>
       </div>
 
@@ -255,57 +272,77 @@ export default function DashboardHome() {
           <div className="flex items-center gap-2.5 mb-4">
             <div className="w-1 h-4 bg-gradient-to-b from-blue-500 to-indigo-600 rounded-full flex-shrink-0"></div>
             <PieChart size={14} className="text-blue-500" />
-            <h3 className="text-sm font-semibold text-slate-700 dark:text-gray-200">Status Breakdown</h3>
+            <h3 className="text-sm font-semibold text-slate-700 dark:text-gray-200">Overall Performance (All Departments)</h3>
           </div>
           <div className="flex justify-center items-center h-64">
-            {filteredTasks.length > 0 ? (
-              <div className="w-full h-full relative">
-                <Doughnut
+            {tasks.length > 0 ? (
+              <div className="w-full h-full">
+                <Line
                   data={{
-                    ...pieChartData,
-                    datasets: pieChartData.datasets.map(d => ({
-                      ...d,
-                      borderWidth: 3,
-                      borderColor: 'rgba(255,255,255,0.12)',
-                      hoverBorderColor: 'rgba(255,255,255,0.5)',
-                      hoverOffset: 8,
-                    }))
+                    labels: overallPerformanceData.labels,
+                    datasets: [
+                      {
+                        label: 'Completion Rate (%)',
+                        data: overallPerformanceData.values,
+                        borderColor: '#4f46e5',
+                        backgroundColor: 'rgba(79, 70, 229, 0.14)',
+                        pointBackgroundColor: '#4f46e5',
+                        pointBorderColor: '#ffffff',
+                        pointRadius: 4,
+                        pointHoverRadius: 5,
+                        tension: 0.42,
+                        fill: true,
+                      },
+                    ],
                   }}
                   options={{
-                    cutout: '65%',
+                    maintainAspectRatio: false,
                     plugins: {
                       legend: {
+                        display: true,
                         position: 'bottom',
                         labels: {
                           color: '#94a3b8',
                           font: { size: 10 },
-                          padding: 12,
-                          boxWidth: 8,
-                          boxHeight: 8,
                           usePointStyle: true,
-                          pointStyle: 'circle'
-                        }
+                          pointStyle: 'line',
+                          boxWidth: 24,
+                        },
                       },
                       tooltip: {
                         callbacks: {
-                          label: function(ctx) {
-                            const total = (ctx.dataset.data as number[]).reduce((a, b) => a + b, 0);
-                            const pct = Math.round(((ctx.raw as number) / total) * 100);
-                            return ` ${ctx.label}: ${ctx.raw} (${pct}%)`;
-                          }
-                        }
-                      }
+                          label: (ctx) => ` Completion Rate: ${ctx.raw}%`,
+                        },
+                      },
                     },
-                    maintainAspectRatio: false
+                    scales: {
+                      y: {
+                        min: 0,
+                        max: 100,
+                        ticks: {
+                          callback: (value) => `${value}%`,
+                          color: '#94a3b8',
+                          font: { size: 10 },
+                        },
+                        grid: {
+                          color: 'rgba(148,163,184,0.14)',
+                        },
+                      },
+                      x: {
+                        ticks: {
+                          color: '#94a3b8',
+                          font: { size: 10 },
+                        },
+                        grid: {
+                          color: 'rgba(148,163,184,0.08)',
+                        },
+                      },
+                    },
                   }}
                 />
-                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none pb-10">
-                  <span className="text-2xl font-bold text-slate-800 dark:text-white leading-none">{filteredTasks.length}</span>
-                  <span className="text-[10px] text-slate-500 dark:text-gray-400 font-medium mt-0.5">tasks</span>
-                </div>
               </div>
             ) : (
-              <p className="text-xs text-slate-500 dark:text-gray-400">No tasks in this department.</p>
+              <p className="text-xs text-slate-500 dark:text-gray-400">No tasks available.</p>
             )}
           </div>
         </section>
@@ -323,11 +360,11 @@ export default function DashboardHome() {
               </div>
             ) : (
               completedHistory.map(task => (
-                <div key={task.id} className="p-3 rounded-xl hover:bg-white/40 dark:hover:bg-zinc-800/40 transition-all duration-200 group">
+                <a key={task.id} href={task.url} target="_blank" rel="noopener noreferrer" className="block p-3 rounded-xl hover:bg-white/40 dark:hover:bg-zinc-800/40 transition-all duration-200 group">
                   <div className="flex justify-between items-start gap-2">
-                    <a href={task.url} target="_blank" rel="noopener noreferrer" className="text-xs font-semibold text-slate-700 dark:text-gray-200 group-hover:text-blue-600 dark:group-hover:text-blue-400 line-clamp-2 leading-tight transition-colors">
+                    <p className="text-xs font-semibold text-slate-700 dark:text-gray-200 group-hover:text-blue-600 dark:group-hover:text-blue-400 line-clamp-2 leading-tight transition-colors">
                       {task.name}
-                    </a>
+                    </p>
                   </div>
                   <div className="flex justify-between items-center mt-2">
                     <span 
@@ -342,13 +379,18 @@ export default function DashboardHome() {
                           key={a.id}
                           className="relative group/cavatar w-5 h-5 rounded-full border border-white/60 dark:border-zinc-800 flex items-center justify-center text-[8px] font-bold text-white shadow-sm cursor-pointer transition-transform duration-150 hover:scale-125 hover:z-10"
                           style={{ backgroundColor: a.color || '#999' }}
+                          title={a.username}
+                          aria-label={a.username}
                         >
                           {a.initials}
+                          <span className="pointer-events-none absolute left-1/2 top-full z-20 mt-1.5 -translate-x-1/2 whitespace-nowrap rounded-md bg-slate-900 px-2 py-1 text-[10px] font-medium text-white opacity-0 shadow-lg transition-opacity duration-150 group-hover/cavatar:opacity-100 dark:bg-zinc-100 dark:text-zinc-900">
+                            {a.username}
+                          </span>
                         </div>
                       ))}
                     </div>
                   </div>
-                </div>
+                </a>
               ))
             )}
           </div>
@@ -359,22 +401,22 @@ export default function DashboardHome() {
         <div className="flex items-center gap-2.5 mb-3">
           <div className="w-1 h-4 bg-gradient-to-b from-indigo-500 to-blue-600 rounded-full flex-shrink-0"></div>
           <LayoutList size={14} className="text-indigo-500" />
-          <h3 className="text-sm font-semibold text-slate-700 dark:text-gray-200">Active Tasks <span className="text-slate-400 dark:text-gray-500 font-normal">· {selectedDept}</span></h3>
+          <h3 className="text-sm font-semibold text-slate-700 dark:text-gray-200">Active Tasks</h3>
         </div>
         <div className="space-y-2">
           {activeTasks.length === 0 ? (
             <p className="text-xs text-slate-500 dark:text-gray-400 text-center py-4">No active tasks.</p>
           ) : (
             activeTasks.map(task => (
-              <div key={task.id} className="flex items-center justify-between p-4 rounded-xl hover:bg-white/60 dark:hover:bg-zinc-800/60 transition-all duration-200 border border-transparent hover:border-slate-200/50 dark:hover:border-white/10 group">
+              <a key={task.id} href={task.url} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between p-4 rounded-xl hover:bg-white/60 dark:hover:bg-zinc-800/60 transition-all duration-200 border border-transparent hover:border-slate-200/50 dark:hover:border-white/10 group">
                 <div className="flex items-center gap-3 overflow-hidden flex-1">
                   <div className="w-8 h-8 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 group-hover:bg-blue-500/20 transition-colors">
                     <TrendingUp size={14} />
                   </div>
                   <div className="truncate pr-4">
-                    <a href={task.url} target="_blank" rel="noopener noreferrer" className="text-sm font-semibold text-slate-800 dark:text-gray-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 truncate block transition-colors">
+                    <p className="text-sm font-semibold text-slate-800 dark:text-gray-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 truncate block transition-colors">
                       {task.name}
-                    </a>
+                    </p>
                     <div className="flex gap-2 items-center mt-1">
                       <span 
                         className="text-[10px] whitespace-nowrap px-1.5 py-0.5 rounded font-bold uppercase text-white shadow-sm"
@@ -394,13 +436,18 @@ export default function DashboardHome() {
                         key={a.id}
                         className="relative group/avatar w-7 h-7 rounded-full border-2 border-white/60 dark:border-zinc-800 flex items-center justify-center text-[10px] font-bold text-white -ml-2 cursor-pointer shadow-sm transition-transform duration-150 hover:scale-125 hover:z-10 hover:shadow-md"
                         style={{ backgroundColor: a.color || '#999' }}
+                        title={a.username}
+                        aria-label={a.username}
                       >
                         {a.initials}
+                        <span className="pointer-events-none absolute left-1/2 top-full z-20 mt-2 -translate-x-1/2 whitespace-nowrap rounded-md bg-slate-900 px-2 py-1 text-[10px] font-medium text-white opacity-0 shadow-lg transition-opacity duration-150 group-hover/avatar:opacity-100 dark:bg-zinc-100 dark:text-zinc-900">
+                          {a.username}
+                        </span>
                       </div>
                     ))}
                   </div>
                 </div>
-              </div>
+              </a>
             ))
           )}
         </div>

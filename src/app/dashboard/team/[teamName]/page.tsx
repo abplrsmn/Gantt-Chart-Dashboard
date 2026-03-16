@@ -70,9 +70,9 @@ export default function TeamDetailsPage() {
         ) : members.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {members.map((member) => (
-              <div key={member.id} className="p-4 bg-white/40 dark:bg-zinc-800/40 rounded-xl border border-slate-200/60 dark:border-zinc-700/60 flex items-center gap-4 hover:shadow-md hover:bg-white/60 dark:hover:bg-zinc-800/60 transition-all group">
+              <div key={member.id} className="p-4 bg-white/40 dark:bg-zinc-800/40 rounded-xl border border-slate-200/60 dark:border-zinc-700/60 flex items-center gap-4">
                 <div 
-                  className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-sm group-hover:scale-105 transition-transform"
+                  className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-sm"
                   style={{ backgroundColor: member.color || '#3B82F6' }}
                 >
                   {member.initials}
@@ -83,10 +83,7 @@ export default function TeamDetailsPage() {
                     <Mail size={10} />
                     <p className="text-[10px] truncate" title={member.email}>{member.email || 'No email'}</p>
                   </div>
-                  <div className="flex items-center gap-1.5 mt-1 text-slate-500 dark:text-gray-400">
-                    <Briefcase size={10} />
-                    <p className="text-[10px] font-medium uppercase tracking-wider">{member.role}</p>
-                  </div>
+                  
                 </div>
               </div>
             ))}
