@@ -199,7 +199,7 @@ export default function DashboardHome() {
         <div className="glass-card flex-1 min-w-0 p-5 flex flex-col justify-between overflow-hidden relative border-red-500/20 min-h-[108px]">
           <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-red-500 to-rose-500 rounded-t-2xl"></div>
           <div className="flex justify-between items-start mb-2">
-            <span className="text-3xl font-bold text-red-600 dark:text-red-400 drop-shadow-[0_0_8px_rgba(239,68,68,0.4)]">
+            <span className="text-3xl font-bold text-slate-800 dark:text-white">
               {loading && tasks.length === 0 ? '...' : overdueTasks.length}
             </span>
             <div className="p-2 bg-red-500/10 text-red-500 dark:text-red-400 rounded-lg">
@@ -225,7 +225,7 @@ export default function DashboardHome() {
         <div className="glass-card flex-1 min-w-0 p-5 flex flex-col justify-between overflow-hidden relative min-h-[108px] border-cyan-400/20">
           <div className="absolute inset-x-0 top-0 z-20 h-1 bg-cyan-400 rounded-t-2xl shadow-[0_0_12px_rgba(34,211,238,0.65)]"></div>
           <div className="flex justify-between items-start mb-2">
-            <span className="text-3xl font-bold text-cyan-700 dark:text-cyan-300">
+            <span className="text-3xl font-bold text-slate-800 dark:text-white">
               {totalDepartments}
             </span>
             <div className="p-2 bg-cyan-500/15 text-cyan-700 dark:text-cyan-300 rounded-lg">
@@ -262,7 +262,7 @@ export default function DashboardHome() {
           </div>
         </div>
         <div className="text-right relative z-10">
-          <span className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-400 dark:to-purple-400 bg-clip-text text-transparent">{mostActiveDept.dept}</span>
+          <span className="text-xl font-bold text-slate-800 dark:text-white">{mostActiveDept.dept}</span>
           <p className="text-xs font-medium text-slate-500 dark:text-gray-400">{mostActiveDept.count} active tasks</p>
         </div>
       </div>
@@ -301,12 +301,15 @@ export default function DashboardHome() {
                       legend: {
                         display: true,
                         position: 'bottom',
+                        align: 'center',
                         labels: {
                           color: '#94a3b8',
                           font: { size: 10 },
                           usePointStyle: true,
                           pointStyle: 'line',
                           boxWidth: 24,
+                          textAlign: 'center',
+                          padding: 14,
                         },
                       },
                       tooltip: {
@@ -353,7 +356,7 @@ export default function DashboardHome() {
             <CheckCircle2 size={14} className="text-green-500" />
             <h3 className="text-sm font-semibold text-slate-700 dark:text-gray-200">Completed Tasks</h3>
           </div>
-          <div className="space-y-2">
+          <div className="space-y-2 max-h-[360px] overflow-y-auto overflow-x-hidden pr-1 scrollbar-border min-w-0">
             {completedHistory.length === 0 ? (
               <div className="flex justify-center items-center h-64">
                 <p className="text-xs text-slate-500 dark:text-gray-400">No completed tasks yet.</p>
@@ -403,7 +406,7 @@ export default function DashboardHome() {
           <LayoutList size={14} className="text-indigo-500" />
           <h3 className="text-sm font-semibold text-slate-700 dark:text-gray-200">Active Tasks</h3>
         </div>
-        <div className="space-y-2">
+        <div className="space-y-2 max-h-[420px] overflow-y-auto overflow-x-hidden pr-1 scrollbar-border min-w-0">
           {activeTasks.length === 0 ? (
             <p className="text-xs text-slate-500 dark:text-gray-400 text-center py-4">No active tasks.</p>
           ) : (
@@ -430,8 +433,8 @@ export default function DashboardHome() {
                 </div>
                 <div className="flex flex-col items-end shrink-0 pl-2">
                   <span className="text-[9px] font-medium text-slate-400 dark:text-gray-500 uppercase tracking-wide mb-1">Assignee</span>
-                  <div className="flex pl-2">
-                    {task.assignees?.map(a => (
+                  <div className="flex pl-2 max-w-[120px] overflow-hidden">
+                    {task.assignees?.slice(0, 3).map(a => (
                       <div
                         key={a.id}
                         className="relative group/avatar w-7 h-7 rounded-full border-2 border-white/60 dark:border-zinc-800 flex items-center justify-center text-[10px] font-bold text-white -ml-2 cursor-pointer shadow-sm transition-transform duration-150 hover:scale-125 hover:z-10 hover:shadow-md"
@@ -445,6 +448,11 @@ export default function DashboardHome() {
                         </span>
                       </div>
                     ))}
+                    {task.assignees && task.assignees.length > 3 && (
+                      <div className="-ml-2 w-7 h-7 rounded-full border-2 border-white/60 dark:border-zinc-800 bg-slate-200 dark:bg-zinc-700 text-[9px] font-bold text-slate-700 dark:text-slate-100 flex items-center justify-center">
+                        +{task.assignees.length - 3}
+                      </div>
+                    )}
                   </div>
                 </div>
               </a>

@@ -71,7 +71,7 @@ export default function HealthPage() {
           {/* Bar Chart */}
           <div className="glass-card p-6 relative overflow-hidden">
             <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-blue-500 to-cyan-500 rounded-t-2xl" />
-            <h3 className="text-sm font-bold text-slate-800 dark:text-white mb-6">Task Overview per Departemen</h3>
+            <h3 className="text-sm font-bold text-slate-800 dark:text-white mb-6">Task Overview</h3>
             <ResponsiveContainer width="100%" height={256}>
               <BarChart data={data} margin={{ top: 5, right: 20, left: 0, bottom: 5 }} barCategoryGap="12%">
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.1)" />

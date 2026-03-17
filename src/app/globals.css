@@ -4,11 +4,15 @@
 :root {
   --background: #f8fafc;
   --foreground: #0f172a;
+  --scrollbar-border-track: rgba(226, 232, 240, 0.5);
+  --scrollbar-border-thumb: rgba(226, 232, 240, 0.75);
 }
 
 .dark {
   --background: #020617;
   --foreground: #f8fafc;
+  --scrollbar-border-track: rgba(255, 255, 255, 0.1);
+  --scrollbar-border-thumb: rgba(255, 255, 255, 0.2);
 }
 
 body {
@@ -94,4 +98,31 @@ body {
 .animate-toast-exit {
   animation: toast-exit-soft 220ms ease-in both;
   transform-origin: top right;
+}
+
+/* Scrollbar tone aligned with glass-card border in light/dark mode */
+.scrollbar-border {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-border-thumb) var(--scrollbar-border-track);
+  overflow-x: hidden;
+}
+
+.scrollbar-border::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.scrollbar-border::-webkit-scrollbar-track {
+  background: var(--scrollbar-border-track);
+  border-radius: 9999px;
+}
+
+.scrollbar-border::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-border-thumb);
+  border-radius: 9999px;
+  border: 1px solid var(--scrollbar-border-track);
+}
+
+.scrollbar-border::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-border-thumb);
 }
