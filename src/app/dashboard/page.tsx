@@ -168,7 +168,7 @@ export default function DashboardHome() {
     <div className="space-y-6 pb-6 animate-in fade-in duration-500">
       <Toaster position="top-right" />
       
-      <div className="flex justify-between items-center mb-3 mt-2">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-3 mt-2">
         <h2 className="text-xs font-bold text-slate-500 dark:text-slate-300 tracking-widest uppercase">Dashboard Overview</h2>
         <div className="flex items-center gap-1.5 text-[10px]">
           {loading ? (
@@ -182,7 +182,7 @@ export default function DashboardHome() {
         </div>
       </div>
 
-      <div className="flex flex-nowrap gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
         <div className="glass-card flex-1 min-w-0 p-5 flex flex-col justify-between overflow-hidden relative min-h-[108px]">
           <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-blue-500 to-indigo-500 rounded-t-2xl"></div>
           <div className="flex justify-between items-start mb-2">
@@ -193,7 +193,7 @@ export default function DashboardHome() {
               <TrendingUp size={18} />
             </div>
           </div>
-          <p className="text-xs font-medium text-slate-500 dark:text-gray-400">Active Tasks</p>
+          <p className="text-xs font-medium text-slate-500 dark:text-gray-400">Tasks</p>
         </div>
 
         <div className="glass-card flex-1 min-w-0 p-5 flex flex-col justify-between overflow-hidden relative border-red-500/20 min-h-[108px]">
@@ -249,7 +249,7 @@ export default function DashboardHome() {
         </div>
       </div>
 
-      <div className="glass-card p-5 flex items-center justify-between overflow-hidden relative">
+      <div className="glass-card p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 overflow-hidden relative">
         <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-amber-400 via-blue-500 to-purple-500 rounded-t-2xl"></div>
         <div className="absolute -top-6 -right-6 w-24 h-24 bg-blue-500/5 dark:bg-blue-500/10 rounded-full blur-2xl pointer-events-none"></div>
         <div className="flex items-center gap-3 relative z-10">
@@ -261,9 +261,9 @@ export default function DashboardHome() {
             <h3 className="text-sm font-bold text-slate-700 dark:text-gray-200">Most Active Workload</h3>
           </div>
         </div>
-        <div className="text-right relative z-10">
+        <div className="text-left sm:text-right relative z-10">
           <span className="text-xl font-bold text-slate-800 dark:text-white">{mostActiveDept.dept}</span>
-          <p className="text-xs font-medium text-slate-500 dark:text-gray-400">{mostActiveDept.count} active tasks</p>
+          <p className="text-xs font-medium text-slate-500 dark:text-gray-400">{mostActiveDept.count} tasks</p>
         </div>
       </div>
 
@@ -272,7 +272,7 @@ export default function DashboardHome() {
           <div className="flex items-center gap-2.5 mb-4">
             <div className="w-1 h-4 bg-gradient-to-b from-blue-500 to-indigo-600 rounded-full flex-shrink-0"></div>
             <PieChart size={14} className="text-blue-500" />
-            <h3 className="text-sm font-semibold text-slate-700 dark:text-gray-200">Overall Performance (All Departments)</h3>
+            <h3 className="text-sm font-semibold text-slate-700 dark:text-gray-200">Overall Performance</h3>
           </div>
           <div className="flex justify-center items-center h-64">
             {tasks.length > 0 ? (
@@ -404,7 +404,7 @@ export default function DashboardHome() {
         <div className="flex items-center gap-2.5 mb-3">
           <div className="w-1 h-4 bg-gradient-to-b from-indigo-500 to-blue-600 rounded-full flex-shrink-0"></div>
           <LayoutList size={14} className="text-indigo-500" />
-          <h3 className="text-sm font-semibold text-slate-700 dark:text-gray-200">Active Tasks</h3>
+          <h3 className="text-sm font-semibold text-slate-700 dark:text-gray-200">Tasks</h3>
         </div>
         <div className="space-y-2 max-h-[420px] overflow-y-auto overflow-x-hidden pr-1 scrollbar-border min-w-0">
           {activeTasks.length === 0 ? (

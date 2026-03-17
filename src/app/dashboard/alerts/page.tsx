@@ -9,7 +9,7 @@ import { playNotificationSound } from "@/lib/notificationSound";
 export default function AlertsPage() {
   const [tasks, setTasks] = useState<ClickUpTask[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedFilter, setSelectedFilter] = useState<"all" | "overdue" | "near">("all");
+  const [selectedFilter, setSelectedFilter] = useState<"all" | "overdue" | "urgent" | "near">("all");
   const previousAlertIdsRef = useRef<Set<string>>(new Set());
   const hasAlertBaselineRef = useRef(false);
 
@@ -46,7 +46,7 @@ export default function AlertsPage() {
       })
       .map(task => {
         const dueDate = task.due_date ? parseInt(task.due_date) : null;
-        let type: 'overdue' | 'near' | 'stuck' = 'stuck';
+        let type: 'overdue' | 'urgent' | 'near' | 'stuck' = 'stuck';
         let severity: 'critical' | 'warning' | 'info' = 'info';
         let message = "";
 
@@ -56,7 +56,7 @@ export default function AlertsPage() {
             severity = 'critical';
             message = "Task is already overdue!";
           } else if (dueDate - now < oneDayMs) {
-            type = 'near';
+            type = 'urgent';
             severity = 'warning';
             message = "Deadline is less than 24 hours away!";
           } else if (dueDate - now < threeDaysMs) {
@@ -160,7 +160,7 @@ export default function AlertsPage() {
   return (
     <div className="space-y-6 pb-6 animate-in fade-in duration-500">
       <Toaster position="top-right" />
-      <div className="flex justify-between items-center mb-4">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-4">
         <div className="flex items-center gap-2">
           <ShieldAlert className="text-red-500" size={24} />
           <h2 className="text-lg font-bold text-slate-800 dark:text-white">Live Alerts</h2>
@@ -173,13 +173,14 @@ export default function AlertsPage() {
       <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-hide">
         {[
           { key: "all", label: "All" },
-          { key: "overdue", label: "Overdue" },
           { key: "near", label: "Near" },
+          { key: "urgent", label: "Urgent" },
+          { key: "overdue", label: "Overdue" },
         ].map((filterOption) => (
           <button
             key={filterOption.key}
             type="button"
-            onClick={() => setSelectedFilter(filterOption.key as "all" | "overdue" | "near")}
+            onClick={() => setSelectedFilter(filterOption.key as "all" | "overdue" | "urgent" | "near")}
             className={`whitespace-nowrap px-3 py-1.5 rounded-full text-[11px] font-semibold transition-all duration-200 ${
               selectedFilter === filterOption.key
                 ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/25"
@@ -224,7 +225,7 @@ export default function AlertsPage() {
                     {task.alertMessage}
                   </p>
                   
-                  <div className="flex items-center gap-4 text-[11px] text-slate-500 dark:text-gray-400">
+                  <div className="flex flex-wrap items-center gap-3 text-[11px] text-slate-500 dark:text-gray-400">
                     <div className="flex items-center gap-1">
                       <Calendar size={12} />
                       {task.due_date ? new Date(parseInt(task.due_date)).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) : 'No Due Date'}
@@ -248,9 +249,9 @@ export default function AlertsPage() {
                   </div>
                 </div>
 
-                <div className="flex flex-col items-end gap-3">
-                  <div className="flex pl-2">
-                    {task.assignees?.map(a => (
+                <div className="flex flex-col items-end gap-3 shrink-0">
+                  <div className="flex pl-2 max-w-[120px] overflow-hidden">
+                    {task.assignees?.slice(0, 3).map(a => (
                       <div
                         key={a.id}
                         className="relative group/avatar w-7 h-7 rounded-full border-2 border-white/60 dark:border-zinc-800 flex items-center justify-center text-[10px] font-bold text-white -ml-2 cursor-pointer shadow-sm transition-transform duration-150 hover:scale-125 hover:z-10 hover:shadow-md"
@@ -264,6 +265,11 @@ export default function AlertsPage() {
                         </span>
                       </div>
                     ))}
+                    {task.assignees && task.assignees.length > 3 && (
+                      <div className="-ml-2 w-7 h-7 rounded-full border-2 border-white/60 dark:border-zinc-800 bg-slate-200 dark:bg-zinc-700 text-[9px] font-bold text-slate-700 dark:text-slate-100 flex items-center justify-center">
+                        +{task.assignees.length - 3}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

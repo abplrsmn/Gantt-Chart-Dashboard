@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { Home, Users, Activity, AlertTriangle, Menu, ChevronRight } from "lucide-react";
+import { Home, Users, Activity, AlertTriangle, Menu, ChevronRight, Settings2, LogOut, SunMoon } from "lucide-react";
 
 export default function DashboardLayout({
   children,
@@ -13,6 +13,15 @@ export default function DashboardLayout({
   const router = useRouter();
   const [isDark, setIsDark] = useState(true);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const desktopMenuRef = useRef<HTMLDivElement | null>(null);
+  const mobileMenuRef = useRef<HTMLDivElement | null>(null);
+
+  const handleLogout = () => {
+    setMenuOpen(false);
+    setDrawerOpen(false);
+    router.push("/");
+  };
 
   useEffect(() => {
     if (isDark) {
@@ -24,9 +33,24 @@ export default function DashboardLayout({
 
   useEffect(() => {
     setDrawerOpen(false);
+    setMenuOpen(false);
   }, [pathname]);
 
-  const navItems = [
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+      const insideDesktop = desktopMenuRef.current?.contains(target);
+      const insideMobile = mobileMenuRef.current?.contains(target);
+      if (!insideDesktop && !insideMobile) {
+        setMenuOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const navItems: Array<{ icon: React.ReactNode; label: string; path: string; badge?: boolean }> = [
     { icon: <Home size={16} />, label: "Home", path: "/dashboard" },
     { icon: <Users size={16} />, label: "Team", path: "/dashboard/team" },
     { icon: <Activity size={16} />, label: "Performance", path: "/dashboard/performance" },
@@ -38,7 +62,7 @@ export default function DashboardLayout({
 
       {/* ── TOP NAVBAR ── */}
       <header className="sticky top-0 z-50 bg-white/80 dark:bg-zinc-950/80 backdrop-blur-xl border-b border-slate-200/40 dark:border-white/5 shadow-sm transition-colors duration-300">
-        <div className="w-full px-6 h-14 flex items-center justify-between">
+        <div className="w-full px-6 h-14 flex items-center justify-between relative">
 
           {/* Mobile: burger button — far left */}
           <button
@@ -63,7 +87,7 @@ export default function DashboardLayout({
             </div>
           </div>
 
-          {/* Desktop: nav + theme toggle — far right */}
+          {/* Desktop: nav + quick menu — far right */}
           <div className="hidden md:flex items-center gap-1 ml-auto">
             <nav className="flex items-center gap-1 mr-6">
               {navItems.map(item => (
@@ -77,21 +101,63 @@ export default function DashboardLayout({
                 />
               ))}
             </nav>
-            <button
-              onClick={() => setIsDark(!isDark)}
-              className="p-2 rounded-full bg-white/50 dark:bg-white/10 border border-slate-200/60 dark:border-white/10 hover:bg-white/80 dark:hover:bg-white/20 transition-all shadow-sm text-sm"
-            >
-              {isDark ? '☀️' : '🌙'}
-            </button>
+            <div ref={desktopMenuRef} className="relative">
+              <button
+                onClick={() => setMenuOpen((prev) => !prev)}
+                className="p-2 rounded-xl bg-white/50 dark:bg-white/10 border border-slate-200/60 dark:border-white/10 hover:bg-white/80 dark:hover:bg-white/20 transition-all shadow-sm text-slate-600 dark:text-gray-200"
+                aria-label="Open quick menu"
+              >
+                <Settings2 size={16} />
+              </button>
+              {menuOpen && (
+                <div className="absolute right-0 mt-2 w-48 rounded-xl bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xl border border-slate-200/60 dark:border-white/10 shadow-xl p-1.5 z-50">
+                  <button
+                    onClick={() => setIsDark(!isDark)}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium text-slate-700 dark:text-gray-200 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
+                  >
+                    <SunMoon size={14} />
+                    {isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
+                  </button>
+                  <button
+                    onClick={handleLogout}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
+                  >
+                    <LogOut size={14} />
+                    Log Out
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
 
-          {/* Mobile: theme toggle — far right */}
-          <button
-            className="md:hidden p-2 rounded-full bg-white/50 dark:bg-white/10 border border-slate-200/60 dark:border-white/10 hover:bg-white/80 dark:hover:bg-white/20 transition-all shadow-sm text-sm"
-            onClick={() => setIsDark(!isDark)}
-          >
-            {isDark ? '☀️' : '🌙'}
-          </button>
+          {/* Mobile: quick menu — far right */}
+          <div ref={mobileMenuRef} className="md:hidden relative">
+            <button
+              className="p-2 rounded-xl bg-white/50 dark:bg-white/10 border border-slate-200/60 dark:border-white/10 hover:bg-white/80 dark:hover:bg-white/20 transition-all shadow-sm text-slate-600 dark:text-gray-200"
+              onClick={() => setMenuOpen((prev) => !prev)}
+              aria-label="Open quick menu"
+            >
+              <Settings2 size={16} />
+            </button>
+            {menuOpen && (
+              <div className="absolute right-0 mt-2 w-48 rounded-xl bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xl border border-slate-200/60 dark:border-white/10 shadow-xl p-1.5 z-50">
+                <button
+                  onClick={() => setIsDark(!isDark)}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium text-slate-700 dark:text-gray-200 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
+                >
+                  <SunMoon size={14} />
+                  {isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
+                </button>
+                <button
+                  onClick={handleLogout}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
+                >
+                  <LogOut size={14} />
+                  Log Out
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </header>
 
@@ -133,14 +199,22 @@ export default function DashboardLayout({
           ))}
         </nav>
 
-        {/* Drawer theme toggle */}
-        <div className="p-4 border-t border-slate-200/40 dark:border-white/5">
+        {/* Drawer quick menu */}
+        <div className="p-4 border-t border-slate-200/40 dark:border-white/5 space-y-2">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 px-1">Quick Menu</p>
           <button
             onClick={() => setIsDark(!isDark)}
             className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-white/40 dark:bg-white/5 border border-slate-200/50 dark:border-white/10 hover:bg-white/70 dark:hover:bg-white/10 transition-all text-slate-600 dark:text-gray-300"
           >
-            <span className="text-sm">{isDark ? '☀️' : '🌙'}</span>
-            <span className="text-xs font-medium">{isDark ? 'Light Mode' : 'Dark Mode'}</span>
+            <SunMoon size={14} />
+            <span className="text-xs font-medium">{isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}</span>
+          </button>
+          <button
+            onClick={handleLogout}
+            className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-red-50/80 dark:bg-red-500/10 border border-red-200/70 dark:border-red-500/20 hover:bg-red-100 dark:hover:bg-red-500/15 transition-all text-red-600 dark:text-red-400"
+          >
+            <LogOut size={14} />
+            <span className="text-xs font-medium">Log Out</span>
           </button>
         </div>
       </aside>

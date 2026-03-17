@@ -7,8 +7,8 @@ import { ShieldAlert } from "lucide-react";
 export default function LoginPage() {
   const router = useRouter();
   const [isDark, setIsDark] = useState(true);
-  const [email, setEmail] = useState("admin@aryaduta.com");
-  const [password, setPassword] = useState("admin123");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
   // Simple toggle for preview purposes
@@ -67,6 +67,7 @@ export default function LoginPage() {
                 type="email"
                 value={email}
                 onChange={(e) => { setEmail(e.target.value); setError(""); }}
+                placeholder="Enter email"
                 className="w-full px-4 py-3 rounded-xl bg-white/30 dark:bg-black/20 border border-white/40 dark:border-white/10 focus:outline-none focus:ring-2 focus:ring-blue-500/50 text-slate-800 dark:text-white placeholder:text-slate-500 dark:placeholder:text-slate-400 shadow-inner"
                 required
               />
@@ -78,6 +79,7 @@ export default function LoginPage() {
                 type="password"
                 value={password}
                 onChange={(e) => { setPassword(e.target.value); setError(""); }}
+                placeholder="Enter password"
                 className="w-full px-4 py-3 rounded-xl bg-white/30 dark:bg-black/20 border border-white/40 dark:border-white/10 focus:outline-none focus:ring-2 focus:ring-blue-500/50 text-slate-800 dark:text-white placeholder:text-slate-500 dark:placeholder:text-slate-400 shadow-inner"
                 required
               />

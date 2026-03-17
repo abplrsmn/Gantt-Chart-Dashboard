@@ -25,7 +25,7 @@ export default function TeamPage() {
             <h2 className="text-sm font-bold text-slate-800 dark:text-white mb-4 border-b border-slate-200 dark:border-slate-700/50 pb-3">
               {dept.name} Department
             </h2>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
               {dept.teams.map((team) => (
                 <Link key={team} href={`/dashboard/team/${team.toLowerCase()}`}>
                   <div className="p-4 bg-white/40 dark:bg-zinc-800/40 rounded-xl border border-slate-200/60 dark:border-zinc-700/60 flex flex-col justify-between hover:border-purple-500/30 hover:bg-white/60 dark:hover:bg-zinc-800/60 transition-all group cursor-pointer h-full">
