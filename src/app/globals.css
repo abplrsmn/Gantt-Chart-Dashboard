@@ -1,6 +1,27 @@
 @import "tailwindcss";
 @custom-variant dark (&:is(.dark *));
 
+@font-face {
+  font-family: 'Gotham';
+  src: url('https://fonts.cdnfonts.com/s/14209/GothamBook.woff') format('woff');
+  font-weight: 400;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Gotham';
+  src: url('https://fonts.cdnfonts.com/s/14209/GothamBold.woff') format('woff');
+  font-weight: 700;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Gotham';
+  src: url('https://fonts.cdnfonts.com/s/14209/GothamLight.woff') format('woff');
+  font-weight: 300;
+  font-style: normal;
+}
+
 :root {
   --background: #f8fafc;
   --foreground: #0f172a;
@@ -18,6 +39,36 @@
 body {
   background-color: var(--background);
   color: var(--foreground);
+  font-family: 'Gotham', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+}
+
+/* Keep typography constrained to Gotham + Roboto across the app */
+button,
+input,
+select,
+textarea,
+small,
+.font-ui {
+  font-family: var(--font-roboto), 'Roboto', 'Gotham', sans-serif;
+}
+
+code,
+pre,
+kbd,
+samp {
+  font-family: var(--font-roboto), 'Roboto', 'Gotham', sans-serif;
+}
+
+/* Normalize legacy micro text sizes to improve consistency and readability */
+.text-\[9px\],
+.text-\[10px\] {
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Gotham', sans-serif;
+  font-weight: 700;
 }
 
 /* Glassmorphism Utilities */

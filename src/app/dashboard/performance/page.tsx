@@ -102,7 +102,7 @@ export default function HealthPage() {
         <Activity className="text-blue-500" size={24} />
         <div>
           <h2 className="text-lg font-bold text-slate-800 dark:text-white">Project Performance</h2>
-          <p className="text-[11px] text-slate-500 dark:text-gray-400 mt-0.5">
+          <p className="text-xs text-slate-500 dark:text-gray-400 mt-0.5">
             Based on {recentWindowDays === 30 ? "last month" : `last ${recentWindowDays} days`}: ✓ completion · ⏱ on-time delivery · ⚠ overdue pressure
           </p>
         </div>

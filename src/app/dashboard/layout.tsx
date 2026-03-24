@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { Home, Users, Activity, AlertTriangle, Menu, ChevronRight, Settings2, LogOut, SunMoon } from "lucide-react";
+import AutoRefresh from "@/components/AutoRefresh";
+import { Home, Users, Activity, AlertTriangle, Menu, ChevronRight, Settings2, LogOut, SunMoon , Server } from "lucide-react";
 
 export default function DashboardLayout({
   children,
@@ -55,6 +56,7 @@ export default function DashboardLayout({
     { icon: <Users size={16} />, label: "Team", path: "/dashboard/team" },
     { icon: <Activity size={16} />, label: "Performance", path: "/dashboard/performance" },
     { icon: <AlertTriangle size={16} />, label: "Alerts", path: "/dashboard/alerts" },
+    { icon: <Server size={16} />, label: "Controls", path: "/dashboard/controls" },
   ];
 
   return (
@@ -220,7 +222,7 @@ export default function DashboardLayout({
       </aside>
 
       {/* ── MAIN CONTENT ── */}
-      <main className="p-4 w-full max-w-5xl mx-auto pb-8">
+      <main className="p-4 w-full max-w-[1260px] mx-auto pb-8">
         {children}
       </main>
     </div>

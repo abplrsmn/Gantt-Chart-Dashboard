@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Users, ArrowLeft, Mail, Briefcase, Loader2 } from "lucide-react";
+import { Users, ArrowLeft, Mail, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 
@@ -81,7 +81,7 @@ export default function TeamDetailsPage() {
                   <h3 className="text-sm font-bold text-slate-800 dark:text-gray-100 truncate">{member.name}</h3>
                   <div className="flex items-center gap-1.5 mt-1 text-slate-500 dark:text-gray-400">
                     <Mail size={10} />
-                    <p className="text-[10px] truncate" title={member.email}>{member.email || 'No email'}</p>
+                    <p className="text-xs truncate" title={member.email}>{member.email || 'No email'}</p>
                   </div>
                   
                 </div>

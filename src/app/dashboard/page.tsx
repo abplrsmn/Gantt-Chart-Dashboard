@@ -169,8 +169,8 @@ export default function DashboardHome() {
       <Toaster position="top-right" />
       
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-3 mt-2">
-        <h2 className="text-xs font-bold text-slate-500 dark:text-slate-300 tracking-widest uppercase">Dashboard Overview</h2>
-        <div className="flex items-center gap-1.5 text-[10px]">
+        <h2 className="text-lg font-bold text-slate-800 dark:text-white">Dashboard Overview</h2>
+        <div className="flex items-center gap-1.5 text-[11px]">
           {loading ? (
             <span className="text-blue-500 flex items-center gap-1.5 font-medium"><Loader2 size={11} className="animate-spin" /> Syncing...</span>
           ) : (
@@ -257,7 +257,7 @@ export default function DashboardHome() {
             <Star size={18} />
           </div>
           <div>
-            <p className="text-[10px] font-bold text-slate-400 dark:text-gray-500 uppercase tracking-widest">Top Department</p>
+            <p className="text-[11px] font-bold text-slate-400 dark:text-gray-500 uppercase tracking-widest">Top Department</p>
             <h3 className="text-sm font-bold text-slate-700 dark:text-gray-200">Most Active Workload</h3>
           </div>
         </div>
@@ -272,7 +272,7 @@ export default function DashboardHome() {
           <div className="flex items-center gap-2.5 mb-4">
             <div className="w-1 h-4 bg-gradient-to-b from-blue-500 to-indigo-600 rounded-full flex-shrink-0"></div>
             <PieChart size={14} className="text-blue-500" />
-            <h3 className="text-sm font-semibold text-slate-700 dark:text-gray-200">Overall Performance</h3>
+            <h3 className="text-base font-bold text-slate-700 dark:text-gray-200">Overall Performance</h3>
           </div>
           <div className="flex justify-center items-center h-64">
             {tasks.length > 0 ? (
@@ -354,7 +354,7 @@ export default function DashboardHome() {
           <div className="flex items-center gap-2.5 mb-3 shrink-0">
             <div className="w-1 h-4 bg-gradient-to-b from-green-500 to-emerald-600 rounded-full flex-shrink-0"></div>
             <CheckCircle2 size={14} className="text-green-500" />
-            <h3 className="text-sm font-semibold text-slate-700 dark:text-gray-200">Completed Tasks</h3>
+            <h3 className="text-base font-bold text-slate-700 dark:text-gray-200">Completed Tasks</h3>
           </div>
           <div className="space-y-2 max-h-[360px] overflow-y-auto overflow-x-hidden pr-1 scrollbar-border min-w-0">
             {completedHistory.length === 0 ? (
@@ -371,7 +371,7 @@ export default function DashboardHome() {
                   </div>
                   <div className="flex justify-between items-center mt-2">
                     <span 
-                      className="text-[9px] whitespace-nowrap px-1.5 py-0.5 rounded font-bold uppercase text-white shadow-sm"
+                      className="text-[11px] whitespace-nowrap px-1.5 py-0.5 rounded font-bold uppercase text-white shadow-sm"
                       style={{ backgroundColor: task.status.color || '#ccc' }}
                     >
                       {getDisplayStatus(task.status.status)}
@@ -380,13 +380,13 @@ export default function DashboardHome() {
                       {task.assignees?.slice(0,3).map(a => (
                         <div
                           key={a.id}
-                          className="relative group/cavatar w-5 h-5 rounded-full border border-white/60 dark:border-zinc-800 flex items-center justify-center text-[8px] font-bold text-white shadow-sm cursor-pointer transition-transform duration-150 hover:scale-125 hover:z-10"
+                          className="relative group/cavatar w-5 h-5 rounded-full border border-white/60 dark:border-zinc-800 flex items-center justify-center text-[10px] font-bold text-white shadow-sm cursor-pointer transition-transform duration-150 hover:scale-125 hover:z-10"
                           style={{ backgroundColor: a.color || '#999' }}
                           title={a.username}
                           aria-label={a.username}
                         >
                           {a.initials}
-                          <span className="pointer-events-none absolute left-1/2 top-full z-20 mt-1.5 -translate-x-1/2 whitespace-nowrap rounded-md bg-slate-900 px-2 py-1 text-[10px] font-medium text-white opacity-0 shadow-lg transition-opacity duration-150 group-hover/cavatar:opacity-100 dark:bg-zinc-100 dark:text-zinc-900">
+                          <span className="pointer-events-none absolute left-1/2 top-full z-20 mt-1.5 -translate-x-1/2 whitespace-nowrap rounded-md bg-slate-900 px-2 py-1 text-[11px] font-medium text-white opacity-0 shadow-lg transition-opacity duration-150 group-hover/cavatar:opacity-100 dark:bg-zinc-100 dark:text-zinc-900">
                             {a.username}
                           </span>
                         </div>
@@ -404,59 +404,65 @@ export default function DashboardHome() {
         <div className="flex items-center gap-2.5 mb-3">
           <div className="w-1 h-4 bg-gradient-to-b from-indigo-500 to-blue-600 rounded-full flex-shrink-0"></div>
           <LayoutList size={14} className="text-indigo-500" />
-          <h3 className="text-sm font-semibold text-slate-700 dark:text-gray-200">Tasks</h3>
+          <h3 className="text-base font-bold text-slate-700 dark:text-gray-200">Tasks</h3>
         </div>
         <div className="space-y-2 max-h-[420px] overflow-y-auto overflow-x-hidden pr-1 scrollbar-border min-w-0">
           {activeTasks.length === 0 ? (
-            <p className="text-xs text-slate-500 dark:text-gray-400 text-center py-4">No active tasks.</p>
+            <p className="text-xs text-slate-500 dark:text-gray-400 text-center py-8">No active tasks.</p>
           ) : (
-            activeTasks.map(task => (
-              <a key={task.id} href={task.url} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between p-4 rounded-xl hover:bg-white/60 dark:hover:bg-zinc-800/60 transition-all duration-200 border border-transparent hover:border-slate-200/50 dark:hover:border-white/10 group">
-                <div className="flex items-center gap-3 overflow-hidden flex-1">
-                  <div className="w-8 h-8 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 group-hover:bg-blue-500/20 transition-colors">
-                    <TrendingUp size={14} />
-                  </div>
-                  <div className="truncate pr-4">
-                    <p className="text-sm font-semibold text-slate-800 dark:text-gray-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 truncate block transition-colors">
-                      {task.name}
-                    </p>
-                    <div className="flex gap-2 items-center mt-1">
-                      <span 
-                        className="text-[10px] whitespace-nowrap px-1.5 py-0.5 rounded font-bold uppercase text-white shadow-sm"
-                        style={{ backgroundColor: task.status.color || '#ccc' }}
-                      >
-                        {getDisplayStatus(task.status.status)}
-                      </span>
-                      <span className="text-[11px] font-semibold text-slate-600 dark:text-gray-400">{task.department || 'General'}</span>
+            <>
+              {activeTasks.map(task => (
+                <a key={task.id} href={task.url} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between p-4 rounded-xl hover:bg-white/60 dark:hover:bg-zinc-800/60 transition-all duration-200 border border-transparent hover:border-slate-200/50 dark:hover:border-white/10 group">
+                  <div className="flex items-center gap-3 overflow-hidden flex-1">
+                    <div className="w-8 h-8 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 group-hover:bg-blue-500/20 transition-colors">
+                      <TrendingUp size={14} />
+                    </div>
+                    <div className="truncate pr-4">
+                      <p className="text-sm font-semibold text-slate-800 dark:text-gray-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 truncate block transition-colors">
+                        {task.name}
+                      </p>
+                      <div className="flex gap-2 items-center mt-1">
+                        <span 
+                          className="text-[11px] whitespace-nowrap px-1.5 py-0.5 rounded font-bold uppercase text-white shadow-sm"
+                          style={{ backgroundColor: task.status.color || '#ccc' }}
+                        >
+                          {getDisplayStatus(task.status.status)}
+                        </span>
+                        <span className="text-xs font-semibold text-slate-600 dark:text-gray-400">{task.department || 'General'}</span>
+                      </div>
                     </div>
                   </div>
-                </div>
-                <div className="flex flex-col items-end shrink-0 pl-2">
-                  <span className="text-[9px] font-medium text-slate-400 dark:text-gray-500 uppercase tracking-wide mb-1">Assignee</span>
-                  <div className="flex pl-2 max-w-[120px] overflow-hidden">
-                    {task.assignees?.slice(0, 3).map(a => (
-                      <div
-                        key={a.id}
-                        className="relative group/avatar w-7 h-7 rounded-full border-2 border-white/60 dark:border-zinc-800 flex items-center justify-center text-[10px] font-bold text-white -ml-2 cursor-pointer shadow-sm transition-transform duration-150 hover:scale-125 hover:z-10 hover:shadow-md"
-                        style={{ backgroundColor: a.color || '#999' }}
-                        title={a.username}
-                        aria-label={a.username}
-                      >
-                        {a.initials}
-                        <span className="pointer-events-none absolute left-1/2 top-full z-20 mt-2 -translate-x-1/2 whitespace-nowrap rounded-md bg-slate-900 px-2 py-1 text-[10px] font-medium text-white opacity-0 shadow-lg transition-opacity duration-150 group-hover/avatar:opacity-100 dark:bg-zinc-100 dark:text-zinc-900">
-                          {a.username}
-                        </span>
-                      </div>
-                    ))}
-                    {task.assignees && task.assignees.length > 3 && (
-                      <div className="-ml-2 w-7 h-7 rounded-full border-2 border-white/60 dark:border-zinc-800 bg-slate-200 dark:bg-zinc-700 text-[9px] font-bold text-slate-700 dark:text-slate-100 flex items-center justify-center">
-                        +{task.assignees.length - 3}
-                      </div>
-                    )}
+                  <div className="flex flex-col items-end shrink-0 pl-2">
+                    <span className="text-[11px] font-medium text-slate-400 dark:text-gray-500 uppercase tracking-wide mb-1">Assignee</span>
+                    <div className="flex pl-2 max-w-[120px] overflow-hidden">
+                      {task.assignees?.slice(0, 3).map(a => (
+                        <div
+                          key={a.id}
+                          className="relative group/avatar w-7 h-7 rounded-full border-2 border-white/60 dark:border-zinc-800 flex items-center justify-center text-[11px] font-bold text-white -ml-2 cursor-pointer shadow-sm transition-transform duration-150 hover:scale-125 hover:z-10 hover:shadow-md"
+                          style={{ backgroundColor: a.color || '#999' }}
+                          title={a.username}
+                          aria-label={a.username}
+                        >
+                          {a.initials}
+                          <span className="pointer-events-none absolute left-1/2 top-full z-20 mt-2 -translate-x-1/2 whitespace-nowrap rounded-md bg-slate-900 px-2 py-1 text-[11px] font-medium text-white opacity-0 shadow-lg transition-opacity duration-150 group-hover/avatar:opacity-100 dark:bg-zinc-100 dark:text-zinc-900">
+                            {a.username}
+                          </span>
+                        </div>
+                      ))}
+                      {task.assignees && task.assignees.length > 3 && (
+                        <div className="-ml-2 w-7 h-7 rounded-full border-2 border-white/60 dark:border-zinc-800 bg-slate-200 dark:bg-zinc-700 text-[11px] font-bold text-slate-700 dark:text-slate-100 flex items-center justify-center">
+                          +{task.assignees.length - 3}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              </a>
-            ))
+                </a>
+              ))}
+              <div className="flex items-center justify-center gap-2 py-8 text-slate-400 dark:text-slate-500 border-t border-slate-100/50 dark:border-white/5 mt-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-[ping_1.5s_cubic-bezier(0,0,0.2,1)_infinite]"></span>
+                <p className="text-[11px] font-bold uppercase tracking-[0.2em] animate-pulse">Waiting for new tasks</p>
+              </div>
+            </>
           )}
         </div>
       </section>
