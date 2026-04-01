@@ -167,3 +167,58 @@ export async function getIDEASpaceEmployeeCount(): Promise<number> {
     return 0;
   }
 }
+
+export async function getOrganizationStructure(): Promise<{
+  departments: Array<{ name: string; spaceId: string; teams: string[] }>;
+  totalDepartments: number;
+  totalTeams: number;
+}> {
+  try {
+    const spacesData = await fetchClickUpJson(`${API_BASE_URL}/team/${TEAM_ID}/space`);
+    const spaces = Array.isArray(spacesData.spaces) ? spacesData.spaces : [];
+
+    const departments = await Promise.all(
+      spaces.map(async (space: any) => {
+        const spaceId = String(space?.id || '');
+        const spaceName = String(space?.name || 'Unnamed');
+
+        let teams: string[] = [];
+        try {
+          const foldersData = await fetchClickUpJson(`${API_BASE_URL}/space/${spaceId}/folder`);
+          const folders = Array.isArray(foldersData.folders) ? foldersData.folders : [];
+          teams = folders
+            .map((folder: any) => String(folder?.name || '').trim())
+            .filter(Boolean)
+            .sort((a, b) => a.localeCompare(b));
+        } catch (error) {
+          console.error(`Failed to fetch folders for space ${spaceName}:`, error);
+        }
+
+        return {
+          name: spaceName,
+          spaceId,
+          teams,
+        };
+      })
+    );
+
+    const filteredDepartments = departments
+      .filter((dept) => dept.name && dept.spaceId)
+      .sort((a, b) => a.name.localeCompare(b.name));
+
+    const totalTeams = filteredDepartments.reduce((sum, dept) => sum + dept.teams.length, 0);
+
+    return {
+      departments: filteredDepartments,
+      totalDepartments: filteredDepartments.length,
+      totalTeams,
+    };
+  } catch (error) {
+    console.error('Failed to fetch organization structure:', error);
+    return {
+      departments: [],
+      totalDepartments: 0,
+      totalTeams: 0,
+    };
+  }
+}

@@ -10,9 +10,18 @@ import toast, { Toaster } from 'react-hot-toast';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Filler, Tooltip, Legend);
 
+type DepartmentSummary = {
+  name: string;
+  spaceId: string;
+  teams: string[];
+};
+
 export default function DashboardHome() {
   const [tasks, setTasks] = useState<ClickUpTask[]>([]);
   const [liveEmployeeCount, setLiveEmployeeCount] = useState<number>(0);
+  const [liveDepartmentCount, setLiveDepartmentCount] = useState<number>(0);
+  const [liveTeamCount, setLiveTeamCount] = useState<number>(0);
+  const [departments, setDepartments] = useState<DepartmentSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [lastSynced, setLastSynced] = useState<Date | null>(null);
   
@@ -25,9 +34,18 @@ export default function DashboardHome() {
       if (data.success) {
         const incomingTasks: ClickUpTask[] = data.data;
         
-        // Update live employee count from backend
+        // Update live organization stats from backend
         if (data.totalEmployees !== undefined) {
           setLiveEmployeeCount(data.totalEmployees);
+        }
+        if (data.totalDepartments !== undefined) {
+          setLiveDepartmentCount(data.totalDepartments);
+        }
+        if (data.totalTeams !== undefined) {
+          setLiveTeamCount(data.totalTeams);
+        }
+        if (Array.isArray(data.departments)) {
+          setDepartments(data.departments);
         }
         
         // Notify for new incoming tasks
@@ -91,8 +109,6 @@ export default function DashboardHome() {
     return () => clearInterval(intervalId);
   }, [fetchDashboardData]);
 
-  const totalDepartments = 4;
-  const totalTeams = 7;
 
   const getDisplayStatus = (statusStr: string) => {
     const s = statusStr.toLowerCase();
@@ -226,7 +242,7 @@ export default function DashboardHome() {
           <div className="absolute inset-x-0 top-0 z-20 h-1 bg-cyan-400 rounded-t-2xl shadow-[0_0_12px_rgba(34,211,238,0.65)]"></div>
           <div className="flex justify-between items-start mb-2">
             <span className="text-3xl font-bold text-slate-800 dark:text-white">
-              {totalDepartments}
+              {loading && departments.length === 0 ? '...' : liveDepartmentCount}
             </span>
             <div className="p-2 bg-cyan-500/15 text-cyan-700 dark:text-cyan-300 rounded-lg">
               <Building2 size={18} />
@@ -239,7 +255,7 @@ export default function DashboardHome() {
           <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-fuchsia-500 to-pink-500 rounded-t-2xl"></div>
           <div className="flex justify-between items-start mb-2">
             <span className="text-3xl font-bold text-slate-800 dark:text-white">
-              {totalTeams}
+              {loading && departments.length === 0 ? '...' : liveTeamCount}
             </span>
             <div className="p-2 bg-fuchsia-500/10 text-fuchsia-600 dark:text-fuchsia-400 rounded-lg">
               <Network size={18} />
