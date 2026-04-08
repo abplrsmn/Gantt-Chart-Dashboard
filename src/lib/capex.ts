@@ -60,7 +60,7 @@ async function fetchClickUpJson(url: string) {
   });
 
   const text = await response.text();
-  let data: any = {};
+  let data: Record<string, unknown> = {};
 
   try {
     data = text ? JSON.parse(text) : {};
@@ -87,7 +87,7 @@ async function loadMappingSeed(): Promise<CapexMappingRow[]> {
   return [];
 }
 
-function extractProgress(task: any): number | undefined {
+function extractProgress(task: { custom_fields?: Array<{ name?: unknown; value?: unknown }> }): number | undefined {
   const fields = Array.isArray(task?.custom_fields) ? task.custom_fields : [];
 
   for (const field of fields) {
@@ -105,7 +105,24 @@ function extractProgress(task: any): number | undefined {
   return undefined;
 }
 
-function extractCustomField(task: any, wanted: string): string | undefined {
+function extractFieldFromText(text: string | undefined, label: string): string | undefined {
+  if (!text) return undefined;
+  const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const regex = new RegExp(`(?:^|\\n)${escaped}:\\s*(.+)`, 'i');
+  const match = text.match(regex);
+  if (!match?.[1]) return undefined;
+  return match[1].trim();
+}
+
+function extractProgressFromText(text: string | undefined): number | undefined {
+  const raw = extractFieldFromText(text, 'Progress');
+  if (!raw) return undefined;
+  const value = Number(raw.replace('%', '').trim());
+  if (Number.isNaN(value)) return undefined;
+  return Math.max(0, Math.min(100, value));
+}
+
+function extractCustomField(task: { custom_fields?: Array<{ name?: unknown; value?: unknown }> }, wanted: string): string | undefined {
   const fields = Array.isArray(task?.custom_fields) ? task.custom_fields : [];
   const lowerWanted = wanted.toLowerCase();
 
@@ -131,21 +148,30 @@ function formatClickUpDate(ms?: string) {
   });
 }
 
-function mapTaskToCapex(task: ClickUpTask & any, seedRow: { no: number; unit: string; name: string }, seedMapping?: CapexMappingRow): CapexProject {
+function mapTaskToCapex(task: ClickUpTask, seedRow: { no: number; unit: string; name: string }, seedMapping?: CapexMappingRow): CapexProject {
   const assignee = Array.isArray(task.assignees) && task.assignees.length > 0 ? task.assignees[0]?.username : undefined;
   const description = typeof task.description === 'string' ? task.description : undefined;
+  const descStart = extractFieldFromText(description, 'Start');
+  const descEnd = extractFieldFromText(description, 'End');
+  const descStatus = extractFieldFromText(description, 'Status');
+  const descPic = extractFieldFromText(description, 'PIC');
+  const descNextAction = extractFieldFromText(description, 'Next Action');
+  const descStatusNote = extractFieldFromText(description, 'Status Note') || extractFieldFromText(description, 'Project Status Note');
+  const fieldProgress = extractProgress(task);
+  const descProgress = extractProgressFromText(description);
+  const computedProgress = fieldProgress ?? descProgress;
 
   return {
     id: seedMapping?.clickupTaskId ? String(seedMapping.clickupTaskId) : String(task.id),
     unit: seedRow.unit,
     name: seedMapping?.clickupTaskName || seedRow.name,
-    start: formatClickUpDate(task.start_date || task.date_created),
-    end: formatClickUpDate(task.due_date),
-    status: task.status?.status || 'OPEN',
-    progress: extractProgress(task),
-    note: extractCustomField(task, 'Status Note') || description,
-    pic: assignee,
-    nextAction: extractCustomField(task, 'Next Action'),
+    start: formatClickUpDate(task.start_date) || descStart || formatClickUpDate(task.date_created),
+    end: formatClickUpDate(task.due_date) || descEnd,
+    status: descStatus || task.status?.status || 'OPEN',
+    progress: computedProgress,
+    note: extractCustomField(task, 'Status Note') || descStatusNote || description,
+    pic: assignee || descPic,
+    nextAction: extractCustomField(task, 'Next Action') || descNextAction,
     url: task.url,
     source: 'clickup',
   };
@@ -153,22 +179,22 @@ function mapTaskToCapex(task: ClickUpTask & any, seedRow: { no: number; unit: st
 
 export async function getCapexProjects(): Promise<CapexProject[]> {
   const spacesData = await fetchClickUpJson(`${API_BASE_URL}/team/${TEAM_ID}/space`);
-  const spaces = Array.isArray(spacesData?.spaces) ? spacesData.spaces : [];
-  const targetSpace = spaces.find((space: any) => String(space?.name || '').trim().toLowerCase() === TARGET_SPACE_NAME.toLowerCase());
+  const spaces = Array.isArray(spacesData?.spaces) ? spacesData.spaces as Array<{ id: string | number; name?: string }> : [];
+  const targetSpace = spaces.find((space) => String(space?.name || '').trim().toLowerCase() === TARGET_SPACE_NAME.toLowerCase());
   if (!targetSpace) {
     throw new Error(`Target space not found: ${TARGET_SPACE_NAME}`);
   }
 
   const listsData = await fetchClickUpJson(`${API_BASE_URL}/space/${targetSpace.id}/list`);
-  const lists = Array.isArray(listsData?.lists) ? listsData.lists : [];
+  const lists = Array.isArray(listsData?.lists) ? listsData.lists as Array<{ id: string | number; name?: string }> : [];
 
-  const targetList = lists.find((list: any) => String(list?.name || '').trim().toLowerCase() === TARGET_LIST_NAME.toLowerCase());
+  const targetList = lists.find((list) => String(list?.name || '').trim().toLowerCase() === TARGET_LIST_NAME.toLowerCase());
   if (!targetList) {
     throw new Error(`Target list not found: ${TARGET_LIST_NAME}`);
   }
 
   const data = await fetchClickUpJson(`${API_BASE_URL}/list/${targetList.id}/task?subtasks=true&include_closed=true`);
-  const tasks: Array<ClickUpTask & any> = Array.isArray(data?.tasks) ? data.tasks : [];
+  const tasks: ClickUpTask[] = Array.isArray(data?.tasks) ? data.tasks as ClickUpTask[] : [];
   const mappingSeed = await loadMappingSeed();
   const mappingByNo = new Map(mappingSeed.map((row) => [row.no, row]));
   const taskByName = new Map(tasks.map((task) => [String(task.name || '').trim().toLowerCase(), task]));

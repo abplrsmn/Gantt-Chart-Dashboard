@@ -1,21 +1,15 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { CalendarRange, Filter, Search } from "lucide-react";
 import {
-  AlertTriangle,
-  CalendarClock,
-  CalendarRange,
-  CheckCircle2,
-  Clock3,
-  DatabaseZap,
-  Filter,
-  RefreshCcw,
-  Search,
-  ShieldAlert,
-  Target,
-  TrendingUp,
-} from "lucide-react";
-import { differenceInCalendarDays, format, isValid, parse } from "date-fns";
+  addDays,
+  differenceInCalendarDays,
+  format,
+  isValid,
+  min,
+  parse,
+} from "date-fns";
 
 type CapexProject = {
   id: string;
@@ -50,14 +44,11 @@ const parseFlexibleDate = (value?: string) => {
 
 const getStatusTone = (status: string) => {
   const s = status.toLowerCase();
-  if (s.includes("done")) {
-    if (s.includes("pending")) return "bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/20";
-    return "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/20";
-  }
-  if (s.includes("on schedule")) return "bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/20";
-  if (s.includes("ongoing")) return "bg-violet-500/15 text-violet-700 dark:text-violet-300 border-violet-500/20";
-  if (s.includes("commenced")) return "bg-cyan-500/15 text-cyan-700 dark:text-cyan-300 border-cyan-500/20";
-  return "bg-slate-500/15 text-slate-700 dark:text-slate-300 border-slate-500/20";
+  if (s.includes("done")) return "bg-cyan-600 text-white";
+  if (s.includes("on schedule")) return "bg-blue-600 text-white";
+  if (s.includes("ongoing")) return "bg-teal-600 text-white";
+  if (s.includes("commenced")) return "bg-sky-600 text-white";
+  return "bg-slate-600 text-white";
 };
 
 const getHealth = (project: CapexProject) => {
@@ -88,10 +79,43 @@ function getDuration(project: CapexProject) {
   return null;
 }
 
-function getDaysToEnd(project: CapexProject) {
-  const endDate = parseFlexibleDate(project.end);
-  if (!endDate) return null;
-  return differenceInCalendarDays(endDate, new Date());
+type GanttRow = {
+  project: CapexProject;
+  startDate: Date;
+  endDate: Date;
+  offset: number;
+  width: number;
+  progressPct?: number;
+};
+
+type WeekBucket = {
+  start: Date;
+  end: Date;
+  monthIndex: number;
+};
+
+const DETAIL_KEYS = ["Source Key", "Unit", "Start", "End", "Status", "Progress", "PIC", "Project Status Note", "Next Action", "Managed by"];
+
+function splitTaskNote(note?: string) {
+  if (!note) return [] as Array<{ label: string; value: string }>;
+
+  const compact = note.replace(/\s+/g, " ").trim();
+  if (!compact) return [];
+
+  const parts = compact.split(/\s(?=(?:Source Key|Unit|Start|End|Status|Progress|PIC|Project Status Note|Next Action|Managed by):)/g);
+
+  return parts
+    .map((part, index) => {
+      const match = part.match(/^([^:]{2,40}):\s*(.+)$/);
+      if (match && DETAIL_KEYS.includes(match[1])) {
+        return { label: match[1], value: match[2] };
+      }
+      if (index === 0) {
+        return { label: "Description", value: part };
+      }
+      return { label: "Info", value: part };
+    })
+    .filter((item) => item.value.length > 0);
 }
 
 export default function CapexGanttMonitor() {
@@ -130,10 +154,10 @@ export default function CapexGanttMonitor() {
           if (!projectsJson?.success && projectsJson?.error) setLoadError(String(projectsJson.error));
           else if (mappingJson?.success && Array.isArray(mappingJson.data) && mappingJson.data.length === 0) setLoadError('mapping.json empty');
         }
-      } catch (error: any) {
+      } catch (error: unknown) {
         if (!active) return;
         setProjects([]);
-        setLoadError(error?.message || 'Failed to load CAPEX projects');
+        setLoadError(error instanceof Error ? error.message : 'Failed to load CAPEX projects');
       } finally {
         if (active) setLoading(false);
       }
@@ -144,18 +168,6 @@ export default function CapexGanttMonitor() {
       active = false;
     };
   }, []);
-
-  const summary = useMemo(() => {
-    const done = projects.filter((p) => getHealth(p) === "Done").length;
-    const onTrack = projects.filter((p) => getHealth(p) === "On Track").length;
-    const atRisk = projects.filter((p) => getHealth(p) === "At Risk").length;
-    const watch = projects.filter((p) => getHealth(p) === "Watch").length;
-    const dueSoon = projects.filter((p) => {
-      const days = getDaysToEnd(p);
-      return days !== null && days >= 0 && days <= 14 && getHealth(p) !== "Done";
-    }).length;
-    return { total: projects.length, done, onTrack, atRisk, watch, dueSoon };
-  }, [projects]);
 
   const filteredProjects = useMemo(() => {
     return projects.filter((project) => {
@@ -170,43 +182,142 @@ export default function CapexGanttMonitor() {
     return filteredProjects.find((p) => p.id === selectedProjectId) || filteredProjects[0] || projects[0];
   }, [projects, filteredProjects, selectedProjectId]);
 
-  const atRiskProjects = useMemo(() => projects.filter((p) => ["At Risk", "Needs Closure", "Watch"].includes(getHealth(p))), [projects]);
-  const dueSoonProjects = useMemo(() => projects.filter((p) => {
-    const days = getDaysToEnd(p);
-    return days !== null && days >= 0 && days <= 14 && getHealth(p) !== "Done";
-  }), [projects]);
+  const summary = useMemo(() => {
+    const done = filteredProjects.filter((p) => getHealth(p) === "Done").length;
+    const active = filteredProjects.length - done;
+    const atRisk = filteredProjects.filter((p) => ["At Risk", "Needs Closure", "Watch"].includes(getHealth(p))).length;
+    return { total: filteredProjects.length, done, active, atRisk };
+  }, [filteredProjects]);
+
+  const unitSummary = useMemo(() => {
+    const grouped = new Map<string, { total: number; done: number; atRisk: number }>();
+
+    for (const project of filteredProjects) {
+      const unit = (project.unit || "UNKNOWN").trim().toUpperCase();
+      const health = getHealth(project);
+      const existing = grouped.get(unit) || { total: 0, done: 0, atRisk: 0 };
+
+      existing.total += 1;
+      if (health === "Done") existing.done += 1;
+      if (["At Risk", "Needs Closure", "Watch"].includes(health)) existing.atRisk += 1;
+      grouped.set(unit, existing);
+    }
+
+    return Array.from(grouped.entries())
+      .map(([unit, values]) => ({ unit, ...values }))
+      .sort((a, b) => a.unit.localeCompare(b.unit));
+  }, [filteredProjects]);
+
+  const timeline = useMemo(() => {
+    const currentYear = new Date().getFullYear();
+    const start = new Date(currentYear, 0, 1);
+    const end = new Date(currentYear, 11, 31);
+    return { start, end };
+  }, []);
+
+  const weekBuckets = useMemo<WeekBucket[]>(() => {
+    const buckets: WeekBucket[] = [];
+    let cursor = timeline.start;
+
+    while (cursor <= timeline.end) {
+      const weekEnd = min([addDays(cursor, 6), timeline.end]);
+      buckets.push({
+        start: cursor,
+        end: weekEnd,
+        monthIndex: cursor.getMonth(),
+      });
+      cursor = addDays(weekEnd, 1);
+    }
+
+    return buckets;
+  }, [timeline]);
+
+  const monthSegments = useMemo(() => {
+    if (weekBuckets.length === 0) return [] as Array<{ label: string; weeks: number; key: string }>;
+
+    const segments: Array<{ label: string; weeks: number; key: string }> = [];
+    let currentMonth = weekBuckets[0].monthIndex;
+    let currentCount = 0;
+
+    for (const bucket of weekBuckets) {
+      if (bucket.monthIndex === currentMonth) {
+        currentCount += 1;
+      } else {
+        segments.push({
+          label: format(new Date(timeline.start.getFullYear(), currentMonth, 1), "MMM"),
+          weeks: currentCount,
+          key: `${currentMonth}-${segments.length}`,
+        });
+        currentMonth = bucket.monthIndex;
+        currentCount = 1;
+      }
+    }
+
+    segments.push({
+      label: format(new Date(timeline.start.getFullYear(), currentMonth, 1), "MMM"),
+      weeks: currentCount,
+      key: `${currentMonth}-${segments.length}`,
+    });
+
+    return segments;
+  }, [timeline, weekBuckets]);
+
+  const todayOffset = useMemo(() => {
+    const totalDays = Math.max(1, differenceInCalendarDays(timeline.end, timeline.start) + 1);
+    const today = new Date();
+    if (today < timeline.start) return 0;
+    if (today > timeline.end) return 100;
+    return (differenceInCalendarDays(today, timeline.start) / totalDays) * 100;
+  }, [timeline]);
+
+  const ganttRows = useMemo<GanttRow[]>(() => {
+    const totalDays = Math.max(1, differenceInCalendarDays(timeline.end, timeline.start) + 1);
+
+    return filteredProjects.map((project) => {
+      const startDate = parseFlexibleDate(project.start) ?? timeline.start;
+      const rawEnd = parseFlexibleDate(project.end);
+      const endDate = rawEnd ?? addDays(startDate, 45);
+      const safeEndDate = endDate < startDate ? addDays(startDate, 15) : endDate;
+
+      const clampedStart = startDate < timeline.start ? timeline.start : startDate;
+      const clampedEnd = safeEndDate > timeline.end ? timeline.end : safeEndDate;
+      const visibleDuration = Math.max(1, differenceInCalendarDays(clampedEnd, clampedStart) + 1);
+      const offset = Math.max(0, (differenceInCalendarDays(clampedStart, timeline.start) / totalDays) * 100);
+      const width = Math.max(1.2, (visibleDuration / totalDays) * 100);
+      const progressPct = typeof project.progress === "number"
+        ? Math.max(0, Math.min(100, project.progress))
+        : undefined;
+
+      return {
+        project,
+        startDate,
+        endDate: safeEndDate,
+        offset,
+        width,
+        progressPct,
+      };
+    });
+  }, [filteredProjects, timeline]);
+
+  const selectedNoteItems = useMemo(() => splitTaskNote(selectedProject?.note), [selectedProject]);
 
   const unresolvedCount = mappingRows.filter((row) => !row.clickupTaskId).length;
   const statusOptions = ["All", "Done", "On Track", "Watch", "At Risk", "Needs Closure", "Monitor"];
 
   return (
-    <div className="space-y-5">
-      <section className="glass-card p-5 space-y-5 overflow-hidden relative">
-        <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-cyan-500 via-blue-500 to-indigo-600 rounded-t-2xl"></div>
+    <div className="space-y-4">
+      <section className="glass-card p-5 space-y-4 overflow-hidden relative">
+        <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-cyan-500 via-blue-500 to-sky-600 rounded-t-2xl"></div>
 
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
           <div>
-            <div className="flex items-center gap-2.5 mb-1">
-              <div className="w-1 h-4 bg-gradient-to-b from-cyan-500 to-blue-600 rounded-full flex-shrink-0"></div>
-              <CalendarRange size={14} className="text-cyan-500" />
-              <h3 className="text-base font-bold text-slate-700 dark:text-gray-200">CAPEX Gantt Monitor</h3>
+            <div className="flex items-center gap-2 mb-1">
+              <CalendarRange size={14} className="text-cyan-600" />
+              <h3 className="text-base font-bold text-slate-800 dark:text-white">CAPEX Gantt Chart</h3>
             </div>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              Simple gantt view from ClickUp tasks.
+              Timeline view from ClickUp data. Click a row to see details.
             </p>
-            <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px]">
-              <span className={`inline-flex rounded-full px-2 py-1 font-semibold ${loading ? 'bg-amber-500/10 text-amber-700 dark:text-amber-300' : 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'}`}>
-                {loading ? 'Syncing ClickUp...' : 'Live source: ClickUp'}
-              </span>
-              <span className={`inline-flex rounded-full px-2 py-1 font-semibold ${unresolvedCount > 0 ? 'bg-rose-500/10 text-rose-700 dark:text-rose-300' : 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'}`}>
-                Mapping unresolved: {unresolvedCount}
-              </span>
-              {loadError && (
-                <span className="inline-flex rounded-full bg-rose-500/10 px-2 py-1 font-semibold text-rose-700 dark:text-rose-300">
-                  Fallback active: {loadError}
-                </span>
-              )}
-            </div>
           </div>
 
           <div className="flex flex-col sm:flex-row gap-2 w-full lg:w-auto">
@@ -215,7 +326,7 @@ export default function CapexGanttMonitor() {
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search project, unit, PIC, or status"
+                placeholder="Search project or PIC"
                 className="w-full rounded-xl border border-slate-200/70 dark:border-white/10 bg-white/70 dark:bg-zinc-900/60 pl-9 pr-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-cyan-500/30"
               />
             </label>
@@ -235,241 +346,192 @@ export default function CapexGanttMonitor() {
         </div>
 
         <div className="flex flex-wrap gap-2 text-[11px]">
-          <button
-            type="button"
-            onClick={async () => {
-              try {
-                setLoading(true);
-                const res = await fetch('/api/capex/mapping', { cache: 'no-store' });
-                const json = await res.json();
-                if (json?.success && Array.isArray(json.data)) setMappingRows(json.data);
-              } finally {
-                setLoading(false);
-              }
-            }}
-            className="inline-flex items-center gap-1 rounded-full border border-slate-200/70 bg-white/70 px-2.5 py-1 font-semibold text-slate-600 hover:bg-white dark:border-white/10 dark:bg-zinc-900/60 dark:text-slate-300"
-          >
-            <RefreshCcw size={12} /> Refresh mapping
-          </button>
-          <a href="/api/capex/mapping" className="inline-flex items-center gap-1 rounded-full border border-slate-200/70 bg-white/70 px-2.5 py-1 font-semibold text-slate-600 hover:bg-white dark:border-white/10 dark:bg-zinc-900/60 dark:text-slate-300">
-            <DatabaseZap size={12} /> Mapping API
-          </a>
+          <span className={`inline-flex rounded-full px-2.5 py-1 font-semibold ${loading ? "bg-amber-500/10 text-amber-700 dark:text-amber-300" : "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"}`}>
+            {loading ? "Syncing ClickUp..." : "Live source: ClickUp"}
+          </span>
+          <span className="inline-flex rounded-full bg-slate-200/70 dark:bg-zinc-800 px-2.5 py-1 font-semibold text-slate-700 dark:text-slate-300">
+            Showing {summary.total} projects
+          </span>
+          <span className="inline-flex rounded-full bg-cyan-500/10 px-2.5 py-1 font-semibold text-cyan-700 dark:text-cyan-300">
+            Done {summary.done}
+          </span>
+          <span className="inline-flex rounded-full bg-blue-500/10 px-2.5 py-1 font-semibold text-blue-700 dark:text-blue-300">
+            Active {summary.active}
+          </span>
+          <span className="inline-flex rounded-full bg-rose-500/10 px-2.5 py-1 font-semibold text-rose-700 dark:text-rose-300">
+            At Risk {summary.atRisk}
+          </span>
+          <span className={`inline-flex rounded-full px-2.5 py-1 font-semibold ${unresolvedCount > 0 ? "bg-rose-500/10 text-rose-700 dark:text-rose-300" : "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"}`}>
+            Mapping unresolved: {unresolvedCount}
+          </span>
+          {loadError && (
+            <span className="inline-flex rounded-full bg-rose-500/10 px-2.5 py-1 font-semibold text-rose-700 dark:text-rose-300">
+              Fallback active: {loadError}
+            </span>
+          )}
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-6 gap-4">
-          <SummaryCard label="Total Projects" value={summary.total} icon={<CalendarRange size={16} />} tone="from-cyan-500 to-blue-500" />
-          <SummaryCard label="Done" value={summary.done} icon={<CheckCircle2 size={16} />} tone="from-emerald-500 to-green-500" />
-          <SummaryCard label="On Track" value={summary.onTrack} icon={<TrendingUp size={16} />} tone="from-blue-500 to-indigo-500" />
-          <SummaryCard label="Watch" value={summary.watch} icon={<Clock3 size={16} />} tone="from-amber-500 to-orange-500" />
-          <SummaryCard label="At Risk" value={summary.atRisk} icon={<AlertTriangle size={16} />} tone="from-rose-500 to-red-500" />
-          <SummaryCard label="Due ≤ 14d" value={summary.dueSoon} icon={<CalendarClock size={16} />} tone="from-fuchsia-500 to-pink-500" />
+        {unitSummary.length > 0 && (
+          <div className="rounded-lg border border-slate-200/70 dark:border-white/10 bg-white/40 dark:bg-zinc-900/40 p-2.5">
+            <p className="mb-2 text-[10px] uppercase tracking-[0.14em] text-slate-400 dark:text-slate-500">Unit Summary</p>
+            <div className="flex flex-wrap gap-2">
+              {unitSummary.map((item) => (
+                <span
+                  key={item.unit}
+                  className="inline-flex items-center rounded-full border border-slate-200/80 dark:border-white/10 bg-slate-50/80 dark:bg-zinc-800/70 px-2.5 py-1 text-[11px] font-medium text-slate-700 dark:text-slate-200"
+                  title={`${item.unit}: total ${item.total}, done ${item.done}, at risk ${item.atRisk}`}
+                >
+                  {item.unit} {item.done}/{item.total}
+                  {item.atRisk > 0 ? ` • risk ${item.atRisk}` : ""}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+      </section>
+
+      <section className="glass-card p-4 overflow-x-auto">
+        <div className="min-w-[1320px]">
+          <div className="grid grid-cols-[260px_1fr] items-center gap-3 pb-2 border-b border-slate-200/60 dark:border-white/10">
+            <div className="rounded-md bg-slate-900 px-3 py-2 text-xs font-bold uppercase tracking-wide text-white">
+              Task List
+            </div>
+            <div className="grid gap-1" style={{ gridTemplateColumns: `repeat(${weekBuckets.length}, minmax(0, 1fr))` }}>
+              {monthSegments.map((segment) => (
+                <div
+                  key={segment.key}
+                  className="rounded-md bg-slate-900 px-2 py-2 text-center text-[11px] font-semibold text-white"
+                  style={{ gridColumn: `span ${segment.weeks} / span ${segment.weeks}` }}
+                >
+                  {segment.label}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-[260px_1fr] items-center gap-3 pt-2 pb-3 border-b border-slate-200/40 dark:border-white/10">
+            <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400 dark:text-slate-500">Week</div>
+            <div className="grid gap-1" style={{ gridTemplateColumns: `repeat(${weekBuckets.length}, minmax(0, 1fr))` }}>
+              {weekBuckets.map((bucket, index) => (
+                <div
+                  key={`${bucket.start.toISOString()}-${index}`}
+                  className="text-center text-[10px] font-medium text-slate-500 dark:text-slate-400"
+                  title={`${format(bucket.start, "dd MMM")} - ${format(bucket.end, "dd MMM yyyy")}`}
+                >
+                  {format(bucket.start, "dd")}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {ganttRows.length === 0 ? (
+            <p className="py-8 text-center text-sm text-slate-500 dark:text-slate-400">No projects match your current filter.</p>
+          ) : (
+            <div className="pt-2 space-y-2.5">
+              {ganttRows.map((row) => {
+                const isSelected = selectedProject?.id === row.project.id;
+                return (
+                  <button
+                    key={row.project.id}
+                    type="button"
+                    onClick={() => setSelectedProjectId(row.project.id)}
+                    className={`w-full grid grid-cols-[260px_1fr] items-center gap-3 rounded-lg px-1 py-1.5 text-left transition-colors ${isSelected ? "bg-cyan-500/10" : "hover:bg-slate-100/60 dark:hover:bg-white/5"}`}
+                  >
+                    <div className="pl-1">
+                      <p className="text-sm font-semibold text-slate-800 dark:text-white truncate">{row.project.name}</p>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+                        {row.project.unit} • {row.project.pic ?? "No PIC"}
+                      </p>
+                    </div>
+
+                    <div className="relative h-9">
+                      <div
+                        className="absolute inset-0 grid"
+                        style={{ gridTemplateColumns: `repeat(${weekBuckets.length}, minmax(0, 1fr))` }}
+                      >
+                        {weekBuckets.map((bucket, index) => (
+                          <div
+                            key={`line-${bucket.start.toISOString()}-${index}`}
+                            className="h-full border-r border-slate-200/60 dark:border-white/10"
+                          ></div>
+                        ))}
+                      </div>
+                      <div className="absolute left-0 right-0 top-1/2 h-[2px] -translate-y-1/2 bg-slate-300/90 dark:bg-white/20"></div>
+                      <div
+                        className="absolute top-0 bottom-0 w-[2px] bg-rose-500/80"
+                        style={{ left: `${todayOffset}%` }}
+                        title={`Today: ${format(new Date(), "dd MMM yyyy")}`}
+                      ></div>
+                      <div
+                        className={`absolute top-1/2 h-6 -translate-y-1/2 rounded-full px-1 text-[10px] font-semibold flex items-center whitespace-nowrap overflow-hidden ${getStatusTone(row.project.status)}`}
+                        style={{ left: `${row.offset}%`, width: `${row.width}%` }}
+                        title={`${format(row.startDate, "dd MMM yyyy")} - ${format(row.endDate, "dd MMM yyyy")}`}
+                      >
+                        {typeof row.progressPct === "number" && (
+                          <div
+                            className="h-full rounded-full bg-black/20"
+                            style={{ width: `${row.progressPct}%` }}
+                          ></div>
+                        )}
+                        <span className="absolute left-3 right-2 truncate">
+                          {typeof row.progressPct === "number" ? `${row.progressPct}%` : "No progress"}
+                        </span>
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
       </section>
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
-        <section className="glass-card p-5 xl:col-span-2">
-          <div className="flex items-center gap-2.5 mb-4">
-            <div className="w-1 h-4 bg-gradient-to-b from-indigo-500 to-blue-600 rounded-full flex-shrink-0"></div>
-            <Target size={14} className="text-indigo-500" />
-            <h3 className="text-base font-bold text-slate-700 dark:text-gray-200">Project Gantt Table</h3>
+      {selectedProject && (
+        <section className="glass-card p-4">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+            <div>
+              <p className="text-sm font-bold text-slate-800 dark:text-white">{selectedProject.name}</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">{selectedProject.unit}</p>
+            </div>
+            <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ${getStatusTone(selectedProject.status)}`}>
+              {selectedProject.status}
+            </span>
           </div>
 
-          <div className="mb-3 rounded-xl border border-slate-200/60 dark:border-white/10 bg-slate-50/70 dark:bg-white/5 px-3 py-2 text-[11px] text-slate-500 dark:text-slate-400">
-            ClickUp tasks only, displayed in spreadsheet row order.
+          <div className="mt-3 grid grid-cols-2 md:grid-cols-5 gap-2.5 text-xs">
+            <MiniInfo label="PIC" value={selectedProject.pic ?? "-"} />
+            <MiniInfo label="Start" value={parseFlexibleDate(selectedProject.start) ? format(parseFlexibleDate(selectedProject.start)!, "dd MMM yyyy") : selectedProject.start ?? "-"} />
+            <MiniInfo label="End" value={parseFlexibleDate(selectedProject.end) ? format(parseFlexibleDate(selectedProject.end)!, "dd MMM yyyy") : selectedProject.end ?? "TBD"} />
+            <MiniInfo label="Duration" value={getDuration(selectedProject) !== null ? `${getDuration(selectedProject)} days` : "Open"} />
+            <MiniInfo label="Risk" value={getRiskReason(selectedProject)} />
           </div>
 
-          <div className="overflow-x-auto scrollbar-border">
-            <table className="min-w-full text-sm">
-              <thead>
-                <tr className="text-left text-[11px] uppercase tracking-[0.14em] text-slate-400 dark:text-slate-500 border-b border-slate-200/60 dark:border-white/10">
-                  <th className="py-3 pr-3">Project</th>
-                  <th className="py-3 pr-3">Start</th>
-                  <th className="py-3 pr-3">End</th>
-                  <th className="py-3 pr-3">Progress</th>
-                  <th className="py-3 pr-3">Status</th>
-                  <th className="py-3 pr-0">Health</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredProjects.map((project) => {
-                  const startDate = parseFlexibleDate(project.start);
-                  const endDate = parseFlexibleDate(project.end);
-                  const health = getHealth(project);
-                  const isSelected = selectedProject?.id === project.id;
-
-                  return (
-                    <tr
-                      key={project.id}
-                      onClick={() => setSelectedProjectId(project.id)}
-                      className={`border-b border-slate-100/80 dark:border-white/5 align-top cursor-pointer transition-colors ${isSelected ? "bg-cyan-500/5 dark:bg-cyan-400/5" : "hover:bg-slate-50/80 dark:hover:bg-white/5"}`}
-                    >
-                      <td className="py-3 pr-3 min-w-64">
-                        <div className="font-semibold text-slate-800 dark:text-white leading-tight">{project.name}</div>
-                        <div className="text-[11px] text-slate-400 dark:text-slate-500 mt-1">{project.unit} • {project.pic ?? "—"}</div>
-                      </td>
-                      <td className="py-3 pr-3 text-slate-600 dark:text-slate-300 whitespace-nowrap">{startDate ? format(startDate, "dd MMM yyyy") : project.start ?? "—"}</td>
-                      <td className="py-3 pr-3 text-slate-600 dark:text-slate-300 whitespace-nowrap">{endDate ? format(endDate, "dd MMM yyyy") : <span className="text-slate-400">TBD</span>}</td>
-                      <td className="py-3 pr-3 min-w-36">
-                        {typeof project.progress === "number" ? (
-                          <div className="space-y-1.5">
-                            <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
-                              <span>{project.progress}%</span>
-                            </div>
-                            <div className="h-2 rounded-full bg-slate-200/70 dark:bg-zinc-800 overflow-hidden">
-                              <div className="h-full rounded-full bg-gradient-to-r from-cyan-500 to-blue-500" style={{ width: `${Math.max(0, Math.min(100, project.progress))}%` }} />
-                            </div>
-                          </div>
-                        ) : (
-                          <span className="text-xs text-slate-400">No progress data</span>
-                        )}
-                      </td>
-                      <td className="py-3 pr-3 max-w-56">
-                        <span className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-bold uppercase leading-tight ${getStatusTone(project.status)}`}>
-                          {project.status}
-                        </span>
-                      </td>
-                      <td className="py-3 pr-0">
-                        <HealthBadge health={health} />
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </section>
-
-        <section className="glass-card p-5 space-y-4">
-          <div className="flex items-center gap-2.5">
-            <div className="w-1 h-4 bg-gradient-to-b from-cyan-500 to-blue-600 rounded-full flex-shrink-0"></div>
-            <ShieldAlert size={14} className="text-cyan-500" />
-            <h3 className="text-base font-bold text-slate-700 dark:text-gray-200">Project Detail</h3>
-          </div>
-
-          {selectedProject ? (
-            <>
-              <div>
-                <h4 className="text-sm font-bold text-slate-800 dark:text-white leading-tight">{selectedProject.name}</h4>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  <span className="inline-flex items-center rounded-lg bg-slate-100 dark:bg-zinc-800 px-2 py-1 text-xs font-semibold text-slate-600 dark:text-slate-300">{selectedProject.unit}</span>
-                  <HealthBadge health={getHealth(selectedProject)} />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3 text-sm">
-                <DetailItem label="PIC" value={selectedProject.pic ?? "—"} />
-                <DetailItem label="Progress" value={typeof selectedProject.progress === "number" ? `${selectedProject.progress}%` : "No data"} />
-                <DetailItem label="Start" value={parseFlexibleDate(selectedProject.start) ? format(parseFlexibleDate(selectedProject.start)!, "dd MMM yyyy") : selectedProject.start || "—"} />
-                <DetailItem label="End" value={parseFlexibleDate(selectedProject.end) ? format(parseFlexibleDate(selectedProject.end)!, "dd MMM yyyy") : selectedProject.end || "TBD"} />
-                <DetailItem label="Duration" value={getDuration(selectedProject) !== null ? `${getDuration(selectedProject)} days` : "Open project"} />
-                <DetailItem label="Risk" value={getRiskReason(selectedProject)} />
-              </div>
-
-              <div className="space-y-2">
-                <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-400 dark:text-slate-500">Sync Note</p>
-                <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">{selectedProject.note ?? "No note recorded."}</p>
-              </div>
-            </>
-          ) : (
-            <p className="text-sm text-slate-500 dark:text-slate-400">Select a project to view detail.</p>
-          )}
-        </section>
-      </div>
-
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
-        <section className="glass-card p-5">
-          <div className="flex items-center gap-2.5 mb-4">
-            <div className="w-1 h-4 bg-gradient-to-b from-rose-500 to-red-600 rounded-full flex-shrink-0"></div>
-            <AlertTriangle size={14} className="text-rose-500" />
-            <h3 className="text-base font-bold text-slate-700 dark:text-gray-200">Risk Queue</h3>
-          </div>
-          <div className="space-y-3">
-            {atRiskProjects.map((project) => (
-              <button
-                key={project.id}
-                onClick={() => setSelectedProjectId(project.id)}
-                className="w-full text-left rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/50 dark:bg-zinc-900/50 px-4 py-3 hover:border-rose-500/30 hover:bg-rose-500/5 transition-colors"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-semibold text-slate-800 dark:text-white">{project.name}</p>
-                    <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{project.unit} • {getRiskReason(project)}</p>
+          <div className="mt-3 rounded-lg border border-slate-200/70 dark:border-white/10 bg-white/40 dark:bg-zinc-900/40 p-3">
+            <p className="text-[10px] uppercase tracking-[0.14em] text-slate-400 dark:text-slate-500">Task Description</p>
+            {selectedNoteItems.length > 0 ? (
+              <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-2">
+                {selectedNoteItems.map((item, index) => (
+                  <div key={`${item.label}-${index}`} className="rounded-md border border-slate-200/60 dark:border-white/10 px-2.5 py-2">
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{item.label}</p>
+                    <p className="mt-1 text-sm leading-relaxed break-words text-slate-700 dark:text-slate-200">{item.value}</p>
                   </div>
-                  <HealthBadge health={getHealth(project)} />
-                </div>
-              </button>
-            ))}
+                ))}
+              </div>
+            ) : (
+              <p className="mt-2 text-sm leading-relaxed break-words text-slate-600 dark:text-slate-300">No task description available.</p>
+            )}
           </div>
         </section>
-
-        <section className="glass-card p-5">
-          <div className="flex items-center gap-2.5 mb-4">
-            <div className="w-1 h-4 bg-gradient-to-b from-fuchsia-500 to-pink-600 rounded-full flex-shrink-0"></div>
-            <CalendarClock size={14} className="text-fuchsia-500" />
-            <h3 className="text-base font-bold text-slate-700 dark:text-gray-200">Due Soon</h3>
-          </div>
-          <div className="space-y-3">
-            {dueSoonProjects.length === 0 ? (
-              <p className="text-sm text-slate-500 dark:text-slate-400">No projects due in the next 14 days.</p>
-            ) : dueSoonProjects.map((project) => (
-              <button
-                key={project.id}
-                onClick={() => setSelectedProjectId(project.id)}
-                className="w-full text-left rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/50 dark:bg-zinc-900/50 px-4 py-3 hover:border-fuchsia-500/30 hover:bg-fuchsia-500/5 transition-colors"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-semibold text-slate-800 dark:text-white">{project.name}</p>
-                    <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{project.unit}</p>
-                  </div>
-                  <span className="inline-flex rounded-full border border-fuchsia-500/20 bg-fuchsia-500/10 px-2.5 py-1 text-[11px] font-bold uppercase text-fuchsia-700 dark:text-fuchsia-300">
-                    {getDaysToEnd(project)}d
-                  </span>
-                </div>
-              </button>
-            ))}
-          </div>
-        </section>
-      </div>
+      )}
     </div>
   );
 }
 
-function SummaryCard({ label, value, icon, tone }: { label: string; value: number; icon: React.ReactNode; tone: string }) {
+function MiniInfo({ label, value }: { label: string; value: string }) {
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-slate-200/50 dark:border-white/10 bg-white/60 dark:bg-zinc-900/60 p-4 backdrop-blur-sm">
-      <div className={`absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r ${tone}`}></div>
-      <div className="mb-3 flex items-center justify-between">
-        <div className="text-slate-500 dark:text-slate-400">{icon}</div>
-        <span className="text-2xl font-bold text-slate-800 dark:text-white">{value}</span>
-      </div>
-      <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{label}</p>
-    </div>
-  );
-}
-
-function HealthBadge({ health }: { health: string }) {
-  const toneMap: Record<string, string> = {
-    Done: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/20",
-    "On Track": "bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/20",
-    Watch: "bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/20",
-    "At Risk": "bg-rose-500/15 text-rose-700 dark:text-rose-300 border-rose-500/20",
-    "Needs Closure": "bg-orange-500/15 text-orange-700 dark:text-orange-300 border-orange-500/20",
-    Monitor: "bg-slate-500/15 text-slate-700 dark:text-slate-300 border-slate-500/20",
-  };
-
-  return (
-    <span className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-bold uppercase ${toneMap[health] || toneMap.Monitor}`}>
-      {health}
-    </span>
-  );
-}
-
-function DetailItem({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/50 dark:bg-zinc-900/50 px-3 py-3">
-      <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-400 dark:text-slate-500">{label}</p>
-      <p className="mt-1 text-sm font-medium text-slate-700 dark:text-slate-200 leading-snug">{value}</p>
+    <div className="rounded-lg border border-slate-200/70 dark:border-white/10 bg-white/60 dark:bg-zinc-900/50 px-2.5 py-2">
+      <p className="text-[10px] uppercase tracking-[0.14em] text-slate-400 dark:text-slate-500">{label}</p>
+      <p className="mt-1 text-sm font-medium text-slate-700 dark:text-slate-200 truncate">{value}</p>
     </div>
   );
 }

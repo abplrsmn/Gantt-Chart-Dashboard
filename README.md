@@ -34,3 +34,28 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+## CAPEX WA Reminder (OpenClaw)
+
+Set environment variables:
+
+```bash
+OPENCLAW_WEBHOOK_URL=https://your-openclaw-webhook
+OPENCLAW_API_KEY=optional_api_key
+```
+
+Send reminder (dry run):
+
+```bash
+curl -X POST http://localhost:3000/api/capex/reminder \
+	-H "Content-Type: application/json" \
+	-d '{"dryRun":true,"daysAhead":7}'
+```
+
+Send to WA group via OpenClaw:
+
+```bash
+curl -X POST http://localhost:3000/api/capex/reminder \
+	-H "Content-Type: application/json" \
+	-d '{"groupId":"your-group-id","daysAhead":7,"includeAtRisk":true}'
+```

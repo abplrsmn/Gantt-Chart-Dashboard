@@ -22,6 +22,11 @@ function normalizeDateInput(input?: string) {
   const iso = text.match(/\b(20\d{2})-(\d{2})-(\d{2})\b/);
   if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
 
+  const dmy = text.match(/\b(\d{1,2})[-\/](\d{1,2})[-\/](20\d{2})\b/);
+  if (dmy) {
+    return `${dmy[3]}-${pad2(dmy[2])}-${pad2(dmy[1])}`;
+  }
+
   const lowered = text.toLowerCase();
   const monthMap: Record<string, string> = {
     januari: '01', january: '01', februari: '02', february: '02', maret: '03', march: '03', april: '04',
@@ -34,6 +39,13 @@ function normalizeDateInput(input?: string) {
     const month = monthMap[named[2].toLowerCase()];
     if (month) return `${named[3]}-${month}-${pad2(named[1])}`;
   }
+
+  const namedWithSeparator = lowered.match(/\b(\d{1,2})[-\/]([a-z]+)[-\/](20\d{2})\b/i);
+  if (namedWithSeparator) {
+    const month = monthMap[namedWithSeparator[2].toLowerCase()];
+    if (month) return `${namedWithSeparator[3]}-${month}-${pad2(namedWithSeparator[1])}`;
+  }
+
   return null;
 }
 
