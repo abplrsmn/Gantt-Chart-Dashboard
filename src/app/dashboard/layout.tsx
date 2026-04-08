@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import AutoRefresh from "@/components/AutoRefresh";
-import { Home, Users, Activity, AlertTriangle, Menu, ChevronRight, Settings2, LogOut, SunMoon , Server } from "lucide-react";
+import { Home, Users, Activity, AlertTriangle, Menu, ChevronRight, Settings2, LogOut, SunMoon , Server, CalendarRange } from "lucide-react";
 
 export default function DashboardLayout({
   children,
@@ -53,6 +53,7 @@ export default function DashboardLayout({
 
   const navItems: Array<{ icon: React.ReactNode; label: string; path: string; badge?: boolean }> = [
     { icon: <Home size={16} />, label: "Home", path: "/dashboard" },
+    { icon: <CalendarRange size={16} />, label: "CAPEX Gantt", path: "/dashboard/capex-gantt" },
     { icon: <Users size={16} />, label: "Team", path: "/dashboard/team" },
     { icon: <Activity size={16} />, label: "Performance", path: "/dashboard/performance" },
     { icon: <AlertTriangle size={16} />, label: "Alerts", path: "/dashboard/alerts" },
@@ -222,7 +223,7 @@ export default function DashboardLayout({
       </aside>
 
       {/* ── MAIN CONTENT ── */}
-      <main className="p-4 w-full max-w-[1260px] mx-auto pb-8">
+      <main className="p-4 w-full max-w-[1560px] mx-auto pb-8">
         {children}
       </main>
     </div>
