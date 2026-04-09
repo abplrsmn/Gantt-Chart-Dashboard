@@ -106,11 +106,24 @@ async function resolveTargetList() {
 }
 
 function buildDescription(row: CapexSeedRow) {
+  const statusLower = row.status.toLowerCase();
+  const inferredPhase = row.phase
+    || (statusLower.includes('done') ? 'done'
+      : statusLower.includes('commenced') || statusLower.includes('ongoing') || statusLower.includes('schedule') ? 'project_management'
+      : 'brief');
+
   const lines = [
     `Source Key: ${row.sourceKey}`,
+    `Hotel Code: ${row.unit}`,
     `Unit: ${row.unit}`,
+    `Phase: ${inferredPhase}`,
     row.start ? `Start: ${row.start}` : null,
     row.end ? `End: ${row.end}` : null,
+    row.milestones?.briefDate ? `Operational Brief Date: ${row.milestones.briefDate}` : null,
+    row.milestones?.designDate ? `Design Approval Date: ${row.milestones.designDate}` : null,
+    row.milestones?.controlDate ? `APS SPK Released: ${row.milestones.controlDate}` : null,
+    row.milestones?.projectManagementDate ? `Commence Date: ${row.milestones.projectManagementDate}` : null,
+    row.milestones?.handoverDate ? `Handover Date: ${row.milestones.handoverDate}` : null,
     `Status: ${row.status}`,
     row.progress !== undefined ? `Progress: ${row.progress}%` : null,
     row.pic ? `PIC: ${row.pic}` : null,

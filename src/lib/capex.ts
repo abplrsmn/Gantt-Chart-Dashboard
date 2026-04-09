@@ -1,4 +1,5 @@
 import { ClickUpTask } from '@/types/clickup';
+import { differenceInCalendarDays, isValid, parse, startOfDay } from 'date-fns';
 
 const API_TOKEN = (process.env.CLICKUP_API_TOKEN || '').trim().replace(/^['"]|['"]$/g, '');
 const TEAM_ID = (process.env.CLICKUP_TEAM_ID || '').trim().replace(/^['"]|['"]$/g, '');
@@ -11,6 +12,7 @@ const MAPPING_API = '/api/capex/mapping';
 export type CapexProject = {
   id: string;
   unit: string;
+  hotelCode: string;
   name: string;
   start?: string;
   end?: string;
@@ -20,7 +22,28 @@ export type CapexProject = {
   pic?: string;
   nextAction?: string;
   url?: string;
+  phase: CapexPhase;
+  deadlineRisk: 'none' | 'normal' | 'near' | 'overdue';
+  blocked: boolean;
+  milestones: CapexMilestones;
   source: 'clickup' | 'seed';
+};
+
+export type CapexPhase =
+  | 'brief'
+  | 'design'
+  | 'control'
+  | 'project_management'
+  | 'handover'
+  | 'done'
+  | 'blocked';
+
+export type CapexMilestones = {
+  briefDate?: string;
+  designDate?: string;
+  controlDate?: string;
+  projectManagementDate?: string;
+  handoverDate?: string;
 };
 
 export type CapexMappingRow = {
@@ -117,9 +140,66 @@ function extractFieldFromText(text: string | undefined, label: string): string |
 function extractProgressFromText(text: string | undefined): number | undefined {
   const raw = extractFieldFromText(text, 'Progress');
   if (!raw) return undefined;
-  const value = Number(raw.replace('%', '').trim());
+  const value = Number(raw.replace('%', '').replace(',', '.').trim());
   if (Number.isNaN(value)) return undefined;
   return Math.max(0, Math.min(100, value));
+}
+
+function parseDateLabel(value?: string): Date | null {
+  if (!value) return null;
+  const formats = ['d MMM yyyy', 'd MMMM yyyy', 'd-MMM-yyyy', 'd-MMMM-yyyy'];
+
+  for (const fmt of formats) {
+    const parsed = parse(value, fmt, new Date());
+    if (isValid(parsed)) return parsed;
+  }
+
+  return null;
+}
+
+function getDeadlineRisk(end?: string): CapexProject['deadlineRisk'] {
+  const endDate = parseDateLabel(end);
+  if (!endDate) return 'none';
+  const daysLeft = differenceInCalendarDays(startOfDay(endDate), startOfDay(new Date()));
+  if (daysLeft < 0) return 'overdue';
+  if (daysLeft <= 14) return 'near';
+  return 'normal';
+}
+
+function getMilestoneDate(task: ClickUpTask, description: string | undefined, labels: string[]): string | undefined {
+  for (const label of labels) {
+    const fromField = extractCustomField(task, label);
+    if (fromField) return fromField;
+    const fromText = extractFieldFromText(description, label);
+    if (fromText) return fromText;
+  }
+  return undefined;
+}
+
+function resolvePhase(input: {
+  status: string;
+  progress?: number;
+  milestones: CapexMilestones;
+  explicitPhase?: string;
+}) : CapexPhase {
+  const explicit = String(input.explicitPhase || '').toLowerCase().trim();
+  if (explicit === 'brief') return 'brief';
+  if (explicit === 'design') return 'design';
+  if (explicit === 'control') return 'control';
+  if (explicit === 'project_management' || explicit === 'project management') return 'project_management';
+  if (explicit === 'handover') return 'handover';
+  if (explicit === 'done' || explicit === 'completed') return 'done';
+  if (explicit === 'blocked') return 'blocked';
+
+  const status = input.status.toLowerCase();
+  const blockedByStatus = status.includes('blocked') || status.includes('pending contract') || status.includes('delay');
+  if (blockedByStatus) return 'blocked';
+  if (status.includes('done') || status.includes('completed') || (input.progress ?? 0) >= 100) return 'done';
+  if (input.milestones.handoverDate || status.includes('handover') || status.includes('bast')) return 'handover';
+  if (input.milestones.projectManagementDate || status.includes('commenced') || status.includes('ongoing') || status.includes('on schedule')) return 'project_management';
+  if (input.milestones.controlDate || status.includes('contract') || status.includes('tender')) return 'control';
+  if (input.milestones.designDate || status.includes('design')) return 'design';
+  return 'brief';
 }
 
 function extractCustomField(task: { custom_fields?: Array<{ name?: unknown; value?: unknown }> }, wanted: string): string | undefined {
@@ -154,25 +234,42 @@ function mapTaskToCapex(task: ClickUpTask, seedRow: { no: number; unit: string; 
   const descStart = extractFieldFromText(description, 'Start');
   const descEnd = extractFieldFromText(description, 'End');
   const descStatus = extractFieldFromText(description, 'Status');
+  const descPhase = extractFieldFromText(description, 'Phase');
   const descPic = extractFieldFromText(description, 'PIC');
   const descNextAction = extractFieldFromText(description, 'Next Action');
   const descStatusNote = extractFieldFromText(description, 'Status Note') || extractFieldFromText(description, 'Project Status Note');
   const fieldProgress = extractProgress(task);
   const descProgress = extractProgressFromText(description);
   const computedProgress = fieldProgress ?? descProgress;
+  const resolvedStatus = descStatus || task.status?.status || 'OPEN';
+  const milestones: CapexMilestones = {
+    briefDate: getMilestoneDate(task, description, ['Operational Brief Date', 'Operational Brief', 'Brief Date', 'Received Date']),
+    designDate: getMilestoneDate(task, description, ['Design Approval Date', 'Design Date', 'Design (HoD)']),
+    controlDate: getMilestoneDate(task, description, ['APS SPK Released', 'Tender Start', 'Project Control Date']),
+    projectManagementDate: getMilestoneDate(task, description, ['Commence Date', 'Project Management Date']),
+    handoverDate: getMilestoneDate(task, description, ['Bast 1', 'Bast 2', 'Handover Date']),
+  };
+  const phase = resolvePhase({ status: resolvedStatus, progress: computedProgress, milestones, explicitPhase: descPhase });
+  const deadlineRisk = getDeadlineRisk(formatClickUpDate(task.due_date) || descEnd);
+  const blocked = phase === 'blocked';
 
   return {
     id: seedMapping?.clickupTaskId ? String(seedMapping.clickupTaskId) : String(task.id),
     unit: seedRow.unit,
+    hotelCode: seedRow.unit,
     name: seedMapping?.clickupTaskName || seedRow.name,
     start: formatClickUpDate(task.start_date) || descStart || formatClickUpDate(task.date_created),
     end: formatClickUpDate(task.due_date) || descEnd,
-    status: descStatus || task.status?.status || 'OPEN',
+    status: resolvedStatus,
     progress: computedProgress,
     note: extractCustomField(task, 'Status Note') || descStatusNote || description,
     pic: assignee || descPic,
     nextAction: extractCustomField(task, 'Next Action') || descNextAction,
     url: task.url,
+    phase,
+    deadlineRisk,
+    blocked,
+    milestones,
     source: 'clickup',
   };
 }
@@ -211,8 +308,13 @@ export async function getCapexProjects(): Promise<CapexProject[]> {
       return {
         id: String(seedMapping?.clickupTaskId || seedRow.no),
         unit: seedRow.unit,
+        hotelCode: seedRow.unit,
         name: seedMapping?.clickupTaskName || seedRow.name,
         status: 'OPEN',
+        phase: 'brief',
+        deadlineRisk: 'none',
+        blocked: false,
+        milestones: {},
         source: 'seed',
       };
     }

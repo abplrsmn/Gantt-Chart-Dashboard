@@ -9,6 +9,14 @@ export type CapexSeedRow = {
   note?: string;
   pic?: string;
   nextAction?: string;
+  phase?: 'brief' | 'design' | 'control' | 'project_management' | 'handover' | 'done' | 'blocked';
+  milestones?: {
+    briefDate?: string;
+    designDate?: string;
+    controlDate?: string;
+    projectManagementDate?: string;
+    handoverDate?: string;
+  };
 };
 
 export const capexSeedRows: CapexSeedRow[] = [

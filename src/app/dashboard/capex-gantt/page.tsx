@@ -1,4 +1,4 @@
-import CapexGanttMonitor from "@/components/dashboard/CapexGanttMonitor";
+import CapexGanttMonitor from "../../../components/dashboard/CapexGanttMonitor";
 
 export default function CapexGanttPage() {
   return (
