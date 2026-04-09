@@ -1,11 +1,13 @@
 import { capexSeedRows, type CapexSeedRow } from '@/lib/capex-seed';
 
-const API_TOKEN = (process.env.CLICKUP_API_TOKEN || '').trim().replace(/^['"]|['"]$/g, '');
-const TEAM_ID = (process.env.CLICKUP_TEAM_ID || '').trim().replace(/^['"]|['"]$/g, '');
+const API_TOKEN = (process.env.CLICKUP_API_TOKEN || '').trim().replace(/^["']|["']$/g, '');
+const TEAM_ID = (process.env.CLICKUP_TEAM_ID || '').trim().replace(/^["']|["']$/g, '');
 const API_BASE_URL = 'https://api.clickup.com/api/v2';
 
 const TARGET_SPACE_NAME = 'Project';
 const TARGET_LIST_NAME = 'CAPEX Gantt 2026';
+
+type CapexMilestoneKey = 'brief' | 'design' | 'control' | 'projectManagement' | 'handover';
 
 function required(name: string, value?: string) {
   if (!value) throw new Error(`Missing ${name}`);
@@ -105,24 +107,48 @@ async function resolveTargetList() {
   };
 }
 
-function buildDescription(row: CapexSeedRow) {
-  const statusLower = row.status.toLowerCase();
-  const inferredPhase = row.phase
-    || (statusLower.includes('done') ? 'done'
-      : statusLower.includes('commenced') || statusLower.includes('ongoing') || statusLower.includes('schedule') ? 'project_management'
-      : 'brief');
+function inferPhase(row: CapexSeedRow): CapexMilestoneKey | 'done' | 'blocked' {
+  if (row.phase) return row.phase;
 
+  const statusLower = row.status.toLowerCase();
+  if (statusLower.includes('done') || statusLower.includes('completed')) return 'done';
+  if (statusLower.includes('blocked') || statusLower.includes('pending')) return 'blocked';
+  if (row.milestones?.handoverDate) return 'handover';
+  if (row.milestones?.projectManagementDate || statusLower.includes('commenced') || statusLower.includes('ongoing') || statusLower.includes('schedule')) return 'projectManagement';
+  if (row.milestones?.controlDate || statusLower.includes('contract') || statusLower.includes('tender')) return 'control';
+  if (row.milestones?.designDate || statusLower.includes('design')) return 'design';
+  return 'brief';
+}
+
+function phaseToLabel(phase: string) {
+  switch (phase) {
+    case 'brief': return 'Operational Brief / PR';
+    case 'design': return 'Design (HoD)';
+    case 'control': return 'Project Control';
+    case 'projectManagement': return 'Project Management Team';
+    case 'handover': return 'Handover';
+    case 'done': return 'Completed';
+    case 'blocked': return 'Blocked';
+    default: return 'Operational Brief / PR';
+  }
+}
+
+function buildDescription(row: CapexSeedRow) {
+  const phase = inferPhase(row);
   const lines = [
+    `CAPEXSYNC::${row.sourceKey}`,
     `Source Key: ${row.sourceKey}`,
     `Hotel Code: ${row.unit}`,
     `Unit: ${row.unit}`,
-    `Phase: ${inferredPhase}`,
+    `Project Name: ${row.name}`,
+    `Phase: ${phase}`,
+    `Phase Label: ${phaseToLabel(phase)}`,
     row.start ? `Start: ${row.start}` : null,
     row.end ? `End: ${row.end}` : null,
     row.milestones?.briefDate ? `Operational Brief Date: ${row.milestones.briefDate}` : null,
     row.milestones?.designDate ? `Design Approval Date: ${row.milestones.designDate}` : null,
-    row.milestones?.controlDate ? `APS SPK Released: ${row.milestones.controlDate}` : null,
-    row.milestones?.projectManagementDate ? `Commence Date: ${row.milestones.projectManagementDate}` : null,
+    row.milestones?.controlDate ? `Project Control Date: ${row.milestones.controlDate}` : null,
+    row.milestones?.projectManagementDate ? `Project Management Date: ${row.milestones.projectManagementDate}` : null,
     row.milestones?.handoverDate ? `Handover Date: ${row.milestones.handoverDate}` : null,
     `Status: ${row.status}`,
     row.progress !== undefined ? `Progress: ${row.progress}%` : null,
@@ -133,6 +159,10 @@ function buildDescription(row: CapexSeedRow) {
   ].filter(Boolean);
 
   return lines.join('\n');
+}
+
+function buildTaskName(row: CapexSeedRow) {
+  return `${row.unit} - ${row.name}`;
 }
 
 function buildTag(row: CapexSeedRow) {
@@ -152,15 +182,17 @@ async function getListTasks(listId: string) {
 
 function findExistingTask(tasks: any[], row: CapexSeedRow) {
   const tag = buildTag(row);
+  const expectedName = buildTaskName(row).trim();
   return tasks.find((task) => {
     const description = String(task?.description || '');
-    return description.includes(tag) || description.includes(`Source Key: ${row.sourceKey}`) || String(task?.name || '').trim() === row.name.trim();
+    const name = String(task?.name || '').trim();
+    return description.includes(tag) || description.includes(`Source Key: ${row.sourceKey}`) || name === expectedName || name === row.name.trim();
   });
 }
 
 async function createTask(listId: string, row: CapexSeedRow) {
   const payload: any = {
-    name: row.name,
+    name: buildTaskName(row),
     description: `${buildTag(row)}\n${buildDescription(row)}`,
     notify_all: false,
     status: mapStatusToClickUp(row.status),
@@ -180,7 +212,7 @@ async function createTask(listId: string, row: CapexSeedRow) {
 
 async function updateTask(taskId: string, row: CapexSeedRow) {
   const payload: any = {
-    name: row.name,
+    name: buildTaskName(row),
     description: `${buildTag(row)}\n${buildDescription(row)}`,
     status: mapStatusToClickUp(row.status),
   };
@@ -196,10 +228,9 @@ async function updateTask(taskId: string, row: CapexSeedRow) {
       method: 'PUT',
       body: JSON.stringify(payload),
     });
-  } catch (error: any) {
-    // Fallback: if status update fails because ClickUp status names differ, update only the safe fields.
+  } catch {
     const fallbackPayload = {
-      name: row.name,
+      name: buildTaskName(row),
       description: `${buildTag(row)}\n${buildDescription(row)}`,
       due_date: dueDate,
       start_date: startDate,

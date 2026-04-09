@@ -1,8 +1,15 @@
 import { ClickUpTask } from '@/types/clickup';
 
-const API_TOKEN = (process.env.CLICKUP_API_TOKEN || '').trim().replace(/^['"]|['"]$/g, '');
-const TEAM_ID = (process.env.CLICKUP_TEAM_ID || '').trim().replace(/^['"]|['"]$/g, '');
+const API_TOKEN = (process.env.CLICKUP_API_TOKEN || process.env.NEXT_PUBLIC_CLICKUP_API_TOKEN || 'pk_306777589_IE1K6WMOKBZ7EP1MNTDY8MELGG9TS61V').trim().replace(/^['"]|['"]$/g, '');
+const TEAM_ID = (process.env.CLICKUP_TEAM_ID || '90182505447').trim().replace(/^['"]|['"]$/g, '');
 const API_BASE_URL = 'https://api.clickup.com/api/v2';
+
+const DEPARTMENT_SPACE_IDS = [
+  { name: 'IDEA', spaceId: '901810204419' },
+  { name: 'Marketing', spaceId: '901810204420' },
+  { name: 'Finance', spaceId: '901810204444' },
+  { name: 'HR', spaceId: '901810204446' },
+];
 
 function isAuthOrConfigError(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error);
@@ -44,26 +51,61 @@ async function fetchClickUpJson(url: string) {
   return data;
 }
 
+function decorateTasks(tasks: ClickUpTask[]) {
+  return tasks.map((task) => {
+    let assignedDept = 'General';
+    const spaceId = (task as any).space?.id;
+    if (spaceId === '901810204419') assignedDept = 'IDEA';
+    else if (spaceId === '901810204420') assignedDept = 'Marketing';
+    else if (spaceId === '901810204444') assignedDept = 'Finance';
+    else if (spaceId === '901810204446') assignedDept = 'HR';
+
+    return { ...task, department: assignedDept };
+  });
+}
+
+async function fetchAllTasksBySpace() {
+  const teamId = TEAM_ID;
+  const collected: ClickUpTask[] = [];
+
+  for (const dept of DEPARTMENT_SPACE_IDS) {
+    let page = 0;
+    while (true) {
+      const data = await fetchClickUpJson(
+        `${API_BASE_URL}/team/${teamId}/task?space_ids[]=${dept.spaceId}&page=${page}&include_closed=true&subtasks=true`
+      );
+      const tasks: ClickUpTask[] = Array.isArray(data?.tasks) ? data.tasks as ClickUpTask[] : [];
+      if (tasks.length === 0) break;
+      collected.push(...tasks);
+      if (!data.last_page) break;
+      page += 1;
+    }
+  }
+
+  return collected;
+}
+
 export async function getTasks(): Promise<ClickUpTask[]> {
   try {
     const data = await fetchClickUpJson(`${API_BASE_URL}/team/${TEAM_ID}/task?subtasks=true&include_closed=true`);
-    let tasks: ClickUpTask[] = data.tasks || [];
+    const tasks: ClickUpTask[] = Array.isArray(data.tasks) ? data.tasks as ClickUpTask[] : [];
+    if (tasks.length > 0) return decorateTasks(tasks);
 
-    tasks = tasks.map((task) => {
-      let assignedDept = 'General';
-      const spaceId = (task as any).space?.id;
-      if (spaceId === '901810204419') assignedDept = 'IDEA';
-      else if (spaceId === '901810204420') assignedDept = 'Marketing';
-      else if (spaceId === '901810204444') assignedDept = 'Finance';
-      else if (spaceId === '901810204446') assignedDept = 'HR';
-      
-      return { ...task, department: assignedDept };
-    });
-
-    return tasks;
+    const fallbackTasks = await fetchAllTasksBySpace();
+    return decorateTasks(fallbackTasks);
   } catch (error) {
     console.error('Failed to fetch tasks:', error);
-    return [];
+    if (isAuthOrConfigError(error)) {
+      throw error;
+    }
+
+    try {
+      const fallbackTasks = await fetchAllTasksBySpace();
+      return decorateTasks(fallbackTasks);
+    } catch (fallbackError) {
+      console.error('Failed to fetch tasks with fallback:', fallbackError);
+      throw fallbackError;
+    }
   }
 }
 
@@ -115,7 +157,6 @@ export async function getTeamMembers(teamName: string): Promise<any[]> {
       });
     };
 
-    // Try folder-level member payload first when available.
     try {
       const folderData = await fetchClickUpJson(`${API_BASE_URL}/folder/${targetFolder.id}`);
       const folderMembers = folderData.members || [];
@@ -124,7 +165,6 @@ export async function getTeamMembers(teamName: string): Promise<any[]> {
       // Continue with list members fallback.
     }
 
-    // Aggregate list members from all lists under the folder.
     const listsData = await fetchClickUpJson(`${API_BASE_URL}/folder/${targetFolder.id}/list`);
     const lists = listsData.lists || [];
     for (const list of lists) {
@@ -136,8 +176,6 @@ export async function getTeamMembers(teamName: string): Promise<any[]> {
         // Ignore list without accessible member payload.
       }
     }
-
-
 
     return Array.from(normalizedMembers.values()).sort((a, b) =>
       a.name.localeCompare(b.name)
@@ -151,16 +189,10 @@ export async function getTeamMembers(teamName: string): Promise<any[]> {
   }
 }
 
-/**
- * Update: Mengambil jumlah karyawan TOTAL di seluruh Workspace (Team) Aryaduta.
- * Karena data member per Space seringkali tidak update via API ClickUp.
- */
 export async function getIDEASpaceEmployeeCount(): Promise<number> {
   try {
     const data = await fetchClickUpJson(`${API_BASE_URL}/team`);
     const members = data.teams?.[0]?.members || [];
-    
-    // Kita tampilkan jumlah total orang yang sudah join di Workspace Mas Abraham
     return members.length;
   } catch (error) {
     console.error('Failed to fetch workspace members:', error);

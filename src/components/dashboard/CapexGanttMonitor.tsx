@@ -637,13 +637,13 @@ export default function CapexGanttMonitor() {
       </section>
 
       {selectedProject && (
-        <section className="glass-card p-4 space-y-3">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+        <section className="glass-card p-4 space-y-4">
+          <div className="flex flex-col gap-2">
             <div>
-              <p className="text-sm font-bold text-slate-800 dark:text-white">{selectedProject.name}</p>
+              <p className="text-sm font-bold text-slate-800 dark:text-white break-words">{selectedProject.name}</p>
               <p className="text-xs text-slate-500 dark:text-slate-400">Hotel: {(selectedProject.hotelCode || selectedProject.unit || "UNKNOWN").toUpperCase()}</p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ${getPhaseTone(selectedProject.phase || "brief")}`}>
                 {getPhaseLabel(selectedProject.phase || "brief")}
               </span>
@@ -653,7 +653,7 @@ export default function CapexGanttMonitor() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-2.5 text-xs">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-2.5 text-xs">
             <MiniInfo label="PIC" value={selectedProject.pic || "-"} />
             <MiniInfo label="Start" value={selectedProject.start || "-"} />
             <MiniInfo label="End" value={selectedProject.end || "TBD"} />
@@ -663,7 +663,7 @@ export default function CapexGanttMonitor() {
 
           <div className="rounded-lg border border-slate-200/70 dark:border-white/10 bg-white/40 dark:bg-zinc-900/40 p-3">
             <p className="text-[10px] uppercase tracking-[0.14em] text-slate-400 dark:text-slate-500">Milestone Ladder Summary</p>
-            <div className="mt-2 grid grid-cols-1 md:grid-cols-5 gap-2">
+            <div className="mt-2 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-2">
               {milestoneLadder.map((step, index) => {
                 const doneState = (selectedProject.phase || "brief") === "done" || index < activePhaseIndex;
                 const currentState = (selectedProject.phase || "brief") !== "done" && index === activePhaseIndex;
@@ -672,10 +672,10 @@ export default function CapexGanttMonitor() {
                 return (
                   <div
                     key={step.key}
-                    className={`rounded-md border px-2.5 py-2 ${doneState ? "border-emerald-500/30 bg-emerald-500/10" : currentState ? "border-cyan-500/30 bg-cyan-500/10" : "border-slate-200/70 dark:border-white/10 bg-white/50 dark:bg-zinc-900/40"}`}
+                    className={`rounded-md border px-3 py-2 ${doneState ? "border-emerald-500/30 bg-emerald-500/10" : currentState ? "border-cyan-500/30 bg-cyan-500/10" : "border-slate-200/70 dark:border-white/10 bg-white/50 dark:bg-zinc-900/40"}`}
                   >
-                    <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{step.label}</p>
-                    <p className="mt-1 text-xs text-slate-700 dark:text-slate-200">{stepDate}</p>
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 break-words">{step.label}</p>
+                    <p className="mt-1 text-xs text-slate-700 dark:text-slate-200 tabular-nums">{stepDate}</p>
                   </div>
                 );
               })}
@@ -685,11 +685,11 @@ export default function CapexGanttMonitor() {
           <div className="rounded-lg border border-slate-200/70 dark:border-white/10 bg-white/40 dark:bg-zinc-900/40 p-3">
             <p className="text-[10px] uppercase tracking-[0.14em] text-slate-400 dark:text-slate-500">Task Notes</p>
             {selectedNoteItems.length > 0 ? (
-              <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-2">
+              <div className="mt-2 grid grid-cols-1 xl:grid-cols-2 gap-2">
                 {selectedNoteItems.map((item, index) => (
-                  <div key={`${item.label}-${index}`} className="rounded-md border border-slate-200/60 dark:border-white/10 px-2.5 py-2">
-                    <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{item.label}</p>
-                    <p className="mt-1 text-sm leading-relaxed break-words text-slate-700 dark:text-slate-200">{item.value}</p>
+                  <div key={`${item.label}-${index}`} className="rounded-md border border-slate-200/60 dark:border-white/10 px-3 py-2">
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 break-words">{item.label}</p>
+                    <p className="mt-1 text-sm leading-relaxed break-words text-slate-700 dark:text-slate-200 whitespace-pre-wrap">{item.value}</p>
                   </div>
                 ))}
               </div>
