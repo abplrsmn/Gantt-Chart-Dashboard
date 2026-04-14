@@ -59,6 +59,10 @@ function buildProjectDescription(fields: Record<string, string>, originalText: s
   return rows.join('\n');
 }
 
+function escapeRegex(input: string) {
+  return input.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -72,7 +76,11 @@ export async function POST(request: Request) {
     if (projectFields) {
       const baseTitle = projectFields.title || projectFields.project || projectFields.task || '';
       const unit = (projectFields.unit || '').trim();
-      const taskName = unit ? `${unit} - ${baseTitle}` : baseTitle;
+      const normalizedTitle = baseTitle.trim();
+      const hasUnitPrefix =
+        !!unit &&
+        new RegExp(`^${escapeRegex(unit)}\\s*(?:-|:|\\|)`, 'i').test(normalizedTitle);
+      const taskName = unit && !hasUnitPrefix ? `${unit} - ${normalizedTitle}` : normalizedTitle;
 
       if (!taskName.trim()) {
         return NextResponse.json({ success: false, error: 'PROJECT command is missing title' }, { status: 400 });
