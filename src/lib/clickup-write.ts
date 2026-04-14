@@ -1,6 +1,15 @@
 const API_TOKEN = (process.env.CLICKUP_API_TOKEN || '').trim().replace(/^['"]|['"]$/g, '');
 const TEAM_ID = (process.env.CLICKUP_TEAM_ID || '').trim().replace(/^['"]|['"]$/g, '');
 const API_BASE_URL = 'https://api.clickup.com/api/v2';
+const CAPEX_TARGET_SPACE_NAME = (process.env.CAPEX_TARGET_SPACE_NAME || 'Project').trim();
+const CAPEX_TARGET_LIST_NAME = (process.env.CAPEX_TARGET_LIST_NAME || 'CAPEX Gantt 2026').trim();
+
+type ClickUpTargetList = {
+  spaceId: string;
+  spaceName: string;
+  listId: string;
+  listName: string;
+};
 
 function required(name: string, value?: string) {
   if (!value) throw new Error(`Missing ${name}`);
@@ -167,6 +176,37 @@ export async function resolveTeamList(teamName?: string) {
   return null;
 }
 
+async function resolveListBySpaceAndList(spaceName: string, listName: string): Promise<ClickUpTargetList> {
+  const spacesData = await fetchClickUp(`${API_BASE_URL}/team/${TEAM_ID}/space`);
+  const spaces = Array.isArray(spacesData?.spaces) ? spacesData.spaces : [];
+  const targetSpace = spaces.find(
+    (space: { id?: string | number; name?: string }) =>
+      String(space?.name || '').trim().toLowerCase() === spaceName.trim().toLowerCase()
+  );
+
+  if (!targetSpace) {
+    throw new Error(`Target space not found: ${spaceName}`);
+  }
+
+  const listsData = await fetchClickUp(`${API_BASE_URL}/space/${targetSpace.id}/list`);
+  const lists = Array.isArray(listsData?.lists) ? listsData.lists : [];
+  const targetList = lists.find(
+    (list: { id?: string | number; name?: string }) =>
+      String(list?.name || '').trim().toLowerCase() === listName.trim().toLowerCase()
+  );
+
+  if (!targetList) {
+    throw new Error(`Target list not found: ${listName}`);
+  }
+
+  return {
+    spaceId: String(targetSpace.id),
+    spaceName: String(targetSpace.name),
+    listId: String(targetList.id),
+    listName: String(targetList.name),
+  };
+}
+
 export async function createTaskInTeam(input: {
   teamName: string;
   taskName: string;
@@ -204,6 +244,51 @@ export async function createTaskInTeam(input: {
   return {
     task: data,
     target: teamList,
+    assigneeId,
+  };
+}
+
+export async function createTaskInCapexProjectList(input: {
+  taskName: string;
+  description?: string;
+  dueDate?: string;
+  startDate?: string;
+  assigneeNameOrEmail?: string;
+}) {
+  const targetList = await resolveListBySpaceAndList(CAPEX_TARGET_SPACE_NAME, CAPEX_TARGET_LIST_NAME);
+  const assigneeId = await resolveAssigneeId(input.assigneeNameOrEmail);
+
+  const payload: {
+    name: string;
+    description?: string;
+    notify_all: boolean;
+    due_date?: number;
+    start_date?: number;
+    assignees?: number[];
+  } = {
+    name: input.taskName,
+    description: input.description || undefined,
+    notify_all: true,
+  };
+
+  const dueMs = normalizeDateTimeToJakartaMs(input.dueDate);
+  if (!Number.isNaN(Number(dueMs)) && dueMs) payload.due_date = dueMs;
+
+  const startMs = normalizeDateTimeToJakartaMs(input.startDate);
+  if (!Number.isNaN(Number(startMs)) && startMs) payload.start_date = startMs;
+
+  if (assigneeId) {
+    payload.assignees = [Number(assigneeId)];
+  }
+
+  const data = await fetchClickUp(`${API_BASE_URL}/list/${targetList.listId}/task`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+
+  return {
+    task: data,
+    target: targetList,
     assigneeId,
   };
 }

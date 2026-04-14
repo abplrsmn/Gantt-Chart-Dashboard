@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { parseOpsIntent } from '@/lib/ops-intent';
-import { createTaskInTeam } from '@/lib/clickup-write';
+import { createTaskInCapexProjectList, createTaskInTeam } from '@/lib/clickup-write';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,6 +11,54 @@ function normalizeGroupTeam(groupName?: string | null) {
   return null;
 }
 
+function parseProjectPipeCommand(text: string) {
+  const markerIndex = text.toUpperCase().indexOf('PROJECT |');
+  if (markerIndex < 0) return null;
+
+  const cleaned = text
+    .slice(markerIndex)
+    .replace(/```/g, ' ')
+    .replace(/[\r\n]+/g, ' ')
+    .trim();
+
+  if (!cleaned.toUpperCase().startsWith('PROJECT |')) return null;
+
+  const pairs = cleaned.split('|').slice(1);
+  const fields: Record<string, string> = {};
+
+  for (const pair of pairs) {
+    const match = pair.match(/^\s*([A-Za-z0-9 _-]+)\s*=\s*(.*?)\s*$/);
+    if (!match) continue;
+    const key = match[1].trim().toLowerCase().replace(/\s+/g, '_');
+    const value = match[2].trim();
+    if (!value) continue;
+    fields[key] = value;
+  }
+
+  if (!fields.title && !fields.project && !fields.task) return null;
+  return fields;
+}
+
+function buildProjectDescription(fields: Record<string, string>, originalText: string) {
+  const rows = [
+    'SOURCE: OPS_PROJECT_COMMAND',
+    fields.folder ? `Folder: ${fields.folder}` : null,
+    fields.unit ? `Unit: ${fields.unit}` : null,
+    fields.status ? `Status: ${fields.status}` : null,
+    fields.progress ? `Progress: ${fields.progress}` : null,
+    fields.pic ? `PIC: ${fields.pic}` : null,
+    fields.start ? `Start: ${fields.start}` : null,
+    fields.end ? `End: ${fields.end}` : null,
+    fields.note ? `Status Note: ${fields.note}` : null,
+    fields.next_action ? `Next Action: ${fields.next_action}` : null,
+    '',
+    'Original Command:',
+    originalText,
+  ].filter(Boolean);
+
+  return rows.join('\n');
+}
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -18,6 +66,39 @@ export async function POST(request: Request) {
 
     if (!text) {
       return NextResponse.json({ success: false, error: 'text is required' }, { status: 400 });
+    }
+
+    const projectFields = parseProjectPipeCommand(text);
+    if (projectFields) {
+      const baseTitle = projectFields.title || projectFields.project || projectFields.task || '';
+      const unit = (projectFields.unit || '').trim();
+      const taskName = unit ? `${unit} - ${baseTitle}` : baseTitle;
+
+      if (!taskName.trim()) {
+        return NextResponse.json({ success: false, error: 'PROJECT command is missing title' }, { status: 400 });
+      }
+
+      const result = await createTaskInCapexProjectList({
+        taskName,
+        description: buildProjectDescription(projectFields, text),
+        dueDate: projectFields.end || projectFields.due,
+        startDate: projectFields.start,
+        assigneeNameOrEmail: projectFields.pic,
+      });
+
+      return NextResponse.json({
+        success: true,
+        executed: true,
+        mode: 'project-command',
+        parsed: projectFields,
+        task: {
+          id: result.task?.id,
+          name: result.task?.name,
+          url: result.task?.url,
+        },
+        target: result.target,
+        assigneeId: result.assigneeId,
+      });
     }
 
     const plan = parseOpsIntent(text);
