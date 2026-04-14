@@ -3,7 +3,7 @@
 import { ClickUpTask } from '@/types/clickup';
 import { Doughnut } from 'react-chartjs-2';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
-import { useTheme } from 'next-themes';
+import { useTheme } from '@/components/ThemeProvider';
 
 ChartJS.register(ArcElement, Tooltip, Legend);
 
@@ -12,7 +12,7 @@ interface DeptPerformanceChartProps {
 }
 
 export default function DeptPerformanceChart({ tasks }: DeptPerformanceChartProps) {
-  const { theme } = useTheme();
+  const { resolvedTheme } = useTheme();
   
   // Hitung jumlah task per departemen
   const deptCounts: Record<string, number> = {
@@ -76,7 +76,7 @@ export default function DeptPerformanceChart({ tasks }: DeptPerformanceChartProp
       legend: {
         position: 'bottom' as const,
         labels: {
-          color: theme === 'dark' ? '#D1D5DB' : '#374151',
+          color: resolvedTheme === 'dark' ? '#D1D5DB' : '#374151',
           padding: 20,
           font: {
             family: "'Geist', sans-serif",
@@ -89,16 +89,16 @@ export default function DeptPerformanceChart({ tasks }: DeptPerformanceChartProp
       },
       tooltip: {
         callbacks: {
-          label: function(context: any) {
+          label: function(context: { raw?: number; label?: string }) {
             const value = context.raw || 0;
             const percentage = Math.round((value / totalMappedTasks) * 100);
             return ` ${context.label}: ${value} Tasks (${percentage}%)`;
           }
         },
-        backgroundColor: theme === 'dark' ? '#222' : '#fff',
-        titleColor: theme === 'dark' ? '#fff' : '#111',
-        bodyColor: theme === 'dark' ? '#ccc' : '#444',
-        borderColor: theme === 'dark' ? '#333' : '#e5e7eb',
+        backgroundColor: resolvedTheme === 'dark' ? '#222' : '#fff',
+        titleColor: resolvedTheme === 'dark' ? '#fff' : '#111',
+        bodyColor: resolvedTheme === 'dark' ? '#ccc' : '#444',
+        borderColor: resolvedTheme === 'dark' ? '#333' : '#e5e7eb',
         borderWidth: 1,
         padding: 12,
         boxPadding: 6,

@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { ClickUpTask } from "@/types/clickup";
 import toast, { Toaster } from "react-hot-toast";
 import { Bell, CheckCircle2, Clock } from "lucide-react";
-import { useTheme } from "next-themes";
+import { useTheme } from "@/components/ThemeProvider";
 
 interface ToastNotifierProps {
   tasks: ClickUpTask[];
@@ -12,16 +12,9 @@ interface ToastNotifierProps {
 
 export default function ToastNotifier({ tasks }: ToastNotifierProps) {
   const prevTasksRef = useRef<Record<string, ClickUpTask>>({});
-  const [mounted, setMounted] = useState(false);
-  const { theme } = useTheme();
+  const { resolvedTheme } = useTheme();
 
   useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  useEffect(() => {
-    if (!mounted) return;
-
     const currentTasksMap: Record<string, ClickUpTask> = {};
     tasks.forEach((t) => {
       currentTasksMap[t.id] = t;
@@ -37,7 +30,7 @@ export default function ToastNotifier({ tasks }: ToastNotifierProps) {
         // 1. Task Baru Dibuat
         if (!prevTask) {
           toast(
-            (t) => (
+            () => (
               <div className="flex items-start gap-3">
                 <div className="p-2 bg-indigo-50 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 rounded-full mt-0.5">
                   <Bell size={18} />
@@ -58,7 +51,7 @@ export default function ToastNotifier({ tasks }: ToastNotifierProps) {
           
           if (newStatus === "complete" || newStatus === "closed" || newStatus === "done") {
             toast(
-              (t) => (
+              () => (
                 <div className="flex items-start gap-3">
                   <div className="p-2 bg-emerald-50 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 rounded-full mt-0.5">
                     <CheckCircle2 size={18} />
@@ -73,7 +66,7 @@ export default function ToastNotifier({ tasks }: ToastNotifierProps) {
             );
           } else if (newStatus === "in progress" || task.status.type === "custom") {
             toast(
-              (t) => (
+              () => (
                 <div className="flex items-start gap-3">
                   <div className="p-2 bg-[#C29047]/10 text-[#C29047] dark:text-[#E0AD65] rounded-full mt-0.5">
                     <Clock size={18} />
@@ -93,9 +86,7 @@ export default function ToastNotifier({ tasks }: ToastNotifierProps) {
 
     // Update prev tasks reference
     prevTasksRef.current = currentTasksMap;
-  }, [tasks, mounted]);
-
-  if (!mounted) return null;
+  }, [tasks]);
 
   return (
     <Toaster 
@@ -103,9 +94,9 @@ export default function ToastNotifier({ tasks }: ToastNotifierProps) {
       toastOptions={{
         className: 'dark:bg-[#111] dark:text-white dark:border-gray-800 border',
         style: {
-          background: theme === 'dark' ? '#161616' : '#fff',
-          color: theme === 'dark' ? '#fff' : '#111',
-          border: theme === 'dark' ? '1px solid #222' : '1px solid #eaeaea',
+          background: resolvedTheme === 'dark' ? '#161616' : '#fff',
+          color: resolvedTheme === 'dark' ? '#fff' : '#111',
+          border: resolvedTheme === 'dark' ? '1px solid #222' : '1px solid #eaeaea',
           boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
           borderRadius: '0.75rem',
           maxWidth: '400px',
