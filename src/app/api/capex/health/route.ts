@@ -15,6 +15,13 @@ export async function GET() {
   try {
     const target = await resolveAnyTargetListByName({
       listName: DEFAULT_LIST,
+      candidates: [
+        DEFAULT_LIST,
+        'CAPEX Gantt',
+        'CAPEX',
+        'CAPEX Gantt 2025',
+        'CAPEX Gantt 2024',
+      ],
       spaceName: DEFAULT_SPACE,
     });
 

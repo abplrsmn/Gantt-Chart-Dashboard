@@ -118,6 +118,13 @@ async function loadMappingSeed(): Promise<CapexMappingRow[]> {
 async function resolveCapexTargetList() {
   return resolveAnyTargetListByName({
     listName: TARGET_LIST_NAME,
+    candidates: [
+      TARGET_LIST_NAME,
+      'CAPEX Gantt',
+      'CAPEX',
+      'CAPEX Gantt 2025',
+      'CAPEX Gantt 2024',
+    ],
     spaceName: TARGET_SPACE_NAME,
   });
 }

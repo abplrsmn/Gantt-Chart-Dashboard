@@ -229,11 +229,18 @@ export async function resolveTargetList(input: ResolveTargetInput): Promise<Clic
 export async function resolveAnyTargetListByName(input: {
   listName: string;
   spaceName?: string;
+  candidates?: string[];
 }): Promise<ClickUpTargetList> {
   const listName = normalizeSelector(input.listName);
   const preferredSpaceName = normalizeSelector(input.spaceName);
+  const candidateNames = Array.from(
+    new Set([
+      listName,
+      ...(input.candidates || []),
+    ].map((name) => normalizeSelector(name)).filter(Boolean) as string[])
+  );
 
-  if (!listName) {
+  if (!candidateNames.length) {
     throw new Error('listName is required');
   }
 
@@ -245,44 +252,36 @@ export async function resolveAnyTargetListByName(input: {
   const searchSpaces = preferredSpaces.length > 0 ? preferredSpaces : spaces;
   const matches: ClickUpTargetList[] = [];
 
-  for (const space of searchSpaces) {
-    const directLists = await getSpaceLists(String(space.id));
-    const directMatch = directLists.find((list: { name?: string }) => sameName(list?.name, listName));
-    if (directMatch) {
-      matches.push(asTargetList({ space, list: directMatch }));
-    }
-
-    const folders = await getSpaceFolders(String(space.id));
-    for (const folder of folders) {
-      const folderLists = Array.isArray(folder?.lists) ? folder.lists : await getFolderLists(String(folder.id));
-      const folderMatch = folderLists.find((list: { name?: string }) => sameName(list?.name, listName));
-      if (folderMatch) {
-        matches.push(asTargetList({ space, folder, list: folderMatch }));
-      }
-    }
-  }
-
-  if (matches.length === 0 && preferredSpaces !== spaces) {
-    for (const space of spaces) {
+  const scanSpaces = async (scanSpacesInput: typeof spaces) => {
+    for (const space of scanSpacesInput) {
       const directLists = await getSpaceLists(String(space.id));
-      const directMatch = directLists.find((list: { name?: string }) => sameName(list?.name, listName));
-      if (directMatch) {
-        matches.push(asTargetList({ space, list: directMatch }));
+      for (const candidate of candidateNames) {
+        const directMatch = directLists.find((list: { name?: string }) => sameName(list?.name, candidate));
+        if (directMatch) {
+          matches.push(asTargetList({ space, list: directMatch }));
+        }
       }
 
       const folders = await getSpaceFolders(String(space.id));
       for (const folder of folders) {
         const folderLists = Array.isArray(folder?.lists) ? folder.lists : await getFolderLists(String(folder.id));
-        const folderMatch = folderLists.find((list: { name?: string }) => sameName(list?.name, listName));
-        if (folderMatch) {
-          matches.push(asTargetList({ space, folder, list: folderMatch }));
+        for (const candidate of candidateNames) {
+          const folderMatch = folderLists.find((list: { name?: string }) => sameName(list?.name, candidate));
+          if (folderMatch) {
+            matches.push(asTargetList({ space, folder, list: folderMatch }));
+          }
         }
       }
     }
+  };
+
+  await scanSpaces(searchSpaces);
+  if (matches.length === 0 && preferredSpaces.length > 0) {
+    await scanSpaces(spaces);
   }
 
   if (matches.length === 0) {
-    throw new Error(`Target list not found: ${listName}${preferredSpaceName ? ` under space "${preferredSpaceName}"` : ''}`);
+    throw new Error(`Target list not found: ${candidateNames.join(' | ')}${preferredSpaceName ? ` under space "${preferredSpaceName}"` : ''}`);
   }
 
   return pickPreferredTarget(matches);
