@@ -10,5 +10,13 @@ const nextConfig: any = { // Ubah tipe dari NextConfig ke any buat sementara
       allowedOrigins: ["192.168.10.68:3000", "localhost:3000"]
     }
   },
+  async rewrites() {
+    return [
+      {
+        source: "/dashboard/api/:path*",
+        destination: "/api/:path*",
+      },
+    ];
+  },
 };
 export default nextConfig;
