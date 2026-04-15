@@ -6,7 +6,7 @@ export type TaskRouteSelectors = {
 };
 
 export type TaskRoutingDecision = {
-  source: 'project-default' | 'group-rule' | 'keyword-rule' | 'intent-fallback' | 'system-fallback';
+  source: 'explicit-target' | 'project-default' | 'group-rule' | 'keyword-rule' | 'intent-fallback' | 'system-fallback';
   confidence: number;
   reason: string;
   selectors?: TaskRouteSelectors;
@@ -27,6 +27,8 @@ type ResolveTaskRoutingInput = {
   text: string;
   groupName?: string | null;
   intentTeam?: string | null;
+  explicitSelectors?: TaskRouteSelectors;
+  hasProjectUnit?: boolean;
   isProjectCommand?: boolean;
 };
 
@@ -80,12 +82,26 @@ export function resolveTaskRouting(input: ResolveTaskRoutingInput): TaskRoutingD
   const text = normalizeText(input.text);
   const group = normalizeText(input.groupName);
   const combined = `${text}\n${group}`;
+  const explicitSelectors = input.explicitSelectors;
 
-  if (input.isProjectCommand && containsAny(combined, ['capex', 'project', 'unit=', 'progress='])) {
+  if (explicitSelectors?.listName || explicitSelectors?.folderName || explicitSelectors?.spaceName) {
+    return {
+      source: 'explicit-target',
+      confidence: 1,
+      reason: 'Explicit list/folder/space selector provided in payload/command',
+      selectors: explicitSelectors,
+      useCapexDefault: false,
+      ruleId: 'explicit-selector',
+    };
+  }
+
+  if (input.isProjectCommand && (input.hasProjectUnit || containsAny(combined, ['capex', 'project', 'unit=', 'progress=']))) {
     return {
       source: 'project-default',
       confidence: 0.97,
-      reason: 'PROJECT command defaults to CAPEX routing',
+      reason: input.hasProjectUnit
+        ? 'PROJECT command with unit defaults to CAPEX routing'
+        : 'PROJECT command defaults to CAPEX routing',
       useCapexDefault: true,
       ruleId: 'project-capex-default',
     };

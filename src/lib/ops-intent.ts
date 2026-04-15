@@ -1,5 +1,5 @@
 export type ParsedIntent = {
-  intent: 'meeting' | 'task' | 'unknown';
+  intent: 'meeting' | 'task' | 'project' | 'unknown';
   confidence: 'high' | 'medium' | 'low';
   fields: Record<string, unknown>;
   missingCritical: string[];
@@ -7,10 +7,71 @@ export type ParsedIntent = {
   followUpQuestion?: string;
 };
 
+export type ParsedOpsCommand = {
+  commandType: 'TASK' | 'PROJECT';
+  fields: Record<string, string>;
+  originalText: string;
+};
+
 const TEAM_HINTS = ['idea tech', 'tech', 'data & digital', 'data and digital', 'data', 'digital', 'marketing', 'finance', 'hr'];
 
 function normalize(text: string) {
   return text.toLowerCase().trim();
+}
+
+function normalizeCommandKey(key: string) {
+  return key.toLowerCase().trim().replace(/\s+/g, '_');
+}
+
+function parsePipeFields(text: string, commandType: 'TASK' | 'PROJECT') {
+  const upper = text.toUpperCase();
+  const marker = `${commandType} |`;
+  const markerIndex = upper.indexOf(marker);
+  if (markerIndex < 0) return null;
+
+  const cleaned = text
+    .slice(markerIndex)
+    .replace(/```/g, ' ')
+    .replace(/[\r\n]+/g, ' ')
+    .trim();
+
+  if (!cleaned.toUpperCase().startsWith(marker)) return null;
+
+  const pairs = cleaned.split('|').slice(1);
+  const fields: Record<string, string> = {};
+
+  for (const pair of pairs) {
+    const match = pair.match(/^\s*([A-Za-z0-9 _-]+)\s*=\s*(.*?)\s*$/);
+    if (!match) continue;
+    const key = normalizeCommandKey(match[1]);
+    const value = match[2].trim();
+    if (!value) continue;
+    fields[key] = value;
+  }
+
+  return fields;
+}
+
+export function parseStructuredOpsCommand(text: string): ParsedOpsCommand | null {
+  const projectFields = parsePipeFields(text, 'PROJECT');
+  if (projectFields) {
+    return {
+      commandType: 'PROJECT',
+      fields: projectFields,
+      originalText: text,
+    };
+  }
+
+  const taskFields = parsePipeFields(text, 'TASK');
+  if (taskFields) {
+    return {
+      commandType: 'TASK',
+      fields: taskFields,
+      originalText: text,
+    };
+  }
+
+  return null;
 }
 
 function todayInJakarta() {
@@ -134,7 +195,34 @@ function cleanTaskTitle(raw: string) {
 }
 
 export function parseOpsIntent(text: string): ParsedIntent {
-  const intent = detectIntent(text);
+  const structured = parseStructuredOpsCommand(text);
+
+  if (structured?.commandType === 'PROJECT') {
+    const fields = structured.fields;
+    const title = fields.title || fields.project || fields.task || fields.name || '';
+    const missingCritical = [!title ? 'title' : null].filter(Boolean) as string[];
+
+    return {
+      intent: 'project',
+      confidence: missingCritical.length === 0 ? 'high' : 'medium',
+      fields: {
+        ...fields,
+        title,
+        team: fields.team || null,
+        folder: fields.folder || null,
+        list: fields.list || null,
+        space: fields.space || null,
+        unit: fields.unit || null,
+        dueDateHint: fields.end || fields.due || null,
+        assignee: fields.pic || fields.assignee || fields.assign || null,
+      },
+      missingCritical,
+      shouldExecute: missingCritical.length === 0,
+      followUpQuestion: missingCritical.length > 0 ? 'Judul project/task-nya apa?' : undefined,
+    };
+  }
+
+  const intent = structured?.commandType === 'TASK' ? 'task' : detectIntent(text);
 
   if (intent === 'meeting') {
     const title = extractLabeledValue(text, ['title', 'summary', 'topic', 'topik']) || text.trim();
@@ -176,11 +264,14 @@ export function parseOpsIntent(text: string): ParsedIntent {
   }
 
   if (intent === 'task') {
+    const commandFields = structured?.commandType === 'TASK' ? structured.fields : null;
     const explicitTeam = extractLabeledValue(text, ['team', 'tim']);
     const explicitFolder = extractLabeledValue(text, ['folder']);
     const explicitList = extractLabeledValue(text, ['list']);
     const explicitSpace = extractLabeledValue(text, ['space', 'workspace']);
-    const team = explicitTeam ? explicitTeam.toLowerCase() : extractTeam(text);
+    const team =
+      commandFields?.team ||
+      (explicitTeam ? explicitTeam.toLowerCase() : extractTeam(text));
     const dueFromLabel = extractLabeledValue(text, ['deadline', 'due']);
     const title = extractLabeledValue(text, ['title', 'task', 'nama task']);
     const description = extractLabeledValue(text, ['desc', 'description', 'notes', 'note']);
@@ -188,15 +279,19 @@ export function parseOpsIntent(text: string): ParsedIntent {
     const assignMatch = text.match(/(?:assign\s+ke|assign|buat(?:in)?\s+task\s+untuk|bikinin\s+task\s+untuk|buatin\s+task\s+untuk)\s*([A-Za-z0-9@._\- ]+?)(?:\n|\s+deadline|\s+due|$)/i);
     const assignee = (assignField || (assignMatch ? assignMatch[1] : '') || '').trim().replace(/^@/, '') || null;
 
-    const dueDateHint = dueFromLabel || (() => {
+    const dueDateHint = commandFields?.due || commandFields?.deadline || commandFields?.end || dueFromLabel || (() => {
       const date = extractDate(text);
       const time = extractTime(text);
       if (date && time) return `${date} ${time}`;
       return date;
     })();
 
-    let taskTitle = title || cleanTaskTitle(text);
+    let taskTitle = commandFields?.title || commandFields?.task || commandFields?.name || title || cleanTaskTitle(text);
     if (!taskTitle && description) taskTitle = description;
+
+    const explicitDescription = commandFields?.description || commandFields?.desc || commandFields?.note || commandFields?.notes;
+    const assigneeFromCommand = commandFields?.assignee || commandFields?.assign || commandFields?.pic;
+    const explicitUnit = commandFields?.unit || null;
 
     const normalizedTeam = team === 'tech' ? 'tech' : team === 'data & digital' ? 'data & digital' : team;
 
@@ -210,13 +305,14 @@ export function parseOpsIntent(text: string): ParsedIntent {
       fields: {
         rawText: text,
         team: normalizedTeam,
-        folder: explicitFolder,
-        list: explicitList,
-        space: explicitSpace,
+        folder: commandFields?.folder || explicitFolder,
+        list: commandFields?.list || explicitList,
+        space: commandFields?.space || explicitSpace,
+        unit: explicitUnit,
         dueDateHint,
-        assignee,
+        assignee: (assigneeFromCommand || assignee || '').trim() || null,
         taskTitle,
-        description,
+        description: explicitDescription || description,
       },
       missingCritical,
       shouldExecute: missingCritical.length === 0,

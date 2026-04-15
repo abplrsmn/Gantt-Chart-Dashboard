@@ -1,43 +1,58 @@
 import { NextResponse } from 'next/server';
-import { parseOpsIntent } from '@/lib/ops-intent';
-import { createTaskInCapexProjectList, createTaskInTarget, createTaskInTeam } from '@/lib/clickup-write';
+import { parseOpsIntent, parseStructuredOpsCommand } from '@/lib/ops-intent';
+import { createTaskInCapexProjectList, createTaskInTarget } from '@/lib/clickup-write';
 import { resolveTaskRouting } from '@/lib/task-routing';
 
 export const dynamic = 'force-dynamic';
+
+function firstNonEmptyString(...values: unknown[]) {
+  for (const value of values) {
+    if (typeof value !== 'string') continue;
+    const trimmed = value.trim();
+    if (trimmed) return trimmed;
+  }
+  return '';
+}
+
+function getInboundText(body: any) {
+  return firstNonEmptyString(
+    body?.text,
+    body?.message,
+    body?.caption,
+    body?.content?.text,
+    body?.payload?.text,
+    body?.payload?.message,
+    body?.context?.text
+  );
+}
+
+function getInboundGroupName(body: any) {
+  return (
+    firstNonEmptyString(
+      body?.groupName,
+      body?.chatTitle,
+      body?.group,
+      body?.context?.groupName,
+      body?.context?.chatTitle,
+      body?.conversationName
+    ) || null
+  );
+}
+
+function getInboundSelectors(body: any) {
+  return {
+    teamName: firstNonEmptyString(body?.team, body?.target?.team, body?.context?.teamName) || undefined,
+    folderName: firstNonEmptyString(body?.folder, body?.target?.folder, body?.context?.folderName) || undefined,
+    listName: firstNonEmptyString(body?.list, body?.target?.list, body?.context?.listName) || undefined,
+    spaceName: firstNonEmptyString(body?.space, body?.target?.space, body?.context?.spaceName) || undefined,
+  };
+}
 
 function normalizeGroupTeam(groupName?: string | null) {
   const lowered = String(groupName || '').toLowerCase();
   if (lowered.includes('tech')) return 'tech';
   if (lowered.includes('data') || lowered.includes('digital')) return 'data & digital';
   return null;
-}
-
-function parseProjectPipeCommand(text: string) {
-  const markerIndex = text.toUpperCase().indexOf('PROJECT |');
-  if (markerIndex < 0) return null;
-
-  const cleaned = text
-    .slice(markerIndex)
-    .replace(/```/g, ' ')
-    .replace(/[\r\n]+/g, ' ')
-    .trim();
-
-  if (!cleaned.toUpperCase().startsWith('PROJECT |')) return null;
-
-  const pairs = cleaned.split('|').slice(1);
-  const fields: Record<string, string> = {};
-
-  for (const pair of pairs) {
-    const match = pair.match(/^\s*([A-Za-z0-9 _-]+)\s*=\s*(.*?)\s*$/);
-    if (!match) continue;
-    const key = match[1].trim().toLowerCase().replace(/\s+/g, '_');
-    const value = match[2].trim();
-    if (!value) continue;
-    fields[key] = value;
-  }
-
-  if (!fields.title && !fields.project && !fields.task) return null;
-  return fields;
 }
 
 function buildProjectDescription(fields: Record<string, string>, originalText: string) {
@@ -67,14 +82,16 @@ function escapeRegex(input: string) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const text = typeof body?.text === 'string' ? body.text.trim() : '';
-    const groupName = body?.groupName || body?.chatTitle || body?.group || null;
+    const text = getInboundText(body);
+    const groupName = getInboundGroupName(body);
+    const payloadSelectors = getInboundSelectors(body);
 
     if (!text) {
       return NextResponse.json({ success: false, error: 'text is required' }, { status: 400 });
     }
 
-    const projectFields = parseProjectPipeCommand(text);
+    const structured = parseStructuredOpsCommand(text);
+    const projectFields = structured?.commandType === 'PROJECT' ? structured.fields : null;
     if (projectFields) {
       const baseTitle = projectFields.title || projectFields.project || projectFields.task || '';
       const unit = (projectFields.unit || '').trim();
@@ -88,35 +105,20 @@ export async function POST(request: Request) {
         return NextResponse.json({ success: false, error: 'PROJECT command is missing title' }, { status: 400 });
       }
 
-      const hasExplicitTarget =
-        !!(projectFields.list || projectFields.folder || projectFields.team || projectFields.space);
+      const routing = resolveTaskRouting({
+        text,
+        groupName,
+        isProjectCommand: true,
+        hasProjectUnit: !!unit,
+        explicitSelectors: {
+          listName: projectFields.list || payloadSelectors.listName,
+          folderName: projectFields.folder || payloadSelectors.folderName,
+          spaceName: projectFields.space || payloadSelectors.spaceName,
+          teamName: projectFields.team || payloadSelectors.teamName,
+        },
+      });
 
-      const routing = hasExplicitTarget
-        ? {
-            source: 'explicit-target',
-            confidence: 1,
-            reason: 'PROJECT command provided explicit target selector',
-            ruleId: null,
-          }
-        : resolveTaskRouting({
-            text,
-            groupName,
-            isProjectCommand: true,
-          });
-
-      const result = hasExplicitTarget
-        ? await createTaskInTarget({
-            taskName,
-            description: buildProjectDescription(projectFields, text),
-            dueDate: projectFields.end || projectFields.due,
-            startDate: projectFields.start,
-            assigneeNameOrEmail: projectFields.pic,
-            listName: projectFields.list,
-            folderName: projectFields.folder,
-            teamName: projectFields.team,
-            spaceName: projectFields.space,
-          })
-        : routing.useCapexDefault
+      const result = routing.useCapexDefault
         ? await createTaskInCapexProjectList({
             taskName,
             description: buildProjectDescription(projectFields, text),
@@ -130,10 +132,10 @@ export async function POST(request: Request) {
             dueDate: projectFields.end || projectFields.due,
             startDate: projectFields.start,
             assigneeNameOrEmail: projectFields.pic,
-            teamName: routing.selectors?.teamName,
-            folderName: routing.selectors?.folderName,
-            listName: routing.selectors?.listName,
-            spaceName: routing.selectors?.spaceName,
+            teamName: projectFields.team || payloadSelectors.teamName || routing.selectors?.teamName,
+            folderName: projectFields.folder || payloadSelectors.folderName || routing.selectors?.folderName,
+            listName: projectFields.list || payloadSelectors.listName || routing.selectors?.listName,
+            spaceName: projectFields.space || payloadSelectors.spaceName || routing.selectors?.spaceName,
           });
 
       return NextResponse.json({
@@ -160,6 +162,31 @@ export async function POST(request: Request) {
 
     const fields = { ...(plan.fields as any) };
     const groupTeam = normalizeGroupTeam(groupName);
+    if (!fields.team && payloadSelectors.teamName) {
+      fields.team = payloadSelectors.teamName;
+    }
+    if (!fields.folder && payloadSelectors.folderName) {
+      fields.folder = payloadSelectors.folderName;
+    }
+    if (!fields.list && payloadSelectors.listName) {
+      fields.list = payloadSelectors.listName;
+    }
+    if (!fields.space && payloadSelectors.spaceName) {
+      fields.space = payloadSelectors.spaceName;
+    }
+    if (!fields.taskTitle) {
+      fields.taskTitle = firstNonEmptyString(body?.title, body?.taskTitle, body?.task, body?.name);
+    }
+    if (!fields.description) {
+      fields.description = firstNonEmptyString(body?.description, body?.desc, body?.note, body?.notes) || undefined;
+    }
+    if (!fields.assignee) {
+      fields.assignee = firstNonEmptyString(body?.assignee, body?.assign, body?.pic) || null;
+    }
+    if (!fields.dueDateHint) {
+      fields.dueDateHint = firstNonEmptyString(body?.due, body?.deadline, body?.end) || null;
+    }
+
     if (!fields.team) {
       fields.team = groupTeam || 'tech';
     }
@@ -168,56 +195,35 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: true, plan: { ...plan, fields }, executed: false });
     }
 
-    const hasExplicitTarget = !!(fields.list || fields.folder || fields.space);
-    const routing = hasExplicitTarget
-      ? {
-          source: 'explicit-target',
-          confidence: 1,
-          reason: 'Task command provided explicit target selector',
-          ruleId: null,
-        }
-      : resolveTaskRouting({
-          text,
-          groupName,
-          intentTeam: fields.team,
-          isProjectCommand: false,
-        });
+    const routing = resolveTaskRouting({
+      text,
+      groupName,
+      intentTeam: fields.team,
+      isProjectCommand: false,
+      explicitSelectors: {
+        listName: fields.list || payloadSelectors.listName,
+        folderName: fields.folder || payloadSelectors.folderName,
+        spaceName: fields.space || payloadSelectors.spaceName,
+        teamName: fields.team || payloadSelectors.teamName,
+      },
+    });
 
-    const result = hasExplicitTarget
-      ? await createTaskInTarget({
-          taskName: fields.taskTitle,
-          dueDate: fields.dueDateHint || undefined,
-          assigneeNameOrEmail: fields.assignee || undefined,
-          description: fields.description || text,
-          teamName: fields.team || undefined,
-          folderName: fields.folder || undefined,
-          listName: fields.list || undefined,
-          spaceName: fields.space || undefined,
-        })
-      : routing.useCapexDefault
+    const result = routing.useCapexDefault
       ? await createTaskInCapexProjectList({
           taskName: fields.taskTitle,
           dueDate: fields.dueDateHint || undefined,
           assigneeNameOrEmail: fields.assignee || undefined,
           description: fields.description || text,
         })
-      : routing.selectors
-      ? await createTaskInTarget({
+      : await createTaskInTarget({
           taskName: fields.taskTitle,
           dueDate: fields.dueDateHint || undefined,
           assigneeNameOrEmail: fields.assignee || undefined,
           description: fields.description || text,
-          teamName: routing.selectors.teamName,
-          folderName: routing.selectors.folderName,
-          listName: routing.selectors.listName,
-          spaceName: routing.selectors.spaceName,
-        })
-      : await createTaskInTeam({
-          teamName: fields.team,
-          taskName: fields.taskTitle,
-          dueDate: fields.dueDateHint || undefined,
-          assigneeNameOrEmail: fields.assignee || undefined,
-          description: fields.description || text,
+          teamName: fields.team || routing.selectors?.teamName,
+          folderName: fields.folder || routing.selectors?.folderName,
+          listName: fields.list || routing.selectors?.listName,
+          spaceName: fields.space || routing.selectors?.spaceName,
         });
 
     return NextResponse.json({
