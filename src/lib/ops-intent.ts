@@ -177,6 +177,9 @@ export function parseOpsIntent(text: string): ParsedIntent {
 
   if (intent === 'task') {
     const explicitTeam = extractLabeledValue(text, ['team', 'tim']);
+    const explicitFolder = extractLabeledValue(text, ['folder']);
+    const explicitList = extractLabeledValue(text, ['list']);
+    const explicitSpace = extractLabeledValue(text, ['space', 'workspace']);
     const team = explicitTeam ? explicitTeam.toLowerCase() : extractTeam(text);
     const dueFromLabel = extractLabeledValue(text, ['deadline', 'due']);
     const title = extractLabeledValue(text, ['title', 'task', 'nama task']);
@@ -207,6 +210,9 @@ export function parseOpsIntent(text: string): ParsedIntent {
       fields: {
         rawText: text,
         team: normalizedTeam,
+        folder: explicitFolder,
+        list: explicitList,
+        space: explicitSpace,
         dueDateHint,
         assignee,
         taskTitle,

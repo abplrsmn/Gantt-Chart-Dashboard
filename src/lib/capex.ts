@@ -9,6 +9,10 @@ const TARGET_SPACE_NAME = 'Project';
 const TARGET_LIST_NAME = 'CAPEX Gantt 2026';
 const MAPPING_API = '/api/capex/mapping';
 
+function sameName(left?: string, right?: string) {
+  return String(left || '').trim().toLowerCase() === String(right || '').trim().toLowerCase();
+}
+
 export type CapexProject = {
   id: string;
   unit: string;
@@ -108,6 +112,51 @@ async function loadMappingSeed(): Promise<CapexMappingRow[]> {
     // ignore
   }
   return [];
+}
+
+async function resolveCapexTargetList() {
+  const spacesData = await fetchClickUpJson(`${API_BASE_URL}/team/${TEAM_ID}/space`);
+  const spaces = Array.isArray(spacesData?.spaces)
+    ? (spacesData.spaces as Array<{ id: string | number; name?: string }>)
+    : [];
+  const targetSpace = spaces.find((space) => sameName(space?.name, TARGET_SPACE_NAME));
+  if (!targetSpace) {
+    throw new Error(`Target space not found: ${TARGET_SPACE_NAME}`);
+  }
+
+  const directListsData = await fetchClickUpJson(`${API_BASE_URL}/space/${targetSpace.id}/list`);
+  const directLists = Array.isArray(directListsData?.lists)
+    ? (directListsData.lists as Array<{ id: string | number; name?: string }>)
+    : [];
+  const directMatch = directLists.find((list) => sameName(list?.name, TARGET_LIST_NAME));
+  if (directMatch) {
+    return {
+      listId: String(directMatch.id),
+      listName: String(directMatch.name || ''),
+      spaceId: String(targetSpace.id),
+      spaceName: String(targetSpace.name || ''),
+    };
+  }
+
+  const foldersData = await fetchClickUpJson(`${API_BASE_URL}/space/${targetSpace.id}/folder`);
+  const folders = Array.isArray(foldersData?.folders)
+    ? (foldersData.folders as Array<{ id: string | number; name?: string; lists?: Array<{ id: string | number; name?: string }> }>)
+    : [];
+
+  for (const folder of folders) {
+    const folderLists = Array.isArray(folder?.lists) ? folder.lists : [];
+    const folderMatch = folderLists.find((list) => sameName(list?.name, TARGET_LIST_NAME));
+    if (folderMatch) {
+      return {
+        listId: String(folderMatch.id),
+        listName: String(folderMatch.name || ''),
+        spaceId: String(targetSpace.id),
+        spaceName: String(targetSpace.name || ''),
+      };
+    }
+  }
+
+  throw new Error(`Target list not found: ${TARGET_LIST_NAME}`);
 }
 
 function extractProgress(task: { custom_fields?: Array<{ name?: unknown; value?: unknown }> }): number | undefined {
@@ -275,22 +324,9 @@ function mapTaskToCapex(task: ClickUpTask, seedRow: { no: number; unit: string; 
 }
 
 export async function getCapexProjects(): Promise<CapexProject[]> {
-  const spacesData = await fetchClickUpJson(`${API_BASE_URL}/team/${TEAM_ID}/space`);
-  const spaces = Array.isArray(spacesData?.spaces) ? spacesData.spaces as Array<{ id: string | number; name?: string }> : [];
-  const targetSpace = spaces.find((space) => String(space?.name || '').trim().toLowerCase() === TARGET_SPACE_NAME.toLowerCase());
-  if (!targetSpace) {
-    throw new Error(`Target space not found: ${TARGET_SPACE_NAME}`);
-  }
+  const targetList = await resolveCapexTargetList();
 
-  const listsData = await fetchClickUpJson(`${API_BASE_URL}/space/${targetSpace.id}/list`);
-  const lists = Array.isArray(listsData?.lists) ? listsData.lists as Array<{ id: string | number; name?: string }> : [];
-
-  const targetList = lists.find((list) => String(list?.name || '').trim().toLowerCase() === TARGET_LIST_NAME.toLowerCase());
-  if (!targetList) {
-    throw new Error(`Target list not found: ${TARGET_LIST_NAME}`);
-  }
-
-  const data = await fetchClickUpJson(`${API_BASE_URL}/list/${targetList.id}/task?subtasks=true&include_closed=true`);
+  const data = await fetchClickUpJson(`${API_BASE_URL}/list/${targetList.listId}/task?subtasks=true&include_closed=true`);
   const tasks: ClickUpTask[] = Array.isArray(data?.tasks) ? data.tasks as ClickUpTask[] : [];
   const mappingSeed = await loadMappingSeed();
   const mappingByNo = new Map(mappingSeed.map((row) => [row.no, row]));

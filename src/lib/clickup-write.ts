@@ -7,8 +7,19 @@ const CAPEX_TARGET_LIST_NAME = (process.env.CAPEX_TARGET_LIST_NAME || 'CAPEX Gan
 type ClickUpTargetList = {
   spaceId: string;
   spaceName: string;
+  folderId?: string;
+  folderName?: string;
   listId: string;
   listName: string;
+};
+
+type ResolveTargetInput = {
+  spaceName?: string;
+  folderName?: string;
+  teamName?: string;
+  listName?: string;
+  defaultSpaceName?: string;
+  defaultListName?: string;
 };
 
 function required(name: string, value?: string) {
@@ -115,6 +126,178 @@ async function fetchClickUp(url: string, init?: RequestInit) {
   return data;
 }
 
+function normalizeSelector(value?: string) {
+  const normalized = String(value || '').trim();
+  return normalized || undefined;
+}
+
+function sameName(left?: string, right?: string) {
+  return String(left || '').trim().toLowerCase() === String(right || '').trim().toLowerCase();
+}
+
+function pickPreferredTarget(targets: ClickUpTargetList[]) {
+  if (targets.length === 1) return targets[0];
+  const ideaMatch = targets.find((target) => sameName(target.spaceName, 'IDEA'));
+  return ideaMatch || targets[0];
+}
+
+async function getTeamSpaces() {
+  const spacesData = await fetchClickUp(`${API_BASE_URL}/team/${TEAM_ID}/space`);
+  return Array.isArray(spacesData?.spaces) ? spacesData.spaces : [];
+}
+
+async function getSpaceFolders(spaceId: string) {
+  const foldersData = await fetchClickUp(`${API_BASE_URL}/space/${spaceId}/folder`);
+  return Array.isArray(foldersData?.folders) ? foldersData.folders : [];
+}
+
+async function getSpaceLists(spaceId: string) {
+  const listsData = await fetchClickUp(`${API_BASE_URL}/space/${spaceId}/list`);
+  return Array.isArray(listsData?.lists) ? listsData.lists : [];
+}
+
+async function getFolderLists(folderId: string) {
+  const listsData = await fetchClickUp(`${API_BASE_URL}/folder/${folderId}/list`);
+  return Array.isArray(listsData?.lists) ? listsData.lists : [];
+}
+
+function asTargetList(args: {
+  space: { id?: string | number; name?: string };
+  folder?: { id?: string | number; name?: string };
+  list: { id?: string | number; name?: string };
+}): ClickUpTargetList {
+  return {
+    spaceId: String(args.space.id),
+    spaceName: String(args.space.name),
+    folderId: args.folder ? String(args.folder.id) : undefined,
+    folderName: args.folder ? String(args.folder.name) : undefined,
+    listId: String(args.list.id),
+    listName: String(args.list.name),
+  };
+}
+
+export async function resolveTargetList(input: ResolveTargetInput): Promise<ClickUpTargetList> {
+  const teamName = normalizeSelector(input.teamName);
+  const folderName = normalizeSelector(input.folderName) || teamName;
+  const listName = normalizeSelector(input.listName);
+  const spaceName = normalizeSelector(input.spaceName);
+  const defaultSpaceName = normalizeSelector(input.defaultSpaceName);
+  const defaultListName = normalizeSelector(input.defaultListName);
+
+  if (!folderName && !listName && !(defaultSpaceName && defaultListName)) {
+    throw new Error('No target selector provided. Provide list, folder/team, or default space+list target.');
+  }
+
+  const spaces = await getTeamSpaces();
+  const filteredSpaces = spaceName
+    ? spaces.filter((space: { name?: string }) => sameName(space?.name, spaceName))
+    : spaces;
+
+  if (spaceName && filteredSpaces.length === 0) {
+    throw new Error(`Target space not found: ${spaceName}`);
+  }
+
+  if (listName && folderName) {
+    const matches: ClickUpTargetList[] = [];
+
+    for (const space of filteredSpaces) {
+      const folders = await getSpaceFolders(String(space.id));
+      const folder = folders.find((f: { name?: string }) => sameName(f?.name, folderName));
+      if (!folder) continue;
+
+      const lists = await getFolderLists(String(folder.id));
+      const list = lists.find((l: { name?: string }) => sameName(l?.name, listName));
+      if (!list) continue;
+
+      matches.push(asTargetList({ space, folder, list }));
+    }
+
+    if (matches.length === 0) {
+      throw new Error(
+        `Target list "${listName}" not found in folder/team "${folderName}"${spaceName ? ` under space "${spaceName}"` : ''}`
+      );
+    }
+
+    return pickPreferredTarget(matches);
+  }
+
+  if (listName) {
+    const matches: ClickUpTargetList[] = [];
+
+    for (const space of filteredSpaces) {
+      const directLists = await getSpaceLists(String(space.id));
+      const directMatch = directLists.find((l: { name?: string }) => sameName(l?.name, listName));
+      if (directMatch) {
+        matches.push(asTargetList({ space, list: directMatch }));
+      }
+
+      const folders = await getSpaceFolders(String(space.id));
+      for (const folder of folders) {
+        const folderLists = Array.isArray(folder?.lists) ? folder.lists : await getFolderLists(String(folder.id));
+        const list = folderLists.find((l: { name?: string }) => sameName(l?.name, listName));
+        if (list) {
+          matches.push(asTargetList({ space, folder, list }));
+        }
+      }
+    }
+
+    if (matches.length === 0) {
+      throw new Error(`Target list not found: ${listName}${spaceName ? ` under space "${spaceName}"` : ''}`);
+    }
+
+    return pickPreferredTarget(matches);
+  }
+
+  if (folderName) {
+    const matches: ClickUpTargetList[] = [];
+
+    for (const space of filteredSpaces) {
+      const folders = await getSpaceFolders(String(space.id));
+      const folder = folders.find((f: { name?: string }) => sameName(f?.name, folderName));
+      if (!folder) continue;
+
+      const lists = Array.isArray(folder?.lists) ? folder.lists : await getFolderLists(String(folder.id));
+      if (!Array.isArray(lists) || lists.length === 0) {
+        throw new Error(`Folder/team "${folderName}" found but has no accessible lists`);
+      }
+
+      matches.push(asTargetList({ space, folder, list: lists[0] }));
+    }
+
+    if (matches.length === 0) {
+      throw new Error(`Target folder/team not found: ${folderName}${spaceName ? ` under space "${spaceName}"` : ''}`);
+    }
+
+    return pickPreferredTarget(matches);
+  }
+
+  if (defaultSpaceName && defaultListName) {
+    const targetSpace = spaces.find((space: { name?: string }) => sameName(space?.name, defaultSpaceName));
+    if (!targetSpace) {
+      throw new Error(`Default target space not found: ${defaultSpaceName}`);
+    }
+
+    const directLists = await getSpaceLists(String(targetSpace.id));
+    const directMatch = directLists.find((list: { name?: string }) => sameName(list?.name, defaultListName));
+    if (directMatch) {
+      return asTargetList({ space: targetSpace, list: directMatch });
+    }
+
+    const folders = await getSpaceFolders(String(targetSpace.id));
+    for (const folder of folders) {
+      const folderLists = Array.isArray(folder?.lists) ? folder.lists : await getFolderLists(String(folder.id));
+      const listMatch = folderLists.find((list: { name?: string }) => sameName(list?.name, defaultListName));
+      if (listMatch) {
+        return asTargetList({ space: targetSpace, folder, list: listMatch });
+      }
+    }
+
+    throw new Error(`Default target list not found: ${defaultListName}`);
+  }
+
+  throw new Error('Unable to resolve ClickUp target. Provide a valid list or folder/team selector.');
+}
+
 export async function getWorkspaceMembers() {
   const data = await fetchClickUp(`${API_BASE_URL}/team`);
   const members = data?.teams?.[0]?.members || [];
@@ -150,112 +333,35 @@ export async function resolveAssigneeId(nameOrEmail?: string) {
 
 export async function resolveTeamList(teamName?: string) {
   if (!teamName) return null;
-  const normalizedTeam = teamName.trim().toLowerCase();
-  const spacesData = await fetchClickUp(`${API_BASE_URL}/team/${TEAM_ID}/space`);
-  const spaces = spacesData?.spaces || [];
-
-  for (const space of spaces) {
-    const foldersData = await fetchClickUp(`${API_BASE_URL}/space/${space.id}/folder`);
-    const folders = foldersData?.folders || [];
-    const folder = folders.find((f: any) => String(f?.name || '').trim().toLowerCase() === normalizedTeam);
-    if (folder) {
-      const lists = Array.isArray(folder?.lists) ? folder.lists : [];
-      if (lists.length > 0) {
-        return {
-          spaceId: String(space.id),
-          spaceName: String(space.name),
-          folderId: String(folder.id),
-          folderName: String(folder.name),
-          listId: String(lists[0].id),
-          listName: String(lists[0].name),
-        };
-      }
-    }
+  try {
+    return await resolveTargetList({ teamName });
+  } catch {
+    return null;
   }
-
-  return null;
 }
 
-async function resolveListBySpaceAndList(spaceName: string, listName: string): Promise<ClickUpTargetList> {
-  const spacesData = await fetchClickUp(`${API_BASE_URL}/team/${TEAM_ID}/space`);
-  const spaces = Array.isArray(spacesData?.spaces) ? spacesData.spaces : [];
-  const targetSpace = spaces.find(
-    (space: { id?: string | number; name?: string }) =>
-      String(space?.name || '').trim().toLowerCase() === spaceName.trim().toLowerCase()
-  );
-
-  if (!targetSpace) {
-    throw new Error(`Target space not found: ${spaceName}`);
-  }
-
-  const listsData = await fetchClickUp(`${API_BASE_URL}/space/${targetSpace.id}/list`);
-  const lists = Array.isArray(listsData?.lists) ? listsData.lists : [];
-  const targetList = lists.find(
-    (list: { id?: string | number; name?: string }) =>
-      String(list?.name || '').trim().toLowerCase() === listName.trim().toLowerCase()
-  );
-
-  if (!targetList) {
-    throw new Error(`Target list not found: ${listName}`);
-  }
-
-  return {
-    spaceId: String(targetSpace.id),
-    spaceName: String(targetSpace.name),
-    listId: String(targetList.id),
-    listName: String(targetList.name),
-  };
-}
-
-export async function createTaskInTeam(input: {
-  teamName: string;
-  taskName: string;
-  description?: string;
-  dueDate?: string;
-  assigneeNameOrEmail?: string;
-}) {
-  const teamList = await resolveTeamList(input.teamName);
-  if (!teamList) {
-    throw new Error(`Team/folder not found for ${input.teamName}`);
-  }
-
-  const assigneeId = await resolveAssigneeId(input.assigneeNameOrEmail);
-
-  const payload: any = {
-    name: input.taskName,
-    description: input.description || undefined,
-    notify_all: true,
-  };
-
-  if (input.dueDate) {
-    const dueMs = normalizeDateTimeToJakartaMs(input.dueDate);
-    if (!Number.isNaN(Number(dueMs)) && dueMs) payload.due_date = dueMs;
-  }
-
-  if (assigneeId) {
-    payload.assignees = [Number(assigneeId)];
-  }
-
-  const data = await fetchClickUp(`${API_BASE_URL}/list/${teamList.listId}/task`, {
-    method: 'POST',
-    body: JSON.stringify(payload),
-  });
-
-  return {
-    task: data,
-    target: teamList,
-    assigneeId,
-  };
-}
-
-export async function createTaskInCapexProjectList(input: {
+export async function createTaskInTarget(input: {
   taskName: string;
   description?: string;
   dueDate?: string;
   startDate?: string;
   assigneeNameOrEmail?: string;
+  spaceName?: string;
+  folderName?: string;
+  teamName?: string;
+  listName?: string;
+  defaultSpaceName?: string;
+  defaultListName?: string;
 }) {
-  const targetList = await resolveListBySpaceAndList(CAPEX_TARGET_SPACE_NAME, CAPEX_TARGET_LIST_NAME);
+  const targetList = await resolveTargetList({
+    spaceName: input.spaceName,
+    folderName: input.folderName,
+    teamName: input.teamName,
+    listName: input.listName,
+    defaultSpaceName: input.defaultSpaceName,
+    defaultListName: input.defaultListName,
+  });
+
   const assigneeId = await resolveAssigneeId(input.assigneeNameOrEmail);
 
   const payload: {
@@ -291,6 +397,45 @@ export async function createTaskInCapexProjectList(input: {
     target: targetList,
     assigneeId,
   };
+}
+
+export async function createTaskInTeam(input: {
+  teamName: string;
+  taskName: string;
+  description?: string;
+  dueDate?: string;
+  assigneeNameOrEmail?: string;
+}) {
+  const teamList = await resolveTargetList({ teamName: input.teamName });
+  if (!teamList?.listId) {
+    throw new Error(`Team/folder not found for ${input.teamName}`);
+  }
+
+  return createTaskInTarget({
+    taskName: input.taskName,
+    description: input.description,
+    dueDate: input.dueDate,
+    assigneeNameOrEmail: input.assigneeNameOrEmail,
+    teamName: input.teamName,
+  });
+}
+
+export async function createTaskInCapexProjectList(input: {
+  taskName: string;
+  description?: string;
+  dueDate?: string;
+  startDate?: string;
+  assigneeNameOrEmail?: string;
+}) {
+  return createTaskInTarget({
+    taskName: input.taskName,
+    description: input.description,
+    dueDate: input.dueDate,
+    startDate: input.startDate,
+    assigneeNameOrEmail: input.assigneeNameOrEmail,
+    defaultSpaceName: CAPEX_TARGET_SPACE_NAME,
+    defaultListName: CAPEX_TARGET_LIST_NAME,
+  });
 }
 
 export async function updateTaskStatus(taskId: string, status: string) {
