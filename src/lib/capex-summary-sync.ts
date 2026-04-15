@@ -1,5 +1,6 @@
 import { promises as fs } from 'fs';
 import path from 'path';
+import { resolveAnyTargetListByName } from '@/lib/clickup-target';
 
 const API_TOKEN = (process.env.CLICKUP_API_TOKEN || '').trim().replace(/^["']|["']$/g, '');
 const TEAM_ID = (process.env.CLICKUP_TEAM_ID || '').trim().replace(/^["']|["']$/g, '');
@@ -63,15 +64,10 @@ async function fetchClickUp(url: string, init?: RequestInit) {
 }
 
 async function resolveTargetList() {
-  const spacesData = await fetchClickUp(`${API_BASE_URL}/team/${TEAM_ID}/space`);
-  const spaces = spacesData?.spaces || [];
-  const targetSpace = spaces.find((space: any) => String(space?.name || '').trim().toLowerCase() === TARGET_SPACE_NAME.toLowerCase());
-  if (!targetSpace) throw new Error(`Target space not found: ${TARGET_SPACE_NAME}`);
-  const listsData = await fetchClickUp(`${API_BASE_URL}/space/${targetSpace.id}/list`);
-  const lists = Array.isArray(listsData?.lists) ? listsData.lists : [];
-  const targetList = lists.find((list: any) => String(list?.name || '').trim().toLowerCase() === TARGET_LIST_NAME.toLowerCase());
-  if (!targetList) throw new Error(`Target list not found: ${TARGET_LIST_NAME}`);
-  return { listId: String(targetList.id), spaceId: String(targetSpace.id), spaceName: String(targetSpace.name), listName: String(targetList.name) };
+  return resolveAnyTargetListByName({
+    listName: TARGET_LIST_NAME,
+    spaceName: TARGET_SPACE_NAME,
+  });
 }
 
 function buildTaskName(row: SummaryProject) {

@@ -1,4 +1,5 @@
 import { ClickUpTask } from '@/types/clickup';
+import { resolveAnyTargetListByName } from '@/lib/clickup-target';
 import { differenceInCalendarDays, isValid, parse, startOfDay } from 'date-fns';
 
 const API_TOKEN = (process.env.CLICKUP_API_TOKEN || '').trim().replace(/^['"]|['"]$/g, '');
@@ -115,48 +116,10 @@ async function loadMappingSeed(): Promise<CapexMappingRow[]> {
 }
 
 async function resolveCapexTargetList() {
-  const spacesData = await fetchClickUpJson(`${API_BASE_URL}/team/${TEAM_ID}/space`);
-  const spaces = Array.isArray(spacesData?.spaces)
-    ? (spacesData.spaces as Array<{ id: string | number; name?: string }>)
-    : [];
-  const targetSpace = spaces.find((space) => sameName(space?.name, TARGET_SPACE_NAME));
-  if (!targetSpace) {
-    throw new Error(`Target space not found: ${TARGET_SPACE_NAME}`);
-  }
-
-  const directListsData = await fetchClickUpJson(`${API_BASE_URL}/space/${targetSpace.id}/list`);
-  const directLists = Array.isArray(directListsData?.lists)
-    ? (directListsData.lists as Array<{ id: string | number; name?: string }>)
-    : [];
-  const directMatch = directLists.find((list) => sameName(list?.name, TARGET_LIST_NAME));
-  if (directMatch) {
-    return {
-      listId: String(directMatch.id),
-      listName: String(directMatch.name || ''),
-      spaceId: String(targetSpace.id),
-      spaceName: String(targetSpace.name || ''),
-    };
-  }
-
-  const foldersData = await fetchClickUpJson(`${API_BASE_URL}/space/${targetSpace.id}/folder`);
-  const folders = Array.isArray(foldersData?.folders)
-    ? (foldersData.folders as Array<{ id: string | number; name?: string; lists?: Array<{ id: string | number; name?: string }> }>)
-    : [];
-
-  for (const folder of folders) {
-    const folderLists = Array.isArray(folder?.lists) ? folder.lists : [];
-    const folderMatch = folderLists.find((list) => sameName(list?.name, TARGET_LIST_NAME));
-    if (folderMatch) {
-      return {
-        listId: String(folderMatch.id),
-        listName: String(folderMatch.name || ''),
-        spaceId: String(targetSpace.id),
-        spaceName: String(targetSpace.name || ''),
-      };
-    }
-  }
-
-  throw new Error(`Target list not found: ${TARGET_LIST_NAME}`);
+  return resolveAnyTargetListByName({
+    listName: TARGET_LIST_NAME,
+    spaceName: TARGET_SPACE_NAME,
+  });
 }
 
 function extractProgress(task: { custom_fields?: Array<{ name?: unknown; value?: unknown }> }): number | undefined {

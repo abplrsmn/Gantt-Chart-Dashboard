@@ -225,3 +225,145 @@ export async function resolveTargetList(input: ResolveTargetInput): Promise<Clic
 
   throw new Error('Unable to resolve ClickUp target. Provide a valid list or folder/team selector.');
 }
+
+export async function resolveAnyTargetListByName(input: {
+  listName: string;
+  spaceName?: string;
+}): Promise<ClickUpTargetList> {
+  const listName = normalizeSelector(input.listName);
+  const preferredSpaceName = normalizeSelector(input.spaceName);
+
+  if (!listName) {
+    throw new Error('listName is required');
+  }
+
+  const spaces = await getTeamSpaces();
+  const preferredSpaces = preferredSpaceName
+    ? spaces.filter((space: { name?: string }) => sameName(space?.name, preferredSpaceName))
+    : spaces;
+
+  const searchSpaces = preferredSpaces.length > 0 ? preferredSpaces : spaces;
+  const matches: ClickUpTargetList[] = [];
+
+  for (const space of searchSpaces) {
+    const directLists = await getSpaceLists(String(space.id));
+    const directMatch = directLists.find((list: { name?: string }) => sameName(list?.name, listName));
+    if (directMatch) {
+      matches.push(asTargetList({ space, list: directMatch }));
+    }
+
+    const folders = await getSpaceFolders(String(space.id));
+    for (const folder of folders) {
+      const folderLists = Array.isArray(folder?.lists) ? folder.lists : await getFolderLists(String(folder.id));
+      const folderMatch = folderLists.find((list: { name?: string }) => sameName(list?.name, listName));
+      if (folderMatch) {
+        matches.push(asTargetList({ space, folder, list: folderMatch }));
+      }
+    }
+  }
+
+  if (matches.length === 0 && preferredSpaces !== spaces) {
+    for (const space of spaces) {
+      const directLists = await getSpaceLists(String(space.id));
+      const directMatch = directLists.find((list: { name?: string }) => sameName(list?.name, listName));
+      if (directMatch) {
+        matches.push(asTargetList({ space, list: directMatch }));
+      }
+
+      const folders = await getSpaceFolders(String(space.id));
+      for (const folder of folders) {
+        const folderLists = Array.isArray(folder?.lists) ? folder.lists : await getFolderLists(String(folder.id));
+        const folderMatch = folderLists.find((list: { name?: string }) => sameName(list?.name, listName));
+        if (folderMatch) {
+          matches.push(asTargetList({ space, folder, list: folderMatch }));
+        }
+      }
+    }
+  }
+
+  if (matches.length === 0) {
+    throw new Error(`Target list not found: ${listName}${preferredSpaceName ? ` under space "${preferredSpaceName}"` : ''}`);
+  }
+
+  return pickPreferredTarget(matches);
+}
+
+export async function debugListResolution(input: {
+  listName: string;
+  preferredSpaceName?: string;
+}) {
+  const listName = normalizeSelector(input.listName);
+  const preferredSpaceName = normalizeSelector(input.preferredSpaceName);
+
+  if (!listName) {
+    throw new Error('listName is required');
+  }
+
+  const spaces = await getTeamSpaces();
+  const preferredSpaces = preferredSpaceName
+    ? spaces.filter((space: { name?: string }) => sameName(space?.name, preferredSpaceName))
+    : spaces;
+  const searchSpaces = preferredSpaces.length > 0 ? preferredSpaces : spaces;
+
+  const matches: Array<ClickUpTargetList> = [];
+  const scanned: Array<{
+    spaceId: string;
+    spaceName: string;
+    directListCount: number;
+    folderCount: number;
+    matchedInSpace: number;
+  }> = [];
+
+  for (const space of searchSpaces) {
+    const spaceId = String(space?.id || '');
+    const spaceName = String(space?.name || '');
+    const directLists = await getSpaceLists(spaceId);
+    let matchedInSpace = 0;
+
+    for (const list of directLists) {
+      if (!sameName(list?.name, listName)) continue;
+      matchedInSpace += 1;
+      matches.push(asTargetList({
+        space: { id: spaceId, name: spaceName },
+        list,
+      }));
+    }
+
+    const folders = await getSpaceFolders(spaceId);
+    for (const folder of folders) {
+      const folderLists = Array.isArray(folder?.lists) ? folder.lists : await getFolderLists(String(folder.id));
+      for (const list of folderLists) {
+        if (!sameName(list?.name, listName)) continue;
+        matchedInSpace += 1;
+        matches.push(asTargetList({
+          space: { id: spaceId, name: spaceName },
+          folder,
+          list,
+        }));
+      }
+    }
+
+    scanned.push({
+      spaceId,
+      spaceName,
+      directListCount: directLists.length,
+      folderCount: folders.length,
+      matchedInSpace,
+    });
+  }
+
+  return {
+    requested: {
+      listName,
+      preferredSpaceName: preferredSpaceName || null,
+    },
+    summary: {
+      totalSpaces: spaces.length,
+      searchedSpaces: searchSpaces.length,
+      preferredSpaceFound: preferredSpaceName ? preferredSpaces.length > 0 : null,
+      matchCount: matches.length,
+    },
+    scanned,
+    matches,
+  };
+}
