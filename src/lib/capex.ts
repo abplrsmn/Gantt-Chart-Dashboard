@@ -8,6 +8,13 @@ const API_BASE_URL = 'https://api.clickup.com/api/v2';
 
 const TARGET_SPACE_NAME = 'Project';
 const TARGET_LIST_NAME = 'CAPEX Gantt 2026';
+const TARGET_LIST_CANDIDATES = [
+  'CAPEX Gantt 2026',
+  'CAPEX Gantt',
+  'CAPEX',
+  'CAPEX Gantt 2025',
+  'CAPEX Gantt 2024',
+];
 const MAPPING_API = '/api/capex/mapping';
 
 function sameName(left?: string, right?: string) {
@@ -118,13 +125,7 @@ async function loadMappingSeed(): Promise<CapexMappingRow[]> {
 async function resolveCapexTargetList() {
   return resolveAnyTargetListByName({
     listName: TARGET_LIST_NAME,
-    candidates: [
-      TARGET_LIST_NAME,
-      'CAPEX Gantt',
-      'CAPEX',
-      'CAPEX Gantt 2025',
-      'CAPEX Gantt 2024',
-    ],
+    candidates: TARGET_LIST_CANDIDATES,
     spaceName: TARGET_SPACE_NAME,
   });
 }

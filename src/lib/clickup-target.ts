@@ -30,8 +30,29 @@ function normalizeSelector(value?: string) {
   return normalized || undefined;
 }
 
+function normalizeName(value?: string) {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[“”"'`]/g, '')
+    .replace(/[\s\-_]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 function sameName(left?: string, right?: string) {
-  return String(left || '').trim().toLowerCase() === String(right || '').trim().toLowerCase();
+  return normalizeName(left) === normalizeName(right);
+}
+
+function looselyMatchesName(left?: string, right?: string) {
+  const a = normalizeName(left);
+  const b = normalizeName(right);
+  if (!a || !b) return false;
+  return a.includes(b) || b.includes(a);
+}
+
+function matchName(left?: string, right?: string) {
+  return sameName(left, right) || looselyMatchesName(left, right);
 }
 
 function pickPreferredTarget(targets: ClickUpTargetList[]) {
@@ -256,7 +277,7 @@ export async function resolveAnyTargetListByName(input: {
     for (const space of scanSpacesInput) {
       const directLists = await getSpaceLists(String(space.id));
       for (const candidate of candidateNames) {
-        const directMatch = directLists.find((list: { name?: string }) => sameName(list?.name, candidate));
+        const directMatch = directLists.find((list: { name?: string }) => matchName(list?.name, candidate));
         if (directMatch) {
           matches.push(asTargetList({ space, list: directMatch }));
         }
@@ -266,7 +287,7 @@ export async function resolveAnyTargetListByName(input: {
       for (const folder of folders) {
         const folderLists = Array.isArray(folder?.lists) ? folder.lists : await getFolderLists(String(folder.id));
         for (const candidate of candidateNames) {
-          const folderMatch = folderLists.find((list: { name?: string }) => sameName(list?.name, candidate));
+          const folderMatch = folderLists.find((list: { name?: string }) => matchName(list?.name, candidate));
           if (folderMatch) {
             matches.push(asTargetList({ space, folder, list: folderMatch }));
           }
