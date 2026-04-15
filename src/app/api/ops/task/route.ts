@@ -175,7 +175,8 @@ export async function POST(request: Request) {
       fields.space = payloadSelectors.spaceName;
     }
     if (!fields.taskTitle) {
-      fields.taskTitle = firstNonEmptyString(body?.title, body?.taskTitle, body?.task, body?.name);
+      const fallbackTitle = firstNonEmptyString(body?.title, body?.taskTitle, body?.task, body?.name);
+      fields.taskTitle = /^\s*(TASK|PROJECT)\s*\|?\s*$/i.test(fallbackTitle) ? '' : fallbackTitle;
     }
     if (!fields.description) {
       fields.description = firstNonEmptyString(body?.description, body?.desc, body?.note, body?.notes) || undefined;

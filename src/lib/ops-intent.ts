@@ -37,15 +37,17 @@ function parsePipeFields(text: string, commandType: 'TASK' | 'PROJECT') {
 
   if (!cleaned.toUpperCase().startsWith(marker)) return null;
 
-  const pairs = cleaned.split('|').slice(1);
+  const rawPairs = cleaned.split('|').slice(1);
   const fields: Record<string, string> = {};
 
-  for (const pair of pairs) {
+  for (const pair of rawPairs) {
     const match = pair.match(/^\s*([A-Za-z0-9 _-]+)\s*=\s*(.*?)\s*$/);
     if (!match) continue;
     const key = normalizeCommandKey(match[1]);
     const value = match[2].trim();
     if (!value) continue;
+    if (key === 'title' && /^task\s*$/i.test(value)) continue;
+    if (key === 'title' && /^project\s*$/i.test(value)) continue;
     fields[key] = value;
   }
 
@@ -180,7 +182,9 @@ function extractLabeledValue(text: string, labels: string[]) {
 }
 
 function cleanTaskTitle(raw: string) {
-  return raw
+  const withoutCommand = raw
+    .replace(/^\s*TASK\s*\|?/i, '')
+    .replace(/^\s*PROJECT\s*\|?/i, '')
     .replace(/@mr_palgudbot/ig, '')
     .replace(/assign task/ig, '')
     .replace(/buat(?:in)?\s+task/ig, '')
@@ -192,6 +196,8 @@ function cleanTaskTitle(raw: string) {
     .replace(/description\s*[:=]?.*/ig, '')
     .replace(/title\s*[:=]?.*/ig, '')
     .trim();
+
+  return withoutCommand.replace(/^\|\s*/, '').trim();
 }
 
 export function parseOpsIntent(text: string): ParsedIntent {
@@ -275,8 +281,8 @@ export function parseOpsIntent(text: string): ParsedIntent {
     const dueFromLabel = extractLabeledValue(text, ['deadline', 'due']);
     const title = extractLabeledValue(text, ['title', 'task', 'nama task']);
     const description = extractLabeledValue(text, ['desc', 'description', 'notes', 'note']);
-    const assignField = extractLabeledValue(text, ['assign', 'assignee', 'pic']);
-    const assignMatch = text.match(/(?:assign\s+ke|assign|buat(?:in)?\s+task\s+untuk|bikinin\s+task\s+untuk|buatin\s+task\s+untuk)\s*([A-Za-z0-9@._\- ]+?)(?:\n|\s+deadline|\s+due|$)/i);
+    const assignField = extractLabeledValue(text, ['assign', 'assignee', 'pic', 'owner', 'pic name']);
+    const assignMatch = text.match(/(?:assign\s+ke|assign|buat(?:in)?\s+task\s+untuk|bikinin\s+task\s+untuk|buatin\s+task\s+untuk|pic\s*[:=]|assignee\s*[:=])\s*([A-Za-z0-9@._\- ]+?)(?:\n|\s+deadline|\s+due|\s+note|\s+desc|\s+description|$)/i);
     const assignee = (assignField || (assignMatch ? assignMatch[1] : '') || '').trim().replace(/^@/, '') || null;
 
     const dueDateHint = commandFields?.due || commandFields?.deadline || commandFields?.end || dueFromLabel || (() => {
@@ -287,7 +293,17 @@ export function parseOpsIntent(text: string): ParsedIntent {
     })();
 
     let taskTitle = commandFields?.title || commandFields?.task || commandFields?.name || title || cleanTaskTitle(text);
+    if (typeof taskTitle === 'string') {
+      taskTitle = taskTitle.replace(/^\s*TASK\s*\|?/i, '').trim();
+      taskTitle = taskTitle.replace(/^\s*PROJECT\s*\|?/i, '').trim();
+    }
     if (!taskTitle && description) taskTitle = description;
+    if (typeof taskTitle === 'string') {
+      taskTitle = taskTitle.replace(/^\s*TASK\s*\|?/i, '').replace(/^\s*PROJECT\s*\|?/i, '').trim();
+      if (/^task\s*\|?$/i.test(taskTitle) || /^project\s*\|?$/i.test(taskTitle)) {
+        taskTitle = '';
+      }
+    }
 
     const explicitDescription = commandFields?.description || commandFields?.desc || commandFields?.note || commandFields?.notes;
     const assigneeFromCommand = commandFields?.assignee || commandFields?.assign || commandFields?.pic;
