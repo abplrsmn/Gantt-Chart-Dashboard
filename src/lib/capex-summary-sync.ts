@@ -7,7 +7,7 @@ const TEAM_ID = (process.env.CLICKUP_TEAM_ID || '').trim().replace(/^["']|["']$/
 const API_BASE_URL = 'https://api.clickup.com/api/v2';
 const TARGET_SPACE_NAME = 'Project';
 const TARGET_LIST_NAME = 'CAPEX Gantt 2026';
-const SUMMARY_PATH = path.join(process.cwd(), 'capex-summary.normalized.json');
+const SUMMARY_PATH = path.join(process.cwd(), 'data', 'capex-summary.normalized.json');
 
 type SummaryProject = {
   sourceRow: number;

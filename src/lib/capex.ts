@@ -18,7 +18,7 @@ const TARGET_LIST_CANDIDATES = [
   'CAPEX Gantt 2024',
 ];
 const MAPPING_API = '/api/capex/mapping';
-const SUMMARY_PATH = path.join(process.cwd(), 'capex-summary.normalized.json');
+const SUMMARY_PATH = path.join(process.cwd(), 'data', 'capex-summary.normalized.json');
 
 type ClickUpTaskEx = ClickUpTask & {
   description?: string;
