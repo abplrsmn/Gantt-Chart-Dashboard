@@ -23,6 +23,8 @@ export default function LoginPage() {
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     if (email === "admin@aryaduta.com" && password === "admin123") {
+      // Set a simple auth cookie so middleware knows we're logged in
+      document.cookie = "auth_token=supersecret_dev_token; path=/; max-age=86400;";
       router.push("/dashboard");
     } else {
       setError("Invalid credentials. Please check your email and password.");
