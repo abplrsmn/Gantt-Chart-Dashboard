@@ -14,6 +14,22 @@ export type ParsedOpsCommand = {
 };
 
 const TEAM_HINTS = ['idea tech', 'tech', 'data & digital', 'data and digital', 'data', 'digital', 'marketing', 'finance', 'hr'];
+const WEEKDAY_MAP: Record<string, number> = {
+  minggu: 0,
+  sunday: 0,
+  senin: 1,
+  monday: 1,
+  selasa: 2,
+  tuesday: 2,
+  rabu: 3,
+  wednesday: 3,
+  kamis: 4,
+  thursday: 4,
+  jumat: 5,
+  friday: 5,
+  sabtu: 6,
+  saturday: 6,
+};
 
 function normalize(text: string) {
   return text.toLowerCase().trim();
@@ -54,6 +70,22 @@ function parsePipeFields(text: string, commandType: 'TASK' | 'PROJECT') {
   return fields;
 }
 
+function parseKeyValueBlock(text: string) {
+  const fields: Record<string, string> = {};
+  const lines = text.split(/\r?\n/);
+
+  for (const line of lines) {
+    const match = line.match(/^\s*(?:[-•*]\s*)?([A-Za-z][A-Za-z0-9 _/&()-]+?)\s*[:=]\s*(.+?)\s*$/);
+    if (!match) continue;
+    const key = normalizeCommandKey(match[1]);
+    const value = match[2].trim();
+    if (!value) continue;
+    fields[key] = value;
+  }
+
+  return Object.keys(fields).length > 0 ? fields : null;
+}
+
 export function parseStructuredOpsCommand(text: string): ParsedOpsCommand | null {
   const projectFields = parsePipeFields(text, 'PROJECT');
   if (projectFields) {
@@ -71,6 +103,28 @@ export function parseStructuredOpsCommand(text: string): ParsedOpsCommand | null
       fields: taskFields,
       originalText: text,
     };
+  }
+
+  const blockFields = parseKeyValueBlock(text);
+  if (blockFields) {
+    const hasProjectSignals = !!(blockFields.unit || blockFields.project || blockFields.commence_date || blockFields.end_contract || blockFields.budget_capex || blockFields.contract_amount);
+    const hasTaskSignals = !!(blockFields.folder || blockFields.team || blockFields.list || blockFields.title || blockFields.deadline || blockFields.description || blockFields.desc);
+
+    if (hasProjectSignals && !hasTaskSignals) {
+      return {
+        commandType: 'PROJECT',
+        fields: blockFields,
+        originalText: text,
+      };
+    }
+
+    if (hasTaskSignals) {
+      return {
+        commandType: 'TASK',
+        fields: blockFields,
+        originalText: text,
+      };
+    }
   }
 
   return null;
@@ -93,6 +147,15 @@ function addDays(dateIso: string, days: number) {
   return d.toISOString().slice(0, 10);
 }
 
+function nextWeekday(targetDay: number) {
+  const today = todayInJakarta();
+  const d = new Date(`${today}T00:00:00+07:00`);
+  const currentDay = d.getUTCDay();
+  let delta = targetDay - currentDay;
+  if (delta <= 0) delta += 7;
+  return addDays(today, delta);
+}
+
 function extractTeam(text: string) {
   const lowered = normalize(text);
   const found = TEAM_HINTS.find((team) => lowered.includes(team)) || null;
@@ -107,7 +170,7 @@ function extractDate(text: string) {
   const iso = text.match(/\b(20\d{2}-\d{2}-\d{2})\b/);
   if (iso) return iso[1];
 
-  const named = lowered.match(/\b(\d{1,2})\s+(januari|january|februari|february|maret|march|april|mei|may|juni|june|juli|july|agustus|august|september|oktober|october|november|desember|december)\s+(20\d{2})\b/);
+  const named = lowered.match(/\b(\d{1,2})\s+(januari|january|februari|february|maret|march|april|mei|may|juni|june|juli|july|agustus|august|september|oktober|october|november|desember|december)\s+(20\d{2})(?:\s*,?\s*(\d{1,2})(?::|\.)(\d{2}))?\b/);
   if (named) {
     const months: Record<string, string> = {
       januari: '01', january: '01', februari: '02', february: '02', maret: '03', march: '03',
@@ -121,11 +184,18 @@ function extractDate(text: string) {
   const today = todayInJakarta();
   if (lowered.includes('hari ini') || lowered.includes('today')) return today;
   if (lowered.includes('besok') || lowered.includes('tomorrow')) return addDays(today, 1);
+  if (lowered.includes('lusa')) return addDays(today, 2);
+
+  for (const [weekday, dayNumber] of Object.entries(WEEKDAY_MAP)) {
+    const pattern = new RegExp(`\\b${weekday}\\b`, 'i');
+    if (pattern.test(lowered)) return nextWeekday(dayNumber);
+  }
+
   return null;
 }
 
 function extractTime(text: string) {
-  const explicit = text.match(/\b(?:time|jam mulai|mulai|deadline|due)\s*[:=]?\s*(\d{1,2})(?::|\.)(\d{2})\b/i);
+  const explicit = text.match(/\b(?:time|jam mulai|mulai|deadline|due|jam)\s*[:=]?\s*(\d{1,2})(?::|\.)(\d{2})\b/i);
   if (explicit) return `${explicit[1].padStart(2, '0')}:${explicit[2]}`;
 
   const m = text.match(/\b(\d{1,2})(?::|\.)(\d{2})\b/);
@@ -138,6 +208,10 @@ function extractTime(text: string) {
     if ((marker === 'siang' || marker === 'sore' || marker === 'malam') && hour < 12) hour += 12;
     return `${String(hour).padStart(2, '0')}:00`;
   }
+
+  if (/nanti sore/i.test(text)) return '16:00';
+  if (/nanti malam/i.test(text)) return '19:00';
+  if (/nanti pagi/i.test(text)) return '09:00';
 
   return null;
 }
@@ -162,7 +236,12 @@ function extractMeetLink(text: string) {
 function detectIntent(text: string): 'meeting' | 'task' | 'unknown' {
   const lowered = normalize(text);
   const meetingSignals = ['meeting', 'meet', 'schedule', 'jadwal', 'gmeet', 'google meet', 'sync'];
-  const taskSignals = ['task', 'assign', 'deadline', 'due', 'follow up', 'todo', 'buatin task', 'buat task', 'bikinin task'];
+  const taskSignals = [
+    'task', 'assign', 'deadline', 'due', 'follow up', 'todo',
+    'buatin task', 'buat task', 'bikinin task', 'tolong buat', 'tolong bikin',
+    'kerjain', 'tolong kerjain', 'please handle', 'please fix', 'fix', 'cek', 'followup',
+    'folder:', 'list:', 'title:', 'description:', 'deadline:'
+  ];
 
   const meetingHit = meetingSignals.some((signal) => lowered.includes(signal));
   const taskHit = taskSignals.some((signal) => lowered.includes(signal));
@@ -181,6 +260,26 @@ function extractLabeledValue(text: string, labels: string[]) {
   return null;
 }
 
+function extractAssignee(text: string) {
+  const labeled = extractLabeledValue(text, ['assign', 'assignee', 'pic', 'owner', 'pic name']);
+  if (labeled) return labeled.replace(/^@/, '').trim();
+
+  const patterns = [
+    /assign\s+ke\s+@?([A-Za-z0-9._\- ]+?)(?:\n|\s+(?:deadline|due|note|desc|description|buat|bikin|untuk|team|tim)\b|$)/i,
+    /assign\s+@?([A-Za-z0-9._\- ]+?)(?:\n|\s+(?:deadline|due|note|desc|description|buat|bikin|untuk|team|tim)\b|$)/i,
+    /pic\s+(?:nya\s+)?@?([A-Za-z0-9._\- ]+?)(?:\n|\s+(?:deadline|due|note|desc|description|buat|bikin|untuk|team|tim)\b|$)/i,
+    /owner\s+(?:nya\s+)?@?([A-Za-z0-9._\- ]+?)(?:\n|\s+(?:deadline|due|note|desc|description|buat|bikin|untuk|team|tim)\b|$)/i,
+    /untuk\s+@([A-Za-z0-9._\-]+)/i,
+  ];
+
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+    if (match?.[1]) return match[1].replace(/^@/, '').trim();
+  }
+
+  return null;
+}
+
 function cleanTaskTitle(raw: string) {
   const withoutCommand = raw
     .replace(/^\s*TASK\s*\|?/i, '')
@@ -188,7 +287,9 @@ function cleanTaskTitle(raw: string) {
     .replace(/@mr_palgudbot/ig, '')
     .replace(/assign task/ig, '')
     .replace(/buat(?:in)?\s+task/ig, '')
+    .replace(/bikin(?:in)?\s+task/ig, '')
     .replace(/tolong\s+/ig, '')
+    .replace(/please\s+/ig, '')
     .replace(/assign\s*(?:ke)?\s*[A-Za-z0-9@._\- ]+/ig, '')
     .replace(/deadline\s*[:=]?.*/ig, '')
     .replace(/due\s*[:=]?.*/ig, '')
@@ -198,6 +299,21 @@ function cleanTaskTitle(raw: string) {
     .trim();
 
   return withoutCommand.replace(/^\|\s*/, '').trim();
+}
+
+function inferTaskTitleFromNatural(text: string) {
+  const patterns = [
+    /(?:tolong\s+)?(?:buat|bikin)(?:in)?\s+task\s+(?:buat|untuk)?\s*(?:tim\s+|team\s+)?(?:tech|data(?:\s*&\s*digital)?|digital|marketing|finance|hr)?\s*[:,\-]?\s*(.+)$/i,
+    /(?:tolong\s+)?(?:buat|bikin)(?:in)?\s+(.+?)\s+(?:assign\s+ke|deadline|due|untuk\s+tim|buat\s+tim|for\s+team|$)/i,
+    /(?:tolong\s+)?(?:kerjain|cek|fix|follow\s*up|followup)\s+(.+?)(?:\s+(?:assign\s+ke|deadline|due|untuk\s+tim|buat\s+tim)|$)/i,
+  ];
+
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+    if (match?.[1]) return cleanTaskTitle(match[1]);
+  }
+
+  return '';
 }
 
 export function parseOpsIntent(text: string): ParsedIntent {
@@ -271,19 +387,18 @@ export function parseOpsIntent(text: string): ParsedIntent {
 
   if (intent === 'task') {
     const commandFields = structured?.commandType === 'TASK' ? structured.fields : null;
-    const explicitTeam = extractLabeledValue(text, ['team', 'tim']);
+    const explicitTeam = extractLabeledValue(text, ['team', 'tim', 'folder']);
     const explicitFolder = extractLabeledValue(text, ['folder']);
     const explicitList = extractLabeledValue(text, ['list']);
     const explicitSpace = extractLabeledValue(text, ['space', 'workspace']);
     const team =
       commandFields?.team ||
+      commandFields?.folder ||
       (explicitTeam ? explicitTeam.toLowerCase() : extractTeam(text));
     const dueFromLabel = extractLabeledValue(text, ['deadline', 'due']);
     const title = extractLabeledValue(text, ['title', 'task', 'nama task']);
     const description = extractLabeledValue(text, ['desc', 'description', 'notes', 'note']);
-    const assignField = extractLabeledValue(text, ['assign', 'assignee', 'pic', 'owner', 'pic name']);
-    const assignMatch = text.match(/(?:assign\s+ke|assign|buat(?:in)?\s+task\s+untuk|bikinin\s+task\s+untuk|buatin\s+task\s+untuk|pic\s*[:=]|assignee\s*[:=])\s*([A-Za-z0-9@._\- ]+?)(?:\n|\s+deadline|\s+due|\s+note|\s+desc|\s+description|$)/i);
-    const assignee = (assignField || (assignMatch ? assignMatch[1] : '') || '').trim().replace(/^@/, '') || null;
+    const assignee = extractAssignee(text);
 
     const dueDateHint = commandFields?.due || commandFields?.deadline || commandFields?.end || dueFromLabel || (() => {
       const date = extractDate(text);
@@ -292,7 +407,7 @@ export function parseOpsIntent(text: string): ParsedIntent {
       return date;
     })();
 
-    let taskTitle = commandFields?.title || commandFields?.task || commandFields?.name || title || cleanTaskTitle(text);
+    let taskTitle = commandFields?.title || commandFields?.task || commandFields?.name || title || inferTaskTitleFromNatural(text) || cleanTaskTitle(text);
     if (typeof taskTitle === 'string') {
       taskTitle = taskTitle.replace(/^\s*TASK\s*\|?/i, '').trim();
       taskTitle = taskTitle.replace(/^\s*PROJECT\s*\|?/i, '').trim();
@@ -321,7 +436,7 @@ export function parseOpsIntent(text: string): ParsedIntent {
       fields: {
         rawText: text,
         team: normalizedTeam,
-        folder: commandFields?.folder || explicitFolder,
+        folder: commandFields?.folder || explicitFolder || normalizedTeam,
         list: commandFields?.list || explicitList,
         space: commandFields?.space || explicitSpace,
         unit: explicitUnit,

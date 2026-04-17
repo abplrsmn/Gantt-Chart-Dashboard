@@ -18,10 +18,21 @@ export default function DashboardLayout({
   const desktopMenuRef = useRef<HTMLDivElement | null>(null);
   const mobileMenuRef = useRef<HTMLDivElement | null>(null);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     setMenuOpen(false);
     setDrawerOpen(false);
-    router.push("/");
+
+    try {
+      await fetch('/api/auth/logout', {
+        method: 'POST',
+        credentials: 'include',
+        cache: 'no-store',
+      });
+    } catch {
+      // Ignore logout request failure and continue forcing a hard redirect.
+    }
+
+    window.location.href = '/';
   };
 
   useEffect(() => {

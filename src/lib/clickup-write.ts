@@ -5,6 +5,7 @@ import {
 } from '@/lib/clickup-target';
 
 const CAPEX_TARGET_SPACE_NAME = (process.env.CAPEX_TARGET_SPACE_NAME || 'Project').trim();
+const CAPEX_TARGET_FOLDER_NAME = (process.env.CAPEX_TARGET_FOLDER_NAME || 'P1').trim();
 const CAPEX_TARGET_LIST_NAME = (process.env.CAPEX_TARGET_LIST_NAME || 'CAPEX Gantt 2026').trim();
 
 function pad2(value: string | number) {
@@ -212,6 +213,8 @@ export async function createTaskInCapexProjectList(input: {
     dueDate: input.dueDate,
     startDate: input.startDate,
     assigneeNameOrEmail: input.assigneeNameOrEmail,
+    spaceName: CAPEX_TARGET_SPACE_NAME,
+    folderName: CAPEX_TARGET_FOLDER_NAME,
     defaultSpaceName: CAPEX_TARGET_SPACE_NAME,
     defaultListName: CAPEX_TARGET_LIST_NAME,
   });
@@ -233,5 +236,65 @@ export async function updateTaskStatus(taskId: string, status: string) {
   return {
     task: data,
     status: data?.status,
+  };
+}
+
+export async function renameTask(taskId: string, name: string) {
+  if (!taskId?.trim()) {
+    throw new Error('taskId is required');
+  }
+  if (!name?.trim()) {
+    throw new Error('name is required');
+  }
+
+  const data = await fetchClickUp(`${CLICKUP_API_BASE_URL}/task/${taskId}`, {
+    method: 'PUT',
+    body: JSON.stringify({ name: name.trim() }),
+  });
+
+  return {
+    task: data,
+  };
+}
+
+export async function updateTaskFields(input: {
+  taskId: string;
+  name?: string;
+  description?: string;
+  dueDate?: string;
+  startDate?: string;
+  assigneeNameOrEmail?: string;
+}) {
+  if (!input.taskId?.trim()) {
+    throw new Error('taskId is required');
+  }
+
+  const payload: Record<string, unknown> = {};
+
+  if (input.name?.trim()) payload.name = input.name.trim();
+  if (input.description !== undefined) payload.description = input.description;
+
+  const dueMs = normalizeDateTimeToJakartaMs(input.dueDate);
+  if (!Number.isNaN(Number(dueMs)) && dueMs) payload.due_date = dueMs;
+
+  const startMs = normalizeDateTimeToJakartaMs(input.startDate);
+  if (!Number.isNaN(Number(startMs)) && startMs) payload.start_date = startMs;
+
+  if (input.assigneeNameOrEmail?.trim()) {
+    const assigneeId = await resolveAssigneeId(input.assigneeNameOrEmail);
+    if (assigneeId) payload.assignees = [Number(assigneeId)];
+  }
+
+  if (Object.keys(payload).length === 0) {
+    throw new Error('At least one updatable field is required');
+  }
+
+  const data = await fetchClickUp(`${CLICKUP_API_BASE_URL}/task/${input.taskId.trim()}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  });
+
+  return {
+    task: data,
   };
 }

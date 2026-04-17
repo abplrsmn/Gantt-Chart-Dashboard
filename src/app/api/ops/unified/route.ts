@@ -13,9 +13,8 @@ export async function POST(request: Request) {
       status: result.success ? 200 : 400,
     });
   } catch (error: any) {
-    const message = error?.message || 'Failed to execute task operation';
+    const message = error?.message || 'Failed to execute unified ops route';
     await logUnifiedOpsError(body || {}, message);
-    const isTargetResolutionError = /target|folder|space|list|team/i.test(message) && /not found|unable to resolve|no target selector/i.test(message);
     return NextResponse.json(
       {
         success: false,
@@ -23,7 +22,7 @@ export async function POST(request: Request) {
         error: message,
         telegramMessage: `❌ Sync gagal: ${message}`,
       },
-      { status: isTargetResolutionError ? 400 : 500 }
+      { status: 500 }
     );
   }
 }

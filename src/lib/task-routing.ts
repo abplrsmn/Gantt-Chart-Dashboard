@@ -35,7 +35,7 @@ type ResolveTaskRoutingInput = {
 const KEYWORD_RULES: RouteRule[] = [
   {
     id: 'capex-keywords',
-    whenAny: ['capex', 'project |', 'unit=', 'progress=', 'bast', 'commenced', 'landscape'],
+    whenAny: ['capex', 'project |', 'unit=', 'progress=', 'bast', 'commence date', 'end contract', 'contract amount', 'budget capex'],
     useCapexDefault: true,
     confidence: 0.95,
     reason: 'Matched CAPEX-style project keywords',
