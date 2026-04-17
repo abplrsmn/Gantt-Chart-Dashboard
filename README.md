@@ -4,7 +4,7 @@
 ## ?? Overview
 This project is a custom-built, full-stack Command Center tailored for CAPEX (Capital Expenditure) Project Management. It serves as a unified dashboard that bridges raw financial/planning data (Excel/CSV seeds) with live operational execution data from **ClickUp**.
 
-Furthermore, the system is deeply integrated with **Google Workspace (Calendar & Chat)** and **WhatsApp (via OpenClaw)** to automate meetings, status updates, and critical deadline reminders.
+Furthermore, the system is deeply integrated with **Google Workspace (Calendar & Chat)** and **Telegram (via OpenClaw)** to automate meetings, status updates, and critical deadline reminders.
 
 ---
 
@@ -16,7 +16,7 @@ The platform leverages a modern, Serverless-first architecture:
 - **Integrations**:
     - `ClickUp API v2` (Tasks, Lists, Webhooks, Custom Fields)
     - `Google APIs` (Calendar scheduling, GChat Webhooks for interactive messaging)
-    - `OpenClaw API` (WhatsApp automated gateway)
+    - `OpenClaw API` (Telegram automated gateway)
 - **Data Strategy**: Hybrid. It does not use a traditional relational database (RDBMS). Instead, it relies on real-time API aggregation (ClickUp) patched dynamically over local normalized seed JSON files (`data/capex-*`).
 
 ---
@@ -36,8 +36,8 @@ Because ClickUp tasks often lack the comprehensive metadata present in initial p
 
 ### 3. AI Assistant & Automated Notification System
 - **OpenClaw AI Integration**:
-  The system utilizes OpenClaw not just as a dumb gateway, but to power an **AI Agent Assistant**. Through this integration, users can interact contextually via WhatsApp to check project statuses, pass & assign new operational tasks, and automatically request meeting schedules. The AI translates natural language chat commands into strict ClickUp/GCal API actions.
-- **WhatsApp Reminder Engine** (`/api/capex/reminder`):
+  The system utilizes OpenClaw not just as a dumb gateway, but to power an **AI Agent Assistant**. Through this integration, users can interact contextually via Telegram to check project statuses, pass & assign new operational tasks, and automatically request meeting schedules. The AI translates natural language chat commands into strict ClickUp/GCal API actions.
+- **Telegram Reminder Engine** (`/api/capex/reminder`):
   Calculates if a project is "At Risk" (approaching or past its deadline). Forms a conversational summary and posts an HTTP payload to the OpenClaw gateway. Triggered via external Cron payloads or via manual API invoke.
 - **GChat Integration & Smart Scheduling** (`/api/gchat/*`, `/api/meetings/*`):
   Listens to webhook interactions from Google Chat. Working alongside the AI, managers can trigger updates, confirm phases, or schedule GCal/Zoom meetings dynamically based on context directly from work chat interfaces.
@@ -58,7 +58,7 @@ Because ClickUp tasks often lack the comprehensive metadata present in initial p
 +-- src/
 �   +-- app/
 �   �   +-- api/                # ?? BACKEND ROUTES
-�   �   �   +-- capex/          # Merging logics, health checks & WA Reminders
+�   �   �   +-- capex/          # Merging logics, health checks & Telegram Reminders
 �   �   �   +-- clickup/        # Live bidirectional ClickUp sync (Create/Update tasks)
 �   �   �   +-- google/         # OAuth & Calendar Event creation
 �   �   �   +-- meetings/       # Smart Zoom/Meet schedule builder
@@ -87,7 +87,7 @@ Because ClickUp tasks often lack the comprehensive metadata present in initial p
 - Node.js 18+ (v20+ recommended)
 - Valid ClickUp API Token & Team ID
 - Valid Google Cloud Console credentials (for OAuth & Calendar API)
-- OpenClaw API details (for WhatsApp integrations)
+- OpenClaw API details (for Telegram integrations)
 
 ### Installation
 
@@ -113,7 +113,7 @@ Because ClickUp tasks often lack the comprehensive metadata present in initial p
 
 ### Verification & Testing
 - **Build check**: `npm run build` (Ensures server actions and dynamic routes pass compiler checks).
-- **Trigger Application Reminder (WA)**:
+- **Trigger Application Reminder (Telegram)**:
   ```bash
   curl -X POST http://localhost:3000/api/capex/reminder -H "Content-Type: application/json" -d '{"dryRun":true, "daysAhead":7}'
   ```
