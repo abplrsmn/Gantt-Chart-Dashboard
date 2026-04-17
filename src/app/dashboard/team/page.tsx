@@ -71,7 +71,6 @@ export default function TeamPage() {
         <div className="grid gap-6">
           {departments.map((dept) => (
             <div key={dept.spaceId} className="glass-card p-6 relative overflow-hidden">
-              <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-purple-500 to-pink-500 rounded-t-2xl"></div>
               <div className="flex items-center justify-between gap-3 mb-4 border-b border-slate-200 dark:border-slate-700/50 pb-3">
                 <h2 className="text-sm font-bold text-slate-800 dark:text-white">
                   {dept.name} Department

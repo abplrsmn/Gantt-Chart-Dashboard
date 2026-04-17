@@ -85,6 +85,23 @@ async function fetchAllTasksBySpace() {
   return collected;
 }
 
+async function findFolderByTeamName(teamName: string): Promise<any | null> {
+  const normalizedTeamName = teamName.toLowerCase();
+  const spacesData = await fetchClickUpJson(`${API_BASE_URL}/team/${TEAM_ID}/space`);
+  const spaces = spacesData.spaces || [];
+
+  for (const space of spaces) {
+    const foldersData = await fetchClickUpJson(`${API_BASE_URL}/space/${space.id}/folder`);
+    const folders = foldersData.folders || [];
+    const foundFolder = folders.find((f: any) => f.name?.toLowerCase() === normalizedTeamName);
+    if (foundFolder) {
+      return foundFolder;
+    }
+  }
+
+  return null;
+}
+
 export async function getTasks(): Promise<ClickUpTask[]> {
   try {
     const data = await fetchClickUpJson(`${API_BASE_URL}/team/${TEAM_ID}/task?subtasks=true&include_closed=true`);
@@ -113,20 +130,7 @@ export async function getTeamMembers(teamName: string): Promise<any[]> {
   if (!teamName) return [];
 
   try {
-    const normalizedTeamName = teamName.toLowerCase();
-    const spacesData = await fetchClickUpJson(`${API_BASE_URL}/team/${TEAM_ID}/space`);
-    const spaces = spacesData.spaces || [];
-
-    let targetFolder: any = null;
-    for (const space of spaces) {
-      const foldersData = await fetchClickUpJson(`${API_BASE_URL}/space/${space.id}/folder`);
-      const folders = foldersData.folders || [];
-      const foundFolder = folders.find((f: any) => f.name?.toLowerCase() === normalizedTeamName);
-      if (foundFolder) {
-        targetFolder = foundFolder;
-        break;
-      }
-    }
+    const targetFolder = await findFolderByTeamName(teamName);
 
     if (!targetFolder) return [];
 
@@ -186,6 +190,105 @@ export async function getTeamMembers(teamName: string): Promise<any[]> {
       throw error;
     }
     return [];
+  }
+}
+
+export async function getTeamFolderTaskLists(teamName: string): Promise<{
+  folder: { id: string; name: string } | null;
+  lists: Array<{
+    id: string;
+    name: string;
+    totalTasks: number;
+    openTasks: number;
+    closedTasks: number;
+    tasks: Array<{
+      id: string;
+      name: string;
+      status: string;
+      dueDate: string | null;
+      url: string;
+      assignees: string[];
+    }>;
+  }>;
+}> {
+  if (!teamName) {
+    return { folder: null, lists: [] };
+  }
+
+  try {
+    const targetFolder = await findFolderByTeamName(teamName);
+    if (!targetFolder) {
+      return { folder: null, lists: [] };
+    }
+
+    const listsData = await fetchClickUpJson(`${API_BASE_URL}/folder/${targetFolder.id}/list`);
+    const lists = Array.isArray(listsData?.lists) ? listsData.lists : [];
+
+    const listsWithTasks = await Promise.all(
+      lists.map(async (list: any) => {
+        const listId = String(list?.id || '');
+        if (!listId) {
+          return {
+            id: '',
+            name: String(list?.name || 'Untitled List'),
+            totalTasks: 0,
+            openTasks: 0,
+            closedTasks: 0,
+            tasks: [],
+          };
+        }
+
+        const data = await fetchClickUpJson(
+          `${API_BASE_URL}/list/${listId}/task?include_closed=true&subtasks=true`
+        );
+        const tasks = Array.isArray(data?.tasks) ? data.tasks : [];
+
+        const normalizedTasks = tasks.map((task: any) => {
+          const status = String(task?.status?.status || 'unknown');
+          const dueDate = task?.due_date ? String(task.due_date) : null;
+          const assignees = Array.isArray(task?.assignees)
+            ? task.assignees
+              .map((a: any) => String(a?.username || a?.email || '').trim())
+              .filter(Boolean)
+            : [];
+
+          return {
+            id: String(task?.id || ''),
+            name: String(task?.name || 'Untitled Task'),
+            status,
+            dueDate,
+            url: String(task?.url || ''),
+            assignees,
+          };
+        });
+
+        const closedTasks = normalizedTasks.filter((t) => {
+          const s = t.status.toLowerCase();
+          return s === 'closed' || s === 'complete' || s === 'completed';
+        }).length;
+        const totalTasks = normalizedTasks.length;
+
+        return {
+          id: listId,
+          name: String(list?.name || 'Untitled List'),
+          totalTasks,
+          closedTasks,
+          openTasks: totalTasks - closedTasks,
+          tasks: normalizedTasks,
+        };
+      })
+    );
+
+    return {
+      folder: { id: String(targetFolder.id), name: String(targetFolder.name || teamName) },
+      lists: listsWithTasks.filter((l) => l.id),
+    };
+  } catch (error) {
+    console.error('Failed to fetch team folder task lists:', error);
+    if (isAuthOrConfigError(error)) {
+      throw error;
+    }
+    return { folder: null, lists: [] };
   }
 }
 

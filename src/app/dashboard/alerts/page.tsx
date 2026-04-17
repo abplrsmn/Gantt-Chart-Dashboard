@@ -162,7 +162,6 @@ export default function AlertsPage() {
       <Toaster position="top-right" />
       
       <div className="glass-card p-5 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 overflow-hidden relative">
-        <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-red-500 via-amber-500 to-blue-500 rounded-t-2xl"></div>
         <div className="flex items-center gap-3 relative z-10">
           <div className="p-2 bg-red-500/10 text-red-500 dark:text-red-400 rounded-xl border border-red-500/20">
             <ShieldAlert size={20} />

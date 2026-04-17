@@ -67,6 +67,7 @@ type GanttRow = {
   endDate: Date;
   offset: number;
   width: number;
+  segments: Array<{ phase: CapexPhase; startDate: Date; endDate: Date; offset: number; width: number }>;
   progressPct?: number;
   deadlineRisk: "none" | "normal" | "near" | "overdue";
 };
@@ -75,12 +76,151 @@ const PHASE_ORDER: CapexPhase[] = ["brief", "design", "control", "project_manage
 
 const parseFlexibleDate = (value?: string) => {
   if (!value) return null;
-  const formats = ["d MMM yyyy", "d MMMM yyyy", "d-MMM-yyyy", "d-MMMM-yyyy"];
+  const normalized = String(value).trim();
+  if (!normalized) return null;
+
+  const formats = ["d MMM yyyy", "d MMMM yyyy", "d-MMM-yyyy", "d-MMMM-yyyy", "yyyy-MM-dd", "dd/MM/yyyy", "d/M/yyyy"];
   for (const fmt of formats) {
-    const parsed = parse(value, fmt, new Date());
+    const parsed = parse(normalized, fmt, new Date());
     if (isValid(parsed)) return parsed;
   }
+
+  const nativeDate = new Date(normalized);
+  if (isValid(nativeDate)) return nativeDate;
+
   return null;
+};
+
+const getEffectivePhase = (project: CapexProject): CapexPhase => {
+  if (
+    project.phase &&
+    (PHASE_ORDER.includes(project.phase) || project.phase === "blocked")
+  ) {
+    return project.phase;
+  }
+
+  const milestones = project.milestones;
+  const handover = parseFlexibleDate(milestones?.handoverDate);
+  const pm = parseFlexibleDate(milestones?.projectManagementDate);
+  const control = parseFlexibleDate(milestones?.controlDate);
+  const design = parseFlexibleDate(milestones?.designDate);
+  const brief = parseFlexibleDate(milestones?.briefDate);
+
+  if (handover) return "handover";
+  if (pm) return "project_management";
+  if (control) return "control";
+  if (design) return "design";
+  if (brief) return "brief";
+
+  return "brief";
+};
+
+const resolvePhaseWindow = (project: CapexProject, timelineStart: Date) => {
+  const fallbackStart = parseFlexibleDate(project.start) ?? timelineStart;
+  const fallbackRawEnd = parseFlexibleDate(project.end) ?? addDays(fallbackStart, 35);
+  const fallbackEnd = fallbackRawEnd < fallbackStart ? addDays(fallbackStart, 14) : fallbackRawEnd;
+
+  const brief = parseFlexibleDate(project.milestones?.briefDate);
+  const design = parseFlexibleDate(project.milestones?.designDate);
+  const control = parseFlexibleDate(project.milestones?.controlDate);
+  const pm = parseFlexibleDate(project.milestones?.projectManagementDate);
+  const handover = parseFlexibleDate(project.milestones?.handoverDate);
+  const phase = getEffectivePhase(project);
+
+  let phaseStart = fallbackStart;
+  let phaseEnd = fallbackEnd;
+
+  switch (phase) {
+    case "brief":
+      phaseStart = brief ?? fallbackStart;
+      phaseEnd = design ?? addDays(phaseStart, 14);
+      break;
+    case "design":
+      phaseStart = design ?? brief ?? fallbackStart;
+      phaseEnd = control ?? addDays(phaseStart, 21);
+      break;
+    case "control":
+      phaseStart = control ?? design ?? fallbackStart;
+      phaseEnd = pm ?? addDays(phaseStart, 21);
+      break;
+    case "project_management":
+      phaseStart = pm ?? control ?? fallbackStart;
+      phaseEnd = handover ?? fallbackEnd;
+      break;
+    case "handover":
+      phaseStart = handover ?? pm ?? fallbackStart;
+      phaseEnd = fallbackEnd;
+      break;
+    case "done":
+      phaseStart = handover ?? pm ?? control ?? design ?? brief ?? fallbackStart;
+      phaseEnd = fallbackEnd;
+      break;
+    case "blocked":
+      phaseStart = pm ?? control ?? design ?? brief ?? fallbackStart;
+      phaseEnd = fallbackEnd;
+      break;
+    default:
+      phaseStart = fallbackStart;
+      phaseEnd = fallbackEnd;
+      break;
+  }
+
+  if (phaseEnd < phaseStart) {
+    phaseEnd = addDays(phaseStart, 7);
+  }
+
+  return { startDate: phaseStart, endDate: phaseEnd };
+};
+
+const resolveMilestoneSegments = (project: CapexProject, timelineStart: Date) => {
+  const fallbackStart = parseFlexibleDate(project.start) ?? timelineStart;
+  const fallbackRawEnd = parseFlexibleDate(project.end) ?? addDays(fallbackStart, 35);
+  const fallbackEnd = fallbackRawEnd < fallbackStart ? addDays(fallbackStart, 14) : fallbackRawEnd;
+  const effectivePhase = getEffectivePhase(project);
+
+  const brief = parseFlexibleDate(project.milestones?.briefDate);
+  const design = parseFlexibleDate(project.milestones?.designDate);
+  const control = parseFlexibleDate(project.milestones?.controlDate);
+  const pm = parseFlexibleDate(project.milestones?.projectManagementDate);
+
+  const points = [
+    brief ? { phase: "brief" as CapexPhase, at: brief } : null,
+    design ? { phase: "design" as CapexPhase, at: design } : null,
+    control ? { phase: "control" as CapexPhase, at: control } : null,
+    pm ? { phase: "project_management" as CapexPhase, at: pm } : null,
+  ].filter((item): item is { phase: CapexPhase; at: Date } => item !== null);
+
+  const ranges: Array<{ phase: CapexPhase; startDate: Date; endDate: Date }> = [];
+  for (let i = 0; i < points.length; i += 1) {
+    const current = points[i];
+    const next = points[i + 1];
+    ranges.push({
+      phase: current.phase,
+      startDate: current.at,
+      endDate: next?.at ?? fallbackEnd,
+    });
+  }
+
+  // If no milestone points, keep one fallback segment based on effective phase.
+  if (ranges.length === 0) {
+    ranges.push({ phase: effectivePhase === "done" || effectivePhase === "blocked" ? "project_management" : effectivePhase, startDate: fallbackStart, endDate: fallbackEnd });
+  } else {
+    // Fill the remainder with the effective phase if not ended.
+    const lastEnd = ranges[ranges.length - 1]?.endDate ?? fallbackStart;
+    if (lastEnd < fallbackEnd) {
+      const remainingPhase = effectivePhase === "blocked" || effectivePhase === "done" ? effectivePhase : effectivePhase;
+      ranges.push({
+        phase: remainingPhase,
+        startDate: lastEnd,
+        endDate: fallbackEnd,
+      });
+    }
+  }
+
+  return ranges.map((range) => {
+    const safeEnd = range.endDate < range.startDate ? addDays(range.startDate, 7) : range.endDate;
+    return { ...range, endDate: safeEnd };
+  });
 };
 
 const getPhaseLabel = (phase?: CapexPhase) => {
@@ -164,12 +304,26 @@ const milestoneLadder = [
 
 const splitTaskNote = (note?: string) => {
   if (!note) return [] as Array<{ label: string; value: string }>;
+  // Normalize: replace multiple spaces with single, trim
   const compact = note.replace(/\s+/g, " ").trim();
   if (!compact) return [];
 
+  // Known keys for splitting
   const knownKeys = [
+    "Received Date",
+    "APS Release Date",
+    "Contract Amount",
+    "Commence Date",
+    "End Contract",
+    "Actual Completion",
+    "Deviation Days",
+    "PROGRESS & NOTES",
+    "Current Site",
     "Source Key",
     "Hotel Code",
+    "Project No",
+    "Project Name",
+    "Description",
     "Unit",
     "Start",
     "End",
@@ -181,17 +335,37 @@ const splitTaskNote = (note?: string) => {
     "Project Status Note",
     "Next Action",
     "Managed by",
+    "BAST-1",
   ];
 
-  const parts = compact.split(new RegExp(`\\s(?=(?:${knownKeys.join("|")}):)`, "g"));
-  return parts
-    .map((part, index) => {
-      const match = part.match(/^([^:]{2,40}):\s*(.+)$/);
-      if (match) return { label: match[1], value: match[2] };
-      if (index === 0) return { label: "Description", value: part };
-      return { label: "Info", value: part };
-    })
-    .filter((item) => item.value.length > 0);
+  // Split on any known key followed by colon, even if no space before
+  const parts = compact.split(new RegExp(`(?=\\b(?:${knownKeys.join("|")})\\s*:)`, "g"));
+  // For each part, if value contains chained keys, split further
+  const result = [];
+  for (const part of parts) {
+    let match = part.match(/^([^:]{2,40}):\s*(.+)$/);
+    if (match) {
+      let [_, label, value] = match;
+      // If value contains chained keys, split further
+      const subParts = value.split(new RegExp(`(?=\\b(?:${knownKeys.join("|")})\\s*:)`, "g"));
+      if (subParts.length > 1) {
+        for (const sub of subParts) {
+          const subMatch = sub.match(/^([^:]{2,40}):\s*(.+)$/);
+          if (subMatch) {
+            result.push({ label: subMatch[1], value: subMatch[2] });
+          } else if (sub.trim()) {
+            result.push({ label: label, value: sub.trim() });
+          }
+        }
+      } else {
+        result.push({ label, value });
+      }
+    } else if (part.trim()) {
+      // If not matching, treat as info
+      result.push({ label: "Info", value: part.trim() });
+    }
+  }
+  return result.filter((item) => item.value.length > 0);
 };
 
 export default function CapexGanttMonitor() {
@@ -256,7 +430,7 @@ export default function CapexGanttMonitor() {
 
   const filteredProjects = useMemo(() => {
     return projects.filter((project) => {
-      const phase = project.phase || "brief";
+      const phase = getEffectivePhase(project);
       const hotel = (project.hotelCode || project.unit || "UNKNOWN").toUpperCase();
       const matchesSearch = `${hotel} ${project.name} ${project.status} ${project.pic ?? ""} ${getPhaseLabel(phase)}`
         .toLowerCase()
@@ -290,12 +464,12 @@ export default function CapexGanttMonitor() {
 
   const summary = useMemo(() => {
     const total = filteredProjects.length;
-    const completed = filteredProjects.filter((project) => (project.phase || "brief") === "done").length;
-    const blocked = filteredProjects.filter((project) => (project.phase || "brief") === "blocked" || project.blocked).length;
+    const completed = filteredProjects.filter((project) => getEffectivePhase(project) === "done").length;
+    const blocked = filteredProjects.filter((project) => getEffectivePhase(project) === "blocked" || project.blocked).length;
     const deadlineRisk = filteredProjects.filter((project) => ["near", "overdue"].includes(getDeadlineRisk(project))).length;
 
     const byPhase = PHASE_ORDER.reduce<Record<string, number>>((acc, phase) => {
-      acc[phase] = filteredProjects.filter((project) => (project.phase || "brief") === phase).length;
+      acc[phase] = filteredProjects.filter((project) => getEffectivePhase(project) === phase).length;
       return acc;
     }, {});
 
@@ -366,26 +540,45 @@ export default function CapexGanttMonitor() {
     const map = new Map<string, GanttRow>();
 
     for (const project of filteredProjects) {
-      const startDate = parseFlexibleDate(project.start) ?? timeline.start;
-      const rawEnd = parseFlexibleDate(project.end);
-      const endDate = rawEnd ?? addDays(startDate, 35);
-      const safeEndDate = endDate < startDate ? addDays(startDate, 14) : endDate;
+      const fallbackWindow = resolvePhaseWindow(project, timeline.start);
+      const rawSegments = resolveMilestoneSegments(project, timeline.start);
 
-      const clampedStart = startDate < timeline.start ? timeline.start : startDate;
-      const clampedEnd = safeEndDate > timeline.end ? timeline.end : safeEndDate;
-      const duration = Math.max(1, differenceInCalendarDays(clampedEnd, clampedStart) + 1);
+      const segments = rawSegments
+        .map((segment) => {
+          const clampedStart = segment.startDate < timeline.start ? timeline.start : segment.startDate;
+          const clampedEnd = segment.endDate > timeline.end ? timeline.end : segment.endDate;
+          if (clampedEnd < clampedStart) return null;
 
-      const offset = Math.max(0, (differenceInCalendarDays(clampedStart, timeline.start) / totalDays) * 100);
-      const width = Math.max(1.1, (duration / totalDays) * 100);
+          const duration = Math.max(1, differenceInCalendarDays(clampedEnd, clampedStart) + 1);
+          const offset = Math.max(0, (differenceInCalendarDays(clampedStart, timeline.start) / totalDays) * 100);
+          const width = Math.max(1.1, (duration / totalDays) * 100);
+
+          return {
+            phase: segment.phase,
+            startDate: segment.startDate,
+            endDate: segment.endDate,
+            offset,
+            width,
+          };
+        })
+        .filter((segment): segment is { phase: CapexPhase; startDate: Date; endDate: Date; offset: number; width: number } => segment !== null);
+
+      const startDate = segments.length > 0 ? segments[0].startDate : fallbackWindow.startDate;
+      const endDate = segments.length > 0 ? segments[segments.length - 1].endDate : fallbackWindow.endDate;
+      const offset = segments.length > 0 ? segments[0].offset : Math.max(0, (differenceInCalendarDays(startDate < timeline.start ? timeline.start : startDate, timeline.start) / totalDays) * 100);
+      const width = segments.length > 0
+        ? Math.max(1.1, (segments[segments.length - 1].offset + segments[segments.length - 1].width) - segments[0].offset)
+        : Math.max(1.1, ((Math.max(1, differenceInCalendarDays((endDate > timeline.end ? timeline.end : endDate), (startDate < timeline.start ? timeline.start : startDate)) + 1)) / totalDays) * 100);
       const progressPct = typeof project.progress === "number" ? Math.max(0, Math.min(100, project.progress)) : undefined;
       const deadlineRisk = getDeadlineRisk(project);
 
       map.set(project.id, {
         project,
         startDate,
-        endDate: safeEndDate,
+        endDate,
         offset,
         width,
+        segments,
         progressPct,
         deadlineRisk,
       });
@@ -395,11 +588,10 @@ export default function CapexGanttMonitor() {
   }, [filteredProjects, timeline]);
 
   const selectedNoteItems = useMemo(() => splitTaskNote(selectedProject?.note), [selectedProject]);
-  const unresolvedCount = mappingRows.filter((row) => !row.clickupTaskId).length;
 
   const activePhaseIndex = useMemo(() => {
     if (!selectedProject) return 0;
-    const selectedPhase = selectedProject.phase || "brief";
+    const selectedPhase = getEffectivePhase(selectedProject);
     if (selectedPhase === "blocked") return 2;
     const idx = PHASE_ORDER.indexOf(selectedPhase);
     return idx >= 0 ? idx : 0;
@@ -408,7 +600,6 @@ export default function CapexGanttMonitor() {
   return (
     <div className="space-y-4">
       <section className="glass-card p-5 space-y-4 overflow-hidden relative">
-        <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-cyan-500 via-blue-500 to-emerald-500 rounded-t-2xl"></div>
 
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
           <div>
@@ -474,30 +665,6 @@ export default function CapexGanttMonitor() {
           </div>
         </div>
 
-        <div className="rounded-xl border border-slate-200/70 dark:border-white/10 bg-gradient-to-r from-slate-50 to-cyan-50/60 dark:from-zinc-900/40 dark:to-cyan-950/20 p-3.5">
-          <div className="flex items-center justify-between gap-2">
-            <p className="text-[10px] uppercase tracking-[0.14em] text-slate-400 dark:text-slate-500">How To Read</p>
-            <span className="text-[11px] text-slate-500 dark:text-slate-400">Quick guide for non-technical users</span>
-          </div>
-
-          <div className="mt-2.5 grid grid-cols-1 md:grid-cols-3 gap-2.5">
-            <div className="rounded-lg border border-slate-200/80 dark:border-white/10 bg-white/80 dark:bg-zinc-900/60 px-3 py-2.5">
-              <p className="text-[11px] font-semibold text-slate-700 dark:text-slate-200">Group</p>
-              <p className="mt-1 text-xs leading-relaxed text-slate-600 dark:text-slate-300">Kiri chart = kode hotel (ALV, ACC, AKB, dll) dan daftar project per hotel.</p>
-            </div>
-
-            <div className="rounded-lg border border-slate-200/80 dark:border-white/10 bg-white/80 dark:bg-zinc-900/60 px-3 py-2.5">
-              <p className="text-[11px] font-semibold text-slate-700 dark:text-slate-200">Phase Color</p>
-              <p className="mt-1 text-xs leading-relaxed text-slate-600 dark:text-slate-300">Warna bar Gantt = milestone phase aktif (Brief, Design, Control, PM, Handover).</p>
-            </div>
-
-            <div className="rounded-lg border border-slate-200/80 dark:border-white/10 bg-white/80 dark:bg-zinc-900/60 px-3 py-2.5">
-              <p className="text-[11px] font-semibold text-slate-700 dark:text-slate-200">Deadline Warning</p>
-              <p className="mt-1 text-xs leading-relaxed text-slate-600 dark:text-slate-300">Deadline hanya warning sekunder: badge/ring untuk near deadline atau overdue.</p>
-            </div>
-          </div>
-        </div>
-
         <div className="flex flex-wrap gap-2 text-[11px]">
           {loading && (
             <span className="inline-flex rounded-full px-2.5 py-1 font-semibold bg-amber-500/10 text-amber-700 dark:text-amber-300">
@@ -508,9 +675,6 @@ export default function CapexGanttMonitor() {
           <span className="inline-flex rounded-full bg-green-500/10 px-2.5 py-1 font-semibold text-green-700 dark:text-green-300">Completed {summary.completed}</span>
           <span className="inline-flex rounded-full bg-rose-500/10 px-2.5 py-1 font-semibold text-rose-700 dark:text-rose-300">Blocked {summary.blocked}</span>
           <span className="inline-flex rounded-full bg-amber-500/10 px-2.5 py-1 font-semibold text-amber-700 dark:text-amber-300">Deadline Risk {summary.deadlineRisk}</span>
-          <span className={`inline-flex rounded-full px-2.5 py-1 font-semibold ${unresolvedCount > 0 ? "bg-rose-500/10 text-rose-700 dark:text-rose-300" : "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"}`}>
-            Mapping unresolved: {unresolvedCount}
-          </span>
           {loadError && <span className="inline-flex rounded-full bg-rose-500/10 px-2.5 py-1 font-semibold text-rose-700 dark:text-rose-300">Fallback active: {loadError}</span>}
         </div>
 
@@ -534,7 +698,7 @@ export default function CapexGanttMonitor() {
 
       <section className="glass-card p-4 overflow-x-auto">
         <div className="min-w-[1450px]">
-          <div className="grid grid-cols-[320px_1fr] items-center gap-3 pb-2 border-b border-slate-200/60 dark:border-white/10">
+          <div className="grid grid-cols-[320px_1fr] items-center gap-3 pb-2 border-b border-slate-300/80 dark:border-white/15">
             <div className="rounded-md bg-slate-900 px-3 py-2 text-xs font-bold uppercase tracking-wide text-white">Hotel / Project</div>
             <div className="grid gap-1" style={{ gridTemplateColumns: `repeat(${weekBuckets.length}, minmax(0, 1fr))` }}>
               {monthSegments.map((segment) => (
@@ -576,14 +740,14 @@ export default function CapexGanttMonitor() {
                     <div className="rounded-md bg-cyan-500/10 border border-cyan-500/20 px-3 py-2 text-sm font-bold text-cyan-700 dark:text-cyan-300">
                       {group.hotel} ({group.items.length} project)
                     </div>
-                    <div className="h-px bg-slate-200/70 dark:bg-white/10"></div>
+                    <div className="h-px bg-slate-300/80 dark:bg-white/15"></div>
                   </div>
 
                   {group.items.map((project) => {
                     const row = ganttRows.get(project.id);
                     if (!row) return null;
 
-                    const phase = project.phase || "brief";
+                    const phase = getEffectivePhase(project);
                     const riskTone = getRiskBadgeTone(row.deadlineRisk);
                     const isSelected = selectedProject?.id === project.id;
 
@@ -607,21 +771,29 @@ export default function CapexGanttMonitor() {
                         <div className="relative h-10">
                           <div className={`absolute inset-0 grid ${simpleMode ? "opacity-35" : "opacity-100"}`} style={{ gridTemplateColumns: `repeat(${weekBuckets.length}, minmax(0, 1fr))` }}>
                             {weekBuckets.map((bucket, index) => (
-                              <div key={`line-${bucket.start.toISOString()}-${index}`} className="h-full border-r border-slate-200/60 dark:border-white/10"></div>
+                              <div key={`line-${bucket.start.toISOString()}-${index}`} className="h-full border-r border-slate-300/80 dark:border-white/15"></div>
                             ))}
                           </div>
-                          <div className="absolute left-0 right-0 top-1/2 h-[2px] -translate-y-1/2 bg-slate-300/90 dark:bg-white/20"></div>
+                          <div className="absolute left-0 right-0 top-1/2 h-[2px] -translate-y-1/2 bg-slate-400/80 dark:bg-white/25"></div>
                           <div className="absolute top-0 bottom-0 w-[2px] bg-rose-500/80" style={{ left: `${todayOffset}%` }} title={`Today: ${format(new Date(), "dd MMM yyyy")}`}></div>
 
+                          {row.segments.map((segment, index) => (
+                            <div
+                              key={`${project.id}-${segment.phase}-${index}`}
+                              className={`absolute top-1/2 h-6 -translate-y-1/2 rounded-full ${getPhaseTone(segment.phase)} ${index === row.segments.length - 1 ? getRiskRing(row.deadlineRisk) : ""}`}
+                              style={{ left: `${segment.offset}%`, width: `${segment.width}%` }}
+                              title={`${getPhaseLabel(segment.phase)} • ${format(segment.startDate, "dd MMM yyyy")} - ${format(segment.endDate, "dd MMM yyyy")}`}
+                            ></div>
+                          ))}
+
                           <div
-                            className={`absolute top-1/2 h-6 -translate-y-1/2 rounded-full px-1 text-[10px] font-semibold flex items-center whitespace-nowrap overflow-hidden ${getPhaseTone(phase)} ${getRiskRing(row.deadlineRisk)}`}
+                            className="absolute top-1/2 h-6 -translate-y-1/2 rounded-full px-1 text-[10px] font-semibold flex items-center whitespace-nowrap overflow-hidden"
                             style={{ left: `${row.offset}%`, width: `${row.width}%` }}
-                            title={`${format(row.startDate, "dd MMM yyyy")} - ${format(row.endDate, "dd MMM yyyy")}`}
                           >
                             {typeof row.progressPct === "number" && (
                               <div className="h-full rounded-full bg-black/20" style={{ width: `${row.progressPct}%` }}></div>
                             )}
-                            <span className="absolute left-3 right-2 truncate">
+                            <span className="absolute left-3 right-2 truncate text-white/95 mix-blend-hard-light">
                               {typeof row.progressPct === "number" ? `${row.progressPct}% • ${getPhaseLabel(phase)}` : `${getPhaseLabel(phase)} • No progress`}
                             </span>
                           </div>
@@ -644,8 +816,8 @@ export default function CapexGanttMonitor() {
               <p className="text-xs text-slate-500 dark:text-slate-400">Hotel: {(selectedProject.hotelCode || selectedProject.unit || "UNKNOWN").toUpperCase()}</p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ${getPhaseTone(selectedProject.phase || "brief")}`}>
-                {getPhaseLabel(selectedProject.phase || "brief")}
+              <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ${getPhaseTone(getEffectivePhase(selectedProject))}`}>
+                {getPhaseLabel(getEffectivePhase(selectedProject))}
               </span>
               <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ${getRiskBadgeTone(getDeadlineRisk(selectedProject))}`}>
                 {getRiskLabel(getDeadlineRisk(selectedProject))}
@@ -665,8 +837,9 @@ export default function CapexGanttMonitor() {
             <p className="text-[10px] uppercase tracking-[0.14em] text-slate-400 dark:text-slate-500">Milestone Ladder Summary</p>
             <div className="mt-2 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-2">
               {milestoneLadder.map((step, index) => {
-                const doneState = (selectedProject.phase || "brief") === "done" || index < activePhaseIndex;
-                const currentState = (selectedProject.phase || "brief") !== "done" && index === activePhaseIndex;
+                const effectivePhase = getEffectivePhase(selectedProject);
+                const doneState = effectivePhase === "done" || index < activePhaseIndex;
+                const currentState = effectivePhase !== "done" && index === activePhaseIndex;
                 const stepDate = selectedProject.milestones?.[step.dateKey] || "-";
 
                 return (
@@ -685,13 +858,35 @@ export default function CapexGanttMonitor() {
           <div className="rounded-lg border border-slate-200/70 dark:border-white/10 bg-white/40 dark:bg-zinc-900/40 p-3">
             <p className="text-[10px] uppercase tracking-[0.14em] text-slate-400 dark:text-slate-500">Task Notes</p>
             {selectedNoteItems.length > 0 ? (
-              <div className="mt-2 grid grid-cols-1 xl:grid-cols-2 gap-2">
-                {selectedNoteItems.map((item, index) => (
-                  <div key={`${item.label}-${index}`} className="rounded-md border border-slate-200/60 dark:border-white/10 px-3 py-2">
-                    <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 break-words">{item.label}</p>
-                    <p className="mt-1 text-sm leading-relaxed break-words text-slate-700 dark:text-slate-200 whitespace-pre-wrap">{item.value}</p>
-                  </div>
-                ))}
+              <div className="mt-2 grid grid-cols-1 xl:grid-cols-2 gap-4">
+                {(() => {
+                  // Format all items as lines first
+                  const lines = selectedNoteItems.map((item) => {
+                    if (item.label.toLowerCase() === "contract amount") {
+                      const num = Number(String(item.value).replace(/[^\d]/g, ""));
+                      const formatted = isNaN(num) || !num ? item.value : `Rp ${num.toLocaleString("id-ID")}`;
+                      return `${item.label}: ${formatted}`;
+                    }
+                    if (item.label.toLowerCase() === "summarysync") {
+                      const cleaned = item.value.replace(/^[:\-\s]+/, "").trim();
+                      const [main, ...rest] = cleaned.split(" Source Row:");
+                      const parts = main.split("|").map(s => s.trim()).filter(Boolean);
+                      let result = parts.join("\n");
+                      if (rest.length > 0 && rest[0].trim()) {
+                        result += `\nSource Row:${rest[0]}`;
+                      }
+                      return `${item.label}:\n${result}`;
+                    }
+                    return `${item.label}: ${item.value}`;
+                  });
+                  // Split lines into two columns as evenly as possible
+                  const mid = Math.ceil(lines.length / 2);
+                  const col1 = lines.slice(0, mid).join("\n\n");
+                  const col2 = lines.slice(mid).join("\n\n");
+                  return [col1, col2].map((col, idx) => (
+                    <pre key={idx} className="text-sm leading-relaxed break-words text-slate-700 dark:text-slate-200 whitespace-pre-line font-sans">{col}</pre>
+                  ));
+                })()}
               </div>
             ) : (
               <p className="mt-2 text-sm leading-relaxed break-words text-slate-600 dark:text-slate-300">No task description available.</p>

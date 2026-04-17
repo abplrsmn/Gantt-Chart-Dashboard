@@ -200,7 +200,6 @@ export default function DashboardHome() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
         <div className="glass-card flex-1 min-w-0 p-5 flex flex-col justify-between overflow-hidden relative min-h-[108px]">
-          <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-blue-500 to-indigo-500 rounded-t-2xl"></div>
           <div className="flex justify-between items-start mb-2">
             <span className="text-3xl font-bold text-slate-800 dark:text-white">
               {loading && tasks.length === 0 ? '...' : totalActive}
@@ -213,7 +212,6 @@ export default function DashboardHome() {
         </div>
 
         <div className="glass-card flex-1 min-w-0 p-5 flex flex-col justify-between overflow-hidden relative border-red-500/20 min-h-[108px]">
-          <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-red-500 to-rose-500 rounded-t-2xl"></div>
           <div className="flex justify-between items-start mb-2">
             <span className="text-3xl font-bold text-slate-800 dark:text-white">
               {loading && tasks.length === 0 ? '...' : overdueTasks.length}
@@ -226,7 +224,6 @@ export default function DashboardHome() {
         </div>
 
         <div className="glass-card flex-1 min-w-0 p-5 flex flex-col justify-between overflow-hidden relative min-h-[108px]">
-          <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-purple-500 to-pink-500 rounded-t-2xl"></div>
           <div className="flex justify-between items-start mb-2">
             <span className="text-3xl font-bold text-slate-800 dark:text-white">
               {loading ? '...' : liveEmployeeCount}
@@ -239,7 +236,6 @@ export default function DashboardHome() {
         </div>
 
         <div className="glass-card flex-1 min-w-0 p-5 flex flex-col justify-between overflow-hidden relative min-h-[108px] border-cyan-400/20">
-          <div className="absolute inset-x-0 top-0 z-20 h-1 bg-cyan-400 rounded-t-2xl shadow-[0_0_12px_rgba(34,211,238,0.65)]"></div>
           <div className="flex justify-between items-start mb-2">
             <span className="text-3xl font-bold text-slate-800 dark:text-white">
               {loading && departments.length === 0 ? '...' : liveDepartmentCount}
@@ -252,7 +248,6 @@ export default function DashboardHome() {
         </div>
 
         <div className="glass-card flex-1 min-w-0 p-5 flex flex-col justify-between overflow-hidden relative min-h-[108px]">
-          <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-fuchsia-500 to-pink-500 rounded-t-2xl"></div>
           <div className="flex justify-between items-start mb-2">
             <span className="text-3xl font-bold text-slate-800 dark:text-white">
               {loading && departments.length === 0 ? '...' : liveTeamCount}
@@ -266,7 +261,6 @@ export default function DashboardHome() {
       </div>
 
       <div className="glass-card p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 overflow-hidden relative">
-        <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-amber-400 via-blue-500 to-purple-500 rounded-t-2xl"></div>
         <div className="absolute -top-6 -right-6 w-24 h-24 bg-blue-500/5 dark:bg-blue-500/10 rounded-full blur-2xl pointer-events-none"></div>
         <div className="flex items-center gap-3 relative z-10">
           <div className="p-2 bg-gradient-to-br from-amber-400/20 to-blue-500/20 text-amber-500 dark:text-amber-400 rounded-xl border border-amber-500/20">

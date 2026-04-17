@@ -126,7 +126,6 @@ export default function HealthPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {performanceData.map((d) => (
               <div key={d.department} className="glass-card p-4 relative overflow-hidden">
-                <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-blue-500 to-cyan-500 rounded-t-2xl" />
                 <p className="text-xs text-slate-500 dark:text-gray-400">{d.department}</p>
                 <p className="text-2xl font-bold text-slate-800 dark:text-white mt-1">{d.score}%</p>
                 <p className="text-xs text-slate-400 mt-1">performance score ({d.sourceTotal} period tasks)</p>
@@ -141,7 +140,6 @@ export default function HealthPage() {
 
           {/* Bar Chart */}
           <div className="glass-card p-6 relative overflow-hidden">
-            <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-blue-500 to-cyan-500 rounded-t-2xl" />
             <h3 className="text-sm font-bold text-slate-800 dark:text-white mb-6">Department Performance Score</h3>
             <ResponsiveContainer width="100%" height={isMobile ? 300 : 256}>
               <BarChart

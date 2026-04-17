@@ -7,7 +7,6 @@ import StatusChart from './StatusChart';
 import DivisionChart from './DivisionChart';
 import PieChartComponent from './PieChartComponent';
 import { ClickUpTask } from '@/types/clickup';
-import ThemeToggle from '@/components/ThemeToggle';
 import { 
   Users, 
   CheckCircle2, 
@@ -69,53 +68,52 @@ export default function DashboardClient({ tasks }: DashboardClientProps) {
   }, [tasks, selectedDivision]);
 
   return (
-    <main className="p-8 space-y-8 min-h-screen transition-colors duration-500 bg-gray-50 dark:bg-slate-900">
+    <main className="p-8 space-y-8 min-h-screen bg-gray-100">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-100 transition-colors duration-500 flex items-center gap-3">
-          <LayoutDashboard className="w-8 h-8 text-blue-600 dark:text-blue-400" />
+        <h1 className="text-3xl font-bold text-gray-800 flex items-center gap-3">
+          <LayoutDashboard className="w-8 h-8 text-blue-600" />
           ClickUp Dashboard
         </h1>
-        <ThemeToggle />
       </div>
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <motion.div 
           initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
-          className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm border border-gray-100 dark:border-slate-700 flex items-center gap-4"
+          className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex items-center gap-4"
         >
-          <div className="p-4 bg-blue-100 dark:bg-blue-900/30 rounded-full text-blue-600 dark:text-blue-400">
+          <div className="p-4 bg-blue-100 rounded-full text-blue-600">
             <Clock className="w-6 h-6" />
           </div>
           <div>
-            <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Total Active Tasks</p>
-            <p className="text-2xl font-bold text-gray-800 dark:text-gray-100">{activeTasks}</p>
+            <p className="text-sm font-medium text-gray-500">Total Active Tasks</p>
+            <p className="text-2xl font-bold text-gray-800">{activeTasks}</p>
           </div>
         </motion.div>
 
         <motion.div 
           initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
-          className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm border border-gray-100 dark:border-slate-700 flex items-center gap-4"
+          className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex items-center gap-4"
         >
-          <div className="p-4 bg-red-100 dark:bg-red-900/30 rounded-full text-red-600 dark:text-red-400">
+          <div className="p-4 bg-red-100 rounded-full text-red-600">
             <AlertCircle className="w-6 h-6" />
           </div>
           <div>
-            <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Total Overdue Tasks</p>
-            <p className="text-2xl font-bold text-gray-800 dark:text-gray-100">{overdueTasks}</p>
+            <p className="text-sm font-medium text-gray-500">Total Overdue Tasks</p>
+            <p className="text-2xl font-bold text-gray-800">{overdueTasks}</p>
           </div>
         </motion.div>
 
         <motion.div 
           initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
-          className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm border border-gray-100 dark:border-slate-700 flex items-center gap-4"
+          className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex items-center gap-4"
         >
-          <div className="p-4 bg-purple-100 dark:bg-purple-900/30 rounded-full text-purple-600 dark:text-purple-400">
+          <div className="p-4 bg-purple-100 rounded-full text-purple-600">
             <Users className="w-6 h-6" />
           </div>
           <div>
-            <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Total Employees</p>
-            <p className="text-2xl font-bold text-gray-800 dark:text-gray-100">{totalEmployees}</p>
+            <p className="text-sm font-medium text-gray-500">Total Employees</p>
+            <p className="text-2xl font-bold text-gray-800">{totalEmployees}</p>
           </div>
         </motion.div>
       </div>
@@ -130,8 +128,8 @@ export default function DashboardClient({ tasks }: DashboardClientProps) {
               onClick={() => setSelectedDivision(div)}
               className={`relative px-4 py-2 rounded-full text-sm font-medium transition-colors duration-300 ${
                 isActive 
-                  ? 'text-white bg-blue-600 dark:bg-blue-500' 
-                  : 'text-gray-600 bg-white hover:bg-gray-100 dark:text-gray-300 dark:bg-slate-800 dark:hover:bg-slate-700 shadow-sm border border-gray-200 dark:border-slate-700'
+                  ? 'text-white bg-blue-600' 
+                  : 'text-gray-600 bg-white hover:bg-gray-100 shadow-sm border border-gray-200'
               }`}
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
@@ -140,7 +138,7 @@ export default function DashboardClient({ tasks }: DashboardClientProps) {
               {isActive && (
                 <motion.div
                   layoutId="activeFilter"
-                  className="absolute inset-0 bg-blue-600 dark:bg-blue-500 rounded-full -z-10"
+                  className="absolute inset-0 bg-blue-600 rounded-full -z-10"
                   initial={false}
                   transition={{ type: 'spring', stiffness: 500, damping: 30 }}
                 />
@@ -154,9 +152,9 @@ export default function DashboardClient({ tasks }: DashboardClientProps) {
         <div className="lg:col-span-2 space-y-8">
           <motion.div 
             layout
-            className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm border border-gray-100 dark:border-slate-700 transition-colors duration-500"
+            className="bg-white p-6 rounded-xl shadow-sm border border-gray-200"
           >
-            <h2 className="text-xl font-semibold mb-4 text-gray-700 dark:text-gray-200 transition-colors duration-500">
+            <h2 className="text-xl font-semibold mb-4 text-gray-700">
               {selectedDivision === 'All' ? 'All Tasks' : `${selectedDivision} Tasks`}
             </h2>
             <AnimatePresence mode="wait">
@@ -174,9 +172,9 @@ export default function DashboardClient({ tasks }: DashboardClientProps) {
           
           <motion.div 
             layout
-            className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm border border-gray-100 dark:border-slate-700 transition-colors duration-500"
+            className="bg-white p-6 rounded-xl shadow-sm border border-gray-200"
           >
-            <h2 className="text-xl font-semibold mb-4 text-gray-700 dark:text-gray-200 transition-colors duration-500">Tasks by Division</h2>
+            <h2 className="text-xl font-semibold mb-4 text-gray-700">Tasks by Division</h2>
             <AnimatePresence mode="wait">
               <motion.div
                 key={selectedDivision + '-division'}
@@ -194,9 +192,9 @@ export default function DashboardClient({ tasks }: DashboardClientProps) {
         <div className="space-y-8">
           <motion.div 
             layout
-            className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm border border-gray-100 dark:border-slate-700 transition-colors duration-500"
+            className="bg-white p-6 rounded-xl shadow-sm border border-gray-200"
           >
-            <h2 className="text-xl font-semibold mb-4 text-gray-700 dark:text-gray-200 transition-colors duration-500">Task Status (Pie Chart)</h2>
+            <h2 className="text-xl font-semibold mb-4 text-gray-700">Task Status (Pie Chart)</h2>
             <AnimatePresence mode="wait">
                <motion.div
                   key={selectedDivision + '-pie'}
@@ -212,9 +210,9 @@ export default function DashboardClient({ tasks }: DashboardClientProps) {
           
           <motion.div 
             layout
-            className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm border border-gray-100 dark:border-slate-700 transition-colors duration-500"
+            className="bg-white p-6 rounded-xl shadow-sm border border-gray-200"
           >
-            <h2 className="text-xl font-semibold mb-4 text-gray-700 dark:text-gray-200 transition-colors duration-500">Task Status</h2>
+            <h2 className="text-xl font-semibold mb-4 text-gray-700">Task Status</h2>
             <AnimatePresence mode="wait">
                <motion.div
                   key={selectedDivision + '-status'}
@@ -233,9 +231,9 @@ export default function DashboardClient({ tasks }: DashboardClientProps) {
       {/* Completed Task History */}
       <motion.div 
         layout
-        className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm border border-gray-100 dark:border-slate-700 transition-colors duration-500 mt-8"
+        className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 mt-8"
       >
-        <h2 className="text-xl font-semibold mb-4 text-gray-700 dark:text-gray-200 transition-colors duration-500 flex items-center gap-2">
+        <h2 className="text-xl font-semibold mb-4 text-gray-700 flex items-center gap-2">
           <CheckCircle2 className="w-5 h-5 text-green-500" />
           Completed Task History
         </h2>

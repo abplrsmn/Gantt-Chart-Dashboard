@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getCapexProjects } from '@/lib/capex';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   try {
     const projects = await getCapexProjects();

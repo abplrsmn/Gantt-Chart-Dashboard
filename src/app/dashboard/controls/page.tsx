@@ -174,7 +174,6 @@ export default function ControlsPage() {
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="glass-card p-4 relative overflow-hidden">
-          <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-blue-500 to-cyan-500 rounded-t-2xl" />
           <div className="flex items-center gap-2 mb-2">
             <Bot className="text-blue-500" size={16} />
             <p className="text-xs font-semibold text-slate-500 dark:text-gray-400">Active Agents</p>
@@ -184,7 +183,6 @@ export default function ControlsPage() {
         </div>
 
         <div className="glass-card p-4 relative overflow-hidden">
-          <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-purple-500 to-pink-500 rounded-t-2xl" />
           <div className="flex items-center gap-2 mb-2">
             <Cpu className="text-purple-500" size={16} />
             <p className="text-xs font-semibold text-slate-500 dark:text-gray-400">Token Usage</p>
@@ -194,7 +192,6 @@ export default function ControlsPage() {
         </div>
 
         <div className="glass-card p-4 relative overflow-hidden">
-          <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-green-500 to-emerald-500 rounded-t-2xl" />
           <div className="flex items-center gap-2 mb-2">
             <Zap className="text-green-500" size={16} />
             <p className="text-xs font-semibold text-slate-500 dark:text-gray-400">Rate Limits</p>
@@ -204,7 +201,6 @@ export default function ControlsPage() {
         </div>
 
         <div className="glass-card p-4 relative overflow-hidden">
-          <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-orange-500 to-amber-500 rounded-t-2xl" />
           <div className="flex items-center gap-2 mb-2">
             <Activity className="text-orange-500" size={16} />
             <p className="text-xs font-semibold text-slate-500 dark:text-gray-400">Gateway</p>

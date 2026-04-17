@@ -53,7 +53,7 @@ export default function DashboardLayout({
 
   const navItems: Array<{ icon: React.ReactNode; label: string; path: string; badge?: boolean }> = [
     { icon: <Home size={16} />, label: "Home", path: "/dashboard" },
-    { icon: <CalendarRange size={16} />, label: "CAPEX Gantt", path: "/dashboard/capex-gantt" },
+    { icon: <CalendarRange size={16} />, label: "Gantt Chart", path: "/dashboard/capex-gantt" },
     { icon: <Users size={16} />, label: "Team", path: "/dashboard/team" },
     { icon: <Activity size={16} />, label: "Performance", path: "/dashboard/performance" },
     { icon: <AlertTriangle size={16} />, label: "Alerts", path: "/dashboard/alerts" },
