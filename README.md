@@ -81,13 +81,29 @@ Because ClickUp tasks often lack the comprehensive metadata present in initial p
 
 ---
 
-## ?? Development Setup
+## 🛠️ Development Setup
 
 ### Prerequisites
 - Node.js 18+ (v20+ recommended)
 - Valid ClickUp API Token & Team ID
 - Valid Google Cloud Console credentials (for OAuth & Calendar API)
 - OpenClaw API details (for Telegram integrations)
+
+### 🤖 Setting up the OpenClaw AI Assistant
+To fully enable the conversational AI capabilities via Telegram:
+
+1. **Model Selection & Configuration**: 
+   In your `.env` file (or OpenClaw configuration dashboard), specify the AI model of your choice (e.g., `gpt-4o`, `claude-3-5-sonnet`, `gemini-1.5-pro`):
+   ```env
+   OPENCLAW_AI_MODEL="gpt-4o"
+   OPENCLAW_API_KEY="your-openclaw-api-key"
+   ```
+2. **Telegram Bot Integration**:
+   - Create a new bot via **BotFather** on Telegram to receive your `TELEGRAM_BOT_TOKEN`.
+   - Insert this token into OpenClaw's integration settings menu to link the AI Agent to your bot. (If self-hosting the agent routes, also add `TELEGRAM_BOT_TOKEN="..."` to your `.env`).
+3. **ClickUp & Tool Integration**:
+   - The AI Agent executes actions natively using the endpoints built around `src/lib/clickup.ts`.
+   - The agent requires the `CLICKUP_API_TOKEN` to securely execute `Create Task`, `Update Status`, and `Fetch Deadlines` functions seamlessly from user chat prompts.
 
 ### Installation
 
