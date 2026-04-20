@@ -345,6 +345,34 @@ function getMilestoneDate(task: ClickUpTaskEx, description: string | undefined, 
   return undefined;
 }
 
+function isValidMilestoneDate(val?: string | number | null): boolean {
+  if (!val) return false;
+  const str = String(val).trim().toLowerCase();
+  if (str === '' || str === '-') return false;
+  
+  // Exclude common non-date status words
+  const excludeTokens = [
+    'awaiting', 'cancel', 'complete', 'done', 'tba', 'tbd', 
+    'n/a', 'progress', 'pending', 'hold', 'not ', 'remarks', 
+    'brief', 'pr', 'ongoing', 'schedule', 'empty'
+  ];
+  if (excludeTokens.some(token => str.includes(token))) {
+    return false;
+  }
+
+  // Pure digits: Excel epoch or Unix ms
+  if (/^\d{4,5}$/.test(str)) return true;
+  if (/^\d{12,14}$/.test(str)) return true;
+
+  // Pattern detection for typical date formats
+  const dateMatch = /\d{1,4}[-/.\s][a-zA-Z0-9]{2,}[-/.\s]\d{2,4}/.test(str);
+  if (dateMatch) return true;
+
+  // Let Date parser try it
+  const parsed = Date.parse(str);
+  return !isNaN(parsed);
+}
+
 function resolvePhase(input: {
   status: string;
   progress?: number;
@@ -352,23 +380,19 @@ function resolvePhase(input: {
   explicitPhase?: string;
 }) : CapexPhase {
   const explicit = String(input.explicitPhase || '').toLowerCase().trim();
-  if (explicit === 'brief') return 'brief';
-  if (explicit === 'design') return 'design';
-  if (explicit === 'control') return 'control';
-  if (explicit === 'project_management' || explicit === 'project management') return 'project_management';
-  if (explicit === 'handover') return 'handover';
-  if (explicit === 'done' || explicit === 'completed') return 'done';
-  if (explicit === 'blocked') return 'blocked';
-
   const status = input.status.toLowerCase();
+
   const blockedByStatus = status.includes('blocked') || status.includes('pending contract') || status.includes('delay');
-  if (blockedByStatus) return 'blocked';
-  if (status.includes('done') || status.includes('completed') || (input.progress ?? 0) >= 100) return 'done';
-  if (input.milestones.handoverDate || status.includes('handover') || status.includes('bast')) return 'handover';
-  if (input.milestones.projectManagementDate || status.includes('commenced') || status.includes('ongoing') || status.includes('on schedule')) return 'project_management';
-  if (input.milestones.controlDate || status.includes('contract') || status.includes('tender')) return 'control';
-  if (input.milestones.designDate || status.includes('design')) return 'design';
-  return 'brief';
+  if (blockedByStatus || explicit === 'blocked') return 'blocked';
+  if (status.includes('done') || status.includes('completed') || explicit === 'done' || explicit === 'completed' || (input.progress ?? 0) >= 100) return 'done';
+
+  if (isValidMilestoneDate(input.milestones.handoverDate)) return 'handover';
+  if (isValidMilestoneDate(input.milestones.projectManagementDate)) return 'project_management';
+  if (isValidMilestoneDate(input.milestones.controlDate)) return 'control';
+  if (isValidMilestoneDate(input.milestones.designDate)) return 'design';
+  if (isValidMilestoneDate(input.milestones.briefDate)) return 'brief';
+
+  return 'brief'; // 6. awaiting_pr / early stage
 }
 
 function extractCustomField(task: ClickUpTaskEx, wanted: string): string | undefined {
