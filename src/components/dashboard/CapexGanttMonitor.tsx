@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { CalendarRange, Filter, Layers3, Search } from "lucide-react";
+import { CalendarRange, Filter, Layers3, Search, ChevronDown, ChevronRight, LayoutList, ListChecks, Folder } from "lucide-react";
 import {
   addDays,
   differenceInCalendarDays,
@@ -79,24 +79,29 @@ const parseFlexibleDate = (value?: string) => {
   const normalized = String(value).trim();
   if (!normalized) return null;
 
+  // Extract the first valid date string inside a messy text block
+  const dateMatch = normalized.match(/\b(?:\d{4}-\d{2}-\d{2}|\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}|\d{1,2}\s+[A-Za-z]{3,}\s+\d{4})\b/);
+  const targetToParse = dateMatch ? dateMatch[0] : normalized;
+
   const formats = ["d MMM yyyy", "d MMMM yyyy", "d-MMM-yyyy", "d-MMMM-yyyy", "yyyy-MM-dd", "dd/MM/yyyy", "d/M/yyyy"];
   for (const fmt of formats) {
-    const parsed = parse(normalized, fmt, new Date());
+    const parsed = parse(targetToParse, fmt, new Date());
     if (isValid(parsed)) return parsed;
   }
 
-  const nativeDate = new Date(normalized);
+  const nativeDate = new Date(targetToParse);
   if (isValid(nativeDate)) return nativeDate;
 
   return null;
 };
 
 const getEffectivePhase = (project: CapexProject): CapexPhase => {
-  if (
-    project.phase &&
-    (PHASE_ORDER.includes(project.phase) || project.phase === "blocked")
-  ) {
-    return project.phase;
+  if (project.phase === "blocked" || project.blocked) {
+    return "blocked";
+  }
+
+  if (project.phase === "done" || project.status.toLowerCase() === "done" || project.status.toLowerCase() === "completed") {
+    return "done";
   }
 
   const milestones = project.milestones;
@@ -111,6 +116,14 @@ const getEffectivePhase = (project: CapexProject): CapexPhase => {
   if (control) return "control";
   if (design) return "design";
   if (brief) return "brief";
+
+  // Fallback to ClickUp phase mapping only if NO measurable dates exist
+  if (
+    project.phase &&
+    (PHASE_ORDER.includes(project.phase) || project.phase === "blocked")
+  ) {
+    return project.phase;
+  }
 
   return "brief";
 };
@@ -201,11 +214,9 @@ const resolveMilestoneSegments = (project: CapexProject, timelineStart: Date) =>
     });
   }
 
-  // If no milestone points, keep one fallback segment based on effective phase.
   if (ranges.length === 0) {
     ranges.push({ phase: effectivePhase === "done" || effectivePhase === "blocked" ? "project_management" : effectivePhase, startDate: fallbackStart, endDate: fallbackEnd });
   } else {
-    // Fill the remainder with the effective phase if not ended.
     const lastEnd = ranges[ranges.length - 1]?.endDate ?? fallbackStart;
     if (lastEnd < fallbackEnd) {
       const remainingPhase = effectivePhase === "blocked" || effectivePhase === "done" ? effectivePhase : effectivePhase;
@@ -225,43 +236,27 @@ const resolveMilestoneSegments = (project: CapexProject, timelineStart: Date) =>
 
 const getPhaseLabel = (phase?: CapexPhase) => {
   switch (phase) {
-    case "brief":
-      return "Operational Brief";
-    case "design":
-      return "Design";
-    case "control":
-      return "Project Control";
-    case "project_management":
-      return "Project Management";
-    case "handover":
-      return "Handover";
-    case "done":
-      return "Completed";
-    case "blocked":
-      return "Blocked";
-    default:
-      return "Operational Brief";
+    case "brief": return "Operational Brief";
+    case "design": return "Design";
+    case "control": return "Project Control";
+    case "project_management": return "Project Management";
+    case "handover": return "Handover";
+    case "done": return "Completed";
+    case "blocked": return "Blocked";
+    default: return "Operational Brief";
   }
 };
 
 const getPhaseTone = (phase?: CapexPhase) => {
   switch (phase) {
-    case "brief":
-      return "bg-slate-500 text-white";
-    case "design":
-      return "bg-blue-600 text-white";
-    case "control":
-      return "bg-amber-500 text-slate-900";
-    case "project_management":
-      return "bg-teal-600 text-white";
-    case "handover":
-      return "bg-emerald-600 text-white";
-    case "done":
-      return "bg-green-800 text-white";
-    case "blocked":
-      return "bg-rose-600 text-white";
-    default:
-      return "bg-slate-600 text-white";
+    case "brief": return "bg-slate-500 text-white";
+    case "design": return "bg-blue-600 text-white";
+    case "control": return "bg-amber-500 text-slate-900";
+    case "project_management": return "bg-teal-600 text-white";
+    case "handover": return "bg-emerald-600 text-white";
+    case "done": return "bg-green-800 text-white";
+    case "blocked": return "bg-rose-600 text-white";
+    default: return "bg-slate-600 text-white";
   }
 };
 
@@ -294,59 +289,25 @@ const getRiskRing = (risk: GanttRow["deadlineRisk"]) => {
   return "";
 };
 
-const milestoneLadder = [
-  { key: "brief", label: "Operational Brief / PR", dateKey: "briefDate" as const },
-  { key: "design", label: "Design (HoD)", dateKey: "designDate" as const },
-  { key: "control", label: "Project Control", dateKey: "controlDate" as const },
-  { key: "project_management", label: "Project Management Team", dateKey: "projectManagementDate" as const },
-  { key: "handover", label: "Handover", dateKey: "handoverDate" as const },
-];
-
 const splitTaskNote = (note?: string) => {
   if (!note) return [] as Array<{ label: string; value: string }>;
-  // Normalize: replace multiple spaces with single, trim
   const compact = note.replace(/\s+/g, " ").trim();
   if (!compact) return [];
 
-  // Known keys for splitting
   const knownKeys = [
-    "Received Date",
-    "APS Release Date",
-    "Contract Amount",
-    "Commence Date",
-    "End Contract",
-    "Actual Completion",
-    "Deviation Days",
-    "PROGRESS & NOTES",
-    "Current Site",
-    "Source Key",
-    "Hotel Code",
-    "Project No",
-    "Project Name",
-    "Description",
-    "Unit",
-    "Start",
-    "End",
-    "Phase",
-    "Status",
-    "Progress",
-    "PIC",
-    "Status Note",
-    "Project Status Note",
-    "Next Action",
-    "Managed by",
-    "BAST-1",
+    "Received Date", "APS Release Date", "Contract Amount", "Commence Date",
+    "End Contract", "Actual Completion", "Deviation Days", "PROGRESS & NOTES",
+    "Current Site", "Source Key", "Hotel Code", "Project No", "Project Name",
+    "Description", "Unit", "Start", "End", "Phase", "Status", "Progress",
+    "PIC", "Status Note", "Project Status Note", "Next Action", "Managed by", "BAST-1"
   ];
 
-  // Split on any known key followed by colon, even if no space before
   const parts = compact.split(new RegExp(`(?=\\b(?:${knownKeys.join("|")})\\s*:)`, "g"));
-  // For each part, if value contains chained keys, split further
   const result = [];
   for (const part of parts) {
     let match = part.match(/^([^:]{2,40}):\s*(.+)$/);
     if (match) {
       let [_, label, value] = match;
-      // If value contains chained keys, split further
       const subParts = value.split(new RegExp(`(?=\\b(?:${knownKeys.join("|")})\\s*:)`, "g"));
       if (subParts.length > 1) {
         for (const sub of subParts) {
@@ -361,7 +322,6 @@ const splitTaskNote = (note?: string) => {
         result.push({ label, value });
       }
     } else if (part.trim()) {
-      // If not matching, treat as info
       result.push({ label: "Info", value: part.trim() });
     }
   }
@@ -376,12 +336,11 @@ export default function CapexGanttMonitor() {
   const [mappingRows, setMappingRows] = useState<CapexMappingRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [selectedProjectId, setSelectedProjectId] = useState<string>("");
   const [simpleMode, setSimpleMode] = useState(true);
+  const [activePhaseTab, setActivePhaseTab] = useState<CapexPhase | "blocked">("project_management");
 
   useEffect(() => {
     let active = true;
-
     async function loadProjects() {
       try {
         setLoading(true);
@@ -393,20 +352,15 @@ export default function CapexGanttMonitor() {
         const projectsJson = await projectsRes.json();
         const mappingJson = await mappingRes.json();
         if (!active) return;
-
         if (mappingJson?.success && Array.isArray(mappingJson.data)) {
           setMappingRows(mappingJson.data);
         }
-
         if (projectsJson?.success && Array.isArray(projectsJson.data) && projectsJson.data.length > 0) {
           setProjects(projectsJson.data);
-          setSelectedProjectId(String(projectsJson.data[0].id));
         } else {
           setProjects([]);
           if (!projectsJson?.success && projectsJson?.error) setLoadError(String(projectsJson.error));
-          else if (mappingJson?.success && Array.isArray(mappingJson.data) && mappingJson.data.length === 0) {
-            setLoadError("mapping.json empty");
-          }
+          else if (mappingJson?.success && Array.isArray(mappingJson.data) && mappingJson.data.length === 0) setLoadError("mapping.json empty");
         }
       } catch (error: unknown) {
         if (!active) return;
@@ -416,11 +370,8 @@ export default function CapexGanttMonitor() {
         if (active) setLoading(false);
       }
     }
-
     loadProjects();
-    return () => {
-      active = false;
-    };
+    return () => { active = false; };
   }, []);
 
   const hotelOptions = useMemo(() => {
@@ -441,26 +392,33 @@ export default function CapexGanttMonitor() {
     });
   }, [projects, search, hotelFilter, phaseFilter]);
 
-  const groupedProjects = useMemo(() => {
+  const executionGroupedProjects = useMemo(() => {
+    const executionPhases = ["project_management", "handover", "done"];
+    // HANYA tampilkan di Gantt visual (atas) jika fase Project Management/atasnya 
+    // DAN memiliki indikasi dijadwalkan (start / end terisi) agar tidak membludak.
+    const execFiltered = filteredProjects.filter(p => {
+      // Prioritaskan daftar project yang ter-mapping di Excel (dari mapping.json)
+      if (mappingRows && mappingRows.length > 0) {
+        return mappingRows.some(m => m.clickupTaskId && p.id.includes(m.clickupTaskId));
+      }
+      // Fallback jika belum ada data mapping
+      return executionPhases.includes(getEffectivePhase(p)) && (p.start || p.end);
+    });
+    
     const grouped = new Map<string, CapexProject[]>();
-    for (const project of filteredProjects) {
+    for (const project of execFiltered) {
       const hotel = (project.hotelCode || project.unit || "UNKNOWN").toUpperCase();
       const list = grouped.get(hotel) || [];
       list.push(project);
       grouped.set(hotel, list);
     }
-
     return Array.from(grouped.entries())
       .map(([hotel, items]) => ({
         hotel,
         items: items.sort((a, b) => a.name.localeCompare(b.name)),
       }))
       .sort((a, b) => a.hotel.localeCompare(b.hotel));
-  }, [filteredProjects]);
-
-  const selectedProject = useMemo(() => {
-    return filteredProjects.find((project) => project.id === selectedProjectId) || filteredProjects[0] || projects[0];
-  }, [projects, filteredProjects, selectedProjectId]);
+  }, [filteredProjects, mappingRows]);
 
   const summary = useMemo(() => {
     const total = filteredProjects.length;
@@ -487,23 +445,19 @@ export default function CapexGanttMonitor() {
   const weekBuckets = useMemo<WeekBucket[]>(() => {
     const buckets: WeekBucket[] = [];
     let cursor = timeline.start;
-
     while (cursor <= timeline.end) {
       const weekEnd = min([addDays(cursor, 6), timeline.end]);
       buckets.push({ start: cursor, end: weekEnd, monthIndex: cursor.getMonth() });
       cursor = addDays(weekEnd, 1);
     }
-
     return buckets;
   }, [timeline]);
 
   const monthSegments = useMemo(() => {
     if (weekBuckets.length === 0) return [] as Array<{ label: string; weeks: number; key: string }>;
-
     const segments: Array<{ label: string; weeks: number; key: string }> = [];
     let currentMonth = weekBuckets[0].monthIndex;
     let currentCount = 0;
-
     for (const bucket of weekBuckets) {
       if (bucket.monthIndex === currentMonth) {
         currentCount += 1;
@@ -517,13 +471,11 @@ export default function CapexGanttMonitor() {
         currentCount = 1;
       }
     }
-
     segments.push({
       label: format(new Date(timeline.start.getFullYear(), currentMonth, 1), "MMM"),
       weeks: currentCount,
       key: `${currentMonth}-${segments.length}`,
     });
-
     return segments;
   }, [timeline, weekBuckets]);
 
@@ -548,18 +500,10 @@ export default function CapexGanttMonitor() {
           const clampedStart = segment.startDate < timeline.start ? timeline.start : segment.startDate;
           const clampedEnd = segment.endDate > timeline.end ? timeline.end : segment.endDate;
           if (clampedEnd < clampedStart) return null;
-
           const duration = Math.max(1, differenceInCalendarDays(clampedEnd, clampedStart) + 1);
           const offset = Math.max(0, (differenceInCalendarDays(clampedStart, timeline.start) / totalDays) * 100);
           const width = Math.max(1.1, (duration / totalDays) * 100);
-
-          return {
-            phase: segment.phase,
-            startDate: segment.startDate,
-            endDate: segment.endDate,
-            offset,
-            width,
-          };
+          return { phase: segment.phase, startDate: segment.startDate, endDate: segment.endDate, offset, width };
         })
         .filter((segment): segment is { phase: CapexPhase; startDate: Date; endDate: Date; offset: number; width: number } => segment !== null);
 
@@ -572,35 +516,14 @@ export default function CapexGanttMonitor() {
       const progressPct = typeof project.progress === "number" ? Math.max(0, Math.min(100, project.progress)) : undefined;
       const deadlineRisk = getDeadlineRisk(project);
 
-      map.set(project.id, {
-        project,
-        startDate,
-        endDate,
-        offset,
-        width,
-        segments,
-        progressPct,
-        deadlineRisk,
-      });
+      map.set(project.id, { project, startDate, endDate, offset, width, segments, progressPct, deadlineRisk });
     }
-
     return map;
   }, [filteredProjects, timeline]);
 
-  const selectedNoteItems = useMemo(() => splitTaskNote(selectedProject?.note), [selectedProject]);
-
-  const activePhaseIndex = useMemo(() => {
-    if (!selectedProject) return 0;
-    const selectedPhase = getEffectivePhase(selectedProject);
-    if (selectedPhase === "blocked") return 2;
-    const idx = PHASE_ORDER.indexOf(selectedPhase);
-    return idx >= 0 ? idx : 0;
-  }, [selectedProject]);
-
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <section className="glass-card p-5 space-y-4 overflow-hidden relative">
-
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
           <div>
             <div className="flex items-center gap-2 mb-1">
@@ -675,7 +598,7 @@ export default function CapexGanttMonitor() {
           <span className="inline-flex rounded-full bg-green-500/10 px-2.5 py-1 font-semibold text-green-700 dark:text-green-300">Completed {summary.completed}</span>
           <span className="inline-flex rounded-full bg-rose-500/10 px-2.5 py-1 font-semibold text-rose-700 dark:text-rose-300">Blocked {summary.blocked}</span>
           <span className="inline-flex rounded-full bg-amber-500/10 px-2.5 py-1 font-semibold text-amber-700 dark:text-amber-300">Deadline Risk {summary.deadlineRisk}</span>
-          {loadError && <span className="inline-flex rounded-full bg-rose-500/10 px-2.5 py-1 font-semibold text-rose-700 dark:text-rose-300">Fallback active: {loadError}</span>}
+          {loadError && <span className="inline-flex rounded-full bg-rose-500/10 px-2.5 py-1 font-semibold text-rose-700 dark:text-rose-300">Fallback flex: {loadError}</span>}
         </div>
 
         <div className="rounded-lg border border-slate-200/70 dark:border-white/10 bg-white/40 dark:bg-zinc-900/40 p-2.5">
@@ -696,7 +619,10 @@ export default function CapexGanttMonitor() {
         </div>
       </section>
 
-      <section className="glass-card p-4 overflow-x-auto">
+      <section className="glass-card p-4 overflow-x-auto relative">
+        <div className="absolute top-0 right-0 rounded-bl-xl bg-teal-500/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-teal-700 dark:text-teal-400 flex items-center gap-1.5 z-10 border-b border-l border-teal-500/20">
+          <LayoutList size={12} /> Execution Phase Only
+        </div>
         <div className="min-w-[1450px]">
           <div className="grid grid-cols-[320px_1fr] items-center gap-3 pb-2 border-b border-slate-300/80 dark:border-white/15">
             <div className="rounded-md bg-slate-900 px-3 py-2 text-xs font-bold uppercase tracking-wide text-white">Hotel / Project</div>
@@ -730,11 +656,11 @@ export default function CapexGanttMonitor() {
             </div>
           )}
 
-          {groupedProjects.length === 0 ? (
-            <p className="py-8 text-center text-sm text-slate-500 dark:text-slate-400">No projects match your current filter.</p>
+          {executionGroupedProjects.length === 0 ? (
+            <p className="py-8 text-center text-sm text-slate-500 dark:text-slate-400">No execution-phase projects match your current filter.</p>
           ) : (
             <div className="pt-2 space-y-3">
-              {groupedProjects.map((group) => (
+              {executionGroupedProjects.map((group) => (
                 <div key={group.hotel} className="space-y-1.5">
                   <div className="grid grid-cols-[320px_1fr] items-center gap-3">
                     <div className="rounded-md bg-cyan-500/10 border border-cyan-500/20 px-3 py-2 text-sm font-bold text-cyan-700 dark:text-cyan-300">
@@ -749,14 +675,11 @@ export default function CapexGanttMonitor() {
 
                     const phase = getEffectivePhase(project);
                     const riskTone = getRiskBadgeTone(row.deadlineRisk);
-                    const isSelected = selectedProject?.id === project.id;
 
                     return (
-                      <button
+                      <div
                         key={project.id}
-                        type="button"
-                        onClick={() => setSelectedProjectId(project.id)}
-                        className={`w-full grid grid-cols-[320px_1fr] items-center gap-3 rounded-lg px-1 py-1.5 text-left transition-colors ${isSelected ? "bg-cyan-500/10" : "hover:bg-slate-100/60 dark:hover:bg-white/5"}`}
+                        className="w-full grid grid-cols-[320px_1fr] items-center gap-3 rounded-lg px-1 py-1.5 text-left transition-colors hover:bg-slate-100/60 dark:hover:bg-white/5"
                       >
                         <div className="pl-1">
                           <p className="text-sm font-semibold text-slate-800 dark:text-white truncate">{project.name}</p>
@@ -798,7 +721,7 @@ export default function CapexGanttMonitor() {
                             </span>
                           </div>
                         </div>
-                      </button>
+                      </div>
                     );
                   })}
                 </div>
@@ -808,101 +731,151 @@ export default function CapexGanttMonitor() {
         </div>
       </section>
 
-      {selectedProject && (
-        <section className="glass-card p-4 space-y-4">
-          <div className="flex flex-col gap-2">
-            <div>
-              <p className="text-sm font-bold text-slate-800 dark:text-white break-words">{selectedProject.name}</p>
-              <p className="text-xs text-slate-500 dark:text-slate-400">Hotel: {(selectedProject.hotelCode || selectedProject.unit || "UNKNOWN").toUpperCase()}</p>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ${getPhaseTone(getEffectivePhase(selectedProject))}`}>
-                {getPhaseLabel(getEffectivePhase(selectedProject))}
-              </span>
-              <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ${getRiskBadgeTone(getDeadlineRisk(selectedProject))}`}>
-                {getRiskLabel(getDeadlineRisk(selectedProject))}
-              </span>
-            </div>
+      <section className="mt-8 space-y-0">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 mb-2 border-b border-slate-200/70 dark:border-white/10">
+          <div className="flex items-center gap-2">
+            <Folder size={18} className="text-cyan-600" />
+            <h3 className="text-lg font-bold text-slate-800 dark:text-white">Phase Monitoring Matrix</h3>
           </div>
+          <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+            Full Excel-structural view by Project Phase
+          </p>
+        </div>
+        
+        {/* TAB BUTTONS (Like Folders) */}
+        <div className="flex flex-wrap gap-1 px-1">
+          {((PHASE_ORDER as Array<CapexPhase | "blocked">).concat(["blocked"])).map(phase => {
+            const phaseProjects = filteredProjects.filter(p => getEffectivePhase(p) === phase);
+            if (phaseProjects.length === 0) return null;
+            
+            const isActive = activePhaseTab === phase;
+            const tone = isActive ? getPhaseTone(phase as any) : "text-slate-500 bg-slate-200/50 dark:text-slate-400 dark:bg-white/5";
+            
+            return (
+              <button
+                key={phase}
+                onClick={() => setActivePhaseTab(phase)}
+                className={`relative px-5 pt-3 pb-2.5 rounded-t-xl text-[13px] font-bold tracking-wide transition-all border border-b-0
+                  ${isActive 
+                    ? "bg-slate-100 lg:bg-white dark:bg-zinc-800 text-slate-900 dark:text-white border-slate-300/80 dark:border-white/20 z-10 translate-y-[2px]" 
+                    : "bg-slate-50/50 dark:bg-zinc-900/50 text-slate-500 dark:text-slate-400 border-slate-200/60 dark:border-white/5 hover:bg-slate-100 dark:hover:bg-zinc-800"
+                  }`}
+              >
+                <div className="flex items-center gap-3">
+                  <span>{getPhaseLabel(phase)}</span>
+                  <span className={`px-2 py-0.5 rounded-full text-[11px] font-extrabold ${tone}`}>
+                    {phaseProjects.length}
+                  </span>
+                </div>
+              </button>
+            );
+          })}
+        </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-2.5 text-xs">
-            <MiniInfo label="PIC" value={selectedProject.pic || "-"} />
-            <MiniInfo label="Start" value={selectedProject.start || "-"} />
-            <MiniInfo label="End" value={selectedProject.end || "TBD"} />
-            <MiniInfo label="Progress" value={typeof selectedProject.progress === "number" ? `${selectedProject.progress}%` : "No data"} />
-            <MiniInfo label="Next Action" value={selectedProject.nextAction || "-"} />
-          </div>
-
-          <div className="rounded-lg border border-slate-200/70 dark:border-white/10 bg-white/40 dark:bg-zinc-900/40 p-3">
-            <p className="text-[10px] uppercase tracking-[0.14em] text-slate-400 dark:text-slate-500">Milestone Ladder Summary</p>
-            <div className="mt-2 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-2">
-              {milestoneLadder.map((step, index) => {
-                const effectivePhase = getEffectivePhase(selectedProject);
-                const doneState = effectivePhase === "done" || index < activePhaseIndex;
-                const currentState = effectivePhase !== "done" && index === activePhaseIndex;
-                const stepDate = selectedProject.milestones?.[step.dateKey] || "-";
-
-                return (
-                  <div
-                    key={step.key}
-                    className={`rounded-md border px-3 py-2 ${doneState ? "border-emerald-500/30 bg-emerald-500/10" : currentState ? "border-cyan-500/30 bg-cyan-500/10" : "border-slate-200/70 dark:border-white/10 bg-white/50 dark:bg-zinc-900/40"}`}
-                  >
-                    <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 break-words">{step.label}</p>
-                    <p className="mt-1 text-xs text-slate-700 dark:text-slate-200 tabular-nums">{stepDate}</p>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="rounded-lg border border-slate-200/70 dark:border-white/10 bg-white/40 dark:bg-zinc-900/40 p-3">
-            <p className="text-[10px] uppercase tracking-[0.14em] text-slate-400 dark:text-slate-500">Task Notes</p>
-            {selectedNoteItems.length > 0 ? (
-              <div className="mt-2 grid grid-cols-1 xl:grid-cols-2 gap-4">
-                {(() => {
-                  // Format all items as lines first
-                  const lines = selectedNoteItems.map((item) => {
-                    if (item.label.toLowerCase() === "contract amount") {
-                      const num = Number(String(item.value).replace(/[^\d]/g, ""));
-                      const formatted = isNaN(num) || !num ? item.value : `Rp ${num.toLocaleString("id-ID")}`;
-                      return `${item.label}: ${formatted}`;
-                    }
-                    if (item.label.toLowerCase() === "summarysync") {
-                      const cleaned = item.value.replace(/^[:\-\s]+/, "").trim();
-                      const [main, ...rest] = cleaned.split(" Source Row:");
-                      const parts = main.split("|").map(s => s.trim()).filter(Boolean);
-                      let result = parts.join("\n");
-                      if (rest.length > 0 && rest[0].trim()) {
-                        result += `\nSource Row:${rest[0]}`;
-                      }
-                      return `${item.label}:\n${result}`;
-                    }
-                    return `${item.label}: ${item.value}`;
-                  });
-                  // Split lines into two columns as evenly as possible
-                  const mid = Math.ceil(lines.length / 2);
-                  const col1 = lines.slice(0, mid).join("\n\n");
-                  const col2 = lines.slice(mid).join("\n\n");
-                  return [col1, col2].map((col, idx) => (
-                    <pre key={idx} className="text-sm leading-relaxed break-words text-slate-700 dark:text-slate-200 whitespace-pre-line font-sans">{col}</pre>
-                  ));
-                })()}
-              </div>
-            ) : (
-              <p className="mt-2 text-sm leading-relaxed break-words text-slate-600 dark:text-slate-300">No task description available.</p>
-            )}
-          </div>
-        </section>
-      )}
+        {/* TAB CONTENT */}
+        <div className="relative z-0 bg-slate-100 lg:bg-white dark:bg-zinc-800 rounded-b-xl rounded-tr-xl border border-slate-300/80 dark:border-white/20 shadow-md p-4 min-h-[400px]">
+          <PhaseTable 
+            phase={activePhaseTab} 
+            title={getPhaseLabel(activePhaseTab)} 
+            projects={filteredProjects.filter(p => getEffectivePhase(p) === activePhaseTab)} 
+          />
+        </div>
+      </section>
     </div>
   );
 }
 
-function MiniInfo({ label, value }: { label: string; value: string }) {
+function PhaseTable({ phase, title, projects }: { phase: CapexPhase | "blocked", title: string, projects: CapexProject[] }) {
+  if (projects.length === 0) {
+    return (
+      <div className="py-12 text-center text-slate-500 flex flex-col items-center justify-center">
+         <Folder size={32} className="mb-3 text-slate-300 dark:text-zinc-600" />
+         <p>No projects currently in <strong>{title}</strong> phase.</p>
+      </div>
+    );
+  }
+
   return (
-    <div className="rounded-lg border border-slate-200/70 dark:border-white/10 bg-white/60 dark:bg-zinc-900/50 px-2.5 py-2">
-      <p className="text-[10px] uppercase tracking-[0.14em] text-slate-400 dark:text-slate-500">{label}</p>
-      <p className="mt-1 text-sm font-medium text-slate-700 dark:text-slate-200 break-words">{value}</p>
+    <div className="w-full overflow-x-auto rounded-lg border border-slate-200/70 dark:border-white/10 bg-white/40 dark:bg-black/20">
+      <table className="w-full text-left text-[10.5px] sm:text-[11px] whitespace-nowrap">
+        <thead className="bg-slate-200/50 dark:bg-white/10 text-slate-600 dark:text-slate-300 border-b border-slate-300/60 dark:border-white/10">
+          <tr>
+            <th className="px-4 py-3 font-bold sticky left-0 bg-slate-200/90 dark:bg-[#202024]/90 z-10 backdrop-blur">Unit</th>
+            <th className="px-4 py-3 font-bold max-w-[200px] truncate">Description</th>
+            <th className="px-4 py-3 font-bold">Op. Brief / PR</th>
+            <th className="px-4 py-3 font-bold">Received Date</th>
+            <th className="px-4 py-3 font-bold">Budget/CAPEX</th>
+            <th className="px-4 py-3 font-bold">Start Design Date</th>
+            <th className="px-4 py-3 font-bold">Design Approval</th>
+            <th className="px-4 py-3 font-bold">Tender Start</th>
+            <th className="px-4 py-3 font-bold">APS/SPK Released</th>
+            <th className="px-4 py-3 font-bold">Contract Amount</th>
+            <th className="px-4 py-3 font-bold">Commence Date</th>
+            <th className="px-4 py-3 font-bold">End Contract</th>
+            <th className="px-4 py-3 font-bold">Actual Completion</th>
+            <th className="px-4 py-3 font-bold">Deviation</th>
+            <th className="px-4 py-3 font-bold">Current Site Progress</th>
+            <th className="px-4 py-3 font-bold">Remarks</th>
+            <th className="px-4 py-3 font-bold">BAST-1</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-slate-200/70 dark:divide-white/5">
+          {projects.map(proj => {
+            const notes = splitTaskNote(proj.note);
+            const getVal = (keys: string[]) => {
+              const lowerKeys = keys.map(k => k.toLowerCase());
+              const found = notes.find(n => lowerKeys.includes(n.label.toLowerCase()));
+              return found ? found.value : "-";
+            };
+
+            const unit = (proj.hotelCode || proj.unit || "UNKNOWN").toUpperCase();
+            const desc = proj.name;
+            const pr = proj.milestones?.briefDate || getVal(["Operational Brief", "Operational Brief Date", "Brief Date", "PR Date"]);
+            const received = getVal(["Received Date"]);
+            const budget = getVal(["Budget/CAPEX", "Budget", "Capex Budget"]);
+            const startDesign = proj.milestones?.designDate || getVal(["Start Design Date", "Design Start"]);
+            const approval = getVal(["Design Approval", "Approval Date"]);
+            const tender = getVal(["Tender Start", "Tender Date", "Tender"]);
+            const aps = getVal(["APS/SPK Released", "APS Release Date", "SPK Release Date", "APS"]);
+            const contractAmtRaw = getVal(["Contract Amount", "Contract Amt", "Amount"]);
+            const commence = proj.milestones?.projectManagementDate || getVal(["Commence Date", "Commence"]);
+            const endContact = proj.milestones?.handoverDate || getVal(["End Contract", "End Date"]);
+            const actualComp = getVal(["Actual Completion", "Completion Date", "Actual Comp"]);
+            const deviation = getVal(["Deviation", "Dev Days"]);
+            const siteProg = getVal(["Current Site Progress", "Site Progress", "Progress"]);
+            const remarks = getVal(["Remarks", "Note"]);
+            const bast1 = getVal(["BAST-1", "BAST 1", "BAST-I", "BAST I"]);
+
+            return (
+              <tr key={proj.id} className="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors group">
+                <td className="px-4 py-3 font-bold text-slate-800 dark:text-slate-100 sticky left-0 bg-slate-50/90 dark:bg-[#1a1a1e]/90 group-hover:bg-slate-100 dark:group-hover:bg-[#202024] z-10 transition-colors backdrop-blur shadow-[2px_0_5px_rgba(0,0,0,0.02)]">
+                  {unit}
+                </td>
+                <td className="px-4 py-3 max-w-[280px] whitespace-normal leading-snug text-slate-800 dark:text-slate-200 font-medium">
+                  {desc}
+                </td>
+                <td className="px-4 py-3">{pr}</td>
+                <td className="px-4 py-3">{received}</td>
+                <td className="px-4 py-3">{budget}</td>
+                <td className="px-4 py-3">{startDesign}</td>
+                <td className="px-4 py-3">{approval}</td>
+                <td className="px-4 py-3">{tender}</td>
+                <td className="px-4 py-3">{aps}</td>
+                <td className="px-4 py-3 text-emerald-600 dark:text-emerald-400 font-bold">{contractAmtRaw}</td>
+                <td className="px-4 py-3">{commence}</td>
+                <td className="px-4 py-3">{endContact}</td>
+                <td className="px-4 py-3">{actualComp}</td>
+                <td className="px-4 py-3 font-bold">{deviation}</td>
+                <td className="px-4 py-3 max-w-[200px] truncate" title={siteProg}>{siteProg}</td>
+                <td className="px-4 py-3 max-w-[300px] whitespace-normal leading-snug" title={remarks}>
+                   <span className="line-clamp-2">{remarks}</span>
+                </td>
+                <td className="px-4 py-3 text-cyan-600 dark:text-cyan-400 font-medium">{bast1}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
     </div>
   );
 }
