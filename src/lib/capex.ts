@@ -40,6 +40,7 @@ export type CapexProject = {
   nextAction?: string;
   url?: string;
   phase: CapexPhase;
+  isExecution: boolean;
   deadlineRisk: 'none' | 'normal' | 'near' | 'overdue';
   blocked: boolean;
   milestones: CapexMilestones;
@@ -148,13 +149,19 @@ async function loadCapexSeedRows(): Promise<CapexSeedProjectRow[]> {
     const parsed = JSON.parse(raw) as { projects?: SummarySeedRow[] };
     const rows = Array.isArray(parsed?.projects) ? parsed.projects : [];
 
-    const mapped = rows
-      .map((row, index) => {
-        const unit = String(row.hotelCode || '').trim().toUpperCase();
-        const name = String(row.projectName || row.taskName || '').trim();
-        if (!unit || !name) return null;
+      let lastUnit = '';
 
-        const progressRaw = row.currentSiteProgress;
+      const mapped = rows
+        .map((row, index) => {
+          let unit = String(row.hotelCode || '').trim().toUpperCase();
+          if (unit) {
+            lastUnit = unit;
+          } else {
+            unit = lastUnit;
+          }
+
+          const name = String(row.projectName || row.taskName || '').trim();
+          if (!name) return null;
         const numericProgress = typeof progressRaw === 'number'
           ? progressRaw
           : typeof progressRaw === 'string'
@@ -373,11 +380,34 @@ function isValidMilestoneDate(val?: string | number | null): boolean {
   return !isNaN(parsed);
 }
 
+const GANTT_EXECUTION_PROJECTS = [
+  "SPH TENNIS COURT INDOOR",
+  "SPH TENNIS COURT 3",
+  "AEI : MUR 6'th : deluxe & bussiness",
+  "LANDSCAPE : BOULEVARD",
+  "LANDSCAPE : GATE",
+  "LANDSCAPE : LOBBY DROP OFF",
+  "REPAIR SURFACE TENNIS COURT 5&6",
+  "PATHWAY REPAIR",
+  "AEI - MUR 18'TH : Q1 & Q1A",
+  "2025 : CANOPY & FACADE NORTH LOBBY",
+  "FR : FACADE REPAIR & REPAINTING",
+  "2025 : PPR Pipe Replacement",
+  "2025 : AME wood parquet"
+].map(p => p.toLowerCase());
+
+function isGanttExecution(projectName: string, taskName?: string): boolean {
+  const name1 = String(projectName || '').toLowerCase().trim();
+  const name2 = String(taskName || '').toLowerCase().trim();
+  return GANTT_EXECUTION_PROJECTS.some(g => name1.includes(g) || name2.includes(g));
+}
+
 function resolvePhase(input: {
   status: string;
   progress?: number;
   milestones: CapexMilestones;
   explicitPhase?: string;
+  isExecution?: boolean;
 }) : CapexPhase {
   const explicit = String(input.explicitPhase || '').toLowerCase().trim();
   const status = input.status.toLowerCase();
@@ -386,8 +416,12 @@ function resolvePhase(input: {
   if (blockedByStatus || explicit === 'blocked') return 'blocked';
   if (status.includes('done') || status.includes('completed') || explicit === 'done' || explicit === 'completed' || (input.progress ?? 0) >= 100) return 'done';
 
+  // Even if not in execution, if they somehow reached handover with BAST, we shouldn't block it 
   if (isValidMilestoneDate(input.milestones.handoverDate)) return 'handover';
-  if (isValidMilestoneDate(input.milestones.projectManagementDate)) return 'project_management';
+  
+  // Strict matching for Project Management: Must have Commence Date AND must be in the curated execution list
+  if (isValidMilestoneDate(input.milestones.projectManagementDate) && input.isExecution) return 'project_management';
+  
   if (isValidMilestoneDate(input.milestones.controlDate)) return 'control';
   if (isValidMilestoneDate(input.milestones.designDate)) return 'design';
   if (isValidMilestoneDate(input.milestones.briefDate)) return 'brief';
@@ -457,7 +491,8 @@ function mapTaskToCapex(task: ClickUpTaskEx, seedRow: CapexSeedProjectRow, seedM
     projectManagementDate: getMilestoneDate(task, description, ['Commence Date', 'Project Management Date', 'COMMENCE_DATE']),
     handoverDate: getMilestoneDate(task, description, ['Bast 1', 'Bast 2', 'BAST_1', 'BAST_2', 'Handover Date']),
   };
-  const phase = resolvePhase({ status: resolvedStatus, progress: computedProgress, milestones, explicitPhase: seedRow?.phase || descPhase });
+  const isExecution = isGanttExecution(seedRow?.name || '', task.name);
+  const phase = resolvePhase({ status: resolvedStatus, progress: computedProgress, milestones, explicitPhase: seedRow?.phase || descPhase, isExecution });
   const deadlineRisk = getDeadlineRisk(formatClickUpDate(task.due_date) || descEnd);
   const blocked = phase === 'blocked';
 
@@ -466,8 +501,8 @@ function mapTaskToCapex(task: ClickUpTaskEx, seedRow: CapexSeedProjectRow, seedM
     unit: seedRow.unit,
     hotelCode: seedRow.unit,
     name: seedMapping?.clickupTaskName || seedRow.name,
-      start: milestones.briefDate || formatClickUpDate(task.start_date) || descStart || formatClickUpDate(task.date_created),
-      end: milestones.handoverDate || formatClickUpDate(task.due_date) || descEnd,
+    start: milestones.briefDate || formatClickUpDate(task.start_date) || descStart || formatClickUpDate(task.date_created),
+    end: milestones.handoverDate || formatClickUpDate(task.due_date) || descEnd,
     status: resolvedStatus,
     progress: computedProgress,
     note: extractCustomField(task, 'Status Note') || descStatusNote || description,
@@ -475,6 +510,7 @@ function mapTaskToCapex(task: ClickUpTaskEx, seedRow: CapexSeedProjectRow, seedM
     nextAction: extractCustomField(task, 'Next Action') || descNextAction,
     url: task.url,
     phase,
+    isExecution,
     deadlineRisk,
     blocked,
     milestones,
@@ -505,10 +541,12 @@ function mapClickUpTaskWithoutSeed(task: ClickUpTaskEx): CapexProject {
     handoverDate: getMilestoneDate(task, description, ['Bast 1', 'Bast 2', 'BAST_1', 'BAST_2', 'Handover Date']),
   };
 
-  const phase = resolvePhase({ status: resolvedStatus, progress: computedProgress, milestones, explicitPhase: descPhase });
-  const deadlineRisk = getDeadlineRisk(formatClickUpDate(task.due_date) || descEnd);
   const unit = inferUnitFromTask(task, description);
   const title = descProjectName || String(task.name || '').replace(/^[A-Za-z]{2,5}\s*-\s*/, '').trim();
+  const isExecution = isGanttExecution(title, task.name);
+  
+  const phase = resolvePhase({ status: resolvedStatus, progress: computedProgress, milestones, explicitPhase: descPhase, isExecution });
+  const deadlineRisk = getDeadlineRisk(formatClickUpDate(task.due_date) || descEnd);
 
   return {
     id: `clickup:${task.id}`,
@@ -524,6 +562,7 @@ function mapClickUpTaskWithoutSeed(task: ClickUpTaskEx): CapexProject {
     nextAction: extractCustomField(task, 'Next Action') || descNextAction,
     url: task.url,
     phase,
+    isExecution,
     deadlineRisk,
     blocked: phase === 'blocked',
     milestones,
@@ -564,6 +603,7 @@ export async function getCapexProjects(): Promise<CapexProject[]> {
         note: seedRow.note,
         nextAction: seedRow.nextAction,
         phase: seedRow.phase || 'brief',
+        isExecution: isGanttExecution(seedRow.name),
         deadlineRisk: 'none',
         blocked: false,
         milestones: {},

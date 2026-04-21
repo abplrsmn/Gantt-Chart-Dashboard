@@ -600,29 +600,9 @@ export default function CapexGanttMonitor() {
           <span className="inline-flex rounded-full bg-amber-500/10 px-2.5 py-1 font-semibold text-amber-700 dark:text-amber-300">Deadline Risk {summary.deadlineRisk}</span>
           {loadError && <span className="inline-flex rounded-full bg-rose-500/10 px-2.5 py-1 font-semibold text-rose-700 dark:text-rose-300">Fallback flex: {loadError}</span>}
         </div>
-
-        <div className="rounded-lg border border-slate-200/70 dark:border-white/10 bg-white/40 dark:bg-zinc-900/40 p-2.5">
-          <p className="mb-2 text-[10px] uppercase tracking-[0.14em] text-slate-400 dark:text-slate-500">Milestone Phase Summary</p>
-          <div className="flex flex-wrap gap-2">
-            {PHASE_ORDER.map((phase) => (
-              <span
-                key={phase}
-                className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold ${getPhaseTone(phase)}`}
-              >
-                {getPhaseLabel(phase)} {summary.byPhase[phase] || 0}
-              </span>
-            ))}
-            <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold ${getPhaseTone("blocked")}`}>
-              Blocked {summary.byPhase.blocked || 0}
-            </span>
-          </div>
-        </div>
       </section>
 
       <section className="glass-card p-4 overflow-x-auto relative">
-        <div className="absolute top-0 right-0 rounded-bl-xl bg-teal-500/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-teal-700 dark:text-teal-400 flex items-center gap-1.5 z-10 border-b border-l border-teal-500/20">
-          <LayoutList size={12} /> Execution Phase Only
-        </div>
         <div className="min-w-[1450px]">
           <div className="grid grid-cols-[320px_1fr] items-center gap-3 pb-2 border-b border-slate-300/80 dark:border-white/15">
             <div className="rounded-md bg-slate-900 px-3 py-2 text-xs font-bold uppercase tracking-wide text-white">Hotel / Project</div>
@@ -712,12 +692,13 @@ export default function CapexGanttMonitor() {
                           <div
                             className="absolute top-1/2 h-6 -translate-y-1/2 rounded-full px-1 text-[10px] font-semibold flex items-center whitespace-nowrap overflow-hidden"
                             style={{ left: `${row.offset}%`, width: `${row.width}%` }}
+                            title={`${project.name}\nProgress: ${typeof row.progressPct === "number" ? row.progressPct + "%" : "N/A"}\nStart: ${format(row.startDate, "dd MMM yyyy")} - End: ${format(row.endDate, "dd MMM yyyy")}`}
                           >
                             {typeof row.progressPct === "number" && (
                               <div className="h-full rounded-full bg-black/20" style={{ width: `${row.progressPct}%` }}></div>
                             )}
-                            <span className="absolute left-3 right-2 truncate text-white/95 mix-blend-hard-light">
-                              {typeof row.progressPct === "number" ? `${row.progressPct}% • ${getPhaseLabel(phase)}` : `${getPhaseLabel(phase)} • No progress`}
+                            <span className="absolute left-3 right-2 truncate text-white/95 mix-blend-hard-light leading-6">
+                              {typeof row.progressPct === "number" ? `${row.progressPct}%` : `No progress`}
                             </span>
                           </div>
                         </div>
