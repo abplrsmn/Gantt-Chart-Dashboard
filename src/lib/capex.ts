@@ -10,6 +10,7 @@ const API_BASE_URL = 'https://api.clickup.com/api/v2';
 
 const TARGET_SPACE_NAME = 'Project';
 const TARGET_LIST_NAME = 'CAPEX Gantt 2026';
+const TARGET_LIST_ID = '901817189531';
 const TARGET_LIST_CANDIDATES = [
   'CAPEX Gantt 2026',
   'CAPEX Gantt',
@@ -236,6 +237,9 @@ async function loadMappingSeed(): Promise<CapexMappingRow[]> {
 }
 
 async function resolveCapexTargetList() {
+  if (TARGET_LIST_ID) {
+    return { listId: TARGET_LIST_ID, listName: TARGET_LIST_NAME, spaceName: TARGET_SPACE_NAME };
+  }
   return resolveAnyTargetListByName({
     listName: TARGET_LIST_NAME,
     candidates: TARGET_LIST_CANDIDATES,
@@ -263,54 +267,20 @@ function extractProgress(task: ClickUpTaskEx): number | undefined {
 
 function extractFieldFromText(text: string | undefined, label: string): string | undefined {
   if (!text) return undefined;
-  const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const knownKeys = [
-    'Source Key',
-    'Hotel Code',
-    'Unit',
-    'Project Name',
-    'Description',
-    'Phase',
-    'Status',
-    'Progress',
-    'PIC',
-    'Status Note',
-    'Project Status Note',
-    'Next Action',
-    'Operational Brief Date',
-    'Operational Brief',
-    'Brief Date',
-    'Received Date',
-    'RECEIVED_DATE',
-    'Design Approval Date',
-    'Design Date',
-    'Design (HoD)',
-    'DESIGN_APPROVAL',
-    'START_DESIGN_DATE',
-    'APS SPK Released',
-    'APS Release Date',
-    'Tender Start',
-    'Project Control Date',
-    'SPK_RELEASED',
-    'TENDER_START',
-    'Commence Date',
-    'Project Management Date',
-    'COMMENCE_DATE',
-    'Bast 1',
-    'Bast 2',
-    'BAST_1',
-    'BAST_2',
-    'Handover Date',
-  ];
-
-  const keyPattern = knownKeys
-    .map((key) => key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
-    .join('|');
-
-  const regex = new RegExp(`${escaped}:\\s*([\\s\\S]*?)(?=(?:\\n|\\s)(?:${keyPattern}):|$)`, 'i');
-  const match = text.match(regex);
-  if (!match?.[1]) return undefined;
-  return match[1].replace(/\s+/g, ' ').trim();
+  const lowered = label.trim().toLowerCase();
+  const lines = String(text).split(/\r?\n/);
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    const idx = trimmed.indexOf(':');
+    if (idx === -1) continue;
+    const key = trimmed.slice(0, idx).trim().toLowerCase();
+    if (key === lowered) {
+      const value = trimmed.slice(idx + 1).trim();
+      return value || undefined;
+    }
+  }
+  return undefined;
 }
 
 function extractProgressFromText(text: string | undefined): number | undefined {
@@ -470,6 +440,16 @@ function inferUnitFromTask(task: ClickUpTaskEx, description?: string) {
   return 'UNKNOWN';
 }
 
+function normalizeProjectTitle(value?: string) {
+  let normalized = String(value || '').trim().toLowerCase();
+  normalized = normalized.replace(/^[a-z]{2,5}\s*-\s*/i, '');
+  normalized = normalized.replace(/\bbrief\s*:.*$/i, '');
+  normalized = normalized.replace(/\bstart\s*:.*$/i, '');
+  normalized = normalized.replace(/[“”"'`]/g, '');
+  normalized = normalized.replace(/[\s\-_]+/g, ' ');
+  return normalized.trim();
+}
+
 function mapTaskToCapex(task: ClickUpTaskEx, seedRow: CapexSeedProjectRow, seedMapping?: CapexMappingRow): CapexProject {
   const assignee = Array.isArray(task.assignees) && task.assignees.length > 0 ? task.assignees[0]?.username : undefined;
   const description = typeof task.description === 'string' ? task.description : undefined;
@@ -574,18 +554,144 @@ export async function getCapexProjects(): Promise<CapexProject[]> {
   const targetList = await resolveCapexTargetList();
 
   const data = await fetchClickUpJson(`${API_BASE_URL}/list/${targetList.listId}/task?subtasks=true&include_closed=true`);
-  const tasks: ClickUpTaskEx[] = Array.isArray(data?.tasks) ? data.tasks as ClickUpTaskEx[] : [];
+  const rawTasks: ClickUpTaskEx[] = Array.isArray(data?.tasks) ? data.tasks as ClickUpTaskEx[] : [];
+  const phaseParentNames = new Set(['operational brief', 'design', 'project control', 'project management team', 'handover']);
+
+  const parentById = new Map<string, string>();
+  for (const task of rawTasks) {
+    if (!task?.parent) {
+      parentById.set(String(task.id), String(task.name || '').trim().toLowerCase());
+    }
+  }
+
+  const phaseSubtasks = rawTasks.filter((task) => {
+    if (!task?.parent) return false;
+    return phaseParentNames.has(parentById.get(String(task.parent)) || '');
+  });
+
+  if (phaseSubtasks.length > 0) {
+    const grouped = new Map<string, ClickUpTaskEx[]>();
+    for (const task of phaseSubtasks) {
+      const description = typeof task.description === 'string' ? task.description : undefined;
+      const unit = (extractFieldFromText(description, 'Hotel Code') || extractFieldFromText(description, 'Unit') || inferUnitFromTask(task, description)).trim().toUpperCase();
+      const projectName = (extractFieldFromText(description, 'Project Name') || String(task.name || '').replace(/^[A-Za-z]{2,5}\s*-\s*/, '').trim()).trim();
+      const normalizedProjectName = normalizeProjectTitle(projectName);
+      if (!normalizedProjectName) continue;
+      const key = `${unit}::${normalizedProjectName}`;
+      const list = grouped.get(key) || [];
+      list.push(task);
+      grouped.set(key, list);
+    }
+
+    const projects: CapexProject[] = [];
+    for (const [key, tasks] of grouped.entries()) {
+      const [unit] = key.split('::');
+      const byParent = new Map<string, ClickUpTaskEx>();
+      for (const task of tasks) {
+        const parentName = parentById.get(String(task.parent));
+        if (parentName && !byParent.has(parentName)) byParent.set(parentName, task);
+      }
+
+      const sample = tasks[0];
+      const sampleDescription = typeof sample.description === 'string' ? sample.description : undefined;
+      const projectName = extractFieldFromText(sampleDescription, 'Project Name') || String(sample.name || '').replace(/^[A-Za-z]{2,5}\s*-\s*/, '').trim();
+
+      const briefTask = byParent.get('operational brief');
+      const designTask = byParent.get('design');
+      const controlTask = byParent.get('project control');
+      const pmTask = byParent.get('project management team');
+      const handoverTask = byParent.get('handover');
+
+      const getDesc = (task?: ClickUpTaskEx) => typeof task?.description === 'string' ? task.description : undefined;
+      const milestones: CapexMilestones = {
+        briefDate: extractFieldFromText(getDesc(briefTask), 'Received Date') || extractFieldFromText(getDesc(briefTask), 'Brief Date') || extractFieldFromText(getDesc(briefTask), 'Operational Brief Date') || undefined,
+        designDate: extractFieldFromText(getDesc(designTask), 'Start Design Date') || extractFieldFromText(getDesc(designTask), 'Design Date') || undefined,
+        controlDate: extractFieldFromText(getDesc(controlTask), 'Tender Start') || extractFieldFromText(getDesc(controlTask), 'APS Release Date') || extractFieldFromText(getDesc(controlTask), 'APS = SPK Released (+3 weeks)') || extractFieldFromText(getDesc(controlTask), 'SPK Released') || undefined,
+        projectManagementDate: extractFieldFromText(getDesc(pmTask), 'Commence Date') || undefined,
+        handoverDate: extractFieldFromText(getDesc(handoverTask), 'BAST-1') || extractFieldFromText(getDesc(handoverTask), 'Bast 1') || extractFieldFromText(getDesc(handoverTask), 'BAST-2') || extractFieldFromText(getDesc(handoverTask), 'Bast 2') || undefined,
+      };
+
+      const progressRaw = extractFieldFromText(getDesc(pmTask), 'Current Site Progress') || extractFieldFromText(getDesc(sample), 'Progress');
+      const progress = typeof progressRaw === 'string'
+        ? (() => {
+            const m = progressRaw.match(/(\d+(?:[.,]\d+)?)\s*%/);
+            if (!m) return undefined;
+            const num = Number(m[1].replace(',', '.'));
+            return Number.isFinite(num) ? Math.max(0, Math.min(100, num)) : undefined;
+          })()
+        : undefined;
+
+      const status = pmTask ? 'PROJECT_MANAGEMENT' : controlTask ? 'CONTROL' : designTask ? 'DESIGN' : briefTask ? 'BRIEF' : handoverTask ? 'HANDOVER' : 'OPEN';
+      const phase = resolvePhase({ status, progress, milestones, explicitPhase: undefined, isExecution: isGanttExecution(projectName, sample.name) });
+      const note = extractFieldFromText(getDesc(pmTask), 'Current Site Progress')
+        || extractFieldFromText(getDesc(briefTask), 'Brief')
+        || extractFieldFromText(getDesc(controlTask), 'Contract Amount')
+        || undefined;
+
+      const start = milestones.projectManagementDate || milestones.controlDate || milestones.designDate || milestones.briefDate;
+      const end = extractFieldFromText(getDesc(pmTask), 'End Contract') || milestones.handoverDate;
+
+      projects.push({
+        id: `clickup-phase:${unit}:${normalizeProjectTitle(projectName)}`,
+        unit,
+        hotelCode: unit,
+        name: projectName,
+        start,
+        end,
+        status,
+        progress,
+        note,
+        pic: undefined,
+        nextAction: undefined,
+        url: sample.url,
+        phase,
+        isExecution: isGanttExecution(projectName, sample.name),
+        deadlineRisk: getDeadlineRisk(end),
+        blocked: phase === 'blocked',
+        milestones,
+        source: 'clickup',
+      });
+    }
+
+    return projects.sort((a, b) => {
+      const unitCmp = String(a.hotelCode || a.unit).localeCompare(String(b.hotelCode || b.unit));
+      if (unitCmp !== 0) return unitCmp;
+      return String(a.name || '').localeCompare(String(b.name || ''));
+    });
+  }
+
+  const tasks = rawTasks.filter((task) => {
+    const name = String(task?.name || '').trim().toLowerCase();
+    const description = typeof task?.description === 'string' ? task.description : '';
+    if (phaseParentNames.has(name)) return false;
+    if (description.includes('phase parent for CAPEX Gantt 2026')) return false;
+    if (description.includes('phase parent for pilot SPH sync')) return false;
+    if (description.includes('Source Key:') || description.includes('Project Name:')) return false;
+    return true;
+  });
   const seedRows = await loadCapexSeedRows();
   const mappingSeed = await loadMappingSeed();
   const mappingByNo = new Map(mappingSeed.map((row) => [row.no, row]));
   const taskByName = new Map(tasks.map((task) => [String(task.name || '').trim().toLowerCase(), task]));
+  const tasksByNormalizedProjectName = new Map<string, ClickUpTaskEx[]>();
+  for (const task of tasks) {
+    const description = typeof task.description === 'string' ? task.description : undefined;
+    const projectName = extractFieldFromText(description, 'Project Name') || String(task.name || '');
+    const normalized = normalizeProjectTitle(projectName);
+    if (!normalized) continue;
+    const list = tasksByNormalizedProjectName.get(normalized) || [];
+    list.push(task);
+    tasksByNormalizedProjectName.set(normalized, list);
+  }
   const usedTaskIds = new Set<string>();
 
   const seededProjects = seedRows.map((seedRow) => {
     const seedMapping = mappingByNo.get(seedRow.no);
+    const normalizedSeedName = normalizeProjectTitle(seedRow.name);
+    const normalizedMatches = tasksByNormalizedProjectName.get(normalizedSeedName) || [];
     const matchedTask = seedMapping?.clickupTaskId
       ? tasks.find((task) => String(task.id) === String(seedMapping.clickupTaskId))
-      : taskByName.get(seedRow.name.trim().toLowerCase()) || tasks.find((task) => String(task.name || '').trim().toLowerCase().includes(seedRow.name.trim().toLowerCase()));
+      : normalizedMatches[0] || taskByName.get(seedRow.name.trim().toLowerCase()) || tasks.find((task) => String(task.name || '').trim().toLowerCase().includes(seedRow.name.trim().toLowerCase()));
 
     const task = matchedTask || tasks.find((t) => String(t.id) === String(seedMapping?.clickupTaskId));
     if (task?.id) usedTaskIds.add(String(task.id));
@@ -620,5 +726,10 @@ export async function getCapexProjects(): Promise<CapexProject[]> {
     .filter((task) => !usedTaskIds.has(String(task.id)))
     .map((task) => mapClickUpTaskWithoutSeed(task));
 
-  return [...seededProjects, ...additionalClickUpProjects];
+  const dedupedAdditional = additionalClickUpProjects.filter((project, index, list) => {
+    const key = `${String(project.hotelCode || project.unit || '').toUpperCase()}::${String(project.name || '').trim().toLowerCase()}`;
+    return index === list.findIndex((item) => `${String(item.hotelCode || item.unit || '').toUpperCase()}::${String(item.name || '').trim().toLowerCase()}` === key);
+  });
+
+  return [...seededProjects, ...dedupedAdditional];
 }

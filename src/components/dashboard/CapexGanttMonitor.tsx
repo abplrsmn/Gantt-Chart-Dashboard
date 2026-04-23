@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { CalendarRange, Filter, Layers3, Search, ChevronDown, ChevronRight, LayoutList, ListChecks, Folder } from "lucide-react";
+import { CalendarRange, Search, Folder } from "lucide-react";
 import {
   addDays,
   differenceInCalendarDays,
@@ -330,14 +330,14 @@ const splitTaskNote = (note?: string) => {
 
 export default function CapexGanttMonitor() {
   const [search, setSearch] = useState("");
-  const [hotelFilter, setHotelFilter] = useState("All");
-  const [phaseFilter, setPhaseFilter] = useState("All");
   const [projects, setProjects] = useState<CapexProject[]>([]);
   const [mappingRows, setMappingRows] = useState<CapexMappingRow[]>([]);
+  const [sphPilotRows, setSphPilotRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [simpleMode, setSimpleMode] = useState(true);
-  const [activePhaseTab, setActivePhaseTab] = useState<CapexPhase | "blocked">("project_management");
+  const [activePhaseTab, setActivePhaseTab] = useState<CapexPhase>("project_management");
+  const [milestoneUnitFilter, setMilestoneUnitFilter] = useState<string>("ALL");
 
   useEffect(() => {
     let active = true;
@@ -345,15 +345,20 @@ export default function CapexGanttMonitor() {
       try {
         setLoading(true);
         setLoadError(null);
-        const [projectsRes, mappingRes] = await Promise.all([
+        const [projectsRes, mappingRes, sphPilotRes] = await Promise.all([
           fetch("/api/capex/projects", { cache: "no-store" }),
           fetch("/api/capex/mapping", { cache: "no-store" }),
+          fetch("/api/capex/sph-pilot", { cache: "no-store" }),
         ]);
         const projectsJson = await projectsRes.json();
         const mappingJson = await mappingRes.json();
+        const sphPilotJson = await sphPilotRes.json();
         if (!active) return;
         if (mappingJson?.success && Array.isArray(mappingJson.data)) {
           setMappingRows(mappingJson.data);
+        }
+        if (sphPilotJson?.success && Array.isArray(sphPilotJson.data)) {
+          setSphPilotRows(sphPilotJson.data);
         }
         if (projectsJson?.success && Array.isArray(projectsJson.data) && projectsJson.data.length > 0) {
           setProjects(projectsJson.data);
@@ -374,49 +379,65 @@ export default function CapexGanttMonitor() {
     return () => { active = false; };
   }, []);
 
-  const hotelOptions = useMemo(() => {
-    const unique = new Set(projects.map((project) => (project.hotelCode || project.unit || "UNKNOWN").toUpperCase()));
-    return Array.from(unique).sort((a, b) => a.localeCompare(b));
-  }, [projects]);
-
   const filteredProjects = useMemo(() => {
     return projects.filter((project) => {
       const phase = getEffectivePhase(project);
       const hotel = (project.hotelCode || project.unit || "UNKNOWN").toUpperCase();
-      const matchesSearch = `${hotel} ${project.name} ${project.status} ${project.pic ?? ""} ${getPhaseLabel(phase)}`
+      return `${hotel} ${project.name} ${project.status} ${project.pic ?? ""} ${getPhaseLabel(phase)}`
         .toLowerCase()
         .includes(search.toLowerCase());
-      const matchesHotel = hotelFilter === "All" || hotel === hotelFilter;
-      const matchesPhase = phaseFilter === "All" || phase === phaseFilter;
-      return matchesSearch && matchesHotel && matchesPhase;
     });
-  }, [projects, search, hotelFilter, phaseFilter]);
+  }, [projects, search]);
+
+  const milestoneProjects = useMemo<CapexProject[]>(() => {
+    return sphPilotRows.map((row: any) => {
+      const unit = String(row?.unit || 'UNKNOWN').toUpperCase();
+      const name = String(row?.projectName || '').trim();
+      return {
+        id: `milestone:${unit}:${name.toLowerCase()}`,
+        unit,
+        hotelCode: unit,
+        name,
+        start: row?.phases?.project_management?.commence_date || row?.phases?.project_control?.tender_start || row?.phases?.design?.start_design_date || row?.phases?.operational_brief?.received_date || undefined,
+        end: row?.phases?.project_management?.end_contract || row?.phases?.handover?.bast_1 || undefined,
+        status: 'OPEN',
+        phase: 'brief',
+        isExecution: false,
+        deadlineRisk: 'none',
+        blocked: false,
+        milestones: {},
+        source: 'clickup',
+      } as CapexProject;
+    });
+  }, [sphPilotRows]);
+
+  const milestoneUnitOptions = useMemo(() => {
+    return ['ALL', ...Array.from(new Set(milestoneProjects.map((p) => String(p.hotelCode || p.unit || 'UNKNOWN').toUpperCase()))).sort()];
+  }, [milestoneProjects]);
+
+  const milestoneProjectsFilteredByUnit = useMemo(() => {
+    if (milestoneUnitFilter === 'ALL') return milestoneProjects;
+    return milestoneProjects.filter((p) => String(p.hotelCode || p.unit || 'UNKNOWN').toUpperCase() === milestoneUnitFilter);
+  }, [milestoneProjects, milestoneUnitFilter]);
 
   const executionGroupedProjects = useMemo(() => {
-    const executionPhases = ["project_management", "handover", "done"];
-    // HANYA tampilkan di Gantt visual (atas) jika fase Project Management/atasnya 
-    // DAN memiliki indikasi dijadwalkan (start / end terisi) agar tidak membludak.
-    const execFiltered = filteredProjects.filter(p => {
-      // Prioritaskan daftar project yang ter-mapping di Excel (dari mapping.json)
+    const executionPhases = ['project_management', 'handover', 'done'];
+    const execFiltered = filteredProjects.filter((p) => {
       if (mappingRows && mappingRows.length > 0) {
-        return mappingRows.some(m => m.clickupTaskId && p.id.includes(m.clickupTaskId));
+        return mappingRows.some((m) => m.clickupTaskId && p.id.includes(m.clickupTaskId));
       }
-      // Fallback jika belum ada data mapping
       return executionPhases.includes(getEffectivePhase(p)) && (p.start || p.end);
     });
-    
+
     const grouped = new Map<string, CapexProject[]>();
     for (const project of execFiltered) {
-      const hotel = (project.hotelCode || project.unit || "UNKNOWN").toUpperCase();
+      const hotel = (project.hotelCode || project.unit || 'UNKNOWN').toUpperCase();
       const list = grouped.get(hotel) || [];
       list.push(project);
       grouped.set(hotel, list);
     }
     return Array.from(grouped.entries())
-      .map(([hotel, items]) => ({
-        hotel,
-        items: items.sort((a, b) => a.name.localeCompare(b.name)),
-      }))
+      .map(([hotel, items]) => ({ hotel, items: items.sort((a, b) => a.name.localeCompare(b.name)) }))
       .sort((a, b) => a.hotel.localeCompare(b.hotel));
   }, [filteredProjects, mappingRows]);
 
@@ -493,28 +514,16 @@ export default function CapexGanttMonitor() {
 
     for (const project of filteredProjects) {
       const fallbackWindow = resolvePhaseWindow(project, timeline.start);
-      const rawSegments = resolveMilestoneSegments(project, timeline.start);
-
-      const segments = rawSegments
-        .map((segment) => {
-          const clampedStart = segment.startDate < timeline.start ? timeline.start : segment.startDate;
-          const clampedEnd = segment.endDate > timeline.end ? timeline.end : segment.endDate;
-          if (clampedEnd < clampedStart) return null;
-          const duration = Math.max(1, differenceInCalendarDays(clampedEnd, clampedStart) + 1);
-          const offset = Math.max(0, (differenceInCalendarDays(clampedStart, timeline.start) / totalDays) * 100);
-          const width = Math.max(1.1, (duration / totalDays) * 100);
-          return { phase: segment.phase, startDate: segment.startDate, endDate: segment.endDate, offset, width };
-        })
-        .filter((segment): segment is { phase: CapexPhase; startDate: Date; endDate: Date; offset: number; width: number } => segment !== null);
-
-      const startDate = segments.length > 0 ? segments[0].startDate : fallbackWindow.startDate;
-      const endDate = segments.length > 0 ? segments[segments.length - 1].endDate : fallbackWindow.endDate;
-      const offset = segments.length > 0 ? segments[0].offset : Math.max(0, (differenceInCalendarDays(startDate < timeline.start ? timeline.start : startDate, timeline.start) / totalDays) * 100);
-      const width = segments.length > 0
-        ? Math.max(1.1, (segments[segments.length - 1].offset + segments[segments.length - 1].width) - segments[0].offset)
-        : Math.max(1.1, ((Math.max(1, differenceInCalendarDays((endDate > timeline.end ? timeline.end : endDate), (startDate < timeline.start ? timeline.start : startDate)) + 1)) / totalDays) * 100);
+      const clampedStart = fallbackWindow.startDate < timeline.start ? timeline.start : fallbackWindow.startDate;
+      const clampedEnd = fallbackWindow.endDate > timeline.end ? timeline.end : fallbackWindow.endDate;
+      const startDate = clampedStart;
+      const endDate = clampedEnd < clampedStart ? clampedStart : clampedEnd;
+      const offset = Math.max(0, (differenceInCalendarDays(startDate, timeline.start) / totalDays) * 100);
+      const width = Math.max(1.1, ((Math.max(1, differenceInCalendarDays(endDate, startDate) + 1)) / totalDays) * 100);
       const progressPct = typeof project.progress === "number" ? Math.max(0, Math.min(100, project.progress)) : undefined;
       const deadlineRisk = getDeadlineRisk(project);
+      const tonePhase = getEffectivePhase(project);
+      const segments = [{ phase: tonePhase, startDate, endDate, offset, width }];
 
       map.set(project.id, { project, startDate, endDate, offset, width, segments, progressPct, deadlineRisk });
     }
@@ -531,7 +540,7 @@ export default function CapexGanttMonitor() {
               <h3 className="text-base font-bold text-slate-800 dark:text-white">CAPEX Project Monitoring</h3>
             </div>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              Grouped by hotel code. Gantt color shows milestone phase. Deadline is warning only.
+              Grouped by hotel code. Simple progress timeline view. Deadline is warning only.
             </p>
           </div>
 
@@ -546,37 +555,6 @@ export default function CapexGanttMonitor() {
               />
             </label>
 
-            <label className="relative min-w-36">
-              <Layers3 size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <select
-                value={hotelFilter}
-                onChange={(event) => setHotelFilter(event.target.value)}
-                className="w-full appearance-none rounded-xl border border-slate-200/70 dark:border-white/10 bg-white/70 dark:bg-zinc-900/60 pl-9 pr-8 py-2.5 text-sm outline-none focus:ring-2 focus:ring-cyan-500/30"
-              >
-                <option value="All">All Hotel</option>
-                {hotelOptions.map((hotel) => (
-                  <option key={hotel} value={hotel}>{hotel}</option>
-                ))}
-              </select>
-            </label>
-
-            <label className="relative min-w-44">
-              <Filter size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <select
-                value={phaseFilter}
-                onChange={(event) => setPhaseFilter(event.target.value)}
-                className="w-full appearance-none rounded-xl border border-slate-200/70 dark:border-white/10 bg-white/70 dark:bg-zinc-900/60 pl-9 pr-8 py-2.5 text-sm outline-none focus:ring-2 focus:ring-cyan-500/30"
-              >
-                <option value="All">All Phase</option>
-                <option value="brief">Operational Brief</option>
-                <option value="design">Design</option>
-                <option value="control">Project Control</option>
-                <option value="project_management">Project Management</option>
-                <option value="handover">Handover</option>
-                <option value="done">Completed</option>
-                <option value="blocked">Blocked</option>
-              </select>
-            </label>
 
             <button
               type="button"
@@ -653,7 +631,6 @@ export default function CapexGanttMonitor() {
                     const row = ganttRows.get(project.id);
                     if (!row) return null;
 
-                    const phase = getEffectivePhase(project);
                     const riskTone = getRiskBadgeTone(row.deadlineRisk);
 
                     return (
@@ -678,28 +655,23 @@ export default function CapexGanttMonitor() {
                             ))}
                           </div>
                           <div className="absolute left-0 right-0 top-1/2 h-[2px] -translate-y-1/2 bg-slate-400/80 dark:bg-white/25"></div>
-                          <div className="absolute top-0 bottom-0 w-[2px] bg-rose-500/80" style={{ left: `${todayOffset}%` }} title={`Today: ${format(new Date(), "dd MMM yyyy")}`}></div>
-
-                          {row.segments.map((segment, index) => (
-                            <div
-                              key={`${project.id}-${segment.phase}-${index}`}
-                              className={`absolute top-1/2 h-6 -translate-y-1/2 rounded-full ${getPhaseTone(segment.phase)} ${index === row.segments.length - 1 ? getRiskRing(row.deadlineRisk) : ""}`}
-                              style={{ left: `${segment.offset}%`, width: `${segment.width}%` }}
-                              title={`${getPhaseLabel(segment.phase)} • ${format(segment.startDate, "dd MMM yyyy")} - ${format(segment.endDate, "dd MMM yyyy")}`}
-                            ></div>
-                          ))}
 
                           <div
-                            className="absolute top-1/2 h-6 -translate-y-1/2 rounded-full px-1 text-[10px] font-semibold flex items-center whitespace-nowrap overflow-hidden"
-                            style={{ left: `${row.offset}%`, width: `${row.width}%` }}
+                            className="absolute top-1/2 h-6 -translate-y-1/2 rounded-full"
+                            style={{ left: `${row.offset}%`, width: `${row.width}%`, backgroundColor: '#06b6d4' }}
                             title={`${project.name}\nProgress: ${typeof row.progressPct === "number" ? row.progressPct + "%" : "N/A"}\nStart: ${format(row.startDate, "dd MMM yyyy")} - End: ${format(row.endDate, "dd MMM yyyy")}`}
                           >
-                            {typeof row.progressPct === "number" && (
-                              <div className="h-full rounded-full bg-black/20" style={{ width: `${row.progressPct}%` }}></div>
+                            {typeof row.progressPct === "number" && row.progressPct > 0 && row.progressPct < 100 && (
+                              <div
+                                className="absolute right-0 top-0 h-full rounded-r-full"
+                                style={{ width: `${100 - row.progressPct}%`, backgroundColor: 'rgba(0,0,0,0.18)' }}
+                              ></div>
                             )}
-                            <span className="absolute left-3 right-2 truncate text-white/95 mix-blend-hard-light leading-6">
-                              {typeof row.progressPct === "number" ? `${row.progressPct}%` : `No progress`}
-                            </span>
+                            {typeof row.progressPct === "number" && (
+                              <span className="absolute inset-0 flex items-center px-3 truncate text-[10px] font-semibold text-slate-900 leading-6">
+                                {`${row.progressPct}%`}
+                              </span>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -716,21 +688,45 @@ export default function CapexGanttMonitor() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 mb-2 border-b border-slate-200/70 dark:border-white/10">
           <div className="flex items-center gap-2">
             <Folder size={18} className="text-cyan-600" />
-            <h3 className="text-lg font-bold text-slate-800 dark:text-white">Phase Monitoring Matrix</h3>
+            <h3 className="text-lg font-bold text-slate-800 dark:text-white">Milestone Phase</h3>
           </div>
-          <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-            Full Excel-structural view by Project Phase
-          </p>
+          <div className="flex items-center gap-2">
+            <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+              Structured parameters by project phase
+            </p>
+            <select
+              value={milestoneUnitFilter}
+              onChange={(event) => setMilestoneUnitFilter(event.target.value)}
+              className="rounded-lg border border-slate-200/70 dark:border-white/10 bg-white/70 dark:bg-zinc-900/60 px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-200 outline-none"
+            >
+              {milestoneUnitOptions.map((unit) => (
+                <option key={unit} value={unit}>{unit === 'ALL' ? 'All Units' : unit}</option>
+              ))}
+            </select>
+          </div>
         </div>
         
         {/* TAB BUTTONS (Like Folders) */}
         <div className="flex flex-wrap gap-1 px-1">
-          {((PHASE_ORDER as Array<CapexPhase | "blocked">).concat(["blocked"])).map(phase => {
-            const phaseProjects = filteredProjects.filter(p => getEffectivePhase(p) === phase);
+          {PHASE_ORDER.map(phase => {
+            const phaseProjects = milestoneProjectsFilteredByUnit.filter(p => {
+              const unit = String(p.hotelCode || p.unit || '').toUpperCase();
+              const name = String(p.name || '').trim().toLowerCase();
+              const row = sphPilotRows.find((r) =>
+                String(r?.unit || '').toUpperCase() === unit &&
+                String(r?.projectName || '').trim().toLowerCase() === name
+              );
+              if (phase === 'brief') return !!row?.phases?.operational_brief;
+              if (phase === 'design') return !!row?.phases?.design;
+              if (phase === 'control') return !!row?.phases?.project_control;
+              if (phase === 'project_management') return !!row?.phases?.project_management;
+              if (phase === 'handover') return !!row?.phases?.handover;
+              return getEffectivePhase(p) === phase;
+            });
             if (phaseProjects.length === 0) return null;
             
             const isActive = activePhaseTab === phase;
-            const tone = isActive ? getPhaseTone(phase as any) : "text-slate-500 bg-slate-200/50 dark:text-slate-400 dark:bg-white/5";
+            const tone = isActive ? getPhaseTone(phase) : "text-slate-500 bg-slate-200/50 dark:text-slate-400 dark:bg-white/5";
             
             return (
               <button
@@ -758,7 +754,22 @@ export default function CapexGanttMonitor() {
           <PhaseTable 
             phase={activePhaseTab} 
             title={getPhaseLabel(activePhaseTab)} 
-            projects={filteredProjects.filter(p => getEffectivePhase(p) === activePhaseTab)} 
+            projects={milestoneProjectsFilteredByUnit.filter(p => {
+              const unit = String(p.hotelCode || p.unit || '').toUpperCase();
+              const name = String(p.name || '').trim().toLowerCase();
+              const row = sphPilotRows.find((r) =>
+                String(r?.unit || '').toUpperCase() === unit &&
+                String(r?.projectName || '').trim().toLowerCase() === name
+              );
+              if (activePhaseTab === 'brief') return !!row?.phases?.operational_brief;
+              if (activePhaseTab === 'design') return !!row?.phases?.design;
+              if (activePhaseTab === 'control') return !!row?.phases?.project_control;
+              if (activePhaseTab === 'project_management') return !!row?.phases?.project_management;
+              if (activePhaseTab === 'handover') return !!row?.phases?.handover;
+              return getEffectivePhase(p) === activePhaseTab;
+            })} 
+            allProjects={milestoneProjectsFilteredByUnit}
+            sphPilotRows={sphPilotRows}
           />
         </div>
       </section>
@@ -766,7 +777,7 @@ export default function CapexGanttMonitor() {
   );
 }
 
-function PhaseTable({ phase, title, projects }: { phase: CapexPhase | "blocked", title: string, projects: CapexProject[] }) {
+function PhaseTable({ phase, title, projects, allProjects, sphPilotRows }: { phase: CapexPhase, title: string, projects: CapexProject[], allProjects: CapexProject[], sphPilotRows: any[] }) {
   if (projects.length === 0) {
     return (
       <div className="py-12 text-center text-slate-500 flex flex-col items-center justify-center">
@@ -776,87 +787,237 @@ function PhaseTable({ phase, title, projects }: { phase: CapexPhase | "blocked",
     );
   }
 
+  const phaseDescriptions: Record<string, string> = {
+    brief: "Operational Brief (PR) phase currently tracks Brief, Received Date, and Budget/CAPEX.",
+    design: "Design (HoD) phase tracks Start Design Date, Design Approval (+1 month), Duration delay(-)/+, Brief, and Working Drawing (+3 weeks).",
+    control: "Project Control phase tracks Tender Start, APS = SPK Released (+3 weeks), Duration delay(-)/+, and Contract Amount.",
+    project_management: "Project Management phase tracks Commence Date, End Contract, Actual Completion, deviation: delay(-)/+, and Current Site Progress.",
+    handover: "Handover phase tracks BAST-1 and BAST-2.",
+    done: "Completed phase parameters will be refined step by step.",
+    blocked: "Blocked phase parameters will be refined step by step.",
+  };
+
   return (
-    <div className="w-full overflow-x-auto rounded-lg border border-slate-200/70 dark:border-white/10 bg-white/40 dark:bg-black/20">
-      <table className="w-full text-left text-[10.5px] sm:text-[11px] whitespace-nowrap">
-        <thead className="bg-slate-200/50 dark:bg-white/10 text-slate-600 dark:text-slate-300 border-b border-slate-300/60 dark:border-white/10">
-          <tr>
-            <th className="px-4 py-3 font-bold sticky left-0 bg-slate-200/90 dark:bg-[#202024]/90 z-10 backdrop-blur">Unit</th>
-            <th className="px-4 py-3 font-bold max-w-[200px] truncate">Description</th>
-            <th className="px-4 py-3 font-bold">Op. Brief / PR</th>
-            <th className="px-4 py-3 font-bold">Received Date</th>
-            <th className="px-4 py-3 font-bold">Budget/CAPEX</th>
-            <th className="px-4 py-3 font-bold">Start Design Date</th>
-            <th className="px-4 py-3 font-bold">Design Approval</th>
-            <th className="px-4 py-3 font-bold">Tender Start</th>
-            <th className="px-4 py-3 font-bold">APS/SPK Released</th>
-            <th className="px-4 py-3 font-bold">Contract Amount</th>
-            <th className="px-4 py-3 font-bold">Commence Date</th>
-            <th className="px-4 py-3 font-bold">End Contract</th>
-            <th className="px-4 py-3 font-bold">Actual Completion</th>
-            <th className="px-4 py-3 font-bold">Deviation</th>
-            <th className="px-4 py-3 font-bold">Current Site Progress</th>
-            <th className="px-4 py-3 font-bold">Remarks</th>
-            <th className="px-4 py-3 font-bold">BAST-1</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-slate-200/70 dark:divide-white/5">
-          {projects.map(proj => {
-            const notes = splitTaskNote(proj.note);
-            const getVal = (keys: string[]) => {
-              const lowerKeys = keys.map(k => k.toLowerCase());
-              const found = notes.find(n => lowerKeys.includes(n.label.toLowerCase()));
-              return found ? found.value : "-";
-            };
+    <div className="space-y-3">
+      <div className="rounded-lg border border-slate-200/70 dark:border-white/10 bg-slate-50/70 dark:bg-white/5 px-4 py-3 text-xs text-slate-600 dark:text-slate-300">
+        {phaseDescriptions[phase] || `Parameters for ${title} phase.`}
+      </div>
 
-            const unit = (proj.hotelCode || proj.unit || "UNKNOWN").toUpperCase();
-            const desc = proj.name;
-            const pr = proj.milestones?.briefDate || getVal(["Operational Brief", "Operational Brief Date", "Brief Date", "PR Date"]);
-            const received = getVal(["Received Date"]);
-            const budget = getVal(["Budget/CAPEX", "Budget", "Capex Budget"]);
-            const startDesign = proj.milestones?.designDate || getVal(["Start Design Date", "Design Start"]);
-            const approval = getVal(["Design Approval", "Approval Date"]);
-            const tender = getVal(["Tender Start", "Tender Date", "Tender"]);
-            const aps = getVal(["APS/SPK Released", "APS Release Date", "SPK Release Date", "APS"]);
-            const contractAmtRaw = getVal(["Contract Amount", "Contract Amt", "Amount"]);
-            const commence = proj.milestones?.projectManagementDate || getVal(["Commence Date", "Commence"]);
-            const endContact = proj.milestones?.handoverDate || getVal(["End Contract", "End Date"]);
-            const actualComp = getVal(["Actual Completion", "Completion Date", "Actual Comp"]);
-            const deviation = getVal(["Deviation", "Dev Days"]);
-            const siteProg = getVal(["Current Site Progress", "Site Progress", "Progress"]);
-            const remarks = getVal(["Remarks", "Note"]);
-            const bast1 = getVal(["BAST-1", "BAST 1", "BAST-I", "BAST I"]);
+      <div className="w-full overflow-x-auto rounded-lg border border-slate-200/70 dark:border-white/10 bg-white/40 dark:bg-black/20">
+        <table className="w-full text-left text-[10.5px] sm:text-[11px] whitespace-nowrap">
+          <thead className="bg-slate-200/50 dark:bg-white/10 text-slate-600 dark:text-slate-300 border-b border-slate-300/60 dark:border-white/10">
+            <tr>
+              <th className="px-4 py-3 font-bold sticky left-0 bg-slate-200/90 dark:bg-[#202024]/90 z-10 backdrop-blur">Unit</th>
+              <th className="px-4 py-3 font-bold max-w-[240px] truncate">Description</th>
+              {phase === "brief" ? (
+                <>
+                  <th className="px-4 py-3 font-bold">Brief</th>
+                  <th className="px-4 py-3 font-bold">Received Date</th>
+                  <th className="px-4 py-3 font-bold">Budget/CAPEX</th>
+                </>
+              ) : phase === "design" ? (
+                <>
+                  <th className="px-4 py-3 font-bold">Start Design Date</th>
+                  <th className="px-4 py-3 font-bold">Design Approval (+1 month)</th>
+                  <th className="px-4 py-3 font-bold">Duration : delay(-) / +</th>
+                  <th className="px-4 py-3 font-bold">Brief</th>
+                  <th className="px-4 py-3 font-bold">Working Drawing (+3 weeks)</th>
+                </>
+              ) : phase === "control" ? (
+                <>
+                  <th className="px-4 py-3 font-bold">Tender Start</th>
+                  <th className="px-4 py-3 font-bold">APS = SPK Released (+3 weeks)</th>
+                  <th className="px-4 py-3 font-bold">Duration : delay(-) / +</th>
+                  <th className="px-4 py-3 font-bold">Contract Amount</th>
+                </>
+              ) : phase === "project_management" ? (
+                <>
+                  <th className="px-4 py-3 font-bold">Commence Date</th>
+                  <th className="px-4 py-3 font-bold">End Contract</th>
+                  <th className="px-4 py-3 font-bold">Actual Completion</th>
+                  <th className="px-4 py-3 font-bold">deviation : delay(-) / +</th>
+                  <th className="px-4 py-3 font-bold">Current Site Progress</th>
+                </>
+              ) : phase === "handover" ? (
+                <>
+                  <th className="px-4 py-3 font-bold">BAST-1</th>
+                  <th className="px-4 py-3 font-bold">BAST-2</th>
+                </>
+              ) : (
+                <>
+                  <th className="px-4 py-3 font-bold">Op. Brief / PR</th>
+                  <th className="px-4 py-3 font-bold">Received Date</th>
+                  <th className="px-4 py-3 font-bold">Budget/CAPEX</th>
+                  <th className="px-4 py-3 font-bold">Start Design Date</th>
+                  <th className="px-4 py-3 font-bold">Design Approval</th>
+                  <th className="px-4 py-3 font-bold">Tender Start</th>
+                  <th className="px-4 py-3 font-bold">APS/SPK Released</th>
+                  <th className="px-4 py-3 font-bold">Contract Amount</th>
+                  <th className="px-4 py-3 font-bold">Commence Date</th>
+                  <th className="px-4 py-3 font-bold">End Contract</th>
+                  <th className="px-4 py-3 font-bold">Actual Completion</th>
+                  <th className="px-4 py-3 font-bold">Deviation</th>
+                  <th className="px-4 py-3 font-bold">Current Site Progress</th>
+                  <th className="px-4 py-3 font-bold">Remarks</th>
+                  <th className="px-4 py-3 font-bold">BAST-1</th>
+                </>
+              )}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-200/70 dark:divide-white/5">
+            {projects.map(proj => {
+              const notes = splitTaskNote(proj.note);
+              const getVal = (keys: string[]) => {
+                const lowerKeys = keys.map(k => k.toLowerCase());
+                const found = notes.find(n => lowerKeys.includes(n.label.toLowerCase()));
+                return found ? found.value : "-";
+              };
 
-            return (
-              <tr key={proj.id} className="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors group">
-                <td className="px-4 py-3 font-bold text-slate-800 dark:text-slate-100 sticky left-0 bg-slate-50/90 dark:bg-[#1a1a1e]/90 group-hover:bg-slate-100 dark:group-hover:bg-[#202024] z-10 transition-colors backdrop-blur shadow-[2px_0_5px_rgba(0,0,0,0.02)]">
-                  {unit}
-                </td>
-                <td className="px-4 py-3 max-w-[280px] whitespace-normal leading-snug text-slate-800 dark:text-slate-200 font-medium">
-                  {desc}
-                </td>
-                <td className="px-4 py-3">{pr}</td>
-                <td className="px-4 py-3">{received}</td>
-                <td className="px-4 py-3">{budget}</td>
-                <td className="px-4 py-3">{startDesign}</td>
-                <td className="px-4 py-3">{approval}</td>
-                <td className="px-4 py-3">{tender}</td>
-                <td className="px-4 py-3">{aps}</td>
-                <td className="px-4 py-3 text-emerald-600 dark:text-emerald-400 font-bold">{contractAmtRaw}</td>
-                <td className="px-4 py-3">{commence}</td>
-                <td className="px-4 py-3">{endContact}</td>
-                <td className="px-4 py-3">{actualComp}</td>
-                <td className="px-4 py-3 font-bold">{deviation}</td>
-                <td className="px-4 py-3 max-w-[200px] truncate" title={siteProg}>{siteProg}</td>
-                <td className="px-4 py-3 max-w-[300px] whitespace-normal leading-snug" title={remarks}>
-                   <span className="line-clamp-2">{remarks}</span>
-                </td>
-                <td className="px-4 py-3 text-cyan-600 dark:text-cyan-400 font-medium">{bast1}</td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+              const unit = (proj.hotelCode || proj.unit || "UNKNOWN").toUpperCase();
+              const desc = proj.name;
+              const matchedProject = allProjects.find((candidate) =>
+                String(candidate?.hotelCode || candidate?.unit || '').toUpperCase() === unit &&
+                String(candidate?.name || '').trim().toLowerCase() === String(proj.name || '').trim().toLowerCase() &&
+                candidate.source === 'clickup'
+              ) || proj;
+              const sphPilot = sphPilotRows.find((row) =>
+                String(row?.unit || '').toUpperCase() === unit &&
+                String(row?.projectName || '').trim().toLowerCase() === String(proj.name || '').trim().toLowerCase()
+              );
+              const operationalBrief = getVal(["Operational Brief", "Brief"]);
+              const brief = phase === "brief" && sphPilot?.phases?.operational_brief
+                ? (sphPilot.phases.operational_brief.brief ?? "-")
+                : (operationalBrief !== "-" ? operationalBrief : getVal(["Operational Brief Date", "Brief Date", "PR Date"]));
+              const received = phase === "brief" && sphPilot?.phases?.operational_brief
+                ? (sphPilot.phases.operational_brief.received_date ?? "-")
+                : getVal(["Received Date"]);
+              const budget = phase === "brief" && sphPilot?.phases?.operational_brief
+                ? (sphPilot.phases.operational_brief.budget_capex ?? "-")
+                : getVal(["Budget/CAPEX", "Budget", "Capex Budget", "Budget CAPEX"]);
+              const startDesign = phase === "design" && sphPilot?.phases?.design
+                ? (sphPilot.phases.design.start_design_date ?? "-")
+                : (matchedProject.milestones?.designDate || getVal(["Start Design Date", "Design Start", "Design"]));
+              const approval = phase === "design" && sphPilot?.phases?.design
+                ? (sphPilot.phases.design.design_approval ?? "-")
+                : getVal(["Design Approval", "Approval Date"]);
+              const designDuration = phase === "design" && sphPilot?.phases?.design
+                ? (sphPilot.phases.design.duration_delay ?? "-")
+                : getVal(["Design Duration Delay", "Duration", "Duration Delay"]);
+              const workingDrawing = phase === "design" && sphPilot?.phases?.design
+                ? (sphPilot.phases.design.working_drawing ?? "-")
+                : getVal(["Working Drawing"]);
+              const tender = phase === "control" && sphPilot?.phases?.project_control
+                ? (sphPilot.phases.project_control.tender_start ?? "-")
+                : getVal(["Tender Start", "Tender Date", "Tender"]);
+              const aps = phase === "control" && sphPilot?.phases?.project_control
+                ? (sphPilot.phases.project_control.spk_released ?? "-")
+                : getVal(["APS/SPK Released", "APS Release Date", "SPK Release Date", "APS", "SPK Released"]);
+              const controlDuration = phase === "control" && sphPilot?.phases?.project_control
+                ? (sphPilot.phases.project_control.duration_delay ?? "-")
+                : getVal(["SPK Duration Delay", "Control Duration Delay", "Duration", "Duration Delay"]);
+              const contractAmtRaw = phase === "control" && sphPilot?.phases?.project_control
+                ? (sphPilot.phases.project_control.contract_amount ?? "-")
+                : getVal(["Contract Amount", "Contract Amt", "Amount"]);
+              const contractAmt = (() => {
+                const raw = String(contractAmtRaw ?? "-").trim();
+                if (!raw || raw === "-" || raw.toLowerCase() === "null") return "-";
+                const digits = raw.replace(/[^\d,-.]/g, "").replace(/,/g, "");
+                const num = Number(digits);
+                if (!Number.isFinite(num)) return raw;
+                return `Rp ${new Intl.NumberFormat("id-ID").format(num)}`;
+              })();
+              const commence = phase === "project_management" && sphPilot?.phases?.project_management
+                ? (sphPilot.phases.project_management.commence_date ?? "-")
+                : (matchedProject.milestones?.projectManagementDate || getVal(["Commence Date", "Commence"]));
+              const endContact = phase === "project_management" && sphPilot?.phases?.project_management
+                ? (sphPilot.phases.project_management.end_contract ?? "-")
+                : (matchedProject.milestones?.handoverDate || getVal(["End Contract", "End Date"]));
+              const actualComp = phase === "project_management" && sphPilot?.phases?.project_management
+                ? (sphPilot.phases.project_management.actual_completion ?? "-")
+                : getVal(["Actual Completion", "Completion Date", "Actual Comp"]);
+              const deviation = phase === "project_management" && sphPilot?.phases?.project_management
+                ? (sphPilot.phases.project_management.deviation ?? "-")
+                : getVal(["Deviation", "Dev Days"]);
+              const siteProg = phase === "project_management" && sphPilot?.phases?.project_management
+                ? (sphPilot.phases.project_management.current_site_progress ?? "-")
+                : getVal(["Current Site Progress", "Site Progress", "Progress"]);
+              const remarks = getVal(["Remarks", "Note"]);
+              const bast1 = phase === "handover" && sphPilot?.phases?.handover
+                ? (sphPilot.phases.handover.bast_1 ?? "-")
+                : getVal(["BAST-1", "BAST 1", "BAST-I", "BAST I"]);
+              const bast2 = phase === "handover" && sphPilot?.phases?.handover
+                ? (sphPilot.phases.handover.bast_2 ?? "-")
+                : getVal(["BAST-2", "BAST 2", "BAST-II", "BAST II"]);
+
+              return (
+                <tr key={proj.id} className="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors group">
+                  <td className="px-4 py-3 font-bold text-slate-800 dark:text-slate-100 sticky left-0 bg-slate-50/90 dark:bg-[#1a1a1e]/90 group-hover:bg-slate-100 dark:group-hover:bg-[#202024] z-10 transition-colors backdrop-blur shadow-[2px_0_5px_rgba(0,0,0,0.02)]">
+                    {unit}
+                  </td>
+                  <td className="px-4 py-3 max-w-[280px] whitespace-normal leading-snug text-slate-800 dark:text-slate-200 font-medium">
+                    {desc}
+                  </td>
+                  {phase === "brief" ? (
+                    <>
+                      <td className="px-4 py-3">{brief}</td>
+                      <td className="px-4 py-3">{received}</td>
+                      <td className="px-4 py-3">{budget}</td>
+                    </>
+                  ) : phase === "design" ? (
+                    <>
+                      <td className="px-4 py-3">{startDesign}</td>
+                      <td className="px-4 py-3">{approval}</td>
+                      <td className="px-4 py-3 font-bold">{designDuration}</td>
+                      <td className="px-4 py-3">{brief}</td>
+                      <td className="px-4 py-3">{workingDrawing}</td>
+                    </>
+                  ) : phase === "control" ? (
+                    <>
+                      <td className="px-4 py-3">{tender}</td>
+                      <td className="px-4 py-3">{aps}</td>
+                      <td className="px-4 py-3 font-bold">{controlDuration}</td>
+                      <td className="px-4 py-3 text-emerald-600 dark:text-emerald-400 font-bold">{contractAmt}</td>
+                    </>
+                  ) : phase === "project_management" ? (
+                    <>
+                      <td className="px-4 py-3">{commence}</td>
+                      <td className="px-4 py-3">{endContact}</td>
+                      <td className="px-4 py-3">{actualComp}</td>
+                      <td className="px-4 py-3 font-bold">{deviation}</td>
+                      <td className="px-4 py-3 max-w-[200px] truncate" title={siteProg}>{siteProg}</td>
+                    </>
+                  ) : phase === "handover" ? (
+                    <>
+                      <td className="px-4 py-3 text-cyan-600 dark:text-cyan-400 font-medium">{bast1}</td>
+                      <td className="px-4 py-3 text-cyan-600 dark:text-cyan-400 font-medium">{bast2}</td>
+                    </>
+                  ) : (
+                    <>
+                      <td className="px-4 py-3">{brief}</td>
+                      <td className="px-4 py-3">{received}</td>
+                      <td className="px-4 py-3">{budget}</td>
+                      <td className="px-4 py-3">{startDesign}</td>
+                      <td className="px-4 py-3">{approval}</td>
+                      <td className="px-4 py-3">{tender}</td>
+                      <td className="px-4 py-3">{aps}</td>
+                      <td className="px-4 py-3 text-emerald-600 dark:text-emerald-400 font-bold">{contractAmt}</td>
+                      <td className="px-4 py-3">{commence}</td>
+                      <td className="px-4 py-3">{endContact}</td>
+                      <td className="px-4 py-3">{actualComp}</td>
+                      <td className="px-4 py-3 font-bold">{deviation}</td>
+                      <td className="px-4 py-3 max-w-[200px] truncate" title={siteProg}>{siteProg}</td>
+                      <td className="px-4 py-3 max-w-[300px] whitespace-normal leading-snug" title={remarks}>
+                         <span className="line-clamp-2">{remarks}</span>
+                      </td>
+                      <td className="px-4 py-3 text-cyan-600 dark:text-cyan-400 font-medium">{bast1}</td>
+                    </>
+                  )}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

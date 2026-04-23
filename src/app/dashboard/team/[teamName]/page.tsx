@@ -102,10 +102,8 @@ export default function TeamDetailsPage() {
     }
 
     fetchMembers();
-    
-    // Optional: Refresh every 30 seconds for "real-time" feel
-    const interval = setInterval(fetchMembers, 30000);
-    return () => clearInterval(interval);
+
+    return () => {};
   }, [decodedTeamName]);
 
   return (

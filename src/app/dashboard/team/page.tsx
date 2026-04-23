@@ -43,11 +43,9 @@ export default function TeamPage() {
     }
 
     fetchStructure();
-    const interval = setInterval(fetchStructure, 30000);
 
     return () => {
       cancelled = true;
-      clearInterval(interval);
     };
   }, []);
 
