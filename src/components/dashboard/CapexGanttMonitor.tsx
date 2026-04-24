@@ -81,7 +81,7 @@ const parseFlexibleDate = (value?: string) => {
 
   // Extract the first valid date string inside a messy text block
   const dateMatch = normalized.match(/\b(?:\d{4}-\d{2}-\d{2}|\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}|\d{1,2}\s+[A-Za-z]{3,}\s+\d{4})\b/);
-  const targetToParse = dateMatch ? dateMatch[0] : normalized;
+  const targetToParse = (dateMatch ? dateMatch[0] : normalized).replace(/\bSept\b/gi, 'Sep');
 
   const formats = ["d MMM yyyy", "d MMMM yyyy", "d-MMM-yyyy", "d-MMMM-yyyy", "yyyy-MM-dd", "dd/MM/yyyy", "d/M/yyyy"];
   for (const fmt of formats) {
@@ -143,39 +143,39 @@ const resolvePhaseWindow = (project: CapexProject, timelineStart: Date) => {
   let phaseStart = fallbackStart;
   let phaseEnd = fallbackEnd;
 
-  switch (phase) {
-    case "brief":
-      phaseStart = brief ?? fallbackStart;
-      phaseEnd = design ?? addDays(phaseStart, 14);
-      break;
-    case "design":
-      phaseStart = design ?? brief ?? fallbackStart;
-      phaseEnd = control ?? addDays(phaseStart, 21);
-      break;
-    case "control":
-      phaseStart = control ?? design ?? fallbackStart;
-      phaseEnd = pm ?? addDays(phaseStart, 21);
-      break;
-    case "project_management":
-      phaseStart = pm ?? control ?? fallbackStart;
-      phaseEnd = handover ?? fallbackEnd;
-      break;
-    case "handover":
-      phaseStart = handover ?? pm ?? fallbackStart;
-      phaseEnd = fallbackEnd;
-      break;
-    case "done":
-      phaseStart = handover ?? pm ?? control ?? design ?? brief ?? fallbackStart;
-      phaseEnd = fallbackEnd;
-      break;
-    case "blocked":
-      phaseStart = pm ?? control ?? design ?? brief ?? fallbackStart;
-      phaseEnd = fallbackEnd;
-      break;
-    default:
-      phaseStart = fallbackStart;
-      phaseEnd = fallbackEnd;
-      break;
+  const normalizedStatus = String(project.status || '').toLowerCase();
+  const isExecutionLike = ['project_management', 'handover', 'done'].includes(phase) || !!pm;
+
+  if (isExecutionLike) {
+    phaseStart = pm ?? fallbackStart;
+    phaseEnd = fallbackEnd;
+  } else {
+    switch (phase) {
+      case "brief":
+        phaseStart = brief ?? fallbackStart;
+        phaseEnd = design ?? addDays(phaseStart, 14);
+        break;
+      case "design":
+        phaseStart = design ?? brief ?? fallbackStart;
+        phaseEnd = control ?? addDays(phaseStart, 21);
+        break;
+      case "control":
+        phaseStart = control ?? design ?? fallbackStart;
+        phaseEnd = pm ?? addDays(phaseStart, 21);
+        break;
+      case "blocked":
+        phaseStart = pm ?? control ?? design ?? brief ?? fallbackStart;
+        phaseEnd = fallbackEnd;
+        break;
+      default:
+        phaseStart = fallbackStart;
+        phaseEnd = fallbackEnd;
+        break;
+    }
+  }
+
+  if (normalizedStatus.includes('done') || normalizedStatus.includes('completed')) {
+    phaseEnd = handover ?? fallbackEnd;
   }
 
   if (phaseEnd < phaseStart) {
@@ -338,6 +338,7 @@ export default function CapexGanttMonitor() {
   const [simpleMode, setSimpleMode] = useState(true);
   const [activePhaseTab, setActivePhaseTab] = useState<CapexPhase>("project_management");
   const [milestoneUnitFilter, setMilestoneUnitFilter] = useState<string>("ALL");
+  const [yearFilter, setYearFilter] = useState<string>("ALL");
 
   useEffect(() => {
     let active = true;
@@ -421,12 +422,31 @@ export default function CapexGanttMonitor() {
   }, [milestoneProjects, milestoneUnitFilter]);
 
   const executionGroupedProjects = useMemo(() => {
-    const executionPhases = ['project_management', 'handover', 'done'];
+    const curatedOrder = (mappingRows || [])
+      .map((m) => String(m?.clickupTaskName || '').trim())
+      .filter(Boolean);
+    const curatedMap = new Map(
+      curatedOrder.map((name, index) => [name.toLowerCase(), index])
+    );
+
     const execFiltered = filteredProjects.filter((p) => {
-      if (mappingRows && mappingRows.length > 0) {
-        return mappingRows.some((m) => m.clickupTaskId && p.id.includes(m.clickupTaskId));
-      }
-      return executionPhases.includes(getEffectivePhase(p)) && (p.start || p.end);
+      const projectName = String(p.name || '').trim().toLowerCase();
+      const projectYears = [
+        parseFlexibleDate(p.start)?.getFullYear(),
+        parseFlexibleDate(p.end)?.getFullYear(),
+        parseFlexibleDate(p.milestones?.briefDate)?.getFullYear(),
+        parseFlexibleDate(p.milestones?.designDate)?.getFullYear(),
+        parseFlexibleDate(p.milestones?.controlDate)?.getFullYear(),
+        parseFlexibleDate(p.milestones?.projectManagementDate)?.getFullYear(),
+        parseFlexibleDate(p.milestones?.handoverDate)?.getFullYear(),
+      ].filter((year): year is number => typeof year === 'number');
+
+      const matchesYear = yearFilter === 'ALL' || projectYears.includes(Number(yearFilter));
+      if (!matchesYear) return false;
+
+      if (curatedMap.size > 0) return curatedMap.has(projectName);
+      const phase = getEffectivePhase(p);
+      return ['project_management', 'handover', 'done'].includes(phase);
     });
 
     const grouped = new Map<string, CapexProject[]>();
@@ -437,9 +457,17 @@ export default function CapexGanttMonitor() {
       grouped.set(hotel, list);
     }
     return Array.from(grouped.entries())
-      .map(([hotel, items]) => ({ hotel, items: items.sort((a, b) => a.name.localeCompare(b.name)) }))
+      .map(([hotel, items]) => ({
+        hotel,
+        items: items.sort((a, b) => {
+          const aIdx = curatedMap.get(String(a.name || '').trim().toLowerCase()) ?? Number.MAX_SAFE_INTEGER;
+          const bIdx = curatedMap.get(String(b.name || '').trim().toLowerCase()) ?? Number.MAX_SAFE_INTEGER;
+          if (aIdx !== bIdx) return aIdx - bIdx;
+          return a.name.localeCompare(b.name);
+        })
+      }))
       .sort((a, b) => a.hotel.localeCompare(b.hotel));
-  }, [filteredProjects, mappingRows]);
+  }, [filteredProjects, mappingRows, yearFilter]);
 
   const summary = useMemo(() => {
     const total = filteredProjects.length;
@@ -456,12 +484,43 @@ export default function CapexGanttMonitor() {
   }, [filteredProjects]);
 
   const timeline = useMemo(() => {
-    const currentYear = new Date().getFullYear();
+    if (yearFilter !== 'ALL') {
+      const selectedYear = Number(yearFilter);
+      return {
+        start: new Date(selectedYear, 0, 1),
+        end: new Date(selectedYear, 11, 31),
+      };
+    }
+
+    const relevantProjects = executionGroupedProjects.flatMap((group) => group.items);
+    const dates = relevantProjects.flatMap((project) => {
+      const candidates = [
+        parseFlexibleDate(project.start),
+        parseFlexibleDate(project.end),
+        parseFlexibleDate(project.milestones?.briefDate),
+        parseFlexibleDate(project.milestones?.designDate),
+        parseFlexibleDate(project.milestones?.controlDate),
+        parseFlexibleDate(project.milestones?.projectManagementDate),
+        parseFlexibleDate(project.milestones?.handoverDate),
+      ];
+      return candidates.filter((date): date is Date => date !== null);
+    });
+
+    if (dates.length === 0) {
+      const currentYear = new Date().getFullYear();
+      return {
+        start: new Date(currentYear, 0, 1),
+        end: new Date(currentYear, 11, 31),
+      };
+    }
+
+    const minDate = new Date(Math.min(...dates.map((d) => d.getTime())));
+    const maxDate = new Date(Math.max(...dates.map((d) => d.getTime())));
     return {
-      start: new Date(currentYear, 0, 1),
-      end: new Date(currentYear, 11, 31),
+      start: new Date(minDate.getFullYear(), 0, 1),
+      end: new Date(maxDate.getFullYear(), 11, 31),
     };
-  }, []);
+  }, [executionGroupedProjects, yearFilter]);
 
   const weekBuckets = useMemo<WeekBucket[]>(() => {
     const buckets: WeekBucket[] = [];
@@ -555,6 +614,15 @@ export default function CapexGanttMonitor() {
               />
             </label>
 
+            <select
+              value={yearFilter}
+              onChange={(event) => setYearFilter(event.target.value)}
+              className="rounded-xl border border-slate-200/70 dark:border-white/10 bg-white/70 dark:bg-zinc-900/60 px-3 py-2.5 text-sm text-slate-700 dark:text-slate-200 outline-none"
+            >
+              <option value="ALL">All Years</option>
+              <option value="2025">2025</option>
+              <option value="2026">2026</option>
+            </select>
 
             <button
               type="button"
@@ -572,16 +640,12 @@ export default function CapexGanttMonitor() {
               Syncing ClickUp...
             </span>
           )}
-          <span className="inline-flex rounded-full bg-slate-200/70 dark:bg-zinc-800 px-2.5 py-1 font-semibold text-slate-700 dark:text-slate-300">Projects {summary.total}</span>
-          <span className="inline-flex rounded-full bg-green-500/10 px-2.5 py-1 font-semibold text-green-700 dark:text-green-300">Completed {summary.completed}</span>
-          <span className="inline-flex rounded-full bg-rose-500/10 px-2.5 py-1 font-semibold text-rose-700 dark:text-rose-300">Blocked {summary.blocked}</span>
-          <span className="inline-flex rounded-full bg-amber-500/10 px-2.5 py-1 font-semibold text-amber-700 dark:text-amber-300">Deadline Risk {summary.deadlineRisk}</span>
           {loadError && <span className="inline-flex rounded-full bg-rose-500/10 px-2.5 py-1 font-semibold text-rose-700 dark:text-rose-300">Fallback flex: {loadError}</span>}
         </div>
       </section>
 
       <section className="glass-card p-4 overflow-x-auto relative">
-        <div className="min-w-[1450px]">
+        <div className="min-w-[2200px]">
           <div className="grid grid-cols-[320px_1fr] items-center gap-3 pb-2 border-b border-slate-300/80 dark:border-white/15">
             <div className="rounded-md bg-slate-900 px-3 py-2 text-xs font-bold uppercase tracking-wide text-white">Hotel / Project</div>
             <div className="grid gap-1" style={{ gridTemplateColumns: `repeat(${weekBuckets.length}, minmax(0, 1fr))` }}>
@@ -601,15 +665,26 @@ export default function CapexGanttMonitor() {
             <div className="grid grid-cols-[320px_1fr] items-center gap-3 pt-2 pb-3 border-b border-slate-200/40 dark:border-white/10">
               <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400 dark:text-slate-500">Week</div>
               <div className="grid gap-1" style={{ gridTemplateColumns: `repeat(${weekBuckets.length}, minmax(0, 1fr))` }}>
-                {weekBuckets.map((bucket, index) => (
-                  <div
-                    key={`${bucket.start.toISOString()}-${index}`}
-                    className="text-center text-[10px] font-medium text-slate-500 dark:text-slate-400"
-                    title={`${format(bucket.start, "dd MMM")} - ${format(bucket.end, "dd MMM yyyy")}`}
-                  >
-                    {format(bucket.start, "dd")}
-                  </div>
-                ))}
+                {weekBuckets.map((bucket, index) => {
+                  const sameMonthBuckets = weekBuckets.filter((candidate) =>
+                    candidate.start.getFullYear() === bucket.start.getFullYear() &&
+                    candidate.monthIndex === bucket.monthIndex
+                  );
+                  const weekNumberInMonth = sameMonthBuckets.findIndex((candidate) =>
+                    candidate.start.getTime() === bucket.start.getTime() &&
+                    candidate.end.getTime() === bucket.end.getTime()
+                  ) + 1;
+
+                  return (
+                    <div
+                      key={`${bucket.start.toISOString()}-${index}`}
+                      className="min-w-[38px] text-center text-[10px] font-medium text-slate-500 dark:text-slate-400"
+                      title={`${format(bucket.start, "dd MMM")} - ${format(bucket.end, "dd MMM yyyy")}`}
+                    >
+                      {`W${weekNumberInMonth}`}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}
@@ -782,7 +857,7 @@ function PhaseTable({ phase, title, projects, allProjects, sphPilotRows }: { pha
     return (
       <div className="py-12 text-center text-slate-500 flex flex-col items-center justify-center">
          <Folder size={32} className="mb-3 text-slate-300 dark:text-zinc-600" />
-         <p>No projects currently in <strong>{title}</strong> phase.</p>
+         <p>No projects currently.</p>
       </div>
     );
   }
