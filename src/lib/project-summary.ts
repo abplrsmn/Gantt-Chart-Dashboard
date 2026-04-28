@@ -5,6 +5,7 @@ export interface ProjectPhaseSummary {
   project_id: number;
   project_name: string;
   unit_name: string | null;
+  unit_code: string | null;
   phase_name: string | null;
   overall_status: string | null;
   brief_text: string | null;
@@ -13,6 +14,8 @@ export interface ProjectPhaseSummary {
   current_site_progress: string | null;
   effective_deadline: string | null;
   actual_phase_completion_date: string | null;
+  days_to_deadline?: number | null;
+  days_overdue?: number | null;
 }
 
 export interface SummaryBuckets {
@@ -37,6 +40,7 @@ export async function getDailyProjectSummary(): Promise<SummaryBuckets> {
             p.id as project_id,
             p.project_name,
             mu.unit_name,
+            mu.unit_code,
             mp.phase_name,
             ms.status_label as overall_status,
             pp.brief_text,
@@ -71,6 +75,8 @@ export async function getDailyProjectSummary(): Promise<SummaryBuckets> {
   const nearDeadline: ProjectPhaseSummary[] = [];
   const overdue: ProjectPhaseSummary[] = [];
 
+  const msPerDay = 1000 * 60 * 60 * 24;
+
   for (const row of rows) {
     const hasActivitySignal = 
         row.commence_date !== null || 
@@ -80,16 +86,27 @@ export async function getDailyProjectSummary(): Promise<SummaryBuckets> {
     let isNearDeadline = false;
     let isOverdue = false;
 
+    row.days_to_deadline = null;
+    row.days_overdue = null;
+
     if (row.effective_deadline) {
         const deadlineDate = new Date(row.effective_deadline);
         const deadlineDateOnly = new Date(deadlineDate.getFullYear(), deadlineDate.getMonth(), deadlineDate.getDate());
+        
+        const diffDays = Math.floor((deadlineDateOnly.getTime() - today.getTime()) / msPerDay);
 
-        if (deadlineDateOnly < today) {
+        if (diffDays < 0) {
             isOverdue = true;
-        } else if (deadlineDateOnly >= today && deadlineDateOnly <= in7Days) {
-            if (row.phase_name !== 'Operational Brief') {
-                isNearDeadline = true;
-            }
+            row.days_overdue = Math.abs(diffDays);
+        } else if (diffDays >= 0 && diffDays <= 7) {
+            isNearDeadline = true;
+            row.days_to_deadline = diffDays;
+        }
+
+        // Tweak: Exclude 'Operational Brief' from overdue & nearDeadline to reduce chat noise
+        if (row.phase_name === 'Operational Brief') {
+            isNearDeadline = false;
+            isOverdue = false;
         }
     }
 
