@@ -6,6 +6,7 @@ export interface ProjectPhaseSummary {
   project_name: string;
   unit_name: string | null;
   phase_name: string | null;
+  overall_status: string | null;
   brief_text: string | null;
   budget_capex: number | null;
   commence_date: string | null;
@@ -16,6 +17,11 @@ export interface ProjectPhaseSummary {
 
 export interface SummaryBuckets {
   generatedAt: string;
+  counts: {
+    onProgress: number;
+    nearDeadline: number;
+    overdue: number;
+  };
   onProgress: ProjectPhaseSummary[];
   nearDeadline: ProjectPhaseSummary[];
   overdue: ProjectPhaseSummary[];
@@ -32,6 +38,7 @@ export async function getDailyProjectSummary(): Promise<SummaryBuckets> {
             p.project_name,
             mu.unit_name,
             mp.phase_name,
+            ms.status_name as overall_status,
             pp.brief_text,
             pp.budget_capex,
             pp.commence_date,
@@ -42,10 +49,12 @@ export async function getDailyProjectSummary(): Promise<SummaryBuckets> {
         JOIN projects p ON p.id = pp.project_id
         LEFT JOIN master_units mu ON mu.id = p.unit_id
         LEFT JOIN master_phases mp ON mp.id = pp.phase_id
+        LEFT JOIN master_statuses ms ON ms.id = p.overall_status_id
         WHERE pp.actual_phase_completion_date IS NULL
     )
     SELECT * 
     FROM base_phases
+    ORDER BY effective_deadline ASC NULLS LAST
   `;
 
   const result = await pool.query(query);
@@ -95,6 +104,11 @@ export async function getDailyProjectSummary(): Promise<SummaryBuckets> {
 
   return {
     generatedAt: new Date().toISOString(),
+    counts: {
+      onProgress: onProgress.length,
+      nearDeadline: nearDeadline.length,
+      overdue: overdue.length,
+    },
     onProgress,
     nearDeadline,
     overdue
