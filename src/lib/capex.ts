@@ -1,5 +1,4 @@
 import { ClickUpTask } from '@/types/clickup';
-import { resolveAnyTargetListByName } from '@/lib/clickup-target';
 import { differenceInCalendarDays, isValid, parse, startOfDay } from 'date-fns';
 import { promises as fs } from 'fs';
 import path from 'path';
@@ -237,14 +236,7 @@ async function loadMappingSeed(): Promise<CapexMappingRow[]> {
 }
 
 async function resolveCapexTargetList() {
-  if (TARGET_LIST_ID) {
-    return { listId: TARGET_LIST_ID, listName: TARGET_LIST_NAME, spaceName: TARGET_SPACE_NAME };
-  }
-  return resolveAnyTargetListByName({
-    listName: TARGET_LIST_NAME,
-    candidates: TARGET_LIST_CANDIDATES,
-    spaceName: TARGET_SPACE_NAME,
-  });
+  return { listId: TARGET_LIST_ID, listName: TARGET_LIST_NAME, spaceName: TARGET_SPACE_NAME };
 }
 
 function extractProgress(task: ClickUpTaskEx): number | undefined {
@@ -283,12 +275,20 @@ function extractFieldFromText(text: string | undefined, label: string): string |
   return undefined;
 }
 
-function extractProgressFromText(text: string | undefined): number | undefined {
-  const raw = extractFieldFromText(text, 'Progress');
+function extractPercent(raw?: string | null): number | undefined {
   if (!raw) return undefined;
-  const value = Number(raw.replace('%', '').replace(',', '.').trim());
+  const text = String(raw).trim();
+  if (!text) return undefined;
+  const match = text.match(/(\d+(?:[.,]\d+)?)\s*%/);
+  if (!match) return undefined;
+  const value = Number(match[1].replace(',', '.'));
   if (Number.isNaN(value)) return undefined;
   return Math.max(0, Math.min(100, value));
+}
+
+function extractProgressFromText(text: string | undefined): number | undefined {
+  const raw = extractFieldFromText(text, 'Progress');
+  return extractPercent(raw);
 }
 
 function parseDateLabel(value?: string): Date | null {
@@ -611,25 +611,23 @@ export async function getCapexProjects(): Promise<CapexProject[]> {
         handoverDate: extractFieldFromText(getDesc(handoverTask), 'BAST-1') || extractFieldFromText(getDesc(handoverTask), 'Bast 1') || extractFieldFromText(getDesc(handoverTask), 'BAST-2') || extractFieldFromText(getDesc(handoverTask), 'Bast 2') || undefined,
       };
 
-      const progressRaw = extractFieldFromText(getDesc(pmTask), 'Current Site Progress') || extractFieldFromText(getDesc(sample), 'Progress');
-      const progress = typeof progressRaw === 'string'
-        ? (() => {
-            const m = progressRaw.match(/(\d+(?:[.,]\d+)?)\s*%/);
-            if (!m) return undefined;
-            const num = Number(m[1].replace(',', '.'));
-            return Number.isFinite(num) ? Math.max(0, Math.min(100, num)) : undefined;
-          })()
-        : undefined;
+      const pmDesc = getDesc(pmTask);
+      const progressRaw = extractFieldFromText(pmDesc, 'Current Site Progress') || extractFieldFromText(getDesc(sample), 'Progress');
+      const progress = typeof progressRaw === 'string' ? extractPercent(progressRaw) : undefined;
 
       const status = pmTask ? 'PROJECT_MANAGEMENT' : controlTask ? 'CONTROL' : designTask ? 'DESIGN' : briefTask ? 'BRIEF' : handoverTask ? 'HANDOVER' : 'OPEN';
       const phase = resolvePhase({ status, progress, milestones, explicitPhase: undefined, isExecution: isGanttExecution(projectName, sample.name) });
-      const note = extractFieldFromText(getDesc(pmTask), 'Current Site Progress')
-        || extractFieldFromText(getDesc(briefTask), 'Brief')
-        || extractFieldFromText(getDesc(controlTask), 'Contract Amount')
+      const note = extractFieldFromText(pmDesc, 'Current Site Progress')
+        || extractFieldFromText(briefTask ? getDesc(briefTask) : undefined, 'Brief')
+        || extractFieldFromText(controlTask ? getDesc(controlTask) : undefined, 'Contract Amount')
         || undefined;
 
+      const actualCompletion = extractFieldFromText(pmDesc, 'Actual Completion');
+      const hasActualCompletionDate = isValidMilestoneDate(actualCompletion);
       const start = milestones.projectManagementDate || milestones.controlDate || milestones.designDate || milestones.briefDate;
-      const end = extractFieldFromText(getDesc(pmTask), 'End Contract') || milestones.handoverDate;
+      const end = (hasActualCompletionDate ? actualCompletion : undefined)
+        || extractFieldFromText(pmDesc, 'End Contract')
+        || milestones.handoverDate;
 
       projects.push({
         id: `clickup-phase:${unit}:${normalizeProjectTitle(projectName)}`,
