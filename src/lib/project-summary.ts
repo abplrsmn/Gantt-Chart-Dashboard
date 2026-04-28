@@ -38,7 +38,7 @@ export async function getDailyProjectSummary(): Promise<SummaryBuckets> {
             p.project_name,
             mu.unit_name,
             mp.phase_name,
-            ms.status_name as overall_status,
+            ms.status_label as overall_status,
             pp.brief_text,
             pp.budget_capex,
             pp.commence_date,
