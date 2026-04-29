@@ -444,9 +444,19 @@ export default function CapexGanttMonitor() {
       const matchesYear = yearFilter === 'ALL' || projectYears.includes(Number(yearFilter));
       if (!matchesYear) return false;
 
-      if (curatedMap.size > 0) return curatedMap.has(projectName);
       const phase = getEffectivePhase(p);
-      return ['project_management', 'handover', 'done'].includes(phase);
+      const hasPmSignal = !!parseFlexibleDate(p.milestones?.projectManagementDate);
+      const hasHandoverSignal = !!parseFlexibleDate(p.milestones?.handoverDate);
+      const progressText = String(p.note || '').toLowerCase();
+      const isAborted = progressText.includes('aborted');
+      if (isAborted) return false;
+
+      if (hasPmSignal || hasHandoverSignal || ['project_management', 'handover', 'done'].includes(phase)) {
+        return true;
+      }
+
+      if (curatedMap.size > 0) return curatedMap.has(projectName);
+      return false;
     });
 
     const grouped = new Map<string, CapexProject[]>();
@@ -706,8 +716,6 @@ export default function CapexGanttMonitor() {
                     const row = ganttRows.get(project.id);
                     if (!row) return null;
 
-                    const riskTone = getRiskBadgeTone(row.deadlineRisk);
-
                     return (
                       <div
                         key={project.id}
@@ -715,12 +723,6 @@ export default function CapexGanttMonitor() {
                       >
                         <div className="pl-1">
                           <p className="text-sm font-semibold text-slate-800 dark:text-white truncate">{project.name}</p>
-                          <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                            <span className="text-[11px] text-slate-500 dark:text-slate-400">PIC: {project.pic || "Belum diisi"}</span>
-                            <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${riskTone}`}>
-                              {getRiskLabel(row.deadlineRisk)}
-                            </span>
-                          </div>
                         </div>
 
                         <div className="relative h-10">

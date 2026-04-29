@@ -350,26 +350,19 @@ function isValidMilestoneDate(val?: string | number | null): boolean {
   return !isNaN(parsed);
 }
 
-const GANTT_EXECUTION_PROJECTS = [
-  "SPH TENNIS COURT INDOOR",
-  "SPH TENNIS COURT 3",
-  "AEI : MUR 6'th : deluxe & bussiness",
-  "LANDSCAPE : BOULEVARD",
-  "LANDSCAPE : GATE",
-  "LANDSCAPE : LOBBY DROP OFF",
-  "REPAIR SURFACE TENNIS COURT 5&6",
-  "PATHWAY REPAIR",
-  "AEI - MUR 18'TH : Q1 & Q1A",
-  "2025 : CANOPY & FACADE NORTH LOBBY",
-  "FR : FACADE REPAIR & REPAINTING",
-  "2025 : PPR Pipe Replacement",
-  "2025 : AME wood parquet"
-].map(p => p.toLowerCase());
-
-function isGanttExecution(projectName: string, taskName?: string): boolean {
+function isGanttExecution(projectName: string, taskName?: string, milestones?: CapexMilestones): boolean {
   const name1 = String(projectName || '').toLowerCase().trim();
   const name2 = String(taskName || '').toLowerCase().trim();
-  return GANTT_EXECUTION_PROJECTS.some(g => name1.includes(g) || name2.includes(g));
+  const combined = `${name1} ${name2}`;
+
+  const negativeHints = ['aborted', 'cancelled', 'canceled'];
+  if (negativeHints.some((hint) => combined.includes(hint))) return false;
+
+  if (isValidMilestoneDate(milestones?.projectManagementDate) || isValidMilestoneDate(milestones?.handoverDate)) {
+    return true;
+  }
+
+  return false;
 }
 
 function resolvePhase(input: {
@@ -471,7 +464,7 @@ function mapTaskToCapex(task: ClickUpTaskEx, seedRow: CapexSeedProjectRow, seedM
     projectManagementDate: getMilestoneDate(task, description, ['Commence Date', 'Project Management Date', 'COMMENCE_DATE']),
     handoverDate: getMilestoneDate(task, description, ['Bast 1', 'Bast 2', 'BAST_1', 'BAST_2', 'Handover Date']),
   };
-  const isExecution = isGanttExecution(seedRow?.name || '', task.name);
+  const isExecution = isGanttExecution(seedRow?.name || '', task.name, milestones);
   const phase = resolvePhase({ status: resolvedStatus, progress: computedProgress, milestones, explicitPhase: seedRow?.phase || descPhase, isExecution });
   const deadlineRisk = getDeadlineRisk(formatClickUpDate(task.due_date) || descEnd);
   const blocked = phase === 'blocked';
@@ -523,7 +516,7 @@ function mapClickUpTaskWithoutSeed(task: ClickUpTaskEx): CapexProject {
 
   const unit = inferUnitFromTask(task, description);
   const title = descProjectName || String(task.name || '').replace(/^[A-Za-z]{2,5}\s*-\s*/, '').trim();
-  const isExecution = isGanttExecution(title, task.name);
+  const isExecution = isGanttExecution(title, task.name, milestones);
   
   const phase = resolvePhase({ status: resolvedStatus, progress: computedProgress, milestones, explicitPhase: descPhase, isExecution });
   const deadlineRisk = getDeadlineRisk(formatClickUpDate(task.due_date) || descEnd);
@@ -616,7 +609,7 @@ export async function getCapexProjects(): Promise<CapexProject[]> {
       const progress = typeof progressRaw === 'string' ? extractPercent(progressRaw) : undefined;
 
       const status = pmTask ? 'PROJECT_MANAGEMENT' : controlTask ? 'CONTROL' : designTask ? 'DESIGN' : briefTask ? 'BRIEF' : handoverTask ? 'HANDOVER' : 'OPEN';
-      const phase = resolvePhase({ status, progress, milestones, explicitPhase: undefined, isExecution: isGanttExecution(projectName, sample.name) });
+      const phase = resolvePhase({ status, progress, milestones, explicitPhase: undefined, isExecution: isGanttExecution(projectName, sample.name, milestones) });
       const note = extractFieldFromText(pmDesc, 'Current Site Progress')
         || extractFieldFromText(briefTask ? getDesc(briefTask) : undefined, 'Brief')
         || extractFieldFromText(controlTask ? getDesc(controlTask) : undefined, 'Contract Amount')
@@ -643,7 +636,7 @@ export async function getCapexProjects(): Promise<CapexProject[]> {
         nextAction: undefined,
         url: sample.url,
         phase,
-        isExecution: isGanttExecution(projectName, sample.name),
+        isExecution: isGanttExecution(projectName, sample.name, milestones),
         deadlineRisk: getDeadlineRisk(end),
         blocked: phase === 'blocked',
         milestones,

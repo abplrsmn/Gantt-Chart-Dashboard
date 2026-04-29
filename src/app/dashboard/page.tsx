@@ -16,12 +16,30 @@ type DepartmentSummary = {
   teams: string[];
 };
 
+type LatestReminderLog = {
+  id: number;
+  created_at?: string | null;
+  sent_at?: string | null;
+  scheduled_for?: string | null;
+  channel?: string | null;
+  target_type?: string | null;
+  reminder_type?: string | null;
+  template_key?: string | null;
+  message_subject?: string | null;
+  message_body?: string | null;
+  is_simulated?: boolean | null;
+  role_name?: string | null;
+  unit_code?: string | null;
+  unit_name?: string | null;
+};
+
 export default function DashboardHome() {
   const [tasks, setTasks] = useState<ClickUpTask[]>([]);
   const [liveEmployeeCount, setLiveEmployeeCount] = useState<number>(0);
   const [liveDepartmentCount, setLiveDepartmentCount] = useState<number>(0);
   const [liveTeamCount, setLiveTeamCount] = useState<number>(0);
   const [departments, setDepartments] = useState<DepartmentSummary[]>([]);
+  const [latestReminder, setLatestReminder] = useState<LatestReminderLog | null>(null);
   const [loading, setLoading] = useState(true);
   const [lastSynced, setLastSynced] = useState<Date | null>(null);
   
@@ -29,8 +47,17 @@ export default function DashboardHome() {
 
   const fetchDashboardData = useCallback(async () => {
     try {
-      const res = await fetch("/api/clickup/tasks");
-      const data = await res.json();
+      const [tasksRes, reminderRes] = await Promise.all([
+        fetch("/api/clickup/tasks"),
+        fetch("/api/reminder-logs/latest", { cache: 'no-store' }),
+      ]);
+
+      const data = await tasksRes.json();
+      const reminderData = await reminderRes.json();
+      if (reminderData?.success) {
+        setLatestReminder(reminderData.data || null);
+      }
+
       if (data.success) {
         const incomingTasks: ClickUpTask[] = data.data;
         
@@ -277,8 +304,8 @@ export default function DashboardHome() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <section className="glass-card p-5">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+        <section className="glass-card p-5 xl:col-span-1">
           <div className="flex items-center gap-2.5 mb-4">
             <div className="w-1 h-4 bg-gradient-to-b from-blue-500 to-indigo-600 rounded-full flex-shrink-0"></div>
             <PieChart size={14} className="text-blue-500" />
@@ -360,7 +387,7 @@ export default function DashboardHome() {
           </div>
         </section>
 
-        <section className="glass-card p-5 flex flex-col">
+        <section className="glass-card p-5 flex flex-col xl:col-span-1">
           <div className="flex items-center gap-2.5 mb-3 shrink-0">
             <div className="w-1 h-4 bg-gradient-to-b from-green-500 to-emerald-600 rounded-full flex-shrink-0"></div>
             <CheckCircle2 size={14} className="text-green-500" />
@@ -405,6 +432,56 @@ export default function DashboardHome() {
                   </div>
                 </a>
               ))
+            )}
+          </div>
+        </section>
+
+        <section className="glass-card p-5 flex flex-col xl:col-span-1">
+          <div className="flex items-center gap-2.5 mb-3 shrink-0">
+            <div className="w-1 h-4 bg-gradient-to-b from-violet-500 to-fuchsia-600 rounded-full flex-shrink-0"></div>
+            <AlertCircle size={14} className="text-violet-500" />
+            <h3 className="text-base font-bold text-slate-700 dark:text-gray-200">Latest Reminder Summary</h3>
+          </div>
+          <div className="flex-1 min-h-[360px] rounded-2xl border border-slate-200/60 dark:border-white/10 bg-white/30 dark:bg-zinc-900/20 p-4 overflow-hidden">
+            {!latestReminder ? (
+              <div className="flex h-full items-center justify-center">
+                <p className="text-xs text-slate-500 dark:text-gray-400 text-center">No reminder summary available yet.</p>
+              </div>
+            ) : (
+              <div className="flex h-full flex-col">
+                <div className="flex flex-wrap items-center gap-2 mb-3">
+                  {latestReminder.role_name && (
+                    <span className="rounded-full bg-violet-500/10 px-2.5 py-1 text-[11px] font-semibold text-violet-700 dark:text-violet-300">
+                      {latestReminder.role_name}
+                    </span>
+                  )}
+                  {latestReminder.unit_code && (
+                    <span className="rounded-full bg-cyan-500/10 px-2.5 py-1 text-[11px] font-semibold text-cyan-700 dark:text-cyan-300">
+                      {latestReminder.unit_code}
+                    </span>
+                  )}
+                  {latestReminder.is_simulated && (
+                    <span className="rounded-full bg-amber-500/10 px-2.5 py-1 text-[11px] font-semibold text-amber-700 dark:text-amber-300">
+                      Simulated
+                    </span>
+                  )}
+                </div>
+                <div className="mb-2">
+                  <h4 className="text-sm font-bold text-slate-800 dark:text-white">
+                    {latestReminder.message_subject || 'Reminder Summary'}
+                  </h4>
+                  <p className="mt-1 text-[11px] text-slate-500 dark:text-gray-400">
+                    {latestReminder.sent_at || latestReminder.created_at
+                      ? new Date((latestReminder.sent_at || latestReminder.created_at) as string).toLocaleString()
+                      : 'No timestamp'}
+                  </p>
+                </div>
+                <div className="mt-2 flex-1 overflow-y-auto rounded-xl bg-slate-50/80 dark:bg-black/20 p-3">
+                  <pre className="whitespace-pre-wrap break-words text-xs leading-5 text-slate-700 dark:text-slate-200 font-sans">
+                    {String(latestReminder.message_body || '-').replace(/\\n/g, '\n')}
+                  </pre>
+                </div>
+              </div>
             )}
           </div>
         </section>

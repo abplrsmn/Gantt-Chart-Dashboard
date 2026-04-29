@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server';
-import { getCapexProjects } from '@/lib/capex';
+import { getProjectGanttProjects } from '@/lib/project-gantt';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
-    const projects = await getCapexProjects();
+    const projects = await getProjectGanttProjects();
     return NextResponse.json({ success: true, data: projects });
   } catch (error: any) {
     console.error('API Error in capex projects route:', error);

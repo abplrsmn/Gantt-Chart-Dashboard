@@ -20,14 +20,25 @@ export default function LoginPage() {
     }
   }, [isDark]);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (email === "admin@aryaduta.com" && password === "admin123") {
-      // Set a simple auth cookie so middleware knows we're logged in
-      document.cookie = "auth_token=supersecret_dev_token; path=/; max-age=86400;";
-      router.push("/dashboard");
-    } else {
-      setError("Invalid credentials. Please check your email and password.");
+    setError("");
+
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data?.success) {
+        setError(data?.error || 'Invalid credentials. Please check your email and password.');
+        return;
+      }
+      router.push('/dashboard');
+      router.refresh();
+    } catch {
+      setError('Login failed. Please try again.');
     }
   };
 
