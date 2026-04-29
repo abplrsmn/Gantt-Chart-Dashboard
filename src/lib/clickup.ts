@@ -4,19 +4,25 @@ const API_TOKEN = (process.env.CLICKUP_API_TOKEN || process.env.NEXT_PUBLIC_CLIC
 const TEAM_ID = (process.env.CLICKUP_TEAM_ID || '90182505447').trim().replace(/^['"]|['"]$/g, '');
 const API_BASE_URL = 'https://api.clickup.com/api/v2';
 
-const DEPARTMENT_SPACE_IDS = [
-  { name: 'IDEA', spaceId: '901810204419' },
-  { name: 'Marketing', spaceId: '901810204420' },
-  { name: 'Finance', spaceId: '901810204444' },
-  { name: 'HR', spaceId: '901810204446' },
+const DEPARTMENT_LISTS = [
+  { department: 'IDEA', team: 'Tech', listId: '901816650757', listName: 'Tasks' },
+  { department: 'IDEA', team: 'Data', listId: '901816684091', listName: 'Main' },
+  { department: 'IDEA', team: 'Digital', listId: '901816727899', listName: 'General' },
+  { department: 'Marketing', team: 'M1', listId: '901816727900', listName: 'General' },
+  { department: 'Marketing', team: 'M2', listId: '901816727901', listName: 'General' },
+  { department: 'HR', team: 'HR1', listId: '901816727904', listName: 'General' },
+  { department: 'Finance', team: 'F1', listId: '901816727903', listName: 'General' },
 ];
+
+const CAPEX_SOURCE = { department: 'Project', team: 'P1', listId: '901817189531', listName: 'CAPEX Gantt 2026' };
 
 function isAuthOrConfigError(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error);
   return (
     message.includes('Missing CLICKUP_API_TOKEN or CLICKUP_TEAM_ID') ||
     message.includes('ClickUp API Error 401') ||
-    message.includes('OAUTH_025')
+    message.includes('OAUTH_025') ||
+    message.includes('OAUTH_192')
   );
 }
 
@@ -52,37 +58,76 @@ async function fetchClickUpJson(url: string) {
 }
 
 function decorateTasks(tasks: ClickUpTask[]) {
-  return tasks.map((task) => {
-    let assignedDept = 'General';
-    const spaceId = (task as any).space?.id;
-    if (spaceId === '901810204419') assignedDept = 'IDEA';
-    else if (spaceId === '901810204420') assignedDept = 'Marketing';
-    else if (spaceId === '901810204444') assignedDept = 'Finance';
-    else if (spaceId === '901810204446') assignedDept = 'HR';
-
-    return { ...task, department: assignedDept };
-  });
+  return tasks;
 }
 
-async function fetchAllTasksBySpace() {
-  const teamId = TEAM_ID;
+async function fetchListTasks(listId: string): Promise<ClickUpTask[]> {
+  let page = 0;
   const collected: ClickUpTask[] = [];
 
-  for (const dept of DEPARTMENT_SPACE_IDS) {
-    let page = 0;
-    while (true) {
-      const data = await fetchClickUpJson(
-        `${API_BASE_URL}/team/${teamId}/task?space_ids[]=${dept.spaceId}&page=${page}&include_closed=true&subtasks=true`
-      );
-      const tasks: ClickUpTask[] = Array.isArray(data?.tasks) ? data.tasks as ClickUpTask[] : [];
-      if (tasks.length === 0) break;
-      collected.push(...tasks);
-      if (!data.last_page) break;
-      page += 1;
-    }
+  while (true) {
+    const data = await fetchClickUpJson(
+      `${API_BASE_URL}/list/${listId}/task?page=${page}&include_closed=true&subtasks=true`
+    );
+    const tasks: ClickUpTask[] = Array.isArray(data?.tasks) ? (data.tasks as ClickUpTask[]) : [];
+    if (tasks.length === 0) break;
+    collected.push(...tasks);
+    if (!data.last_page) break;
+    page += 1;
   }
 
   return collected;
+}
+
+function normalizeCapexProjectName(name: string) {
+  return String(name || '').trim().toLowerCase();
+}
+
+async function fetchStructuredTasks() {
+  const collected = new Map<string, ClickUpTask>();
+
+  for (const source of DEPARTMENT_LISTS) {
+    const tasks = await fetchListTasks(source.listId);
+    for (const task of tasks) {
+      collected.set(task.id, {
+        ...task,
+        department: source.department,
+        list: {
+          ...(task as any).list,
+          id: source.listId,
+          name: source.listName,
+        } as any,
+        team: source.team,
+      } as ClickUpTask);
+    }
+  }
+
+  const capexTasks = await fetchListTasks(CAPEX_SOURCE.listId);
+  const capexProjects = new Map<string, ClickUpTask>();
+  for (const task of capexTasks) {
+    const parent = (task as any).parent;
+    if (parent) continue;
+    const key = normalizeCapexProjectName(task.name || task.id);
+    if (!capexProjects.has(key)) {
+      capexProjects.set(key, {
+        ...task,
+        department: CAPEX_SOURCE.department,
+        list: {
+          ...(task as any).list,
+          id: CAPEX_SOURCE.listId,
+          name: CAPEX_SOURCE.listName,
+        } as any,
+        team: CAPEX_SOURCE.team,
+      } as ClickUpTask);
+    }
+  }
+  for (const [key, task] of capexProjects.entries()) {
+    collected.set(`capex:${key}`, task);
+  }
+
+  return Array.from(collected.values()).sort(
+    (a, b) => parseInt(b.date_updated || b.date_created || '0') - parseInt(a.date_updated || a.date_created || '0')
+  );
 }
 
 async function findFolderByTeamName(teamName: string): Promise<any | null> {
@@ -104,25 +149,14 @@ async function findFolderByTeamName(teamName: string): Promise<any | null> {
 
 export async function getTasks(): Promise<ClickUpTask[]> {
   try {
-    const data = await fetchClickUpJson(`${API_BASE_URL}/team/${TEAM_ID}/task?subtasks=true&include_closed=true`);
-    const tasks: ClickUpTask[] = Array.isArray(data.tasks) ? data.tasks as ClickUpTask[] : [];
-    if (tasks.length > 0) return decorateTasks(tasks);
-
-    const fallbackTasks = await fetchAllTasksBySpace();
-    return decorateTasks(fallbackTasks);
+    const tasks = await fetchStructuredTasks();
+    return decorateTasks(tasks);
   } catch (error) {
     console.error('Failed to fetch tasks:', error);
     if (isAuthOrConfigError(error)) {
       throw error;
     }
-
-    try {
-      const fallbackTasks = await fetchAllTasksBySpace();
-      return decorateTasks(fallbackTasks);
-    } catch (fallbackError) {
-      console.error('Failed to fetch tasks with fallback:', fallbackError);
-      throw fallbackError;
-    }
+    throw error;
   }
 }
 

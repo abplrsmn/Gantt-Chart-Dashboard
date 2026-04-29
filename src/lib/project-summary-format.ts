@@ -1,69 +1,87 @@
-import { SummaryBuckets, ProjectPhaseSummary } from './project-summary';
+import { SummaryBuckets, ProjectManagementSummaryRow } from './project-summary';
 
-/**
- * Helper to group project phases by project name.
- */
-function groupByProject(phases: ProjectPhaseSummary[]) {
-  return phases.reduce((acc, phase) => {
-    if (!acc[phase.project_name]) {
-      acc[phase.project_name] = [];
-    }
-    acc[phase.project_name].push(phase);
-    return acc;
-  }, {} as Record<string, ProjectPhaseSummary[]>);
+function formatDate(value?: string | null): string {
+  if (!value) return '-';
+  return new Date(value).toLocaleDateString('id-ID', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  });
 }
 
-/**
- * Transforms raw JSON bucket data into a clean text/markdown representation for group chat.
- * Grouping occurs per-project to keep the chat payload tidy.
- */
+function projectLabel(row: ProjectManagementSummaryRow): string {
+  const unitCodeLabel = row.unit_code ? `[${row.unit_code}] ` : '';
+  return `${unitCodeLabel}${row.project_name}`;
+}
+
+function formatDaysRemaining(value?: number | null): string | null {
+  if (value === null || value === undefined) return null;
+  return `${Math.abs(value)} days left`;
+}
+
 export function formatDailySummary(summary: SummaryBuckets): string {
-  const { counts, nearDeadline, overdue } = summary;
-  
+  const { counts, handover, inProgress, nearDeadline } = summary;
+
   const todayFormatted = new Date(summary.generatedAt).toLocaleDateString('id-ID', {
-    weekday: 'long', 
-    year: 'numeric', 
-    month: 'long', 
-    day: 'numeric' 
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
   });
 
-  let message = `📊 *Daily CAPEX Project Summary*\n`;
+  let message = `📊 Daily Project Management Summary\n`;
   message += `Date: ${todayFormatted}\n\n`;
-  
-  message += `📈 *Overview*\n`;
-  message += `- 🟢 On Progress: ${counts.onProgress} phases\n`;
-  message += `- 🟡 Near Deadline: ${counts.nearDeadline} phases\n`;
-  message += `- 🔴 Overdue: ${counts.overdue} phases\n\n`;
 
-  // Section 1: OVERDUE
-  if (counts.overdue > 0) {
-    message += `🚨 *OVERDUE (${counts.overdue})*\n`;
-    const overdueByProject = groupByProject(overdue);
-    for (const [projName, phases] of Object.entries(overdueByProject)) {
-      const unitCodeLabel = phases[0].unit_code ? `[${phases[0].unit_code}]` : '';
-      message += `*${projName}* ${unitCodeLabel}\n`;
-      phases.forEach(p => {
-        message += `  - ${p.phase_name}: Overdue by ${p.days_overdue} days\n`;
-      });
-    }
-    message += `\n`;
-  }
+  message += `📈 Overview\n\n`;
+  message += `• 🟢 In Progress: ${counts.inProgress} projects\n`;
+  message += `• 🟡 Near Deadline: ${counts.nearDeadline} projects\n`;
+  message += `• 📦 Handover: ${counts.handover} projects\n\n`;
 
-  // Section 2: NEAR DEADLINE
   if (counts.nearDeadline > 0) {
-    message += `⚠️ *NEAR DEADLINE (${counts.nearDeadline})*\n`;
-    const nearByProject = groupByProject(nearDeadline);
-    for (const [projName, phases] of Object.entries(nearByProject)) {
-      const unitCodeLabel = phases[0].unit_code ? `[${phases[0].unit_code}]` : '';
-      message += `*${projName}* ${unitCodeLabel}\n`;
-      phases.forEach(p => {
-        const dueText = p.days_to_deadline === 0 ? "Today" : `in ${p.days_to_deadline} days`;
-        message += `  - ${p.phase_name}: Due ${dueText}\n`;
-      });
+    message += `⚠️ NEAR DEADLINE (${counts.nearDeadline})\n`;
+    for (const row of nearDeadline) {
+      message += `${projectLabel(row)}\n`;
+      message += `• Start Date: ${formatDate(row.commence_date)}\n`;
+      message += `• End Date: ${formatDate(row.end_contract_date)}\n`;
+      const daysText = formatDaysRemaining(row.days_remaining);
+      if (row.commence_date && daysText) {
+        message += `• Days Remaining: ${daysText}\n`;
+      }
+      if (row.current_site_progress) {
+        message += `• Progress: ${row.current_site_progress}\n`;
+      }
+      message += `\n`;
     }
-    message += `\n`;
   }
 
-  message += `_🤖 This is an automated summary._`;
-  return message;
+  if (counts.inProgress > 0) {
+    message += `🟢 IN PROGRESS (${counts.inProgress})\n`;
+    for (const row of inProgress) {
+      message += `${projectLabel(row)}\n`;
+      message += `• Start Date: ${formatDate(row.commence_date)}\n`;
+      message += `• End Date: ${formatDate(row.end_contract_date)}\n`;
+      const daysText = formatDaysRemaining(row.days_remaining);
+      if (row.commence_date && daysText) {
+        message += `• Days Remaining: ${daysText}\n`;
+      }
+      if (row.current_site_progress) {
+        message += `• Progress: ${row.current_site_progress}\n`;
+      }
+      message += `\n`;
+    }
+  }
+
+  if (counts.handover > 0) {
+    message += `📦 HANDOVER (${counts.handover})\n`;
+    for (const row of handover) {
+      message += `${projectLabel(row)}\n`;
+      message += `• Start Date: ${formatDate(row.commence_date)}\n`;
+      message += `• End Date: ${formatDate(row.end_contract_date)}\n`;
+      message += `• Actual Completion: ${formatDate(row.actual_phase_completion_date)}\n`;
+      message += `• BAST-1: ${formatDate(row.bast_1_date)}\n`;
+      message += `\n`;
+    }
+  }
+
+  return message.trimEnd();
 }
