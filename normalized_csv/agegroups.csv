@@ -1,9 +1,0 @@
-id,agegroup,label_color,max_reg_squad,date_ofbirth
-1,U8 - under 8 y/o,blue,17,2017-01-01
-2,U10 - under 10 y/o,blue,17,2015-01-01
-3,U12 - under 12 y/o,blue,18,2013-01-01
-4,U14 - under 14 y/o,blue,22,2011-01-01
-5,U16 - under 16 y/o,blue,22,2009-01-01
-6,U19 - under 19 y/o,blue,22,2006-01-01
-7,U12-14G,pink,23,2006-01-01
-8,U16-19G,pink,23,2006-01-01

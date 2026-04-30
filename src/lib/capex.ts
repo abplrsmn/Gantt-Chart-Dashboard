@@ -70,21 +70,7 @@ export type CapexMappingRow = {
   clickupTaskName?: string | null;
 };
 
-const LEGACY_CAPEX_SEED_ROWS = [
-  { no: 1, unit: 'SPH', name: 'SPH TENNIS COURT INDOOR' },
-  { no: 2, unit: 'SPH', name: 'SPH TENNIS COURT 3' },
-  { no: 3, unit: 'ALV', name: "AEI : MUR 6'th : deluxe & bussiness" },
-  { no: 4, unit: 'ALV', name: 'LANDSCAPE : BOULEVARD' },
-  { no: 5, unit: 'ALV', name: 'LANDSCAPE : GATE' },
-  { no: 6, unit: 'ALV', name: 'LANDSCAPE : LOBBY DROP OFF' },
-  { no: 7, unit: 'ACC', name: 'REPAIR SURFACE TENNIS COURT 5&6' },
-  { no: 8, unit: 'ACC', name: 'PATHWAY REPAIR' },
-  { no: 9, unit: 'ASM', name: "AEI - MUR 18'TH : Q1 & Q1A" },
-  { no: 10, unit: 'AKB', name: '2025 : CANOPY & FACADE NORTH LOBBY' },
-  { no: 11, unit: 'AMD', name: 'FR : FACADE REPAIR & REPAINTING' },
-  { no: 12, unit: 'APL', name: '2025 : PPR Pipe Replacement' },
-  { no: 13, unit: 'AME', name: '2025 : AME wood parquet' },
-] as const;
+const LEGACY_CAPEX_SEED_ROWS = [] as const;
 
 type SummarySeedRow = {
   sourceRow?: number;
