@@ -17,7 +17,7 @@ export async function POST(request: Request) {
     }
 
     await createAuthCookie(user);
-    return NextResponse.json({ success: true, user: { email: user.email, isAdmin: user.isAdmin, fullName: user.fullName } });
+    return NextResponse.json({ success: true, user: { email: user.email, isAdmin: user.isAdmin, role: user.role, fullName: user.fullName } });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error?.message || 'Login failed.' }, { status: 500 });
   }

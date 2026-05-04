@@ -9,6 +9,7 @@ export type AuthUser = {
   personId: number | null;
   email: string;
   isAdmin: boolean;
+  role: string;
   fullName: string | null;
 };
 
@@ -27,6 +28,7 @@ function decodeToken(token: string): AuthUser | null {
       personId: parsed.personId == null ? null : Number(parsed.personId),
       email: String(parsed.email),
       isAdmin: Boolean(parsed.isAdmin),
+      role: typeof parsed.role === 'string' ? parsed.role : (parsed.isAdmin ? 'admin' : 'pm'),
       fullName: parsed.fullName == null ? null : String(parsed.fullName),
     };
   } catch {
@@ -42,6 +44,7 @@ export async function authenticateUser(email: string, password: string): Promise
       a.person_id,
       a.email,
       a.is_admin,
+      a.role,
       p.full_name
     FROM master_acc a
     LEFT JOIN master_people p ON p.id = a.person_id
@@ -59,6 +62,7 @@ export async function authenticateUser(email: string, password: string): Promise
     personId: row.person_id == null ? null : Number(row.person_id),
     email: String(row.email),
     isAdmin: Boolean(row.is_admin),
+    role: typeof row.role === 'string' ? row.role : (row.is_admin ? 'admin' : 'pm'),
     fullName: row.full_name == null ? null : String(row.full_name),
   };
 }
@@ -72,12 +76,27 @@ export async function createAuthCookie(user: AuthUser) {
     path: '/',
     maxAge: AUTH_COOKIE_MAX_AGE,
   });
+  // Non-httpOnly cookie so client-side JS can read the role for UI rendering
+  cookieStore.set('user_role', user.role, {
+    httpOnly: false,
+    sameSite: 'lax',
+    secure: false,
+    path: '/',
+    maxAge: AUTH_COOKIE_MAX_AGE,
+  });
 }
 
 export async function clearAuthCookie() {
   const cookieStore = await cookies();
   cookieStore.set(AUTH_COOKIE_NAME, '', {
     httpOnly: true,
+    sameSite: 'lax',
+    secure: false,
+    path: '/',
+    maxAge: 0,
+  });
+  cookieStore.set('user_role', '', {
+    httpOnly: false,
     sameSite: 'lax',
     secure: false,
     path: '/',

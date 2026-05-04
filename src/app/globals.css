@@ -25,15 +25,15 @@
 :root {
   --background: #f8fafc;
   --foreground: #0f172a;
-  --scrollbar-border-track: rgba(226, 232, 240, 0.5);
-  --scrollbar-border-thumb: rgba(226, 232, 240, 0.75);
+  --sb-thumb: rgba(100, 116, 139, 0.35);
+  --sb-thumb-hover: rgba(100, 116, 139, 0.6);
 }
 
 .dark {
   --background: #020617;
   --foreground: #f8fafc;
-  --scrollbar-border-track: rgba(255, 255, 255, 0.1);
-  --scrollbar-border-thumb: rgba(255, 255, 255, 0.2);
+  --sb-thumb: rgba(255, 255, 255, 0.12);
+  --sb-thumb-hover: rgba(99, 211, 219, 0.45);
 }
 
 body {
@@ -145,29 +145,38 @@ h1, h2, h3, h4, h5, h6 {
   transform-origin: top right;
 }
 
-/* Scrollbar tone aligned with glass-card border in light/dark mode */
+/* ── Global scrollbar — thin & modern ─────────────────────────────────────── */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--sb-thumb) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: var(--sb-thumb);
+  border-radius: 9999px;
+  transition: background 0.2s ease;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--sb-thumb-hover);
+  box-shadow: 0 0 6px var(--sb-thumb-hover);
+}
+
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Legacy .scrollbar-border — keep for any components still using it */
 .scrollbar-border {
   scrollbar-width: thin;
-  scrollbar-color: var(--scrollbar-border-thumb) var(--scrollbar-border-track);
-  overflow-x: hidden;
-}
-
-.scrollbar-border::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-.scrollbar-border::-webkit-scrollbar-track {
-  background: var(--scrollbar-border-track);
-  border-radius: 9999px;
-}
-
-.scrollbar-border::-webkit-scrollbar-thumb {
-  background: var(--scrollbar-border-thumb);
-  border-radius: 9999px;
-  border: 1px solid var(--scrollbar-border-track);
-}
-
-.scrollbar-border::-webkit-scrollbar-thumb:hover {
-  background: var(--scrollbar-border-thumb);
-}
+  scrollbar-color: var(--sb-thumb) transparent;
+}
