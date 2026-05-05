@@ -1,12 +1,31 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import crypto from 'crypto';
+
+export const runtime = 'nodejs';
 
 const AUTH_COOKIE_NAME = 'auth_token';
+
+function verifyToken(token: string): { email?: string; role?: string; isAdmin?: boolean } | null {
+  try {
+    const secret = process.env.AUTH_SECRET;
+    const dot = token.lastIndexOf('.');
+    if (!secret || dot === -1) return null;
+    const b64 = token.slice(0, dot);
+    const sig = token.slice(dot + 1);
+    const expected = crypto.createHmac('sha256', secret).update(b64).digest('hex');
+    if (sig.length !== expected.length) return null;
+    if (!crypto.timingSafeEqual(Buffer.from(sig, 'hex'), Buffer.from(expected, 'hex'))) return null;
+    return JSON.parse(Buffer.from(b64, 'base64url').toString('utf8'));
+  } catch {
+    return null;
+  }
+}
 
 // Pages each role is ALLOWED to access (prefix match)
 const ROLE_ALLOWED_PATHS: Record<string, string[]> = {
   admin: ['/dashboard'], // admin can access everything under /dashboard
-  pm: ['/dashboard/capex-gantt'], // pm can ONLY access the Gantt chart
+  pm: ['/dashboard/capex-gantt', '/dashboard/projects'], // pm can access Gantt and Projects
 };
 
 // Default landing page per role after login
@@ -28,13 +47,8 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/', request.url));
   }
 
-  let decoded: { email?: string; role?: string; isAdmin?: boolean } | null = null;
-  try {
-    decoded = JSON.parse(Buffer.from(authCookie.value, 'base64url').toString('utf8'));
-    if (!decoded?.email) {
-      return NextResponse.redirect(new URL('/', request.url));
-    }
-  } catch {
+  const decoded = verifyToken(authCookie.value);
+  if (!decoded?.email) {
     return NextResponse.redirect(new URL('/', request.url));
   }
 

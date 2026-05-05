@@ -179,4 +179,13 @@ h1, h2, h3, h4, h5, h6 {
 .scrollbar-border {
   scrollbar-width: thin;
   scrollbar-color: var(--sb-thumb) transparent;
+}
+
+/* Page Transitions */
+@keyframes page-enter {
+  0% { opacity: 0; transform: translateY(12px); filter: blur(4px); }
+  100% { opacity: 1; transform: translateY(0); filter: blur(0); }
+}
+.animate-page-enter {
+  animation: page-enter 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
 }

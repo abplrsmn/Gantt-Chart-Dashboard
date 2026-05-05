@@ -60,9 +60,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   const navItems = isPm ? [] : [
     { icon: <Home size={16} />, label: "Home", path: "/dashboard" },
-    { icon: <CalendarRange size={16} />, label: "Gantt Chart", path: "/dashboard/capex-gantt" },
+    { icon: <CalendarRange size={16} />, label: "Capex Tracker", path: "/dashboard/capex-gantt" },
     { icon: <Users size={16} />, label: "Team", path: "/dashboard/team" },
-    { icon: <Activity size={16} />, label: "Performance", path: "/dashboard/performance" },
     { icon: <AlertTriangle size={16} />, label: "Alerts", path: "/dashboard/alerts" },
     { icon: <Server size={16} />, label: "Controls", path: "/dashboard/controls" },
   ];

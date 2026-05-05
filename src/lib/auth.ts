@@ -1,4 +1,5 @@
 import { cookies } from 'next/headers';
+import crypto from 'crypto';
 import { getDbPool } from '@/lib/db';
 
 export const AUTH_COOKIE_NAME = 'auth_token';
@@ -13,14 +14,31 @@ export type AuthUser = {
   fullName: string | null;
 };
 
-function encodeToken(payload: AuthUser) {
-  return Buffer.from(JSON.stringify(payload), 'utf8').toString('base64url');
+function getSecret(): string {
+  const s = process.env.AUTH_SECRET;
+  if (!s) throw new Error('AUTH_SECRET env var is not set');
+  return s;
+}
+
+function sign(payload: string): string {
+  return crypto.createHmac('sha256', getSecret()).update(payload).digest('hex');
+}
+
+function encodeToken(payload: AuthUser): string {
+  const b64 = Buffer.from(JSON.stringify(payload), 'utf8').toString('base64url');
+  return `${b64}.${sign(b64)}`;
 }
 
 function decodeToken(token: string): AuthUser | null {
   try {
-    const decoded = Buffer.from(token, 'base64url').toString('utf8');
-    const parsed = JSON.parse(decoded);
+    const dot = token.lastIndexOf('.');
+    if (dot === -1) return null;
+    const b64 = token.slice(0, dot);
+    const sig = token.slice(dot + 1);
+    const expected = sign(b64);
+    if (sig.length !== expected.length) return null;
+    if (!crypto.timingSafeEqual(Buffer.from(sig, 'hex'), Buffer.from(expected, 'hex'))) return null;
+    const parsed = JSON.parse(Buffer.from(b64, 'base64url').toString('utf8'));
     if (!parsed || typeof parsed !== 'object') return null;
     if (typeof parsed.email !== 'string') return null;
     return {
@@ -69,10 +87,11 @@ export async function authenticateUser(email: string, password: string): Promise
 
 export async function createAuthCookie(user: AuthUser) {
   const cookieStore = await cookies();
+  const isProduction = process.env.NODE_ENV === 'production';
   cookieStore.set(AUTH_COOKIE_NAME, encodeToken(user), {
     httpOnly: true,
     sameSite: 'lax',
-    secure: false,
+    secure: isProduction,
     path: '/',
     maxAge: AUTH_COOKIE_MAX_AGE,
   });
@@ -80,7 +99,7 @@ export async function createAuthCookie(user: AuthUser) {
   cookieStore.set('user_role', user.role, {
     httpOnly: false,
     sameSite: 'lax',
-    secure: false,
+    secure: isProduction,
     path: '/',
     maxAge: AUTH_COOKIE_MAX_AGE,
   });
@@ -88,17 +107,18 @@ export async function createAuthCookie(user: AuthUser) {
 
 export async function clearAuthCookie() {
   const cookieStore = await cookies();
+  const isProduction = process.env.NODE_ENV === 'production';
   cookieStore.set(AUTH_COOKIE_NAME, '', {
     httpOnly: true,
     sameSite: 'lax',
-    secure: false,
+    secure: isProduction,
     path: '/',
     maxAge: 0,
   });
   cookieStore.set('user_role', '', {
     httpOnly: false,
     sameSite: 'lax',
-    secure: false,
+    secure: isProduction,
     path: '/',
     maxAge: 0,
   });

@@ -1,9 +1,11 @@
 import ProjectGanttDB from "../../../components/dashboard/ProjectGanttDB";
+import CapexTabs from "../../../components/dashboard/CapexTabs";
 import { Database } from "lucide-react";
 
 export default function CapexGanttPage() {
   return (
-    <div className="space-y-4 pb-6 animate-in fade-in duration-500">
+    <div className="space-y-4 pb-6 animate-page-enter">
+      <CapexTabs />
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mt-2">
         <div>
           <div className="flex items-center gap-2 mb-1">

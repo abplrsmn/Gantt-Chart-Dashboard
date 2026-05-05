@@ -22,12 +22,15 @@ export interface ClickUpTask {
     email: string;
   }>;
   date_created: string;
+  date_updated?: string;
   due_date?: string;
   date_closed?: string;
   url: string;
   list?: {
+    id?: string;
     name: string;
   };
+  team?: string;
 }
 
 export interface ClickUpWebhookPayload {

@@ -17,11 +17,12 @@ interface Props {
   className?: string;
   align?: "left" | "right";
   minWidth?: number;
+  disabled?: boolean;
 }
 
 export default function AnimatedDropdown({
   value, options, onChange, placeholder = "Select…",
-  className = "", align = "left", minWidth = 160,
+  className = "", align = "left", minWidth = 160, disabled = false,
 }: Props) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -40,11 +41,14 @@ export default function AnimatedDropdown({
     <div ref={ref} className={`relative ${className}`}>
       {/* Trigger */}
       <button
-        onClick={() => setOpen(o => !o)}
+        onClick={() => !disabled && setOpen(o => !o)}
+        disabled={disabled}
         className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-sm font-medium transition-all whitespace-nowrap select-none ${
-          open
-            ? "border-cyan-500/60 bg-cyan-500/8 text-cyan-400 shadow-sm"
-            : "border-slate-200/70 dark:border-white/10 bg-white/70 dark:bg-zinc-900/60 text-slate-700 dark:text-slate-200 hover:border-cyan-400/40 hover:text-cyan-400"
+          disabled
+            ? "border-slate-200/30 dark:border-white/5 bg-white/30 dark:bg-zinc-900/30 text-slate-400 dark:text-slate-600 cursor-not-allowed opacity-50"
+            : open
+              ? "border-cyan-500/60 bg-cyan-500/8 text-cyan-400 shadow-sm"
+              : "border-slate-200/70 dark:border-white/10 bg-white/70 dark:bg-zinc-900/60 text-slate-700 dark:text-slate-200 hover:border-cyan-400/40 hover:text-cyan-400"
         }`}
       >
         {selected?.color && (
@@ -73,7 +77,7 @@ export default function AnimatedDropdown({
           pointerEvents: open ? "auto" : "none",
         }}
       >
-        <div className="py-1.5">
+        <div className="py-1.5 max-h-64 overflow-y-auto">
           {options.map(opt => {
             const active = opt.value === value;
             return (

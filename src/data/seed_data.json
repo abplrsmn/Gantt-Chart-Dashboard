@@ -1,0 +1,1752 @@
+[
+  {
+    "projectName": "2025 : CANOPY & FACADE NORTH LOBBY",
+    "unit": "AKB",
+    "phases": {
+      "operational_brief": {
+        "brief": "Redirected",
+        "received_date": "2026-01-05",
+        "budget_capex": "Rp 156.510.000"
+      },
+      "design": {
+        "start_design_date": null,
+        "design_approval": "2025-02-26",
+        "duration_delay": null,
+        "brief": "to review material board by consultant",
+        "working_drawing": null
+      },
+      "project_control": {
+        "tender_start": "2025-09-22",
+        "spk_released": "2025-11-24",
+        "duration_delay": null,
+        "contract_amount": "Rp 149.850.000"
+      },
+      "project_management": {
+        "commence_date": "2025-12-04",
+        "end_contract": "2026-01-28",
+        "actual_completion": "postpone due to LMIIR permission",
+        "deviation": null,
+        "current_site_progress": null
+      },
+      "handover": {
+        "bast_1": null,
+        "bast_2": null
+      }
+    }
+  },
+  {
+    "projectName": "GLASS FACADE SOUNDPROOFING 26 ROOMS",
+    "unit": "AKB",
+    "phases": {
+      "operational_brief": {
+        "brief": "dec 2025 : unit has agreed to close the sound leakage from ceilling prior to facade modification & measure the DB afterwards",
+        "received_date": "2023",
+        "budget_capex": "Rp 1.300.000.000"
+      },
+      "design": {
+        "start_design_date": null,
+        "design_approval": null,
+        "duration_delay": null,
+        "brief": null,
+        "working_drawing": null
+      },
+      "project_control": {
+        "tender_start": null,
+        "spk_released": null,
+        "duration_delay": null,
+        "contract_amount": null
+      },
+      "project_management": {
+        "commence_date": null,
+        "end_contract": null,
+        "actual_completion": null,
+        "deviation": null,
+        "current_site_progress": null
+      },
+      "handover": {
+        "bast_1": null,
+        "bast_2": null
+      }
+    }
+  },
+  {
+    "projectName": "Make Over Drop Off Area / Tile Replacement",
+    "unit": "AKB",
+    "phases": {
+      "operational_brief": {
+        "brief": null,
+        "received_date": "awaiting PR",
+        "budget_capex": "Rp 30.000.000"
+      },
+      "design": {
+        "start_design_date": null,
+        "design_approval": null,
+        "duration_delay": null,
+        "brief": null,
+        "working_drawing": null
+      },
+      "project_control": {
+        "tender_start": null,
+        "spk_released": null,
+        "duration_delay": null,
+        "contract_amount": null
+      },
+      "project_management": {
+        "commence_date": null,
+        "end_contract": null,
+        "actual_completion": null,
+        "deviation": null,
+        "current_site_progress": null
+      },
+      "handover": {
+        "bast_1": null,
+        "bast_2": null
+      }
+    }
+  },
+  {
+    "projectName": "Rain Curtain For Paon",
+    "unit": "AKB",
+    "phases": {
+      "operational_brief": {
+        "brief": null,
+        "received_date": "2026-03-13",
+        "budget_capex": "Rp 100.000.000"
+      },
+      "design": {
+        "start_design_date": "2026-03-09",
+        "design_approval": "2026-04-09",
+        "duration_delay": "25",
+        "brief": "internal",
+        "working_drawing": "2026-04-30"
+      },
+      "project_control": {
+        "tender_start": "2026-04-30",
+        "spk_released": "2026-05-21",
+        "duration_delay": "67",
+        "contract_amount": null
+      },
+      "project_management": {
+        "commence_date": null,
+        "end_contract": null,
+        "actual_completion": null,
+        "deviation": null,
+        "current_site_progress": null
+      },
+      "handover": {
+        "bast_1": null,
+        "bast_2": null
+      }
+    }
+  },
+  {
+    "projectName": "Digital Curtain For Chapel",
+    "unit": "AKB",
+    "phases": {
+      "operational_brief": {
+        "brief": null,
+        "received_date": "awaiting PR",
+        "budget_capex": "Rp 200.000.000"
+      },
+      "design": {
+        "start_design_date": "2026-03-09",
+        "design_approval": "2026-04-09",
+        "duration_delay": "25",
+        "brief": "internal",
+        "working_drawing": "2026-04-30"
+      },
+      "project_control": {
+        "tender_start": "2026-04-30",
+        "spk_released": "2026-05-21",
+        "duration_delay": "67",
+        "contract_amount": null
+      },
+      "project_management": {
+        "commence_date": null,
+        "end_contract": null,
+        "actual_completion": null,
+        "deviation": null,
+        "current_site_progress": null
+      },
+      "handover": {
+        "bast_1": null,
+        "bast_2": null
+      }
+    }
+  },
+  {
+    "projectName": "AEI - HENRY'S",
+    "unit": "AKB",
+    "phases": {
+      "operational_brief": {
+        "brief": "FITOUT & FURNITURE \nFFNE, OSNE & IT",
+        "received_date": null,
+        "budget_capex": "Rp 1.500.000.000"
+      },
+      "design": {
+        "start_design_date": "2026-03-09",
+        "design_approval": "2026-04-09",
+        "duration_delay": "25",
+        "brief": "by ID consultant",
+        "working_drawing": "2026-04-30"
+      },
+      "project_control": {
+        "tender_start": "2026-04-30",
+        "spk_released": "2026-05-21",
+        "duration_delay": "67",
+        "contract_amount": null
+      },
+      "project_management": {
+        "commence_date": null,
+        "end_contract": null,
+        "actual_completion": null,
+        "deviation": null,
+        "current_site_progress": null
+      },
+      "handover": {
+        "bast_1": null,
+        "bast_2": null
+      }
+    }
+  },
+  {
+    "projectName": "SAND STORAGE",
+    "unit": "IKG",
+    "phases": {
+      "operational_brief": {
+        "brief": "cancelled by GM",
+        "received_date": "2025-12-09",
+        "budget_capex": null
+      },
+      "design": {
+        "start_design_date": null,
+        "design_approval": null,
+        "duration_delay": null,
+        "brief": null,
+        "working_drawing": null
+      },
+      "project_control": {
+        "tender_start": "cancelled by GM",
+        "spk_released": null,
+        "duration_delay": null,
+        "contract_amount": null
+      },
+      "project_management": {
+        "commence_date": null,
+        "end_contract": null,
+        "actual_completion": null,
+        "deviation": null,
+        "current_site_progress": null
+      },
+      "handover": {
+        "bast_1": null,
+        "bast_2": null
+      }
+    }
+  },
+  {
+    "projectName": "AEI - EAGLE ROOM",
+    "unit": "IKG",
+    "phases": {
+      "operational_brief": {
+        "brief": "FITOUT & IT, MEP",
+        "received_date": null,
+        "budget_capex": "Rp 760.000.000"
+      },
+      "design": {
+        "start_design_date": "2026-04-06",
+        "design_approval": "2026-05-07",
+        "duration_delay": "53",
+        "brief": "internal",
+        "working_drawing": "2026-05-28"
+      },
+      "project_control": {
+        "tender_start": null,
+        "spk_released": null,
+        "duration_delay": null,
+        "contract_amount": null
+      },
+      "project_management": {
+        "commence_date": null,
+        "end_contract": null,
+        "actual_completion": null,
+        "deviation": null,
+        "current_site_progress": null
+      },
+      "handover": {
+        "bast_1": null,
+        "bast_2": null
+      }
+    }
+  },
+  {
+    "projectName": "AEI - BALLROOM & MEETING RM (2)",
+    "unit": "ABD",
+    "phases": {
+      "operational_brief": {
+        "brief": "LIMITED TO FIT OUT + IT + Videotron for Ballroom",
+        "received_date": null,
+        "budget_capex": "Rp 3.860.000.000"
+      },
+      "design": {
+        "start_design_date": "2026-03-02",
+        "design_approval": "2026-04-02",
+        "duration_delay": "18",
+        "brief": "internal",
+        "working_drawing": "2026-04-23"
+      },
+      "project_control": {
+        "tender_start": null,
+        "spk_released": null,
+        "duration_delay": null,
+        "contract_amount": null
+      },
+      "project_management": {
+        "commence_date": null,
+        "end_contract": null,
+        "actual_completion": null,
+        "deviation": null,
+        "current_site_progress": null
+      },
+      "handover": {
+        "bast_1": null,
+        "bast_2": null
+      }
+    }
+  },
+  {
+    "projectName": "REDRAW BUILDING",
+    "unit": "ABD",
+    "phases": {
+      "operational_brief": {
+        "brief": "by ALTIRA",
+        "received_date": null,
+        "budget_capex": null
+      },
+      "design": {
+        "start_design_date": "2026-01-20",
+        "design_approval": "2026-02-20",
+        "duration_delay": "-23",
+        "brief": "To complete the redrawing of all general plans, elevations, sections, and necessary blow-up details",
+        "working_drawing": "2026-03-13"
+      },
+      "project_control": {
+        "tender_start": null,
+        "spk_released": null,
+        "duration_delay": null,
+        "contract_amount": null
+      },
+      "project_management": {
+        "commence_date": null,
+        "end_contract": null,
+        "actual_completion": null,
+        "deviation": null,
+        "current_site_progress": null
+      },
+      "handover": {
+        "bast_1": null,
+        "bast_2": null
+      }
+    }
+  },
+  {
+    "projectName": "Buffet Island / Cluster Table",
+    "unit": "ABD",
+    "phases": {
+      "operational_brief": {
+        "brief": null,
+        "received_date": "awaiting PR - Q3",
+        "budget_capex": "Rp 45.000.000"
+      },
+      "design": {
+        "start_design_date": null,
+        "design_approval": null,
+        "duration_delay": null,
+        "brief": null,
+        "working_drawing": null
+      },
+      "project_control": {
+        "tender_start": null,
+        "spk_released": null,
+        "duration_delay": null,
+        "contract_amount": null
+      },
+      "project_management": {
+        "commence_date": null,
+        "end_contract": null,
+        "actual_completion": null,
+        "deviation": null,
+        "current_site_progress": null
+      },
+      "handover": {
+        "bast_1": null,
+        "bast_2": null
+      }
+    }
+  },
+  {
+    "projectName": "Replacement Wooden Sauna & Machine",
+    "unit": "ABD",
+    "phases": {
+      "operational_brief": {
+        "brief": null,
+        "received_date": "2026-03-17",
+        "budget_capex": "Rp 106.000.000"
+      },
+      "design": {
+        "start_design_date": null,
+        "design_approval": null,
+        "duration_delay": null,
+        "brief": null,
+        "working_drawing": null
+      },
+      "project_control": {
+        "tender_start": "2026-03-17",
+        "spk_released": null,
+        "duration_delay": null,
+        "contract_amount": null
+      },
+      "project_management": {
+        "commence_date": null,
+        "end_contract": null,
+        "actual_completion": null,
+        "deviation": null,
+        "current_site_progress": null
+      },
+      "handover": {
+        "bast_1": null,
+        "bast_2": null
+      }
+    }
+  },
+  {
+    "projectName": "Repair Wall Entrance Hotel Side - Sumatera",
+    "unit": "ABD",
+    "phases": {
+      "operational_brief": {
+        "brief": null,
+        "received_date": "awaiting PR - Q3",
+        "budget_capex": "Rp 99.500.000"
+      },
+      "design": {
+        "start_design_date": null,
+        "design_approval": null,
+        "duration_delay": null,
+        "brief": null,
+        "working_drawing": null
+      },
+      "project_control": {
+        "tender_start": null,
+        "spk_released": null,
+        "duration_delay": null,
+        "contract_amount": null
+      },
+      "project_management": {
+        "commence_date": null,
+        "end_contract": null,
+        "actual_completion": null,
+        "deviation": null,
+        "current_site_progress": null
+      },
+      "handover": {
+        "bast_1": null,
+        "bast_2": null
+      }
+    }
+  },
+  {
+    "projectName": "Restaurant Taruma Chair",
+    "unit": "ABD",
+    "phases": {
+      "operational_brief": {
+        "brief": "replacement of broken chair, no changes on existing model - to proceed under ops/ unit",
+        "received_date": null,
+        "budget_capex": "Rp 57.320.618"
+      },
+      "design": {
+        "start_design_date": null,
+        "design_approval": null,
+        "duration_delay": null,
+        "brief": null,
+        "working_drawing": null
+      },
+      "project_control": {
+        "tender_start": null,
+        "spk_released": null,
+        "duration_delay": null,
+        "contract_amount": null
+      },
+      "project_management": {
+        "commence_date": null,
+        "end_contract": null,
+        "actual_completion": null,
+        "deviation": null,
+        "current_site_progress": null
+      },
+      "handover": {
+        "bast_1": null,
+        "bast_2": null
+      }
+    }
+  },
+  {
+    "projectName": "AEI - MUR 18'TH : Q1 & Q1A ",
+    "unit": "ASM",
+    "phases": {
+      "operational_brief": {
+        "brief": "INTERIOR & FURNITURE\nexclude OSNE",
+        "received_date": null,
+        "budget_capex": "Rp 1.287.300.000"
+      },
+      "design": {
+        "start_design_date": "2025-10-15",
+        "design_approval": "2025-12-01",
+        "duration_delay": null,
+        "brief": "Redesign by LOKA",
+        "working_drawing": null
+      },
+      "project_control": {
+        "tender_start": null,
+        "spk_released": "Completed",
+        "duration_delay": null,
+        "contract_amount": "Rp 1.080.400.000"
+      },
+      "project_management": {
+        "commence_date": "2025-12-18",
+        "end_contract": "2026-03-14",
+        "actual_completion": "2026-03-16",
+        "deviation": "-2",
+        "current_site_progress": "100%"
+      },
+      "handover": {
+        "bast_1": null,
+        "bast_2": null
+      }
+    }
+  },
+  {
+    "projectName": "2025 : Room Renovation 8+3 units by MyDesign",
+    "unit": "ASM",
+    "phases": {
+      "operational_brief": {
+        "brief": null,
+        "received_date": null,
+        "budget_capex": "Rp 5.350.000.000"
+      },
+      "design": {
+        "start_design_date": null,
+        "design_approval": "2025-12-20",
+        "duration_delay": null,
+        "brief": null,
+        "working_drawing": null
+      },
+      "project_control": {
+        "tender_start": "2025-02-07",
+        "spk_released": "2025-02-21",
+        "duration_delay": "temination on 35-40 % progress",
+        "contract_amount": "Rp 1.311.088.769"
+      },
+      "project_management": {
+        "commence_date": "2025-04-28",
+        "end_contract": "2025-08-18",
+        "actual_completion": null,
+        "deviation": null,
+        "current_site_progress": "aborted project"
+      },
+      "handover": {
+        "bast_1": null,
+        "bast_2": null
+      }
+    }
+  },
+  {
+    "projectName": "Room Dining Chair",
+    "unit": "ASM",
+    "phases": {
+      "operational_brief": {
+        "brief": null,
+        "received_date": "awaiting PR",
+        "budget_capex": "Rp 199.950.000"
+      },
+      "design": {
+        "start_design_date": null,
+        "design_approval": null,
+        "duration_delay": null,
+        "brief": null,
+        "working_drawing": null
+      },
+      "project_control": {
+        "tender_start": null,
+        "spk_released": null,
+        "duration_delay": null,
+        "contract_amount": null
+      },
+      "project_management": {
+        "commence_date": null,
+        "end_contract": null,
+        "actual_completion": null,
+        "deviation": null,
+        "current_site_progress": null
+      },
+      "handover": {
+        "bast_1": null,
+        "bast_2": null
+      }
+    }
+  },
+  {
+    "projectName": "AEI - NEW GYM",
+    "unit": "AME",
+    "phases": {
+      "operational_brief": {
+        "brief": null,
+        "received_date": null,
+        "budget_capex": "Rp 720.000.000"
+      },
+      "design": {
+        "start_design_date": "2025-12-01",
+        "design_approval": "2026-01-01",
+        "duration_delay": null,
+        "brief": "TENDER DRAWING DONE 16 Feb 2026",
+        "working_drawing": null
+      },
+      "project_control": {
+        "tender_start": "2026-02-20",
+        "spk_released": "2026-03-13",
+        "duration_delay": "-2",
+        "contract_amount": null
+      },
+      "project_management": {
+        "commence_date": null,
+        "end_contract": null,
+        "actual_completion": null,
+        "deviation": null,
+        "current_site_progress": null
+      },
+      "handover": {
+        "bast_1": null,
+        "bast_2": null
+      }
+    }
+  },
+  {
+    "projectName": "AEI - PEONY",
+    "unit": "AME",
+    "phases": {
+      "operational_brief": {
+        "brief": null,
+        "received_date": null,
+        "budget_capex": "Rp 1.390.000.000"
+      },
+      "design": {
+        "start_design_date": "2026-02-02",
+        "design_approval": "2026-03-05",
+        "duration_delay": "-10",
+        "brief": "internal",
+        "working_drawing": null
+      },
+      "project_control": {
+        "tender_start": null,
+        "spk_released": null,
+        "duration_delay": null,
+        "contract_amount": null
+      },
+      "project_management": {
+        "commence_date": null,
+        "end_contract": null,
+        "actual_completion": null,
+        "deviation": null,
+        "current_site_progress": null
+      },
+      "handover": {
+        "bast_1": null,
+        "bast_2": null
+      }
+    }
+  },
+  {
+    "projectName": "AEI - RIAS",
+    "unit": "AME",
+    "phases": {
+      "operational_brief": {
+        "brief": null,
+        "received_date": null,
+        "budget_capex": "Rp 725.000.000"
+      },
+      "design": {
+        "start_design_date": "2026-04-01",
+        "design_approval": "2026-05-02",
+        "duration_delay": null,
+        "brief": "LOKA",
+        "working_drawing": null
+      },
+      "project_control": {
+        "tender_start": null,
+        "spk_released": null,
+        "duration_delay": null,
+        "contract_amount": null
+      },
+      "project_management": {
+        "commence_date": null,
+        "end_contract": null,
+        "actual_completion": null,
+        "deviation": null,
+        "current_site_progress": null
+      },
+      "handover": {
+        "bast_1": null,
+        "bast_2": null
+      }
+    }
+  },
+  {
+    "projectName": "2025 : AME wood parquet",
+    "unit": "AME",
+    "phases": {
+      "operational_brief": {
+        "brief": "continue from 2025, REPLACE THE WOODEN PARQUET RESTAURANT AREA",
+        "received_date": null,
+        "budget_capex": "Rp 689.750.000"
+      },
+      "design": {
+        "start_design_date": null,
+        "design_approval": null,
+        "duration_delay": null,
+        "brief": null,
+        "working_drawing": null
+      },
+      "project_control": {
+        "tender_start": null,
+        "spk_released": null,
+        "duration_delay": null,
+        "contract_amount": null
+      },
+      "project_management": {
+        "commence_date": "2026-04-12",
+        "end_contract": "2026-05-12",
+        "actual_completion": null,
+        "deviation": "+58",
+        "current_site_progress": "start 12 April"
+      },
+      "handover": {
+        "bast_1": null,
+        "bast_2": null
+      }
+    }
+  },
+  {
+    "projectName": "2025 : Wall lamp replacement at Guest Corridor",
+    "unit": "AME",
+    "phases": {
+      "operational_brief": {
+        "brief": "Replace the corridor wall lamp with the new design",
+        "received_date": "2025-10-24",
+        "budget_capex": null
+      },
+      "design": {
+        "start_design_date": "2025-07-23",
+        "design_approval": "2025-11-26",
+        "duration_delay": null,
+        "brief": "TENDER PROCESS",
+        "working_drawing": null
+      },
+      "project_control": {
+        "tender_start": "2026-02-10",
+        "spk_released": "2026-03-11",
+        "duration_delay": "-4",
+        "contract_amount": "Rp 144.750.000"
+      },
+      "project_management": {
+        "commence_date": null,
+        "end_contract": null,
+        "actual_completion": null,
+        "deviation": null,
+        "current_site_progress": null
+      },
+      "handover": {
+        "bast_1": null,
+        "bast_2": null
+      }
+    }
+  },
+  {
+    "projectName": "2025 : Replace Dimmer lighting - Brightness at Lotus 1,2,3",
+    "unit": "AME",
+    "phases": {
+      "operational_brief": {
+        "brief": "to liaise with Dharmawan Lighting to provide clear input on existing condition",
+        "received_date": "2025-11-19",
+        "budget_capex": null
+      },
+      "design": {
+        "start_design_date": null,
+        "design_approval": null,
+        "duration_delay": null,
+        "brief": null,
+        "working_drawing": null
+      },
+      "project_control": {
+        "tender_start": null,
+        "spk_released": null,
+        "duration_delay": null,
+        "contract_amount": null
+      },
+      "project_management": {
+        "commence_date": null,
+        "end_contract": null,
+        "actual_completion": null,
+        "deviation": null,
+        "current_site_progress": null
+      },
+      "handover": {
+        "bast_1": null,
+        "bast_2": null
+      }
+    }
+  },
+  {
+    "projectName": "Glass window film 3M - at ballroom foyer + pool cafe + restaurant area (teppan, private, etc)",
+    "unit": "AME",
+    "phases": {
+      "operational_brief": {
+        "brief": null,
+        "received_date": "awaiting PR - Q3",
+        "budget_capex": "Rp 292.000.000"
+      },
+      "design": {
+        "start_design_date": null,
+        "design_approval": null,
+        "duration_delay": null,
+        "brief": null,
+        "working_drawing": null
+      },
+      "project_control": {
+        "tender_start": null,
+        "spk_released": null,
+        "duration_delay": null,
+        "contract_amount": null
+      },
+      "project_management": {
+        "commence_date": null,
+        "end_contract": null,
+        "actual_completion": null,
+        "deviation": null,
+        "current_site_progress": null
+      },
+      "handover": {
+        "bast_1": null,
+        "bast_2": null
+      }
+    }
+  },
+  {
+    "projectName": "Wallpaper / wall painting alamanda foyer + landing area 9th floor",
+    "unit": "AME",
+    "phases": {
+      "operational_brief": {
+        "brief": null,
+        "received_date": "awaiting PR - Q4",
+        "budget_capex": "Rp 50.000.000"
+      },
+      "design": {
+        "start_design_date": null,
+        "design_approval": null,
+        "duration_delay": null,
+        "brief": null,
+        "working_drawing": null
+      },
+      "project_control": {
+        "tender_start": null,
+        "spk_released": null,
+        "duration_delay": null,
+        "contract_amount": null
+      },
+      "project_management": {
+        "commence_date": null,
+        "end_contract": null,
+        "actual_completion": null,
+        "deviation": null,
+        "current_site_progress": null
+      },
+      "handover": {
+        "bast_1": null,
+        "bast_2": null
+      }
+    }
+  },
+  {
+    "projectName": "Sofa VIP",
+    "unit": "AME",
+    "phases": {
+      "operational_brief": {
+        "brief": null,
+        "received_date": "awaiting PR - Q4",
+        "budget_capex": "Rp 60.000.000"
+      },
+      "design": {
+        "start_design_date": null,
+        "design_approval": null,
+        "duration_delay": null,
+        "brief": null,
+        "working_drawing": null
+      },
+      "project_control": {
+        "tender_start": null,
+        "spk_released": null,
+        "duration_delay": null,
+        "contract_amount": null
+      },
+      "project_management": {
+        "commence_date": null,
+        "end_contract": null,
+        "actual_completion": null,
+        "deviation": null,
+        "current_site_progress": null
+      },
+      "handover": {
+        "bast_1": null,
+        "bast_2": null
+      }
+    }
+  },
+  {
+    "projectName": "soundproof system Ballroom partition",
+    "unit": "AME",
+    "phases": {
+      "operational_brief": {
+        "brief": "gasket & accoustic system",
+        "received_date": null,
+        "budget_capex": "Rp 360.000.000"
+      },
+      "design": {
+        "start_design_date": null,
+        "design_approval": null,
+        "duration_delay": null,
+        "brief": null,
+        "working_drawing": null
+      },
+      "project_control": {
+        "tender_start": null,
+        "spk_released": "2026-03-18",
+        "duration_delay": "APS",
+        "contract_amount": "ONGOING"
+      },
+      "project_management": {
+        "commence_date": null,
+        "end_contract": null,
+        "actual_completion": null,
+        "deviation": null,
+        "current_site_progress": null
+      },
+      "handover": {
+        "bast_1": null,
+        "bast_2": null
+      }
+    }
+  },
+  {
+    "projectName": "AEI - THE LOUNGE (Legacy Lounge)",
+    "unit": "APL",
+    "phases": {
+      "operational_brief": {
+        "brief": null,
+        "received_date": null,
+        "budget_capex": "Rp 880.000.000"
+      },
+      "design": {
+        "start_design_date": "2026-03-02",
+        "design_approval": "2026-04-02",
+        "duration_delay": "18",
+        "brief": "internal",
+        "working_drawing": "2026-04-23"
+      },
+      "project_control": {
+        "tender_start": null,
+        "spk_released": null,
+        "duration_delay": null,
+        "contract_amount": null
+      },
+      "project_management": {
+        "commence_date": null,
+        "end_contract": null,
+        "actual_completion": null,
+        "deviation": null,
+        "current_site_progress": null
+      },
+      "handover": {
+        "bast_1": null,
+        "bast_2": null
+      }
+    }
+  },
+  {
+    "projectName": "2025 : PPR Pipe Replacement ",
+    "unit": "APL",
+    "phases": {
+      "operational_brief": {
+        "brief": null,
+        "received_date": null,
+        "budget_capex": "Rp 1.455.235.717"
+      },
+      "design": {
+        "start_design_date": null,
+        "design_approval": null,
+        "duration_delay": null,
+        "brief": null,
+        "working_drawing": null
+      },
+      "project_control": {
+        "tender_start": null,
+        "spk_released": "2025-11-20",
+        "duration_delay": null,
+        "contract_amount": "Rp 1.325.902.770"
+      },
+      "project_management": {
+        "commence_date": "2025-11-28",
+        "end_contract": "2025-03-31",
+        "actual_completion": null,
+        "deviation": null,
+        "current_site_progress": "Defect list"
+      },
+      "handover": {
+        "bast_1": null,
+        "bast_2": null
+      }
+    }
+  },
+  {
+    "projectName": "2025 : Replace ceiling corridor",
+    "unit": "APL",
+    "phases": {
+      "operational_brief": {
+        "brief": "relate with PPR. Timeline = feb 2026 (after replacement work completed)",
+        "received_date": "awaiting PR",
+        "budget_capex": "Rp 264.000.000"
+      },
+      "design": {
+        "start_design_date": null,
+        "design_approval": null,
+        "duration_delay": null,
+        "brief": null,
+        "working_drawing": null
+      },
+      "project_control": {
+        "tender_start": null,
+        "spk_released": null,
+        "duration_delay": null,
+        "contract_amount": null
+      },
+      "project_management": {
+        "commence_date": null,
+        "end_contract": null,
+        "actual_completion": null,
+        "deviation": null,
+        "current_site_progress": null
+      },
+      "handover": {
+        "bast_1": null,
+        "bast_2": null
+      }
+    }
+  },
+  {
+    "projectName": "Facade Repair & Painting",
+    "unit": "APL",
+    "phases": {
+      "operational_brief": {
+        "brief": "to split between repair & aesthetic",
+        "received_date": "awaiting PR - Q1",
+        "budget_capex": "Rp 700.000.000"
+      },
+      "design": {
+        "start_design_date": null,
+        "design_approval": null,
+        "duration_delay": null,
+        "brief": null,
+        "working_drawing": null
+      },
+      "project_control": {
+        "tender_start": null,
+        "spk_released": null,
+        "duration_delay": null,
+        "contract_amount": null
+      },
+      "project_management": {
+        "commence_date": null,
+        "end_contract": null,
+        "actual_completion": null,
+        "deviation": null,
+        "current_site_progress": null
+      },
+      "handover": {
+        "bast_1": null,
+        "bast_2": null
+      }
+    }
+  },
+  {
+    "projectName": "2025 : CORRIDOR CARPET ",
+    "unit": "APL",
+    "phases": {
+      "operational_brief": {
+        "brief": "12 level : 5th-18th\nawaiting ceilling work completion by 30 April",
+        "received_date": "2025-11-13",
+        "budget_capex": "Rp 1.101.909.160"
+      },
+      "design": {
+        "start_design_date": null,
+        "design_approval": "2025-12-30",
+        "duration_delay": null,
+        "brief": "ref num : 034.DAP.APL-CORRIDOR CARPET",
+        "working_drawing": null
+      },
+      "project_control": {
+        "tender_start": null,
+        "spk_released": "2026-02-24",
+        "duration_delay": null,
+        "contract_amount": "Rp 758.110.439"
+      },
+      "project_management": {
+        "commence_date": null,
+        "end_contract": "2025-05-30",
+        "actual_completion": null,
+        "deviation": null,
+        "current_site_progress": null
+      },
+      "handover": {
+        "bast_1": null,
+        "bast_2": null
+      }
+    }
+  },
+  {
+    "projectName": "2025 : WATERPROOFING Concrete Roof ",
+    "unit": "ALV",
+    "phases": {
+      "operational_brief": {
+        "brief": "Palm, Lobby Lounge, ebony, drop off",
+        "received_date": "2025-01-27",
+        "budget_capex": "Unbudgeted"
+      },
+      "design": {
+        "start_design_date": null,
+        "design_approval": null,
+        "duration_delay": null,
+        "brief": null,
+        "working_drawing": null
+      },
+      "project_control": {
+        "tender_start": "2026-02-02",
+        "spk_released": "2026-02-23",
+        "duration_delay": "-20",
+        "contract_amount": "ONGOING"
+      },
+      "project_management": {
+        "commence_date": null,
+        "end_contract": null,
+        "actual_completion": null,
+        "deviation": null,
+        "current_site_progress": null
+      },
+      "handover": {
+        "bast_1": null,
+        "bast_2": null
+      }
+    }
+  },
+  {
+    "projectName": "AEI : MUR 6'th : deluxe & bussiness",
+    "unit": "ALV",
+    "phases": {
+      "operational_brief": {
+        "brief": "INTERIOR & FURNITURE\nexclude OSNE",
+        "received_date": null,
+        "budget_capex": null
+      },
+      "design": {
+        "start_design_date": "2 Sept 2025",
+        "design_approval": null,
+        "duration_delay": null,
+        "brief": "BY LOKA",
+        "working_drawing": null
+      },
+      "project_control": {
+        "tender_start": null,
+        "spk_released": "Completed",
+        "duration_delay": null,
+        "contract_amount": "Rp 1.170.828.000"
+      },
+      "project_management": {
+        "commence_date": "2025-12-03",
+        "end_contract": "2026-03-14",
+        "actual_completion": "2026-03-14",
+        "deviation": "0",
+        "current_site_progress": "100%"
+      },
+      "handover": {
+        "bast_1": null,
+        "bast_2": null
+      }
+    }
+  },
+  {
+    "projectName": "LANDSCAPE : BOULEVARD",
+    "unit": "ALV",
+    "phases": {
+      "operational_brief": {
+        "brief": null,
+        "received_date": null,
+        "budget_capex": null
+      },
+      "design": {
+        "start_design_date": "2025-10-27",
+        "design_approval": "2026-01-05",
+        "duration_delay": null,
+        "brief": "BY ALTIRA",
+        "working_drawing": null
+      },
+      "project_control": {
+        "tender_start": null,
+        "spk_released": null,
+        "duration_delay": null,
+        "contract_amount": "Rp 1.165.500.000"
+      },
+      "project_management": {
+        "commence_date": "2026-01-05",
+        "end_contract": "2026-02-09",
+        "actual_completion": "2026-02-09",
+        "deviation": null,
+        "current_site_progress": "100%"
+      },
+      "handover": {
+        "bast_1": "2026-02-09",
+        "bast_2": null
+      }
+    }
+  },
+  {
+    "projectName": "LANDSCAPE : GATE",
+    "unit": "ALV",
+    "phases": {
+      "operational_brief": {
+        "brief": null,
+        "received_date": null,
+        "budget_capex": null
+      },
+      "design": {
+        "start_design_date": "2025-11-13",
+        "design_approval": "2026-01-05",
+        "duration_delay": null,
+        "brief": "BY ALTIRA",
+        "working_drawing": null
+      },
+      "project_control": {
+        "tender_start": null,
+        "spk_released": null,
+        "duration_delay": null,
+        "contract_amount": null
+      },
+      "project_management": {
+        "commence_date": "2026-01-11",
+        "end_contract": "2026-03-14",
+        "actual_completion": "2026-02-16",
+        "deviation": "+26",
+        "current_site_progress": "76% (Awaiting signage)"
+      },
+      "handover": {
+        "bast_1": null,
+        "bast_2": null
+      }
+    }
+  },
+  {
+    "projectName": "LANDSCAPE : CASCADE FOUNTAIN",
+    "unit": "ALV",
+    "phases": {
+      "operational_brief": {
+        "brief": null,
+        "received_date": null,
+        "budget_capex": "Rp 1.500.000.000"
+      },
+      "design": {
+        "start_design_date": "2026-02-02",
+        "design_approval": "2026-03-05",
+        "duration_delay": "-10",
+        "brief": "BY ALTIRA",
+        "working_drawing": null
+      },
+      "project_control": {
+        "tender_start": null,
+        "spk_released": null,
+        "duration_delay": null,
+        "contract_amount": null
+      },
+      "project_management": {
+        "commence_date": null,
+        "end_contract": null,
+        "actual_completion": null,
+        "deviation": null,
+        "current_site_progress": null
+      },
+      "handover": {
+        "bast_1": null,
+        "bast_2": null
+      }
+    }
+  },
+  {
+    "projectName": "LANDSCAPE : LOBBY DROP OFF",
+    "unit": "ALV",
+    "phases": {
+      "operational_brief": {
+        "brief": "SOFTSCAPE",
+        "received_date": null,
+        "budget_capex": null
+      },
+      "design": {
+        "start_design_date": null,
+        "design_approval": null,
+        "duration_delay": null,
+        "brief": null,
+        "working_drawing": null
+      },
+      "project_control": {
+        "tender_start": "2026-03-05",
+        "spk_released": "2026-03-27",
+        "duration_delay": "PENDING CONTRACT",
+        "contract_amount": "Rp 475.884.857"
+      },
+      "project_management": {
+        "commence_date": "2026-04-06",
+        "end_contract": "2026-04-21",
+        "actual_completion": null,
+        "deviation": null,
+        "current_site_progress": "0%"
+      },
+      "handover": {
+        "bast_1": null,
+        "bast_2": null
+      }
+    }
+  },
+  {
+    "projectName": "ENTRANCE SIGNAGE ",
+    "unit": "ALV",
+    "phases": {
+      "operational_brief": {
+        "brief": null,
+        "received_date": null,
+        "budget_capex": null
+      },
+      "design": {
+        "start_design_date": "2026-02-02",
+        "design_approval": null,
+        "duration_delay": null,
+        "brief": null,
+        "working_drawing": null
+      },
+      "project_control": {
+        "tender_start": null,
+        "spk_released": null,
+        "duration_delay": null,
+        "contract_amount": null
+      },
+      "project_management": {
+        "commence_date": null,
+        "end_contract": null,
+        "actual_completion": null,
+        "deviation": null,
+        "current_site_progress": null
+      },
+      "handover": {
+        "bast_1": null,
+        "bast_2": null
+      }
+    }
+  },
+  {
+    "projectName": "2025 : MAHOGANY REPAIR ROOF FRAMES/ JASMINE GARDEN",
+    "unit": "ALV",
+    "phases": {
+      "operational_brief": {
+        "brief": "unbudgeted & current status is on site investigation",
+        "received_date": null,
+        "budget_capex": "Rp 350.000.000"
+      },
+      "design": {
+        "start_design_date": null,
+        "design_approval": null,
+        "duration_delay": null,
+        "brief": null,
+        "working_drawing": null
+      },
+      "project_control": {
+        "tender_start": null,
+        "spk_released": null,
+        "duration_delay": null,
+        "contract_amount": null
+      },
+      "project_management": {
+        "commence_date": null,
+        "end_contract": null,
+        "actual_completion": null,
+        "deviation": null,
+        "current_site_progress": null
+      },
+      "handover": {
+        "bast_1": null,
+        "bast_2": null
+      }
+    }
+  },
+  {
+    "projectName": "REPAIR SURFACE TENNIS COURT 5&6",
+    "unit": "ACC",
+    "phases": {
+      "operational_brief": {
+        "brief": "defect list rectification",
+        "received_date": null,
+        "budget_capex": null
+      },
+      "design": {
+        "start_design_date": null,
+        "design_approval": null,
+        "duration_delay": null,
+        "brief": null,
+        "working_drawing": null
+      },
+      "project_control": {
+        "tender_start": null,
+        "spk_released": null,
+        "duration_delay": null,
+        "contract_amount": null
+      },
+      "project_management": {
+        "commence_date": "2026-02-07",
+        "end_contract": "2026-03-17",
+        "actual_completion": "2026-03-10",
+        "deviation": "+7",
+        "current_site_progress": "100%"
+      },
+      "handover": {
+        "bast_1": "2026-03-17",
+        "bast_2": null
+      }
+    }
+  },
+  {
+    "projectName": "PATHWAY REPAIR",
+    "unit": "ACC",
+    "phases": {
+      "operational_brief": {
+        "brief": "1,5 meters width",
+        "received_date": "2025-07-31",
+        "budget_capex": null
+      },
+      "design": {
+        "start_design_date": "2025-07-31",
+        "design_approval": null,
+        "duration_delay": null,
+        "brief": "Mock up approved 9 Sept",
+        "working_drawing": null
+      },
+      "project_control": {
+        "tender_start": "2025-08-21",
+        "spk_released": "2025-08-29",
+        "duration_delay": null,
+        "contract_amount": "Rp 375.000.000"
+      },
+      "project_management": {
+        "commence_date": "5 Sept 2025",
+        "end_contract": "2025-12-07",
+        "actual_completion": null,
+        "deviation": "-98",
+        "current_site_progress": "30,33%"
+      },
+      "handover": {
+        "bast_1": null,
+        "bast_2": null
+      }
+    }
+  },
+  {
+    "projectName": "ACC TENNIS COURT BENCHES",
+    "unit": "ACC",
+    "phases": {
+      "operational_brief": {
+        "brief": null,
+        "received_date": null,
+        "budget_capex": null
+      },
+      "design": {
+        "start_design_date": null,
+        "design_approval": null,
+        "duration_delay": null,
+        "brief": null,
+        "working_drawing": null
+      },
+      "project_control": {
+        "tender_start": null,
+        "spk_released": "2025-12-23",
+        "duration_delay": null,
+        "contract_amount": "Rp 96.000.000"
+      },
+      "project_management": {
+        "commence_date": null,
+        "end_contract": "2025-03-14",
+        "actual_completion": "2025-03-11",
+        "deviation": "+3",
+        "current_site_progress": "100% onsite"
+      },
+      "handover": {
+        "bast_1": "2025-03-14",
+        "bast_2": null
+      }
+    }
+  },
+  {
+    "projectName": "FR : FACADE REPAIR & REPAINTING",
+    "unit": "AMD",
+    "phases": {
+      "operational_brief": {
+        "brief": "FIRST REIT REIMBURSEMENT",
+        "received_date": null,
+        "budget_capex": "Rp 630.000.000"
+      },
+      "design": {
+        "start_design_date": null,
+        "design_approval": null,
+        "duration_delay": null,
+        "brief": null,
+        "working_drawing": null
+      },
+      "project_control": {
+        "tender_start": null,
+        "spk_released": "2026-03-10",
+        "duration_delay": null,
+        "contract_amount": "Rp 630.000.000"
+      },
+      "project_management": {
+        "commence_date": "2026-02-19",
+        "end_contract": "2026-05-30",
+        "actual_completion": null,
+        "deviation": null,
+        "current_site_progress": "26,2%"
+      },
+      "handover": {
+        "bast_1": null,
+        "bast_2": null
+      }
+    }
+  },
+  {
+    "projectName": "Furniture for outdoor amicoo",
+    "unit": "AMD",
+    "phases": {
+      "operational_brief": {
+        "brief": null,
+        "received_date": "awaiting PR - Q3",
+        "budget_capex": "Rp 15.000.000"
+      },
+      "design": {
+        "start_design_date": null,
+        "design_approval": null,
+        "duration_delay": null,
+        "brief": null,
+        "working_drawing": null
+      },
+      "project_control": {
+        "tender_start": null,
+        "spk_released": null,
+        "duration_delay": null,
+        "contract_amount": null
+      },
+      "project_management": {
+        "commence_date": null,
+        "end_contract": null,
+        "actual_completion": null,
+        "deviation": null,
+        "current_site_progress": null
+      },
+      "handover": {
+        "bast_1": null,
+        "bast_2": null
+      }
+    }
+  },
+  {
+    "projectName": "Sofa banquet",
+    "unit": "AMD",
+    "phases": {
+      "operational_brief": {
+        "brief": null,
+        "received_date": "awaiting PR - Q3",
+        "budget_capex": "Rp 24.000.000"
+      },
+      "design": {
+        "start_design_date": null,
+        "design_approval": null,
+        "duration_delay": null,
+        "brief": null,
+        "working_drawing": null
+      },
+      "project_control": {
+        "tender_start": null,
+        "spk_released": null,
+        "duration_delay": null,
+        "contract_amount": null
+      },
+      "project_management": {
+        "commence_date": null,
+        "end_contract": null,
+        "actual_completion": null,
+        "deviation": null,
+        "current_site_progress": null
+      },
+      "handover": {
+        "bast_1": null,
+        "bast_2": null
+      }
+    }
+  },
+  {
+    "projectName": "Director chair for meeting room",
+    "unit": "AMD",
+    "phases": {
+      "operational_brief": {
+        "brief": null,
+        "received_date": "awaiting PR - Q3",
+        "budget_capex": "Rp 12.000.000"
+      },
+      "design": {
+        "start_design_date": null,
+        "design_approval": null,
+        "duration_delay": null,
+        "brief": null,
+        "working_drawing": null
+      },
+      "project_control": {
+        "tender_start": null,
+        "spk_released": null,
+        "duration_delay": null,
+        "contract_amount": null
+      },
+      "project_management": {
+        "commence_date": null,
+        "end_contract": null,
+        "actual_completion": null,
+        "deviation": null,
+        "current_site_progress": null
+      },
+      "handover": {
+        "bast_1": null,
+        "bast_2": null
+      }
+    }
+  },
+  {
+    "projectName": "Portable folded partition",
+    "unit": "AMD",
+    "phases": {
+      "operational_brief": {
+        "brief": null,
+        "received_date": "awaiting PR - Q3",
+        "budget_capex": "Rp 10.000.000"
+      },
+      "design": {
+        "start_design_date": null,
+        "design_approval": null,
+        "duration_delay": null,
+        "brief": null,
+        "working_drawing": null
+      },
+      "project_control": {
+        "tender_start": null,
+        "spk_released": null,
+        "duration_delay": null,
+        "contract_amount": null
+      },
+      "project_management": {
+        "commence_date": null,
+        "end_contract": null,
+        "actual_completion": null,
+        "deviation": null,
+        "current_site_progress": null
+      },
+      "handover": {
+        "bast_1": null,
+        "bast_2": null
+      }
+    }
+  },
+  {
+    "projectName": "Lazy susan",
+    "unit": "AMD",
+    "phases": {
+      "operational_brief": {
+        "brief": "rotating glass piece on a dining table - to proceed under ops/ unit",
+        "received_date": null,
+        "budget_capex": "Rp 40.000.000"
+      },
+      "design": {
+        "start_design_date": null,
+        "design_approval": null,
+        "duration_delay": null,
+        "brief": null,
+        "working_drawing": null
+      },
+      "project_control": {
+        "tender_start": null,
+        "spk_released": null,
+        "duration_delay": null,
+        "contract_amount": null
+      },
+      "project_management": {
+        "commence_date": null,
+        "end_contract": null,
+        "actual_completion": null,
+        "deviation": null,
+        "current_site_progress": null
+      },
+      "handover": {
+        "bast_1": null,
+        "bast_2": null
+      }
+    }
+  },
+  {
+    "projectName": "ROOF WATERPROOFING",
+    "unit": "APK",
+    "phases": {
+      "operational_brief": {
+        "brief": "under 2025 capex & nott to proceed until June 2026",
+        "received_date": "awaiting PR & TBC",
+        "budget_capex": "Rp 202.240.000"
+      },
+      "design": {
+        "start_design_date": null,
+        "design_approval": null,
+        "duration_delay": null,
+        "brief": null,
+        "working_drawing": null
+      },
+      "project_control": {
+        "tender_start": null,
+        "spk_released": null,
+        "duration_delay": null,
+        "contract_amount": null
+      },
+      "project_management": {
+        "commence_date": null,
+        "end_contract": null,
+        "actual_completion": null,
+        "deviation": null,
+        "current_site_progress": null
+      },
+      "handover": {
+        "bast_1": null,
+        "bast_2": null
+      }
+    }
+  }
+]

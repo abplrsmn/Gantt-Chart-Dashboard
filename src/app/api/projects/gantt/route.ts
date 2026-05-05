@@ -29,6 +29,8 @@ export async function GET() {
         mpr.priority_code,
         mpr.color_hex         AS priority_color,
         mpr.level             AS priority_level,
+        mu.unit_code,
+        mu.unit_name,
 
         -- Phase-level dates from project_phases (one row per phase per project)
         ob.normalized_deadline_date   AS brief_deadline,
@@ -60,13 +62,14 @@ export async function GET() {
       LEFT JOIN master_phases mp_phase       ON mp_phase.id = p.current_phase_id
       LEFT JOIN master_statuses ms           ON ms.id = p.overall_status_id
       LEFT JOIN master_priorities mpr        ON mpr.id = p.priority_id
+      LEFT JOIN master_units mu              ON mu.id = p.unit_id
 
       -- Join each phase row
-      LEFT JOIN project_phases ob  ON ob.project_id = p.id AND ob.phase_id = (SELECT id FROM master_phases WHERE phase_code = 'operational_brief' LIMIT 1)
-      LEFT JOIN project_phases ds  ON ds.project_id = p.id AND ds.phase_id = (SELECT id FROM master_phases WHERE phase_code = 'design' LIMIT 1)
-      LEFT JOIN project_phases pc  ON pc.project_id = p.id AND pc.phase_id = (SELECT id FROM master_phases WHERE phase_code = 'project_control' LIMIT 1)
-      LEFT JOIN project_phases pm  ON pm.project_id = p.id AND pm.phase_id = (SELECT id FROM master_phases WHERE phase_code = 'project_management' LIMIT 1)
-      LEFT JOIN project_phases hv  ON hv.project_id = p.id AND hv.phase_id = (SELECT id FROM master_phases WHERE phase_code = 'handover' LIMIT 1)
+      LEFT JOIN project_phases ob  ON ob.project_id = p.id AND ob.phase_id = 1
+      LEFT JOIN project_phases ds  ON ds.project_id = p.id AND ds.phase_id = 2
+      LEFT JOIN project_phases pc  ON pc.project_id = p.id AND pc.phase_id = 3
+      LEFT JOIN project_phases pm  ON pm.project_id = p.id AND pm.phase_id = 4
+      LEFT JOIN project_phases hv  ON hv.project_id = p.id AND hv.phase_id = 5
 
       ORDER BY mpr.level ASC NULLS LAST, p.project_code
     `);

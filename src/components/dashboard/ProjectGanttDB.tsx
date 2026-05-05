@@ -4,8 +4,21 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { differenceInCalendarDays, format, addDays, isValid, startOfWeek, endOfWeek, addWeeks } from "date-fns";
 import { Search, ChevronDown, ChevronUp } from "lucide-react";
 import DateRangePicker from "./DateRangePicker";
-import SCurveCharts from "./SCurveCharts";
 import AnimatedDropdown from "./AnimatedDropdown";
+
+// Mock data generator for PIC & Stakeholders
+const PICS = ["Budi Santoso", "Andi Pratama", "Siti Aminah", "Reza Rahardian", "Dewi Lestari"];
+const STAKEHOLDERS = ["Finance Dept", "Legal Team", "Operations", "Marketing", "Board of Directors"];
+
+function getMockData(projectId: string) {
+  let hash = 0;
+  for (let i = 0; i < projectId.length; i++) {
+    hash = projectId.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const picIndex = Math.abs(hash) % PICS.length;
+  const stkIndex = Math.abs(hash + 1) % STAKEHOLDERS.length;
+  return { pic: PICS[picIndex], stakeholder: STAKEHOLDERS[stkIndex] };
+}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type PhaseKey = "brief" | "design" | "control" | "pm" | "handover";
@@ -57,6 +70,9 @@ type DBProject = {
   handover_end: string | null;
   handover_progress: string | null;
   actual_phase_completion_date: string | null;
+  working_drawing_status: string | null;
+  unit_name: string | null;
+  unit_code: string | null;
 };
 
 type PhaseSegment = {
@@ -81,7 +97,6 @@ function toDate(val: string | null | undefined): Date | null {
 
 function buildSegments(p: DBProject, timelineStart: Date, totalDays: number): PhaseSegment[] {
   const projectStart = toDate(p.start_date) ?? timelineStart;
-  const projectEnd   = toDate(p.end_date)   ?? addDays(projectStart, 90);
 
   const raw: { key: PhaseKey; start: Date | null; end: Date | null; progress: number }[] = [
     { key: "brief",    start: toDate(p.brief_received),  end: toDate(p.brief_deadline), progress: Number(p.brief_progress ?? 100) },
@@ -115,6 +130,7 @@ function isPhaseActive(phKey: PhaseKey, phaseCode: string | null): boolean {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 export default function ProjectGanttDB() {
+  const containerRef = useRef<HTMLDivElement>(null);
   const [projects, setProjects] = useState<DBProject[]>([]);
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState<string | null>(null);
@@ -154,7 +170,9 @@ export default function ProjectGanttDB() {
        p.brief_deadline, p.design_end, p.control_start, p.control_end, p.pm_end, p.handover_end]
         .map(toDate).filter(Boolean).forEach(d => years.add(d!.getFullYear()));
     }
-    return Array.from(years).sort();
+    return Array.from(years)
+      .filter(y => y >= 2025)
+      .sort();
   }, [projects]);
 
   // Date range bounds
@@ -196,35 +214,50 @@ export default function ProjectGanttDB() {
     });
   }, [projects, search, priorityFilter, yearFilter, rangeStart, rangeEnd]);
 
-  // Timeline: year filter sets bounds, date range overrides if set
+  // Timeline: year filter sets bounds. Date range is NEVER used to crop — it draws ruler lines instead.
   const timeline = useMemo(() => {
-    // Date range picker takes priority
-    if (rangeStart && rangeEnd && isValid(rangeStart) && isValid(rangeEnd)) {
-      return { start: rangeStart, end: rangeEnd };
-    }
-    // Year filter
+    let s: Date;
+    let e: Date;
+
     if (yearFilter !== "ALL") {
       const y = Number(yearFilter);
-      return { start: new Date(y, 0, 1), end: new Date(y, 11, 31) };
+      s = new Date(y, 0, 1);
+      e = new Date(y, 11, 31);
+    } else {
+      const allDates: Date[] = [];
+      for (const p of projects) {
+        [p.brief_received, p.brief_deadline, p.design_start, p.design_end,
+         p.control_start, p.control_end, p.pm_start, p.pm_end,
+         p.handover_start, p.handover_end, p.start_date, p.end_date]
+          .map(toDate).filter((d): d is Date => d !== null).forEach(d => allDates.push(d));
+      }
+      if (allDates.length === 0) {
+        const y = new Date().getFullYear();
+        s = new Date(y, 0, 1);
+        e = new Date(y, 11, 31);
+      } else {
+        const minT = Math.min(...allDates.map(d => d.getTime()));
+        const maxT = Math.max(...allDates.map(d => d.getTime()));
+        s = new Date(new Date(minT).getFullYear(), 0, 1);
+        e = new Date(new Date(maxT).getFullYear(), 11, 31);
+      }
     }
-    const allDates: Date[] = [];
-    for (const p of filtered) {
-      [p.brief_received, p.brief_deadline, p.design_start, p.design_end,
-       p.control_start, p.control_end, p.pm_start, p.pm_end,
-       p.handover_start, p.handover_end, p.start_date, p.end_date]
-        .map(toDate).filter((d): d is Date => d !== null).forEach(d => allDates.push(d));
-    }
-    if (allDates.length === 0) {
-      const y = new Date().getFullYear();
-      return { start: new Date(y, 0, 1), end: new Date(y, 11, 31) };
-    }
-    const minT = Math.min(...allDates.map(d => d.getTime()));
-    const maxT = Math.max(...allDates.map(d => d.getTime()));
+
+    // CRITICAL: Snap to Monday and Sunday to align with WEEK_W grid
     return {
-      start: new Date(new Date(minT).getFullYear(), 0, 1),
-      end:   new Date(new Date(maxT).getFullYear(), 11, 31),
+      start: startOfWeek(s, { weekStartsOn: 1 }),
+      end:   endOfWeek(e, { weekStartsOn: 1 }),
     };
-  }, [filtered, rangeStart, rangeEnd, yearFilter]);
+  }, [projects, yearFilter]);
+
+  // Ruler pixel positions for date range picker
+  const rangeRulers = useMemo(() => {
+    if (!rangeStart || !rangeEnd || !isValid(rangeStart) || !isValid(rangeEnd)) return null;
+    const days = differenceInCalendarDays(timeline.end, timeline.start) || 1;
+    const sPct = Math.max(0, Math.min(100, (differenceInCalendarDays(rangeStart, timeline.start) / days) * 100));
+    const ePct = Math.max(0, Math.min(100, (differenceInCalendarDays(rangeEnd, timeline.start) / days) * 100));
+    return { startPct: sPct, endPct: ePct, startLabel: format(rangeStart, "dd MMM"), endLabel: format(rangeEnd, "dd MMM") };
+  }, [rangeStart, rangeEnd, timeline]);
 
   const totalDays = useMemo(() =>
     Math.max(1, differenceInCalendarDays(timeline.end, timeline.start) + 1),
@@ -234,25 +267,24 @@ export default function ProjectGanttDB() {
   // Build week columns
   const weekCols = useMemo<WeekCol[]>(() => {
     const cols: WeekCol[] = [];
-    let cursor = startOfWeek(timeline.start, { weekStartsOn: 1 }); // Monday
-    let weekNum = 1;
+    let cursor = timeline.start;
+    let monthWeekNum = 1;
     let prevMonth = -1;
     while (cursor <= timeline.end) {
       const wEnd = endOfWeek(cursor, { weekStartsOn: 1 });
-      // Use the later of cursor or timeline.start for labeling,
-      // so a week starting in Apr but with range starting in May shows "May"
-      const labelDate = cursor < timeline.start ? timeline.start : cursor;
-      const isFirst = labelDate.getMonth() !== prevMonth;
+      const isFirst = cursor.getMonth() !== prevMonth;
+      if (isFirst) monthWeekNum = 1;
+      
       cols.push({
         start: cursor,
         end: wEnd,
-        weekNum,
-        monthLabel: format(labelDate, "MMM"),
+        weekNum: monthWeekNum,
+        monthLabel: format(cursor, "MMM"),
         isFirstOfMonth: isFirst,
       });
-      prevMonth = labelDate.getMonth();
+      prevMonth = cursor.getMonth();
       cursor = addWeeks(cursor, 1);
-      weekNum++;
+      monthWeekNum++;
     }
     return cols;
   }, [timeline]);
@@ -262,9 +294,7 @@ export default function ProjectGanttDB() {
     const groups: { label: string; colSpan: number }[] = [];
     for (const wc of weekCols) {
       if (wc.isFirstOfMonth) {
-        // Use clamped labelDate for consistent month/year display
-        const labelDate = wc.start < timeline.start ? timeline.start : wc.start;
-        groups.push({ label: format(labelDate, "MMM yyyy"), colSpan: 1 });
+        groups.push({ label: format(wc.start, "MMM yyyy"), colSpan: 1 });
       } else {
         groups[groups.length - 1].colSpan++;
       }
@@ -279,15 +309,35 @@ export default function ProjectGanttDB() {
     return (differenceInCalendarDays(today, timeline.start) / totalDays) * 100;
   }, [timeline, totalDays]);
 
+  const rangeSummary = useMemo(() => {
+    if (!rangeStart || !rangeEnd) return null;
+    let totalActiveProjects = 0;
+    const activePics = new Set<string>();
+    const activeStakeholders = new Set<string>();
+
+    filtered.forEach(p => {
+      const segs = buildSegments(p, timeline.start, totalDays);
+      const overlappingSegs = segs.filter(s => {
+        return s.start <= rangeEnd && s.end >= rangeStart;
+      });
+
+      if (overlappingSegs.length > 0) {
+        totalActiveProjects++;
+        const { pic, stakeholder } = getMockData(p.id);
+        activePics.add(pic);
+        activeStakeholders.add(stakeholder);
+      }
+    });
+
+    return { 
+      totalActiveProjects, 
+      pics: Array.from(activePics), 
+      stakeholders: Array.from(activeStakeholders) 
+    };
+  }, [filtered, rangeStart, rangeEnd, timeline, totalDays]);
+
   const WEEK_W = 36; // px per week column
   const totalWidth = weekCols.length * WEEK_W; // total gantt width in px
-
-  function segmentStyle(seg: PhaseSegment): React.CSSProperties {
-    return {
-      left: `${(seg.offsetPct / 100) * totalWidth}px`,
-      width: `${Math.max(4, (seg.widthPct / 100) * totalWidth)}px`,
-    };
-  }
 
   if (loading) return (
     <div className="flex items-center justify-center h-48 text-slate-500 dark:text-slate-400 text-sm gap-2">
@@ -300,7 +350,7 @@ export default function ProjectGanttDB() {
   );
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 relative" ref={containerRef}>
       {/* Controls */}
       <div className="flex flex-col sm:flex-row gap-2 items-center">
         {/* Search */}
@@ -353,6 +403,42 @@ export default function ProjectGanttDB() {
       {/* Date range picker */}
       <DateRangePicker value={dateRange} onChange={setDateRange} />
 
+      {/* Selected Range Insights Banner */}
+      {rangeStart && rangeEnd && rangeSummary && (
+        <div className="flex flex-col md:flex-row gap-6 justify-between items-start md:items-center p-4 rounded-xl border border-cyan-500/20 bg-gradient-to-r from-cyan-500/10 to-transparent">
+          <div className="flex flex-col">
+            <h3 className="text-[10px] font-bold text-cyan-400 uppercase tracking-widest mb-1">Date Range Overview</h3>
+            <p className="text-sm font-semibold text-slate-800 dark:text-white">
+              {rangeSummary.totalActiveProjects} Projects Ongoing
+            </p>
+          </div>
+          
+          <div className="flex-1 max-w-sm">
+            <p className="text-[10px] text-slate-400 font-medium uppercase tracking-widest mb-1.5">PICs Involved</p>
+            <div className="flex flex-wrap gap-1.5">
+              {rangeSummary.pics.map(pic => (
+                <span key={pic} className="px-2 py-0.5 rounded bg-blue-500/10 border border-blue-500/20 text-[10px] font-medium text-blue-500 dark:text-blue-400">
+                  {pic}
+                </span>
+              ))}
+              {rangeSummary.pics.length === 0 && <span className="text-[10px] text-slate-500 italic">None</span>}
+            </div>
+          </div>
+
+          <div className="flex-1 max-w-sm">
+            <p className="text-[10px] text-slate-400 font-medium uppercase tracking-widest mb-1.5">Stakeholders</p>
+            <div className="flex flex-wrap gap-1.5">
+              {rangeSummary.stakeholders.map(stk => (
+                <span key={stk} className="px-2 py-0.5 rounded bg-purple-500/10 border border-purple-500/20 text-[10px] font-medium text-purple-600 dark:text-purple-400">
+                  {stk}
+                </span>
+              ))}
+              {rangeSummary.stakeholders.length === 0 && <span className="text-[10px] text-slate-500 italic">None</span>}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Gantt */}
       <div className="rounded-2xl border border-slate-200/60 dark:border-white/8 bg-white/60 dark:bg-zinc-900/50 backdrop-blur-sm">
 
@@ -383,7 +469,7 @@ export default function ProjectGanttDB() {
               {/* Week row */}
               <div className="flex">
                 <div className="sticky left-0 z-10 shrink-0 w-60 border-r border-slate-200/60 dark:border-white/8 bg-white/95 dark:bg-zinc-900/95" />
-                <div className="flex" style={{ width: `${totalWidth}px` }}>
+                <div className="relative flex" style={{ width: `${totalWidth}px` }}>
                   {weekCols.map((wc, i) => (
                     <div
                       key={i}
@@ -395,7 +481,7 @@ export default function ProjectGanttDB() {
                       style={{ width: `${WEEK_W}px` }}
                       title={`${format(wc.start, "dd MMM")} – ${format(wc.end, "dd MMM yyyy")}`}
                     >
-                      {wc.isFirstOfMonth ? format(wc.start, "d") : `W${((i % 4) + 1)}`}
+                      W{wc.weekNum}
                     </div>
                   ))}
                 </div>
@@ -406,8 +492,33 @@ export default function ProjectGanttDB() {
         </div>
 
         {/* ── Scrollable body ── */}
-        <div ref={bodyRef} className="overflow-x-auto" onScroll={onBodyScroll}>
-          <div style={{ minWidth: `${240 + totalWidth}px` }}>
+        <div ref={bodyRef} className="overflow-x-auto relative" onScroll={onBodyScroll}>
+          <div style={{ minWidth: `${240 + totalWidth}px` }} className="relative">
+
+            {/* Continuous Vertical Lines Overlay */}
+            <div className="absolute top-0 bottom-0 pointer-events-none" style={{ left: "240px", width: `${totalWidth}px`, zIndex: 10 }}>
+              {/* Today line */}
+              <div className="absolute top-0 bottom-0 border-l-[1.5px] border-dashed border-red-500/80" style={{ left: `${(todayOffsetPct / 100) * totalWidth}px` }}>
+                <div className="absolute top-2 left-1/2 -translate-x-1/2 bg-red-500/90 text-white text-[8px] font-bold px-1.5 py-0.5 rounded shadow-sm whitespace-nowrap">
+                  Current Date
+                </div>
+              </div>
+
+              {/* Date range Selection Block */}
+              {rangeRulers && (
+                <div
+                  className="absolute top-0 bottom-0 z-0 pointer-events-none border-t-[3px] border-cyan-400 bg-gradient-to-b from-cyan-400/10 to-transparent"
+                  style={{
+                    left: `${(rangeRulers.startPct / 100) * totalWidth}px`,
+                    width: `${((rangeRulers.endPct - rangeRulers.startPct) / 100) * totalWidth}px`,
+                  }}
+                >
+                  <div className="absolute top-2 left-1/2 -translate-x-1/2 text-[9px] font-bold text-cyan-50 bg-cyan-950/80 shadow-lg border border-cyan-500/30 px-2.5 py-0.5 rounded-full whitespace-nowrap">
+                    {rangeRulers.startLabel} - {rangeRulers.endLabel}
+                  </div>
+                </div>
+              )}
+            </div>
 
             {/* Project rows */}
             {filtered.length === 0 ? (
@@ -419,7 +530,6 @@ export default function ProjectGanttDB() {
               const overallProgress = Number(p.overall_progress_pct ?? 0);
               const pCfg = PRIORITY_CONFIG[p.priority_code ?? ""] ?? { label: p.priority_name ?? "–", color: "#94a3b8", dot: "bg-slate-400" };
               const isExpanded = expandedId === p.id;
-              const todayPx = (todayOffsetPct / 100) * totalWidth;
 
               // Is any phase running today?
               const today = new Date();
@@ -456,7 +566,9 @@ export default function ProjectGanttDB() {
                           {isExpanded ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
                         </span>
                       </div>
-                      <p className="text-[11px] font-semibold text-slate-800 dark:text-white leading-snug line-clamp-2">{p.project_name}</p>
+                      <p className="text-[11px] font-semibold text-slate-800 dark:text-white leading-snug line-clamp-2">
+                        {p.unit_code ? `${p.unit_code} - ${p.project_name.split(" - ").slice(1).join(" - ") || p.project_name}` : p.project_name}
+                      </p>
                       <div className="flex items-center gap-1 mt-1">
                         <span className="text-[9px] text-slate-400">{p.project_code}</span>
                         {p.status_label && (
@@ -486,9 +598,6 @@ export default function ProjectGanttDB() {
                         />
                       ))}
 
-                      {/* Today line */}
-                      <div className="absolute top-0 bottom-0 w-px bg-red-500/70 z-10" style={{ left: `${todayPx}px` }} />
-
                       {/* Phase segments */}
                       {segments.map(seg => {
                         const active = isPhaseActive(seg.key, p.current_phase_code);
@@ -515,9 +624,16 @@ export default function ProjectGanttDB() {
                                 ? "scaleY(1.18)"
                                 : "scaleY(1)",
                             }}
-                            onMouseMove={e => {
-                              setTooltip({ seg, project: p, x: e.clientX, y: e.clientY });
-                            }}
+                             onMouseMove={e => {
+                               if (!containerRef.current) return;
+                               const rect = containerRef.current.getBoundingClientRect();
+                               setTooltip({ 
+                                 seg, 
+                                 project: p, 
+                                 x: e.clientX - rect.left, 
+                                 y: e.clientY - rect.top 
+                               });
+                             }}
                             onMouseLeave={() => setTooltip(null)}
                           >
                             {seg.key === "handover" ? (
@@ -654,15 +770,12 @@ export default function ProjectGanttDB() {
 
         // Smart positioning: flip if near bottom/right of viewport
         const TIP_W = 260;
-        const TIP_H = 60 + rows.length * 20;
-        const flipX = x + TIP_W / 2 > window.innerWidth - 8;
-        const flipY = y - TIP_H - 16 < 8;
-        const left = flipX ? x - TIP_W + 16 : x - TIP_W / 2;
-        const top  = flipY ? y + 16 : y - TIP_H - 16;
+        const left = x + TIP_W / 2 > (containerRef.current?.clientWidth ?? 1000) ? x - TIP_W - 10 : x + 10;
+        const top  = y + 10;
 
         return (
           <div
-            className="fixed z-[999] pointer-events-none"
+            className="absolute z-[999] pointer-events-none animate-in fade-in zoom-in-95 duration-150"
             style={{ left, top, width: TIP_W }}
           >
             <div
@@ -730,8 +843,6 @@ export default function ProjectGanttDB() {
         }
       `}</style>
 
-      {/* ── S-Curve Charts ── */}
-      <SCurveCharts projects={filtered as any} />
     </div>
   );
 }

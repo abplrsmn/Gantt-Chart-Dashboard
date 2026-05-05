@@ -1,6 +1,6 @@
 import { ClickUpTask } from '@/types/clickup';
 
-const API_TOKEN = (process.env.CLICKUP_API_TOKEN || process.env.NEXT_PUBLIC_CLICKUP_API_TOKEN || 'pk_306777589_IE1K6WMOKBZ7EP1MNTDY8MELGG9TS61V').trim().replace(/^['"]|['"]$/g, '');
+const API_TOKEN = (process.env.CLICKUP_API_TOKEN || process.env.NEXT_PUBLIC_CLICKUP_API_TOKEN || '').trim().replace(/^['"]|['"]$/g, '');
 const TEAM_ID = (process.env.CLICKUP_TEAM_ID || '90182505447').trim().replace(/^['"]|['"]$/g, '');
 const API_BASE_URL = 'https://api.clickup.com/api/v2';
 
@@ -296,7 +296,7 @@ export async function getTeamFolderTaskLists(teamName: string): Promise<{
           };
         });
 
-        const closedTasks = normalizedTasks.filter((t) => {
+        const closedTasks = normalizedTasks.filter((t: { status: string }) => {
           const s = t.status.toLowerCase();
           return s === 'closed' || s === 'complete' || s === 'completed';
         }).length;
@@ -358,7 +358,7 @@ export async function getOrganizationStructure(): Promise<{
           teams = folders
             .map((folder: any) => String(folder?.name || '').trim())
             .filter(Boolean)
-            .sort((a, b) => a.localeCompare(b));
+            .sort((a: string, b: string) => a.localeCompare(b));
         } catch (error) {
           console.error(`Failed to fetch folders for space ${spaceName}:`, error);
         }
