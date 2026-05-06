@@ -137,7 +137,17 @@ export default function ProjectGanttDB() {
   const [search, setSearch]     = useState("");
   const [priorityFilter, setPriorityFilter] = useState("ALL");
   const [yearFilter, setYearFilter]         = useState<string>("ALL");
-  const [dateRange, setDateRange] = useState<{ start: string; end: string }>({ start: "", end: "" });
+  const [dateRange, setDateRange] = useState<{ start: string; end: string }>(() => {
+    try {
+      const saved = typeof window !== "undefined" ? localStorage.getItem("gantt_dateRange") : null;
+      return saved ? JSON.parse(saved) : { start: "", end: "" };
+    } catch { return { start: "", end: "" }; }
+  });
+
+  const handleDateRangeChange = (range: { start: string; end: string }) => {
+    setDateRange(range);
+    try { localStorage.setItem("gantt_dateRange", JSON.stringify(range)); } catch { /* ignore */ }
+  };
   const [expandedId, setExpandedId]         = useState<string | null>(null);
   const [unitFilter, setUnitFilter]         = useState<string>("");
   const [projectFilter, setProjectFilter]   = useState<string>("");
@@ -323,7 +333,7 @@ export default function ProjectGanttDB() {
       }
     }
     return groups;
-  }, [weekCols, timeline]);
+  }, [weekCols]);
 
   const todayOffsetPct = useMemo(() => {
     const today = new Date();
@@ -446,11 +456,11 @@ export default function ProjectGanttDB() {
       </div>
 
       {/* Date range picker */}
-      <DateRangePicker value={dateRange} onChange={setDateRange} />
+      <DateRangePicker value={dateRange} onChange={handleDateRangeChange} />
 
       {/* Selected Range Insights Banner */}
       {rangeStart && rangeEnd && rangeSummary && (
-        <div className="flex flex-col md:flex-row gap-6 justify-between items-start md:items-center p-4 rounded-xl border border-cyan-500/20 bg-gradient-to-r from-cyan-500/10 to-transparent">
+        <div className="flex flex-col md:flex-row gap-6 justify-between items-start md:items-center p-4 rounded-xl border border-cyan-500/20 bg-linear-to-r from-cyan-500/10 to-transparent">
           <div className="flex flex-col">
             <h3 className="text-[10px] font-bold text-cyan-400 uppercase tracking-widest mb-1">Date Range Overview</h3>
             <p className="text-sm font-semibold text-slate-800 dark:text-white">
@@ -552,7 +562,7 @@ export default function ProjectGanttDB() {
               {/* Date range Selection Block */}
               {rangeRulers && (
                 <div
-                  className="absolute top-0 bottom-0 z-0 pointer-events-none border-t-[3px] border-cyan-400 bg-gradient-to-b from-cyan-400/10 to-transparent"
+                  className="absolute top-0 bottom-0 z-0 pointer-events-none border-t-[3px] border-cyan-400 bg-linear-to-b from-cyan-400/10 to-transparent"
                   style={{
                     left: `${(rangeRulers.startPct / 100) * totalWidth}px`,
                     width: `${((rangeRulers.endPct - rangeRulers.startPct) / 100) * totalWidth}px`,
@@ -711,7 +721,7 @@ export default function ProjectGanttDB() {
                     <div className="flex border-t border-slate-100 dark:border-white/5 bg-slate-50/60 dark:bg-white/2">
                       <div className="sticky left-0 z-10 shrink-0 w-60 border-r border-slate-200/40 dark:border-white/5 bg-slate-50/95 dark:bg-zinc-900/95" />
                       <div className="flex-1 px-4 py-3 overflow-x-auto" style={{ width: `${totalWidth}px` }}>
-                        <div className="grid grid-cols-5 gap-2 min-w-[480px]">
+                        <div className="grid grid-cols-5 gap-2 min-w-120">
                           {PHASES.map(ph => {
                             const seg = segments.find(s => s.key === ph.key);
                             const active = isPhaseActive(ph.key, p.current_phase_code);
@@ -820,7 +830,7 @@ export default function ProjectGanttDB() {
 
         return (
           <div
-            className="absolute z-[999] pointer-events-none animate-in fade-in zoom-in-95 duration-150"
+            className="absolute z-999 pointer-events-none animate-in fade-in zoom-in-95 duration-150"
             style={{ left, top, width: TIP_W }}
           >
             <div

@@ -4,8 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import {
   addMonths, subMonths, format, startOfMonth, endOfMonth,
   startOfWeek, endOfWeek, addDays, isSameMonth, isSameDay,
-  isWithinInterval, isValid, parseISO, setMonth as dfSetMonth,
-  setYear as dfSetYear,
+  isWithinInterval, isValid, parseISO,
+  setMonth as dfSetMonth, setYear as dfSetYear,
 } from "date-fns";
 import { CalendarRange, ChevronLeft, ChevronRight, X } from "lucide-react";
 
@@ -18,41 +18,47 @@ interface Props {
 
 const DAYS        = ["Mo","Tu","We","Th","Fr","Sa","Su"];
 const MONTH_NAMES = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-const YEAR_RANGE  = Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - 3 + i);
+const YEAR_RANGE  = Array.from({ length: 8 }, (_, i) => 2024 + i);
 
 type HeaderMode = "calendar" | "month" | "year";
+type Step = "start" | "end";
 
 function buildDays(month: Date): Date[] {
   const s = startOfWeek(startOfMonth(month), { weekStartsOn: 1 });
-  const e = endOfWeek(endOfMonth(month),     { weekStartsOn: 1 });
+  const e = endOfWeek(endOfMonth(month), { weekStartsOn: 1 });
   const days: Date[] = [];
   let d = s;
   while (d <= e) { days.push(d); d = addDays(d, 1); }
   return days;
 }
 
+function parseDate(s: string | undefined): Date | null {
+  if (!s) return null;
+  const d = parseISO(s);
+  return isValid(d) ? d : null;
+}
+
+const PANEL_W = 500;
+const PANEL_H = 520;
+
 export default function DateRangePicker({ value, onChange }: Props) {
   const [open, setOpen]       = useState(false);
-  // Draft state — only pushed to parent on Apply
   const [draft, setDraft]     = useState<DateRange>(value);
-  const [activeField, setActiveField] = useState<"start"|"end">("start");
-  const [hoverDate, setHoverDate]     = useState<Date | null>(null);
-  const [leftMonth, setLeftMonth]     = useState<Date>(() => startOfMonth(new Date()));
-  const [rightMonth, setRightMonth]   = useState<Date>(() => addMonths(startOfMonth(new Date()), 1));
-  const [leftMode,  setLeftMode]  = useState<HeaderMode>("calendar");
-  const [rightMode, setRightMode] = useState<HeaderMode>("calendar");
-
-  // Parse from committed value (for trigger label)
-  const committedStart = value.start && isValid(parseISO(value.start)) ? parseISO(value.start) : null;
-  const committedEnd   = value.end   && isValid(parseISO(value.end))   ? parseISO(value.end)   : null;
-
-  // Parse from draft (for calendar rendering)
-  const draftStart = draft.start && isValid(parseISO(draft.start)) ? parseISO(draft.start) : null;
-  const draftEnd   = draft.end   && isValid(parseISO(draft.end))   ? parseISO(draft.end)   : null;
+  const [step, setStep]       = useState<Step>("start");
+  const [leftMonth, setLeftMonth]   = useState<Date>(() => startOfMonth(new Date()));
+  const [rightMonth, setRightMonth] = useState<Date>(() => addMonths(startOfMonth(new Date()), 1));
+  const [leftMode, setLeftMode]     = useState<HeaderMode>("calendar");
+  const [rightMode, setRightMode]   = useState<HeaderMode>("calendar");
+  const [panelPos, setPanelPos]     = useState({ top: 0, left: 0 });
 
   const containerRef = useRef<HTMLDivElement>(null);
-  const [dropDir, setDropDir] = useState<"down"|"up">("down");
 
+  const committedStart = parseDate(value.start);
+  const committedEnd   = parseDate(value.end);
+  const draftStart     = parseDate(draft.start);
+  const draftEnd       = parseDate(draft.end);
+
+  // Close on outside click
   useEffect(() => {
     const h = (e: MouseEvent) => {
       if (!containerRef.current?.contains(e.target as Node)) {
@@ -65,43 +71,62 @@ export default function DateRangePicker({ value, onChange }: Props) {
     return () => document.removeEventListener("mousedown", h);
   }, []);
 
+  const calcPosition = () => {
+    if (!containerRef.current) return;
+    const rect = containerRef.current.getBoundingClientRect();
+    let top  = rect.bottom + 8;
+    let left = rect.left;
+    if (top + PANEL_H > window.innerHeight - 16) top = rect.top - PANEL_H - 8;
+    if (left + PANEL_W > window.innerWidth  - 16) left = window.innerWidth - PANEL_W - 16;
+    setPanelPos({ top: Math.max(8, top), left: Math.max(8, left) });
+  };
+
   const handleOpen = () => {
     if (!open) {
-      // Sync draft from committed value
       setDraft(value);
-      setActiveField(committedStart && committedEnd ? "start" : "start");
-      if (containerRef.current) {
-        const rect = containerRef.current.getBoundingClientRect();
-        setDropDir(rect.bottom + 500 > window.innerHeight ? "up" : "down");
-      }
+      setStep("start");
+      setLeftMode("calendar");
+      setRightMode("calendar");
+      calcPosition();
       if (committedStart) {
         setLeftMonth(startOfMonth(committedStart));
-        // If end is set → right panel shows end's month; otherwise default to start+1
         setRightMonth(committedEnd ? startOfMonth(committedEnd) : addMonths(startOfMonth(committedStart), 1));
+      } else {
+        setLeftMonth(startOfMonth(new Date()));
+        setRightMonth(addMonths(startOfMonth(new Date()), 1));
       }
     }
-    setLeftMode("calendar");
-    setRightMode("calendar");
     setOpen(o => !o);
   };
 
   const handleDayClick = (day: Date) => {
     const formatted = format(day, "yyyy-MM-dd");
-    if (activeField === "start") {
-      setDraft(d => ({ ...d, start: formatted }));
-      // Sync right panel to the month after the selected start date
+    if (step === "start") {
+      setDraft({ start: formatted, end: "" });
       setRightMonth(addMonths(startOfMonth(day), 1));
-      // Auto-move to end ONLY if end is not set yet
-      if (!draftEnd) setActiveField("end");
+      setStep("end");
     } else {
-      // If clicking before start, swap
       if (draftStart && day < draftStart) {
+        // Picked before start → swap: new date becomes start, old start becomes end
         setDraft({ start: formatted, end: draft.start });
       } else {
         setDraft(d => ({ ...d, end: formatted }));
       }
-      // Stay on end — user can keep adjusting
     }
+  };
+
+  // Quick presets — set both dates and advance step to done
+  const handleToday = () => {
+    const t = format(new Date(), "yyyy-MM-dd");
+    setDraft({ start: t, end: t });
+    setStep("end");
+  };
+
+  const handleThisWeek = () => {
+    const s = startOfWeek(new Date(), { weekStartsOn: 1 });
+    const e = endOfWeek(new Date(), { weekStartsOn: 1 });
+    setDraft({ start: format(s, "yyyy-MM-dd"), end: format(e, "yyyy-MM-dd") });
+    setStep("end");
   };
 
   const handleApply = () => {
@@ -111,32 +136,31 @@ export default function DateRangePicker({ value, onChange }: Props) {
 
   const handleClear = () => {
     setDraft({ start: "", end: "" });
+    setStep("start");
   };
 
   const handleCancel = () => {
-    setDraft(value); // revert to committed
+    setDraft(value);
     setOpen(false);
   };
 
-  const isInRange = (d: Date) => {
-    const effEnd = activeField === "end" && hoverDate && draftStart
-      ? (hoverDate >= draftStart ? hoverDate : draftStart)
-      : draftEnd;
-    if (!draftStart || !effEnd) return false;
-    const lo = draftStart <= effEnd ? draftStart : effEnd;
-    const hi = draftStart <= effEnd ? effEnd : draftStart;
+  const isInRange = (d: Date): boolean => {
+    if (!draftStart || !draftEnd) return false;
+    const lo = draftStart <= draftEnd ? draftStart : draftEnd;
+    const hi = draftStart <= draftEnd ? draftEnd   : draftStart;
     return isWithinInterval(d, { start: lo, end: hi });
   };
 
   const today = new Date();
+  const isDirty = draft.start !== value.start || draft.end !== value.end;
 
   const labelText = committedStart && committedEnd
-    ? `${format(committedStart,"dd MMM yyyy")} → ${format(committedEnd,"dd MMM yyyy")}`
+    ? `${format(committedStart, "dd MMM yyyy")} → ${format(committedEnd, "dd MMM yyyy")}`
     : committedStart
-      ? `${format(committedStart,"dd MMM yyyy")} → …`
-      : "Pick a date";
+      ? `${format(committedStart, "dd MMM yyyy")} → …`
+      : "Pick a date range";
 
-  // ── Month Grid ──────────────────────────────────────────────────────────────
+  // ── Sub-components ────────────────────────────────────────────────────────
   const MonthGrid = ({ m }: { m: Date }) => {
     const days = buildDays(m);
     return (
@@ -153,32 +177,27 @@ export default function DateRangePicker({ value, onChange }: Props) {
             const isE   = draftEnd   ? isSameDay(day, draftEnd)   : false;
             const inR   = isInRange(day);
             const isTod = isSameDay(day, today);
-            const isHov = hoverDate ? isSameDay(day, hoverDate) : false;
+            const disabled = !inMon || (step === "end" && !draftStart);
             return (
               <div
                 key={i}
-                onMouseEnter={() => setHoverDate(day)}
-                onMouseLeave={() => setHoverDate(null)}
-                onClick={() => inMon && handleDayClick(day)}
+                onClick={() => !disabled && handleDayClick(day)}
                 className={`
                   h-8 flex items-center justify-center select-none
-                  ${!inMon ? "opacity-10" : "cursor-pointer"}
+                  ${disabled ? "opacity-10" : "cursor-pointer"}
                   ${inR && !isS && !isE ? "bg-cyan-500/12" : ""}
-                  ${isS && !isE ? "rounded-l-full" : ""}
-                  ${isE && !isS ? "rounded-r-full" : ""}
-                  ${isS && isE  ? "rounded-full"   : ""}
+                  ${isS && isE  ? "" : isS ? "rounded-l-full" : isE ? "rounded-r-full" : ""}
                 `}
               >
                 <span className={`
-                  w-7 h-7 flex items-center justify-center rounded-full text-[11px] font-medium transition-all
+                  w-7 h-7 flex items-center justify-center rounded-full text-[11px] font-medium transition-colors
                   ${isS || isE   ? "bg-cyan-500 text-white font-bold shadow-md shadow-cyan-500/40"
-                  : isHov && inMon ? "bg-white/12 text-white"
-                  : inR           ? "text-cyan-300"
-                  : isTod         ? "ring-1 ring-cyan-400/70 text-cyan-400"
-                  : inMon         ? "text-white/65 hover:bg-white/8 hover:text-white"
-                  :                 "text-white/20"}
+                  : inR          ? "text-cyan-300"
+                  : isTod        ? "ring-1 ring-cyan-400/70 text-cyan-400"
+                  : inMon        ? "text-white/65 hover:bg-white/10 hover:text-white"
+                  :                "text-white/20"}
                 `}>
-                  {format(day,"d")}
+                  {format(day, "d")}
                 </span>
               </div>
             );
@@ -188,56 +207,60 @@ export default function DateRangePicker({ value, onChange }: Props) {
     );
   };
 
-  // ── Month/Year Picker ───────────────────────────────────────────────────────
-  const MonthPicker = ({ m, onPick, onClose }: { m: Date; onPick: (newM: Date) => void; onClose: () => void }) => (
+  const MonthPicker = ({ m, onPick, onClose }: { m: Date; onPick: (d: Date) => void; onClose: () => void }) => (
     <div className="flex-1 min-w-0">
       <div className="grid grid-cols-4 gap-1.5 py-1">
-        {MONTH_NAMES.map((name, idx) => {
-          const active = m.getMonth() === idx;
-          return (
-            <button key={name} onClick={() => { onPick(dfSetMonth(m, idx)); onClose(); }}
-              className={`py-2 rounded-lg text-[11px] font-semibold transition-all ${
-                active ? "bg-cyan-500 text-white" : "text-white/60 hover:bg-white/8 hover:text-white"
-              }`}>{name}</button>
-          );
-        })}
+        {MONTH_NAMES.map((name, idx) => (
+          <button key={name}
+            onClick={() => { onPick(dfSetMonth(m, idx)); onClose(); }}
+            className={`py-2 rounded-lg text-[11px] font-semibold transition-colors ${
+              m.getMonth() === idx ? "bg-cyan-500 text-white" : "text-white/60 hover:bg-white/8 hover:text-white"
+            }`}
+          >{name}</button>
+        ))}
       </div>
     </div>
   );
 
-  const YearPicker = ({ m, onPick, onClose }: { m: Date; onPick: (newM: Date) => void; onClose: () => void }) => (
+  const YearPicker = ({ m, onPick, onClose }: { m: Date; onPick: (d: Date) => void; onClose: () => void }) => (
     <div className="flex-1 min-w-0">
-      <div className="grid grid-cols-3 gap-1.5 py-1">
-        {YEAR_RANGE.map(yr => {
-          const active = m.getFullYear() === yr;
-          return (
-            <button key={yr} onClick={() => { onPick(dfSetYear(m, yr)); onClose(); }}
-              className={`py-2 rounded-lg text-[11px] font-semibold transition-all ${
-                active ? "bg-cyan-500 text-white" : "text-white/60 hover:bg-white/8 hover:text-white"
-              }`}>{yr}</button>
-          );
-        })}
+      <div className="grid grid-cols-4 gap-1.5 py-1">
+        {YEAR_RANGE.map(yr => (
+          <button key={yr}
+            onClick={() => { onPick(dfSetYear(m, yr)); onClose(); }}
+            className={`py-2 rounded-lg text-[11px] font-semibold transition-colors ${
+              m.getFullYear() === yr ? "bg-cyan-500 text-white" : "text-white/60 hover:bg-white/8 hover:text-white"
+            }`}
+          >{yr}</button>
+        ))}
       </div>
     </div>
   );
 
-  const CalHeader = ({ m, mode, setMode }: {
-    m: Date; mode: HeaderMode; setMode: (m: HeaderMode) => void;
+  const CalHeader = ({ m, mode, onNavPrev, onNavNext, setMode }: {
+    m: Date; mode: HeaderMode; onNavPrev: () => void; onNavNext: () => void; setMode: (m: HeaderMode) => void;
   }) => (
-    <div className="flex items-center justify-center gap-1 mb-3">
-      <button onClick={() => setMode(mode === "month" ? "calendar" : "month")}
-        className={`text-[12px] font-bold px-2 py-0.5 rounded-lg transition-all ${
-          mode === "month" ? "bg-cyan-500/20 text-cyan-400" : "text-white/80 hover:bg-white/8 hover:text-white"
-        }`}>{format(m, "MMM")}</button>
-      <button onClick={() => setMode(mode === "year" ? "calendar" : "year")}
-        className={`text-[12px] font-bold px-2 py-0.5 rounded-lg transition-all ${
-          mode === "year" ? "bg-cyan-500/20 text-cyan-400" : "text-white/80 hover:bg-white/8 hover:text-white"
-        }`}>{format(m, "yyyy")}</button>
+    <div className="flex items-center justify-between mb-3">
+      <button onClick={onNavPrev}
+        className="w-6 h-6 flex items-center justify-center rounded-lg hover:bg-white/8 text-white/40 hover:text-white transition-colors">
+        <ChevronLeft size={13} />
+      </button>
+      <div className="flex items-center gap-1">
+        <button onClick={() => setMode(mode === "month" ? "calendar" : "month")}
+          className={`text-[12px] font-bold px-2 py-0.5 rounded-lg transition-colors ${
+            mode === "month" ? "bg-cyan-500/20 text-cyan-400" : "text-white/80 hover:bg-white/8 hover:text-white"
+          }`}>{format(m, "MMM")}</button>
+        <button onClick={() => setMode(mode === "year" ? "calendar" : "year")}
+          className={`text-[12px] font-bold px-2 py-0.5 rounded-lg transition-colors ${
+            mode === "year" ? "bg-cyan-500/20 text-cyan-400" : "text-white/80 hover:bg-white/8 hover:text-white"
+          }`}>{format(m, "yyyy")}</button>
+      </div>
+      <button onClick={onNavNext}
+        className="w-6 h-6 flex items-center justify-center rounded-lg hover:bg-white/8 text-white/40 hover:text-white transition-colors">
+        <ChevronRight size={13} />
+      </button>
     </div>
   );
-
-  // Draft changed indicator
-  const isDirty = draft.start !== value.start || draft.end !== value.end;
 
   return (
     <div ref={containerRef} className="relative">
@@ -256,97 +279,123 @@ export default function DateRangePicker({ value, onChange }: Props) {
         {(committedStart || committedEnd) && (
           <span
             className="ml-1 text-slate-300 dark:text-slate-600 hover:text-rose-400 transition-colors"
-            onClick={e => { e.stopPropagation(); onChange({ start:"", end:"" }); }}
+            onClick={e => { e.stopPropagation(); onChange({ start: "", end: "" }); }}
           >
             <X size={12} />
           </span>
         )}
       </button>
 
-      {/* ── Dropdown ── */}
+      {/* ── Panel — fixed position to avoid overflow ── */}
       {open && (
         <div
-          className="absolute left-0 z-50 rounded-2xl border border-white/8 shadow-2xl"
+          className="fixed z-[9999] rounded-2xl border border-white/8 shadow-2xl"
           style={{
-            ...(dropDir === "down" ? { top:"calc(100% + 8px)" } : { bottom:"calc(100% + 8px)" }),
+            top:    panelPos.top,
+            left:   panelPos.left,
+            width:  PANEL_W,
+            maxWidth: "calc(100vw - 32px)",
             backgroundColor: "rgba(11,15,26,0.98)",
             backdropFilter: "blur(24px)",
             boxShadow: "0 24px 64px rgba(0,0,0,0.65), 0 0 0 1px rgba(255,255,255,0.05)",
-            animation: "calIn 0.2s cubic-bezier(0.34,1.4,0.64,1) forwards",
-            width: "480px",
-            maxWidth: "calc(100vw - 32px)",
           }}
         >
-          {/* ── Form fields ── */}
+          {/* ── Step indicator + date fields ── */}
           <div className="px-4 pt-4 pb-3 border-b border-white/6">
             <div className="flex items-center gap-3">
+              {/* Start field */}
               <div
-                onClick={() => setActiveField("start")}
+                onClick={() => { setStep("start"); setDraft(d => ({ ...d, end: "" })); }}
                 className={`flex-1 rounded-xl border px-3 py-2 cursor-pointer transition-all ${
-                  activeField === "start"
+                  step === "start"
                     ? "border-cyan-500/60 bg-cyan-500/8 ring-1 ring-cyan-500/20"
                     : "border-white/10 bg-white/4 hover:border-white/20"
                 }`}
               >
-                <p className="text-[9px] font-bold uppercase tracking-widest text-white/40 mb-0.5">Start Date</p>
+                <p className="text-[9px] font-bold uppercase tracking-widest text-white/40 mb-0.5">
+                  {step === "start" ? "① Pick start date" : "Start Date"}
+                </p>
                 <p className={`text-[12px] font-semibold ${draftStart ? "text-white" : "text-white/25"}`}>
-                  {draftStart ? format(draftStart,"dd MMMM yyyy") : "Click to select…"}
+                  {draftStart ? format(draftStart, "dd MMMM yyyy") : "Click a day…"}
                 </p>
               </div>
+
               <span className="text-white/20 text-sm shrink-0">→</span>
+
+              {/* End field — inactive until start is picked */}
               <div
-                onClick={() => setActiveField("end")}
-                className={`flex-1 rounded-xl border px-3 py-2 cursor-pointer transition-all ${
-                  activeField === "end"
-                    ? "border-cyan-500/60 bg-cyan-500/8 ring-1 ring-cyan-500/20"
-                    : "border-white/10 bg-white/4 hover:border-white/20"
+                onClick={() => draftStart && setStep("end")}
+                className={`flex-1 rounded-xl border px-3 py-2 transition-all ${
+                  !draftStart
+                    ? "border-white/5 bg-white/2 opacity-40 cursor-not-allowed"
+                    : step === "end"
+                      ? "border-cyan-500/60 bg-cyan-500/8 ring-1 ring-cyan-500/20 cursor-pointer"
+                      : "border-white/10 bg-white/4 hover:border-white/20 cursor-pointer"
                 }`}
               >
-                <p className="text-[9px] font-bold uppercase tracking-widest text-white/40 mb-0.5">End Date</p>
+                <p className="text-[9px] font-bold uppercase tracking-widest text-white/40 mb-0.5">
+                  {step === "end" && draftStart ? "② Pick end date" : "End Date"}
+                </p>
                 <p className={`text-[12px] font-semibold ${draftEnd ? "text-white" : "text-white/25"}`}>
-                  {draftEnd ? format(draftEnd,"dd MMMM yyyy") : "Click to select…"}
+                  {draftEnd ? format(draftEnd, "dd MMMM yyyy") : draftStart ? "Click a day…" : "—"}
                 </p>
               </div>
             </div>
           </div>
 
-          {/* ── Calendar area ── */}
+          {/* ── Calendars ── */}
           <div className="px-4 py-4">
-            <div className="flex items-start gap-3">
-              <button onClick={() => { setLeftMonth(m => subMonths(m,1)); setLeftMode("calendar"); }}
-                className="w-7 h-7 mt-7 flex items-center justify-center rounded-lg hover:bg-white/8 text-white/40 hover:text-white transition-colors shrink-0">
-                <ChevronLeft size={14} />
-              </button>
-
+            <div className="flex items-start gap-4">
+              {/* Left calendar */}
               <div className="flex-1 min-w-0">
-                <CalHeader m={leftMonth} mode={leftMode} setMode={setLeftMode} />
+                <CalHeader
+                  m={leftMonth} mode={leftMode}
+                  onNavPrev={() => { setLeftMonth(m => subMonths(m, 1)); setLeftMode("calendar"); }}
+                  onNavNext={() => { setLeftMonth(m => addMonths(m, 1)); setLeftMode("calendar"); }}
+                  setMode={setLeftMode}
+                />
                 {leftMode === "calendar" && <MonthGrid m={leftMonth} />}
-                {leftMode === "month" && <MonthPicker m={leftMonth} onPick={m => setLeftMonth(startOfMonth(m))} onClose={() => setLeftMode("calendar")} />}
-                {leftMode === "year"  && <YearPicker m={leftMonth} onPick={m => setLeftMonth(startOfMonth(m))} onClose={() => setLeftMode("calendar")} />}
+                {leftMode === "month"    && <MonthPicker m={leftMonth} onPick={m => setLeftMonth(startOfMonth(m))} onClose={() => setLeftMode("calendar")} />}
+                {leftMode === "year"     && <YearPicker  m={leftMonth} onPick={m => setLeftMonth(startOfMonth(m))} onClose={() => setLeftMode("calendar")} />}
               </div>
 
-              <div className="w-px bg-white/6 self-stretch mx-1" />
+              <div className="w-px bg-white/6 self-stretch" />
 
+              {/* Right calendar */}
               <div className="flex-1 min-w-0">
-                <CalHeader m={rightMonth} mode={rightMode} setMode={setRightMode} />
+                <CalHeader
+                  m={rightMonth} mode={rightMode}
+                  onNavPrev={() => { setRightMonth(m => subMonths(m, 1)); setRightMode("calendar"); }}
+                  onNavNext={() => { setRightMonth(m => addMonths(m, 1)); setRightMode("calendar"); }}
+                  setMode={setRightMode}
+                />
                 {rightMode === "calendar" && <MonthGrid m={rightMonth} />}
-                {rightMode === "month" && <MonthPicker m={rightMonth} onPick={m => setRightMonth(startOfMonth(m))} onClose={() => setRightMode("calendar")} />}
-                {rightMode === "year"  && <YearPicker m={rightMonth} onPick={m => setRightMonth(startOfMonth(m))} onClose={() => setRightMode("calendar")} />}
+                {rightMode === "month"    && <MonthPicker m={rightMonth} onPick={m => setRightMonth(startOfMonth(m))} onClose={() => setRightMode("calendar")} />}
+                {rightMode === "year"     && <YearPicker  m={rightMonth} onPick={m => setRightMonth(startOfMonth(m))} onClose={() => setRightMode("calendar")} />}
               </div>
-
-              <button onClick={() => { setRightMonth(m => addMonths(m,1)); setRightMode("calendar"); }}
-                className="w-7 h-7 mt-7 flex items-center justify-center rounded-lg hover:bg-white/8 text-white/40 hover:text-white transition-colors shrink-0">
-                <ChevronRight size={14} />
-              </button>
             </div>
           </div>
 
           {/* ── Footer ── */}
           <div className="px-4 pb-4 pt-2 flex items-center justify-between border-t border-white/6">
-            <button onClick={handleClear}
-              className="text-[11px] font-semibold text-white/30 hover:text-rose-400 hover:bg-white/5 px-2 py-1 rounded-lg transition-colors">
-              Clear
-            </button>
+            {/* Left: quick presets + clear */}
+            <div className="flex items-center gap-1.5">
+              <button onClick={handleToday}
+                className="text-[11px] font-semibold text-white/50 hover:text-cyan-400 hover:bg-cyan-500/10 px-2.5 py-1.5 rounded-lg transition-colors">
+                Today
+              </button>
+              <button onClick={handleThisWeek}
+                className="text-[11px] font-semibold text-white/50 hover:text-cyan-400 hover:bg-cyan-500/10 px-2.5 py-1.5 rounded-lg transition-colors">
+                This Week
+              </button>
+              <span className="w-px h-4 bg-white/10 mx-1" />
+              <button onClick={handleClear}
+                className="text-[11px] font-semibold text-white/30 hover:text-rose-400 hover:bg-white/5 px-2 py-1.5 rounded-lg transition-colors">
+                Clear
+              </button>
+            </div>
+
+            {/* Right: cancel + apply */}
             <div className="flex gap-2">
               <button onClick={handleCancel}
                 className="px-3 py-1.5 rounded-lg text-[11px] font-semibold text-white/50 hover:text-white hover:bg-white/8 transition-colors">
@@ -355,11 +404,10 @@ export default function DateRangePicker({ value, onChange }: Props) {
               <button
                 onClick={handleApply}
                 disabled={!draftStart || !draftEnd}
-                className={`px-4 py-1.5 rounded-lg text-[11px] font-bold transition-all disabled:opacity-30 disabled:cursor-not-allowed ${
-                  isDirty
-                    ? "bg-cyan-500 text-white hover:bg-cyan-400 shadow-sm shadow-cyan-500/30 animate-pulse"
-                    : "bg-cyan-500 text-white hover:bg-cyan-400 shadow-sm shadow-cyan-500/30"
-                }`}
+                className={`px-4 py-1.5 rounded-lg text-[11px] font-bold transition-all disabled:opacity-30 disabled:cursor-not-allowed
+                  bg-cyan-500 text-white hover:bg-cyan-400 shadow-sm shadow-cyan-500/30
+                  ${isDirty ? "ring-2 ring-cyan-400/40" : ""}
+                `}
               >
                 Apply
               </button>
@@ -367,13 +415,6 @@ export default function DateRangePicker({ value, onChange }: Props) {
           </div>
         </div>
       )}
-
-      <style>{`
-        @keyframes calIn {
-          from { opacity:0; transform:translateY(-8px) scale(0.97); }
-          to   { opacity:1; transform:translateY(0)   scale(1);    }
-        }
-      `}</style>
     </div>
   );
 }
