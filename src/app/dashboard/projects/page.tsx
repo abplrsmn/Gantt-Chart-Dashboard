@@ -11,7 +11,7 @@ export default function ProjectsPage() {
   const [error, setError]       = useState<string | null>(null);
 
   useEffect(() => {
-    fetch("/api/projects/gantt")
+    fetch("/api/projects/gantt", { cache: "no-store" })
       .then(r => r.json())
       .then(json => { if (json.success) setProjects(json.data); else setError(json.error ?? "error"); })
       .catch(e => setError(e.message))

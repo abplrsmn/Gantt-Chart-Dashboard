@@ -55,7 +55,7 @@ export default function DashboardHome() {
   const fetchDashboardData = useCallback(async () => {
     try {
       const [projectsRes, reminderRes] = await Promise.all([
-        fetch("/api/projects/gantt"),
+        fetch("/api/projects/gantt", { cache: "no-store" }),
         fetch("/api/reminder-logs/latest", { cache: "no-store" }),
       ]);
 
