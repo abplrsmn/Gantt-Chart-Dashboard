@@ -38,7 +38,7 @@ type DBProject = {
   overall_progress_pct: string | null;
 };
 
-interface Props { projects: DBProject[]; }
+interface Props { projects: DBProject[]; hidePhaseDetails?: boolean; }
 
 type SCurvePoint = { month: string; target: number; actual: number | null };
 
@@ -229,7 +229,7 @@ function ChartTooltip({ active, payload, label }: ChartTooltipProps) {
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
-export default function SCurveCharts({ projects }: Props) {
+export default function SCurveCharts({ projects, hidePhaseDetails }: Props) {
   const [selectedUnit, setSelectedUnit]           = useState<string>("");
   const [selectedProjectId, setSelectedProjectId] = useState<string>("");
 
@@ -427,7 +427,7 @@ export default function SCurveCharts({ projects }: Props) {
           </div>
 
           {/* ── Phase Details ─────────────────────────────────────────────── */}
-          {selectedProject && (
+          {selectedProject && !hidePhaseDetails && (
             <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
               {PHASE_DEFS.map(ph => {
                 const progress = Number(selectedProject[ph.progressKey] ?? 0);

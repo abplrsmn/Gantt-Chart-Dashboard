@@ -1,24 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { differenceInCalendarDays, format, addDays, isValid, startOfWeek, endOfWeek, addWeeks } from "date-fns";
-import { Search, ChevronDown, ChevronUp } from "lucide-react";
+import { Search, ChevronDown, ChevronUp, ArrowRight } from "lucide-react";
 import DateRangePicker from "./DateRangePicker";
 import AnimatedDropdown from "./AnimatedDropdown";
-
-// Mock data generator for PIC & Stakeholders
-const PICS = ["Budi Santoso", "Andi Pratama", "Siti Aminah", "Reza Rahardian", "Dewi Lestari"];
-const STAKEHOLDERS = ["Finance Dept", "Legal Team", "Operations", "Marketing", "Board of Directors"];
-
-function getMockData(projectId: string) {
-  let hash = 0;
-  for (let i = 0; i < projectId.length; i++) {
-    hash = projectId.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  const picIndex = Math.abs(hash) % PICS.length;
-  const stkIndex = Math.abs(hash + 1) % STAKEHOLDERS.length;
-  return { pic: PICS[picIndex], stakeholder: STAKEHOLDERS[stkIndex] };
-}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type PhaseKey = "brief" | "design" | "control" | "pm" | "handover";
@@ -132,6 +119,7 @@ function isPhaseActive(phKey: PhaseKey, phaseCode: string | null): boolean {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 export default function ProjectGanttDB() {
+  const router = useRouter();
   const containerRef = useRef<HTMLDivElement>(null);
   const [projects, setProjects] = useState<DBProject[]>([]);
   const [loading, setLoading]   = useState(true);
@@ -340,28 +328,14 @@ export default function ProjectGanttDB() {
   const rangeSummary = useMemo(() => {
     if (!rangeStart || !rangeEnd) return null;
     let totalActiveProjects = 0;
-    const activePics = new Set<string>();
-    const activeStakeholders = new Set<string>();
 
     filtered.forEach(p => {
       const segs = buildSegments(p, timeline.start, totalDays);
-      const overlappingSegs = segs.filter(s => {
-        return s.start <= rangeEnd && s.end >= rangeStart;
-      });
-
-      if (overlappingSegs.length > 0) {
-        totalActiveProjects++;
-        const { pic, stakeholder } = getMockData(p.id);
-        activePics.add(pic);
-        activeStakeholders.add(stakeholder);
-      }
+      const hasOverlap = segs.some(s => s.start <= rangeEnd && s.end >= rangeStart);
+      if (hasOverlap) totalActiveProjects++;
     });
 
-    return { 
-      totalActiveProjects, 
-      pics: Array.from(activePics), 
-      stakeholders: Array.from(activeStakeholders) 
-    };
+    return { totalActiveProjects };
   }, [filtered, rangeStart, rangeEnd, timeline, totalDays]);
 
   const WEEK_W = 36; // px per week column
@@ -455,39 +429,28 @@ export default function ProjectGanttDB() {
       {/* Date range picker */}
       <DateRangePicker value={dateRange} onChange={handleDateRangeChange} />
 
-      {/* Selected Range Insights Banner */}
+      {/* Selected Range Banner */}
       {rangeStart && rangeEnd && rangeSummary && (
-        <div className="flex flex-col md:flex-row gap-6 justify-between items-start md:items-center p-4 rounded-xl border border-cyan-500/20 bg-linear-to-r from-cyan-500/10 to-transparent">
-          <div className="flex flex-col">
-            <h3 className="text-[10px] font-bold text-cyan-400 uppercase tracking-widest mb-1">Date Range Overview</h3>
-            <p className="text-sm font-semibold text-slate-800 dark:text-white">
+        <div className="flex items-center gap-4 px-4 py-3 rounded-xl border border-slate-200/60 dark:border-white/8 bg-white/50 dark:bg-zinc-900/40">
+          <div className="flex-1">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Date Range Overview</p>
+            <p className="text-sm font-bold text-slate-800 dark:text-white">
               {rangeSummary.totalActiveProjects} Projects Ongoing
             </p>
           </div>
-          
-          <div className="flex-1 max-w-sm">
-            <p className="text-[10px] text-slate-400 font-medium uppercase tracking-widest mb-1.5">PICs Involved</p>
-            <div className="flex flex-wrap gap-1.5">
-              {rangeSummary.pics.map(pic => (
-                <span key={pic} className="px-2 py-0.5 rounded bg-blue-500/10 border border-blue-500/20 text-[10px] font-medium text-blue-500 dark:text-blue-400">
-                  {pic}
-                </span>
-              ))}
-              {rangeSummary.pics.length === 0 && <span className="text-[10px] text-slate-500 italic">None</span>}
-            </div>
-          </div>
-
-          <div className="flex-1 max-w-sm">
-            <p className="text-[10px] text-slate-400 font-medium uppercase tracking-widest mb-1.5">Stakeholders</p>
-            <div className="flex flex-wrap gap-1.5">
-              {rangeSummary.stakeholders.map(stk => (
-                <span key={stk} className="px-2 py-0.5 rounded bg-purple-500/10 border border-purple-500/20 text-[10px] font-medium text-purple-600 dark:text-purple-400">
-                  {stk}
-                </span>
-              ))}
-              {rangeSummary.stakeholders.length === 0 && <span className="text-[10px] text-slate-500 italic">None</span>}
-            </div>
-          </div>
+          <button
+            onClick={() => {
+              const qs = new URLSearchParams({
+                start: dateRange.start,
+                end: dateRange.end,
+              });
+              router.push(`/dashboard/projects/list?${qs.toString()}`);
+            }}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-white text-xs font-bold transition-all shadow-md shadow-cyan-500/20 hover:shadow-cyan-400/30 shrink-0"
+          >
+            Details
+            <ArrowRight size={13} />
+          </button>
         </div>
       )}
 
