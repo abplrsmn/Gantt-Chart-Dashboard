@@ -140,7 +140,7 @@ export default function ControlsPage() {
     : 'Never';
 
   return (
-    <div className="space-y-6 pb-6 animate-in fade-in duration-500">
+    <div className="space-y-6 pb-6 animate-page-enter">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <Server className="text-blue-500" size={24} />
@@ -205,8 +205,8 @@ export default function ControlsPage() {
             <Activity className="text-orange-500" size={16} />
             <p className="text-xs font-semibold text-slate-500 dark:text-gray-400">Gateway</p>
           </div>
-          <p className="text-lg font-bold text-slate-800 dark:text-white mt-1 truncate">{telemetry.uptime}</p>
-          <p className="text-[10px] font-medium text-slate-400 mt-1 break-all">{telemetry.gateway}</p>
+          <p className="text-2xl font-bold text-slate-800 dark:text-white mt-1 truncate">{telemetry.uptime}</p>
+          <p className="text-[10px] font-medium text-slate-400 mt-1 truncate">{telemetry.gateway}</p>
         </div>
       </div>
 

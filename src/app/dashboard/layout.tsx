@@ -2,10 +2,8 @@
 
 import { useState, useEffect, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import AutoRefresh from "@/components/AutoRefresh";
 import { Home, Users, Activity, AlertTriangle, Menu, ChevronRight, Settings2, LogOut, SunMoon, Server, CalendarRange } from "lucide-react";
 
-// Read the plain 'user_role' cookie (non-httpOnly, set by server on login)
 function getRoleFromCookie(): string {
   if (typeof document === "undefined") return "admin";
   const match = document.cookie.match(/(?:^|;\s*)user_role=([^;]+)/);
@@ -22,9 +20,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const desktopMenuRef = useRef<HTMLDivElement | null>(null);
   const mobileMenuRef = useRef<HTMLDivElement | null>(null);
 
-  useEffect(() => {
-    setUserRole(getRoleFromCookie());
-  }, []);
+  useEffect(() => { setUserRole(getRoleFromCookie()); }, []);
 
   const handleLogout = async () => {
     setMenuOpen(false);
@@ -35,14 +31,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     window.location.href = "/";
   };
 
-  useEffect(() => {
-    document.documentElement.classList.toggle("dark", isDark);
-  }, [isDark]);
-
-  useEffect(() => {
-    setDrawerOpen(false);
-    setMenuOpen(false);
-  }, [pathname]);
+  useEffect(() => { document.documentElement.classList.toggle("dark", isDark); }, [isDark]);
+  useEffect(() => { setDrawerOpen(false); setMenuOpen(false); }, [pathname]);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -55,29 +45,42 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  // PM sees NO nav items — only the settings gear (theme + logout) remains
   const isPm = userRole === "pm";
 
   const navItems = isPm ? [] : [
     { icon: <Home size={16} />, label: "Home", path: "/dashboard" },
-    { icon: <CalendarRange size={16} />, label: "Capex Tracker", path: "/dashboard/capex-gantt" },
+    { icon: <CalendarRange size={16} />, label: "Projects", path: "/dashboard/capex-gantt" },
     { icon: <Users size={16} />, label: "Team", path: "/dashboard/team" },
     { icon: <AlertTriangle size={16} />, label: "Alerts", path: "/dashboard/alerts" },
     { icon: <Server size={16} />, label: "Controls", path: "/dashboard/controls" },
   ];
 
-  const QuickMenu = () => (
-    <div className="absolute right-0 mt-2 w-48 rounded-xl bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xl border border-slate-200/60 dark:border-white/10 shadow-xl p-1.5 z-50">
+  const quickMenuStyle: React.CSSProperties = {
+    backgroundColor: "rgba(11,15,26,0.97)",
+    backdropFilter: "blur(20px)",
+    boxShadow: "0 16px 48px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.06)",
+    transformOrigin: "top right",
+    transition: "opacity 0.18s ease, transform 0.18s cubic-bezier(0.34,1.4,0.64,1)",
+    opacity: menuOpen ? 1 : 0,
+    transform: menuOpen ? "scale(1) translateY(0)" : "scale(0.95) translateY(-6px)",
+    pointerEvents: menuOpen ? "auto" : "none",
+  };
+
+  const quickMenuJSX = (
+    <div
+      className="absolute right-0 mt-2 w-48 rounded-xl border border-white/10 p-1.5 z-50 overflow-hidden"
+      style={quickMenuStyle}
+    >
       <button
         onClick={() => setIsDark(!isDark)}
-        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium text-slate-700 dark:text-gray-200 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
+        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium text-white/70 hover:text-white hover:bg-white/5 transition-colors"
       >
         <SunMoon size={14} />
         {isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
       </button>
       <button
         onClick={handleLogout}
-        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
+        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors"
       >
         <LogOut size={14} />
         Log Out
@@ -92,7 +95,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <header className="sticky top-0 z-50 bg-white/80 dark:bg-zinc-950/80 backdrop-blur-xl border-b border-slate-200/40 dark:border-white/5 shadow-sm transition-colors duration-300">
         <div className="w-full px-6 h-14 flex items-center justify-between relative">
 
-          {/* Mobile: burger — hidden for PM */}
           {!isPm ? (
             <button
               className="md:hidden p-2 rounded-xl bg-white/50 dark:bg-white/10 border border-slate-200/50 dark:border-white/10 text-slate-600 dark:text-gray-200 hover:bg-white dark:hover:bg-white/20 transition-all"
@@ -106,11 +108,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
           {/* Logo */}
           <div className="flex items-center gap-2.5 shrink-0 absolute left-1/2 -translate-x-1/2 md:static md:translate-x-0">
-            <div className="w-8 h-8 bg-gradient-to-tr from-blue-500 to-purple-600 rounded-lg flex items-center justify-center text-white shadow shrink-0">
+            <div className="w-8 h-8 bg-linear-to-tr from-blue-500 to-purple-600 rounded-lg flex items-center justify-center text-white shadow shrink-0">
               <Activity size={15} />
             </div>
             <div>
-              <h1 className="text-sm font-bold leading-tight bg-gradient-to-r from-blue-600 to-purple-500 dark:from-blue-400 dark:to-purple-300 bg-clip-text text-transparent tracking-wider">
+              <h1 className="text-sm font-bold leading-tight bg-linear-to-r from-blue-600 to-purple-500 dark:from-blue-400 dark:to-purple-300 bg-clip-text text-transparent tracking-wider">
                 COMMAND CENTER
               </h1>
               <div className="text-[10px] text-slate-400 dark:text-slate-500">Aryaduta's Dashboard Monitor</div>
@@ -140,7 +142,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               >
                 <Settings2 size={16} />
               </button>
-              {menuOpen && <QuickMenu />}
+              {quickMenuJSX}
             </div>
           </div>
 
@@ -153,12 +155,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             >
               <Settings2 size={16} />
             </button>
-            {menuOpen && <QuickMenu />}
+            {quickMenuJSX}
           </div>
         </div>
       </header>
 
-      {/* ── MOBILE DRAWER (admin only) ── */}
+      {/* ── MOBILE DRAWER ── */}
       {!isPm && drawerOpen && (
         <div
           className="md:hidden fixed inset-0 z-40 bg-black/40 backdrop-blur-sm"
@@ -172,10 +174,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         >
           <div className="px-4 py-4 flex items-center border-b border-slate-200/40 dark:border-white/5">
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 bg-gradient-to-tr from-blue-500 to-purple-600 rounded-lg flex items-center justify-center text-white shadow shrink-0">
+              <div className="w-8 h-8 bg-linear-to-tr from-blue-500 to-purple-600 rounded-lg flex items-center justify-center text-white shadow shrink-0">
                 <Activity size={15} />
               </div>
-              <h1 className="text-sm font-bold bg-gradient-to-r from-blue-600 to-purple-500 dark:from-blue-400 dark:to-purple-300 bg-clip-text text-transparent tracking-wider">
+              <h1 className="text-sm font-bold bg-linear-to-r from-blue-600 to-purple-500 dark:from-blue-400 dark:to-purple-300 bg-clip-text text-transparent tracking-wider">
                 COMMAND CENTER
               </h1>
             </div>
@@ -214,20 +216,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       )}
 
       {/* ── MAIN CONTENT ── */}
-      <main className="p-4 w-full max-w-[1560px] mx-auto pb-8">
+      <main className="p-4 w-full max-w-390 mx-auto pb-8">
         {children}
       </main>
     </div>
   );
 }
 
-function TopNavItem({
-  icon, label, active, onClick,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  active: boolean;
-  onClick: () => void;
+function TopNavItem({ icon, label, active, onClick }: {
+  icon: React.ReactNode; label: string; active: boolean; onClick: () => void;
 }) {
   return (
     <button
@@ -244,13 +241,8 @@ function TopNavItem({
   );
 }
 
-function DrawerNavItem({
-  icon, label, active, onClick,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  active: boolean;
-  onClick: () => void;
+function DrawerNavItem({ icon, label, active, onClick }: {
+  icon: React.ReactNode; label: string; active: boolean; onClick: () => void;
 }) {
   return (
     <button

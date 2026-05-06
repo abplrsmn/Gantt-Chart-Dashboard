@@ -46,9 +46,7 @@ export default function AnimatedDropdown({
         className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-sm font-medium transition-all whitespace-nowrap select-none ${
           disabled
             ? "border-slate-200/30 dark:border-white/5 bg-white/30 dark:bg-zinc-900/30 text-slate-400 dark:text-slate-600 cursor-not-allowed opacity-50"
-            : open
-              ? "border-cyan-500/60 bg-cyan-500/8 text-cyan-400 shadow-sm"
-              : "border-slate-200/70 dark:border-white/10 bg-white/70 dark:bg-zinc-900/60 text-slate-700 dark:text-slate-200 hover:border-cyan-400/40 hover:text-cyan-400"
+            : "border-slate-200/70 dark:border-white/10 bg-white/70 dark:bg-zinc-900/60 text-slate-700 dark:text-slate-200 hover:border-slate-300/80 dark:hover:border-white/20"
         }`}
       >
         {selected?.color && (
@@ -57,7 +55,7 @@ export default function AnimatedDropdown({
         <span className="text-[12px]">{selected?.label ?? placeholder}</span>
         <ChevronDown
           size={12}
-          className={`ml-1 shrink-0 transition-transform duration-200 ${open ? "rotate-180 text-cyan-400" : "text-slate-400"}`}
+          className={`ml-1 shrink-0 transition-transform duration-200 text-slate-400 ${open ? "rotate-180" : ""}`}
         />
       </button>
 

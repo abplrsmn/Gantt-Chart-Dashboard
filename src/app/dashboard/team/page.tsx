@@ -4,7 +4,7 @@ import { Users } from "lucide-react";
 
 export default function TeamPage() {
   return (
-    <div className="space-y-6 pb-6 animate-in fade-in duration-500">
+    <div className="space-y-6 pb-6 animate-page-enter">
       <div className="flex items-center gap-2 mb-4">
         <Users className="text-purple-500" size={24} />
         <h2 className="text-lg font-bold text-slate-700 dark:text-gray-100 drop-shadow-sm">Departments & Teams</h2>

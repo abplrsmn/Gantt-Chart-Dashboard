@@ -10,7 +10,7 @@ export default function TeamDetailsPage() {
   const decodedTeamName = teamName ? decodeURIComponent(teamName) : "";
 
   return (
-    <div className="space-y-6 pb-6 animate-in fade-in duration-500">
+    <div className="space-y-6 pb-6 animate-page-enter">
       <div className="flex items-center gap-3 mb-6">
         <Link href="/dashboard/team" className="p-2 rounded-lg bg-white/50 dark:bg-zinc-800/50 hover:bg-white dark:hover:bg-zinc-800 transition-colors shadow-sm shrink-0 self-center">
           <ArrowLeft size={18} className="text-slate-600 dark:text-gray-300" />

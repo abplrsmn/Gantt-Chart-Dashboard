@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { CalendarRange, Search, Folder } from "lucide-react";
+import AnimatedDropdown from "./AnimatedDropdown";
 import {
   addDays,
   differenceInCalendarDays,
@@ -624,15 +625,16 @@ export default function CapexGanttMonitor() {
               />
             </label>
 
-            <select
+            <AnimatedDropdown
               value={yearFilter}
-              onChange={(event) => setYearFilter(event.target.value)}
-              className="rounded-xl border border-slate-200/70 dark:border-white/10 bg-white/70 dark:bg-zinc-900/60 px-3 py-2.5 text-sm text-slate-700 dark:text-slate-200 outline-none"
-            >
-              <option value="ALL">All Years</option>
-              <option value="2025">2025</option>
-              <option value="2026">2026</option>
-            </select>
+              onChange={setYearFilter}
+              options={[
+                { value: "ALL", label: "All Years" },
+                { value: "2025", label: "2025" },
+                { value: "2026", label: "2026" },
+              ]}
+              minWidth={120}
+            />
 
             <button
               type="button"
@@ -771,15 +773,15 @@ export default function CapexGanttMonitor() {
             <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
               Structured parameters by project phase
             </p>
-            <select
+            <AnimatedDropdown
               value={milestoneUnitFilter}
-              onChange={(event) => setMilestoneUnitFilter(event.target.value)}
-              className="rounded-lg border border-slate-200/70 dark:border-white/10 bg-white/70 dark:bg-zinc-900/60 px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-200 outline-none"
-            >
-              {milestoneUnitOptions.map((unit) => (
-                <option key={unit} value={unit}>{unit === 'ALL' ? 'All Units' : unit}</option>
-              ))}
-            </select>
+              onChange={setMilestoneUnitFilter}
+              options={milestoneUnitOptions.map((unit) => ({
+                value: unit,
+                label: unit === "ALL" ? "All Units" : unit,
+              }))}
+              minWidth={120}
+            />
           </div>
         </div>
         
