@@ -108,39 +108,39 @@ export default function ProjectListPage() {
         >
           <ArrowLeft size={16} className="text-slate-600 dark:text-gray-300" />
         </button>
-        <div>
-          <h2 className="text-lg font-bold text-slate-800 dark:text-white">Projects in Range</h2>
-          <p className="text-xs text-slate-500 dark:text-slate-400">{rangeLabel}</p>
+        <h2 className="text-base font-bold text-slate-800 dark:text-white flex items-center gap-2 flex-wrap">
+          Projects in Range
+          {rangeLabel !== "All Projects" && (
+            <span className="text-xs font-normal text-slate-400 dark:text-slate-500">{rangeLabel}</span>
+          )}
+        </h2>
+      </div>
+
+      {/* Search — centered, constrained width */}
+      <div className="flex justify-center">
+        <div className="relative w-full max-w-sm">
+          <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Search project, unit, phase…"
+            className="w-full rounded-xl border border-slate-200/70 dark:border-white/10 bg-white/70 dark:bg-zinc-900/60 pl-8 pr-3 py-2 text-sm outline-none focus:ring-2 focus:ring-cyan-500/30 text-slate-800 dark:text-white"
+          />
         </div>
-        <span className="ml-auto text-xs font-semibold text-slate-500 dark:text-slate-400">
-          {loading ? "…" : filtered.length} projects
-        </span>
       </div>
 
-      {/* Search */}
-      <div className="relative">
-        <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-        <input
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          placeholder="Search project, unit, phase…"
-          className="w-full rounded-xl border border-slate-200/70 dark:border-white/10 bg-white/70 dark:bg-zinc-900/60 pl-8 pr-3 py-2 text-sm outline-none focus:ring-2 focus:ring-cyan-500/30 text-slate-800 dark:text-white"
-        />
-      </div>
-
-      {/* List */}
+      {/* List — centered */}
       {loading ? (
         <div className="flex justify-center py-24">
           <div className="w-5 h-5 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin" />
         </div>
       ) : filtered.length === 0 ? (
-        <div className="glass-card p-16 text-center text-sm text-slate-400">
+        <div className="glass-card p-16 text-center text-sm text-slate-400 max-w-2xl mx-auto">
           Tidak ada proyek dalam rentang ini.
         </div>
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-2 max-w-2xl mx-auto">
           {filtered.map(p => {
-            const progress = Number(p.overall_progress_pct ?? 0);
             const pColor = p.priority_color ?? PRIORITY_COLORS[p.priority_code ?? ""] ?? "#94a3b8";
             const phaseColor = PHASE_COLORS[p.current_phase_code ?? ""] ?? "#64748b";
 
@@ -173,34 +173,21 @@ export default function ProjectListPage() {
                       </span>
                     )}
                   </div>
-                  <p className="text-sm font-semibold text-slate-800 dark:text-white leading-snug line-clamp-1 group-hover:text-cyan-600 dark:group-hover:text-cyan-400 transition-colors">
+                  <p className="text-sm font-semibold text-slate-800 dark:text-white leading-snug line-clamp-1">
                     {p.project_name}
                   </p>
                   <p className="text-[11px] text-slate-400 mt-0.5">{p.project_code}</p>
                 </div>
 
-                {/* Phase + progress */}
-                <div className="shrink-0 text-right">
-                  {p.current_phase_name && (
-                    <span
-                      className="text-[10px] font-bold px-2 py-0.5 rounded-full"
-                      style={{ backgroundColor: `${phaseColor}18`, color: phaseColor }}
-                    >
-                      {p.current_phase_name}
-                    </span>
-                  )}
-                  <div className="mt-1.5 w-24">
-                    <div className="h-1.5 rounded-full bg-slate-200 dark:bg-white/10 overflow-hidden">
-                      <div
-                        className="h-full rounded-full"
-                        style={{ width: `${progress}%`, backgroundColor: phaseColor }}
-                      />
-                    </div>
-                    <p className="text-[10px] text-right text-slate-500 dark:text-slate-400 mt-0.5 font-semibold">
-                      {progress}%
-                    </p>
-                  </div>
-                </div>
+                {/* Phase badge only */}
+                {p.current_phase_name && (
+                  <span
+                    className="shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full"
+                    style={{ backgroundColor: `${phaseColor}18`, color: phaseColor }}
+                  >
+                    {p.current_phase_name}
+                  </span>
+                )}
 
                 <ChevronRight size={14} className="shrink-0 text-slate-300 dark:text-slate-600 group-hover:text-cyan-500 transition-colors" />
               </button>

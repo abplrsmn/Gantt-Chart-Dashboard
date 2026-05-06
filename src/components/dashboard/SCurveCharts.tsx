@@ -381,8 +381,8 @@ export default function SCurveCharts({ projects, hidePhaseDetails }: Props) {
             )}
 
             {/* S-Curve chart */}
-            <div className="flex-1 min-w-0 min-h-90 bg-zinc-950/20">
-              <ResponsiveContainer width="100%" height="100%" minHeight={360}>
+            <div className="flex-1 min-w-0 bg-zinc-950/20" style={{ height: 360 }}>
+              <ResponsiveContainer width="100%" height={360}>
                 <ComposedChart data={chartData} margin={{ top: 36, right: 12, bottom: 36, left: 0 }}>
                   <defs>
                     <linearGradient id="scTargetGrad" x1="0" y1="0" x2="0" y2="1">

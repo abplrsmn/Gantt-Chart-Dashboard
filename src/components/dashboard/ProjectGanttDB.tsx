@@ -96,6 +96,7 @@ function buildSegments(p: DBProject, timelineStart: Date, totalDays: number): Ph
   ];
 
   return raw.flatMap(r => {
+    if (r.start === null && r.end === null) return [];  // no dates → skip, don't fake
     const s = r.start ?? projectStart;
     const e = r.end   ?? addDays(s, 14);
     if (e < s) return [];
@@ -140,7 +141,6 @@ export default function ProjectGanttDB() {
     setDateRange(range);
     try { localStorage.setItem("gantt_dateRange", JSON.stringify(range)); } catch { /* ignore */ }
   };
-  const [expandedId, setExpandedId]         = useState<string | null>(null);
   const [unitFilter, setUnitFilter]         = useState<string>("");
   const [tooltip, setTooltip] = useState<{
     seg: PhaseSegment; project: DBProject; x: number; y: number;
@@ -200,11 +200,13 @@ export default function ProjectGanttDB() {
       const matchCategory  = categoryFilter  === "ALL" || p.category_code       === categoryFilter;
       const matchUnit      = !unitFilter || p.unit_code === unitFilter;
 
-      // Year filter — project has any date in selected year
-      const matchYear = yearFilter === "ALL" || [
+      // Year filter — projects with no dates are always shown; otherwise match any date in selected year
+      const yearDates = [
         p.brief_received, p.design_start, p.pm_start, p.start_date,
         p.brief_deadline, p.design_end, p.pm_end, p.handover_end,
-      ].map(toDate).filter(Boolean).some(d => d!.getFullYear() === Number(yearFilter));
+      ].map(toDate).filter((d): d is Date => d !== null);
+      const matchYear = yearFilter === "ALL" || yearDates.length === 0
+        || yearDates.some(d => d.getFullYear() === Number(yearFilter));
 
       // Project overlaps range if any phase date falls within [rangeStart, rangeEnd]
       let matchRange = true;
@@ -544,7 +546,6 @@ export default function ProjectGanttDB() {
               const segments = buildSegments(p, timeline.start, totalDays);
               const overallProgress = Number(p.overall_progress_pct ?? 0);
               const pCfg = PRIORITY_CONFIG[p.priority_code ?? ""] ?? { label: p.priority_name ?? "–", color: "#94a3b8", dot: "bg-slate-400" };
-              const isExpanded = expandedId === p.id;
 
               // Is any phase running today?
               const today = new Date();
@@ -562,7 +563,7 @@ export default function ProjectGanttDB() {
                   {/* Row */}
                   <div
                     className="flex items-center hover:bg-slate-50/70 dark:hover:bg-white/3 cursor-pointer transition-colors"
-                    onClick={() => setExpandedId(isExpanded ? null : p.id)}
+                    onClick={() => router.push(`/dashboard/projects/${p.id}`)}
                   >
                     {/* Left: project info — sticky on horizontal scroll */}
                     <div className="sticky left-0 z-10 shrink-0 w-60 px-3 py-2.5 border-r border-slate-200/40 dark:border-white/5 bg-white/95 dark:bg-zinc-900/95">
@@ -577,9 +578,6 @@ export default function ProjectGanttDB() {
                             ● TODAY
                           </span>
                         )}
-                        <span className="ml-auto text-slate-300 dark:text-slate-600">
-                          {isExpanded ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
-                        </span>
                       </div>
                       <p className="text-[11px] font-semibold text-slate-800 dark:text-white leading-snug line-clamp-2">
                         {p.unit_code ? `${p.unit_code} - ${p.project_name.split(" - ").slice(1).join(" - ") || p.project_name}` : p.project_name}
@@ -676,59 +674,6 @@ export default function ProjectGanttDB() {
                     </div>
                   </div>
 
-                  {/* Expanded phase detail */}
-                  {isExpanded && (
-                    <div className="flex border-t border-slate-100 dark:border-white/5 bg-slate-50/60 dark:bg-white/2">
-                      <div className="sticky left-0 z-10 shrink-0 w-60 border-r border-slate-200/40 dark:border-white/5 bg-slate-50/95 dark:bg-zinc-900/95" />
-                      <div className="flex-1 px-4 py-3 overflow-x-auto" style={{ width: `${totalWidth}px` }}>
-                        <div className="grid grid-cols-5 gap-2 min-w-120">
-                          {PHASES.map(ph => {
-                            const seg = segments.find(s => s.key === ph.key);
-                            const active = isPhaseActive(ph.key, p.current_phase_code);
-                            return (
-                              <div key={ph.key}
-                                className="rounded-lg p-2 border"
-                                style={{ borderColor: active ? ph.color : "rgba(148,163,184,0.2)", backgroundColor: active ? `${ph.color}10` : undefined }}
-                              >
-                                <div className="flex items-center gap-1 mb-1">
-                                  <span className="w-2 h-2 rounded-sm shrink-0" style={{ backgroundColor: ph.color }} />
-                                  <span className="text-[9px] font-bold text-slate-600 dark:text-slate-300 truncate">{ph.label}</span>
-                                  {active && <span className="ml-auto text-[8px] font-bold px-1 rounded" style={{ color: ph.color, backgroundColor: `${ph.color}20` }}>ACTIVE</span>}
-                                </div>
-                                {seg ? (
-                                  <div className="space-y-1 text-[9px] text-slate-500 dark:text-slate-400">
-                                    <div>📅 {format(seg.start, "dd MMM yy")}</div>
-                                    <div>→ {format(seg.end, "dd MMM yy")}</div>
-                                    <div className="flex items-center gap-1 mt-1">
-                                      <div className="flex-1 h-1 rounded-full bg-slate-200 dark:bg-white/10">
-                                        <div className="h-full rounded-full" style={{ width: `${seg.progress}%`, backgroundColor: ph.color }} />
-                                      </div>
-                                      <span className="font-semibold text-slate-600 dark:text-slate-300">{seg.progress}%</span>
-                                    </div>
-                                    {ph.key === "pm" && p.deviation_days !== null && (
-                                      <div className={p.deviation_days > 0 ? "text-rose-500 font-semibold" : "text-green-500 font-semibold"}>
-                                        {p.deviation_days > 0 ? `⚠ +${p.deviation_days}d delay` : `✓ ${Math.abs(p.deviation_days)}d ahead`}
-                                      </div>
-                                    )}
-                                    {ph.key === "pm" && p.current_site_progress && (
-                                      <div className="text-slate-400 truncate" title={p.current_site_progress}>{p.current_site_progress}</div>
-                                    )}
-                                  </div>
-                                ) : (
-                                  <div className="text-[9px] text-slate-300 dark:text-slate-600 italic">No data</div>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                        <div className="flex flex-wrap gap-2 mt-2">
-                          {p.phase_contract_amount && (
-                            <span className="text-[10px] text-slate-400">💰 Rp {Number(p.phase_contract_amount).toLocaleString("id-ID")}</span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  )}
                 </div>
               );
             })}
