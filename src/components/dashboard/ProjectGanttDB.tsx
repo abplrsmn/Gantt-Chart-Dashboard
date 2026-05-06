@@ -73,6 +73,8 @@ type DBProject = {
   working_drawing_status: string | null;
   unit_name: string | null;
   unit_code: string | null;
+  category_code: string | null;
+  category_name: string | null;
 };
 
 type PhaseSegment = {
@@ -136,7 +138,9 @@ export default function ProjectGanttDB() {
   const [error, setError]       = useState<string | null>(null);
   const [search, setSearch]     = useState("");
   const [priorityFilter, setPriorityFilter] = useState("ALL");
-  const [yearFilter, setYearFilter]         = useState<string>("ALL");
+  const [phaseFilter, setPhaseFilter]       = useState("ALL");
+  const [categoryFilter, setCategoryFilter] = useState("ALL");
+  const [yearFilter, setYearFilter]         = useState<string>("2026");
   const [dateRange, setDateRange] = useState<{ start: string; end: string }>(() => {
     try {
       const saved = typeof window !== "undefined" ? localStorage.getItem("gantt_dateRange") : null;
@@ -150,7 +154,6 @@ export default function ProjectGanttDB() {
   };
   const [expandedId, setExpandedId]         = useState<string | null>(null);
   const [unitFilter, setUnitFilter]         = useState<string>("");
-  const [projectFilter, setProjectFilter]   = useState<string>("");
   const [tooltip, setTooltip] = useState<{
     seg: PhaseSegment; project: DBProject; x: number; y: number;
   } | null>(null);
@@ -181,17 +184,6 @@ export default function ProjectGanttDB() {
     ];
   }, [projects]);
 
-  const projectOptions = useMemo(() => {
-    const pool = unitFilter ? projects.filter(p => p.unit_code === unitFilter) : projects;
-    return [
-      { value: "", label: "All Projects" },
-      ...pool.map(p => {
-        const parts = p.project_name.split(" - ");
-        const name = parts.length > 1 ? parts.slice(1).join(" - ") : p.project_name;
-        return { value: p.id, label: `${p.unit_code ? p.unit_code + " · " : ""}${name}` };
-      }),
-    ];
-  }, [projects, unitFilter]);
 
   // Available years — always include current year
   const availableYears = useMemo(() => {
@@ -215,9 +207,10 @@ export default function ProjectGanttDB() {
     return projects.filter(p => {
       const matchSearch = [p.project_name, p.project_code, p.status_label, p.current_phase_name]
         .join(" ").toLowerCase().includes(search.toLowerCase());
-      const matchPriority = priorityFilter === "ALL" || p.priority_code === priorityFilter;
-      const matchUnit     = !unitFilter    || p.unit_code === unitFilter;
-      const matchProject  = !projectFilter || p.id        === projectFilter;
+      const matchPriority  = priorityFilter  === "ALL" || p.priority_code       === priorityFilter;
+      const matchPhase     = phaseFilter     === "ALL" || p.current_phase_code  === phaseFilter;
+      const matchCategory  = categoryFilter  === "ALL" || p.category_code       === categoryFilter;
+      const matchUnit      = !unitFilter || p.unit_code === unitFilter;
 
       // Year filter — project has any date in selected year
       const matchYear = yearFilter === "ALL" || [
@@ -243,9 +236,9 @@ export default function ProjectGanttDB() {
           : projectMin <= rangeEnd && projectMax >= rangeStart;
       }
 
-      return matchSearch && matchPriority && matchUnit && matchProject && matchYear && matchRange;
+      return matchSearch && matchPriority && matchPhase && matchCategory && matchUnit && matchYear && matchRange;
     });
-  }, [projects, search, priorityFilter, unitFilter, projectFilter, yearFilter, rangeStart, rangeEnd]);
+  }, [projects, search, priorityFilter, phaseFilter, categoryFilter, unitFilter, yearFilter, rangeStart, rangeEnd]);
 
   // Timeline: year filter sets bounds. Date range is NEVER used to crop — it draws ruler lines instead.
   const timeline = useMemo(() => {
@@ -276,9 +269,11 @@ export default function ProjectGanttDB() {
       }
     }
 
-    // CRITICAL: Snap to Monday and Sunday to align with WEEK_W grid
+    // Snap to week boundaries for WEEK_W grid alignment.
+    // Clamp start to Jan 1 of the chosen year so Dec of prior year never leaks in.
+    const snappedStart = startOfWeek(s, { weekStartsOn: 1 });
     return {
-      start: startOfWeek(s, { weekStartsOn: 1 }),
+      start: snappedStart < s ? s : snappedStart,
       end:   endOfWeek(e, { weekStartsOn: 1 }),
     };
   }, [projects, yearFilter]);
@@ -384,9 +379,9 @@ export default function ProjectGanttDB() {
 
   return (
     <div className="space-y-3 relative" ref={containerRef}>
-      {/* Controls — row 1: search + priority + year */}
-      <div className="flex flex-col sm:flex-row gap-2 items-center">
-        <label className="relative flex-1">
+      {/* Controls — single row: search + unit + phase + priority + year */}
+      <div className="flex flex-wrap gap-2 items-center">
+        <label className="relative flex-1 min-w-48">
           <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             value={search}
@@ -395,6 +390,25 @@ export default function ProjectGanttDB() {
             className="w-full rounded-xl border border-slate-200/70 dark:border-white/10 bg-white/70 dark:bg-zinc-900/60 pl-8 pr-3 py-2 text-sm outline-none focus:ring-2 focus:ring-cyan-500/30 text-slate-800 dark:text-white"
           />
         </label>
+        <AnimatedDropdown
+          value={unitFilter}
+          onChange={setUnitFilter}
+          options={unitOptions}
+          minWidth={130}
+        />
+        <AnimatedDropdown
+          value={phaseFilter}
+          onChange={setPhaseFilter}
+          options={[
+            { value: "ALL",                  label: "All Phases" },
+            { value: "operational_brief",    label: "Operational Brief" },
+            { value: "design",               label: "Design" },
+            { value: "project_control",      label: "Project Control" },
+            { value: "project_management",   label: "Project Management" },
+            { value: "handover",             label: "Handover" },
+          ]}
+          minWidth={160}
+        />
         <AnimatedDropdown
           value={priorityFilter}
           onChange={setPriorityFilter}
@@ -405,7 +419,7 @@ export default function ProjectGanttDB() {
             { value: "MID",      label: "Mid",      color: "#eab308" },
             { value: "LOW",      label: "Low",      color: "#22c55e" },
           ]}
-          minWidth={160}
+          minWidth={148}
         />
         <AnimatedDropdown
           value={yearFilter}
@@ -414,32 +428,15 @@ export default function ProjectGanttDB() {
             { value: "ALL", label: "All Years" },
             ...availableYears.map(y => ({ value: String(y), label: String(y) })),
           ]}
-          minWidth={130}
+          minWidth={110}
           align="right"
         />
-      </div>
-
-      {/* Controls — row 2: unit + project */}
-      <div className="flex flex-col sm:flex-row gap-2 items-center">
-        <AnimatedDropdown
-          value={unitFilter}
-          onChange={val => { setUnitFilter(val); setProjectFilter(""); }}
-          options={unitOptions}
-          minWidth={160}
-        />
-        <AnimatedDropdown
-          value={projectFilter}
-          onChange={setProjectFilter}
-          options={projectOptions}
-          minWidth={260}
-          disabled={unitOptions.length <= 1}
-        />
-        {(unitFilter || projectFilter) && (
+        {(unitFilter || phaseFilter !== "ALL" || priorityFilter !== "ALL" || categoryFilter !== "ALL") && (
           <button
-            onClick={() => { setUnitFilter(""); setProjectFilter(""); }}
+            onClick={() => { setUnitFilter(""); setPhaseFilter("ALL"); setPriorityFilter("ALL"); setCategoryFilter("ALL"); }}
             className="text-[11px] font-semibold text-slate-400 hover:text-rose-400 transition-colors whitespace-nowrap px-2 py-1.5"
           >
-            Clear filters ×
+            Clear ×
           </button>
         )}
       </div>

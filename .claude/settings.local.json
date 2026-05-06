@@ -3,7 +3,9 @@
     "allow": [
       "Bash(node -e \"const c=require\\('crypto'\\);console.log\\(c.randomBytes\\(32\\).toString\\('hex'\\)\\)\")",
       "Bash(node -e ' *)",
-      "Bash(find \"/c/Users/abrah/clickup-dashboard/src/app/api/capex\" -type d -empty -delete)"
+      "Bash(find \"/c/Users/abrah/clickup-dashboard/src/app/api/capex\" -type d -empty -delete)",
+      "Bash(node -e ':*)",
+      "Bash(ls c:/Users/abrah/clickup-dashboard/.env*)"
     ],
     "additionalDirectories": [
       "C:\\Users\\abrah\\clickup-dashboard\\src\\app\\api\\clickup"

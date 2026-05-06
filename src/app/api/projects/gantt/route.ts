@@ -33,6 +33,8 @@ export async function GET() {
         mpr.level             AS priority_level,
         mu.unit_code,
         mu.unit_name,
+        mc.category_code,
+        mc.category_name,
 
         -- Phase-level dates from project_phases (one row per phase per project)
         ob.normalized_deadline_date   AS brief_deadline,
@@ -65,6 +67,7 @@ export async function GET() {
       LEFT JOIN master_statuses ms           ON ms.id = p.overall_status_id
       LEFT JOIN master_priorities mpr        ON mpr.id = p.priority_id
       LEFT JOIN master_units mu              ON mu.id = p.unit_id
+      LEFT JOIN master_project_categories mc ON mc.id = p.category_id
 
       -- Join each phase row
       LEFT JOIN project_phases ob  ON ob.project_id = p.id AND ob.phase_id = 1
