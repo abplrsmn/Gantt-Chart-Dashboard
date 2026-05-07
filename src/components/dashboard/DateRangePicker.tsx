@@ -287,19 +287,22 @@ export default function DateRangePicker({ value, onChange }: Props) {
       </button>
 
       {/* ── Panel — fixed position to avoid overflow ── */}
-      {open && (
-        <div
-          className="fixed z-[9999] rounded-2xl border border-white/8 shadow-2xl"
-          style={{
-            top:    panelPos.top,
-            left:   panelPos.left,
-            width:  PANEL_W,
-            maxWidth: "calc(100vw - 32px)",
-            backgroundColor: "rgba(11,15,26,0.98)",
-            backdropFilter: "blur(24px)",
-            boxShadow: "0 24px 64px rgba(0,0,0,0.65), 0 0 0 1px rgba(255,255,255,0.05)",
-          }}
-        >
+      <div
+        className="fixed z-[9999] rounded-2xl border border-white/8 shadow-2xl"
+        style={{
+          top:    panelPos.top,
+          left:   panelPos.left,
+          width:  PANEL_W,
+          maxWidth: "calc(100vw - 32px)",
+          backgroundColor: "rgba(11,15,26,0.98)",
+          backdropFilter: "blur(24px)",
+          boxShadow: "0 24px 64px rgba(0,0,0,0.65), 0 0 0 1px rgba(255,255,255,0.05)",
+          opacity: open ? 1 : 0,
+          transform: open ? "scale(1) translateY(0)" : "scale(0.97) translateY(-8px)",
+          pointerEvents: open ? "auto" : "none",
+          transition: "opacity 0.22s ease, transform 0.22s cubic-bezier(0.34,1.56,0.64,1)",
+        }}
+      >
           {/* ── Step indicator + date fields ── */}
           <div className="px-4 pt-4 pb-3 border-b border-white/6">
             <div className="flex items-center gap-3">
@@ -361,8 +364,11 @@ export default function DateRangePicker({ value, onChange }: Props) {
 
               <div className="w-px bg-white/6 self-stretch" />
 
-              {/* Right calendar */}
-              <div className="flex-1 min-w-0">
+              {/* Right calendar — disabled while picking start */}
+              <div
+                className="flex-1 min-w-0 transition-opacity duration-150"
+                style={{ opacity: step === "start" ? 0.3 : 1, pointerEvents: step === "start" ? "none" : "auto" }}
+              >
                 <CalHeader
                   m={rightMonth} mode={rightMode}
                   onNavPrev={() => { setRightMonth(m => subMonths(m, 1)); setRightMode("calendar"); }}
@@ -414,7 +420,7 @@ export default function DateRangePicker({ value, onChange }: Props) {
             </div>
           </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }

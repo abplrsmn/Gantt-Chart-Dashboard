@@ -28,6 +28,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     try {
       await fetch("/api/auth/logout", { method: "POST", credentials: "include", cache: "no-store" });
     } catch { /* continue */ }
+    localStorage.removeItem("gantt_dateRange");
+    localStorage.removeItem("projects_dateRange");
     window.location.href = "/";
   };
 
