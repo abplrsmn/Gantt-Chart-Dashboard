@@ -95,8 +95,15 @@ export async function createAuthCookie(user: AuthUser) {
     path: '/',
     maxAge: AUTH_COOKIE_MAX_AGE,
   });
-  // Non-httpOnly cookie so client-side JS can read the role for UI rendering
+  // Non-httpOnly cookies so client-side JS can read role + identity for UI/localStorage keying
   cookieStore.set('user_role', user.role, {
+    httpOnly: false,
+    sameSite: 'lax',
+    secure: isProduction,
+    path: '/',
+    maxAge: AUTH_COOKIE_MAX_AGE,
+  });
+  cookieStore.set('user_id', String(user.accId), {
     httpOnly: false,
     sameSite: 'lax',
     secure: isProduction,
@@ -116,6 +123,13 @@ export async function clearAuthCookie() {
     maxAge: 0,
   });
   cookieStore.set('user_role', '', {
+    httpOnly: false,
+    sameSite: 'lax',
+    secure: isProduction,
+    path: '/',
+    maxAge: 0,
+  });
+  cookieStore.set('user_id', '', {
     httpOnly: false,
     sameSite: 'lax',
     secure: isProduction,

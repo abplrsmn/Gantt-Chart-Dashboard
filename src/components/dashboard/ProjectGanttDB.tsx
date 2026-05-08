@@ -14,6 +14,16 @@ function getRoleFromCookie(): string {
   return match ? match[1].trim() : "admin";
 }
 
+function getUserIdFromCookie(): string {
+  if (typeof document === "undefined") return "default";
+  const match = document.cookie.match(/(?:^|;\s*)user_id=([^;]+)/);
+  return match ? match[1].trim() : "default";
+}
+
+function dateRangeKey(): string {
+  return `gantt_dateRange_${getUserIdFromCookie()}`;
+}
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 type PhaseKey = "brief" | "design" | "control" | "pm" | "handover";
 
@@ -142,7 +152,7 @@ export default function ProjectGanttDB() {
   const [phaseFilter, setPhaseFilter]       = useState("ALL");
   const [dateRange, setDateRange] = useState<{ start: string; end: string }>(() => {
     try {
-      const saved = typeof window !== "undefined" ? localStorage.getItem("gantt_dateRange") : null;
+      const saved = typeof window !== "undefined" ? localStorage.getItem(dateRangeKey()) : null;
       if (saved) return JSON.parse(saved);
     } catch { /* ignore */ }
     const last = subMonths(new Date(), 1);
@@ -151,7 +161,7 @@ export default function ProjectGanttDB() {
 
   const handleDateRangeChange = (range: { start: string; end: string }) => {
     setDateRange(range);
-    try { localStorage.setItem("gantt_dateRange", JSON.stringify(range)); } catch { /* ignore */ }
+    try { localStorage.setItem(dateRangeKey(), JSON.stringify(range)); } catch { /* ignore */ }
   };
   const [unitFilter, setUnitFilter]         = useState<string>("");
   const [tooltip, setTooltip] = useState<{
@@ -401,7 +411,7 @@ export default function ProjectGanttDB() {
       <div className="rounded-2xl border border-slate-200/60 dark:border-white/8 bg-white/60 dark:bg-zinc-900/50 backdrop-blur-sm">
 
         {/* ── Sticky headers (outside overflow-x-auto so they stick on vertical scroll) ── */}
-        <div className="sticky top-0 z-30 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md rounded-t-2xl border-b border-slate-200/60 dark:border-white/8">
+        <div className={`sticky ${userRole === "pm" ? "top-0" : "top-14"} z-30 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md rounded-t-2xl border-b border-slate-200/60 dark:border-white/8`}>
           {/* header scroll mirror — hidden overflow, synced via JS */}
           <div ref={headerRef} className="overflow-x-hidden">
             <div style={{ minWidth: `${240 + totalWidth}px` }}>
