@@ -2,10 +2,17 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { differenceInCalendarDays, format, addDays, isValid, startOfWeek, endOfWeek, addWeeks } from "date-fns";
-import { Search, ChevronDown, ChevronUp, ArrowRight } from "lucide-react";
+import { differenceInCalendarDays, format, addDays, isValid, startOfWeek, endOfWeek, addWeeks, subMonths, startOfMonth, endOfMonth } from "date-fns";
+import { Search, ArrowRight } from "lucide-react";
 import DateRangePicker from "./DateRangePicker";
 import AnimatedDropdown from "./AnimatedDropdown";
+import QuickMenu from "./QuickMenu";
+
+function getRoleFromCookie(): string {
+  if (typeof document === "undefined") return "admin";
+  const match = document.cookie.match(/(?:^|;\s*)user_role=([^;]+)/);
+  return match ? match[1].trim() : "admin";
+}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type PhaseKey = "brief" | "design" | "control" | "pm" | "handover";
@@ -84,6 +91,11 @@ function toDate(val: string | null | undefined): Date | null {
   return isValid(d) ? d : null;
 }
 
+const PHASE_CODE_MAP: Record<string, PhaseKey> = {
+  operational_brief: "brief", design: "design",
+  project_control: "control", project_management: "pm", handover: "handover",
+};
+
 function buildSegments(p: DBProject, timelineStart: Date, totalDays: number): PhaseSegment[] {
   const projectStart = toDate(p.start_date) ?? timelineStart;
 
@@ -96,12 +108,15 @@ function buildSegments(p: DBProject, timelineStart: Date, totalDays: number): Ph
   ];
 
   return raw.flatMap(r => {
-    if (r.start === null && r.end === null) return [];  // no dates → skip, don't fake
+    if (r.start === null && r.end === null) return [];
     const s = r.start ?? projectStart;
     const e = r.end   ?? addDays(s, 14);
     if (e < s) return [];
-    const offsetDays = differenceInCalendarDays(s, timelineStart);
-    const widthDays  = Math.max(1, differenceInCalendarDays(e, s));
+    // Snap visual position to week boundaries, but keep original dates for tooltip
+    const visualStart = startOfWeek(s, { weekStartsOn: 1 });
+    const visualEnd   = endOfWeek(e,   { weekStartsOn: 1 });
+    const offsetDays = differenceInCalendarDays(visualStart, timelineStart);
+    const widthDays  = Math.max(7, differenceInCalendarDays(visualEnd, visualStart) + 1);
     const offsetPct  = Math.max(0, (offsetDays / totalDays) * 100);
     const widthPct   = Math.max(0.3, (widthDays / totalDays) * 100);
     const ph = PHASES.find(ph => ph.key === r.key)!;
@@ -111,11 +126,7 @@ function buildSegments(p: DBProject, timelineStart: Date, totalDays: number): Ph
 
 function isPhaseActive(phKey: PhaseKey, phaseCode: string | null): boolean {
   if (!phaseCode) return false;
-  const map: Record<string, PhaseKey> = {
-    operational_brief: "brief", design: "design",
-    project_control: "control", project_management: "pm", handover: "handover",
-  };
-  return map[phaseCode] === phKey;
+  return PHASE_CODE_MAP[phaseCode] === phKey;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -126,15 +137,16 @@ export default function ProjectGanttDB() {
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState<string | null>(null);
   const [search, setSearch]     = useState("");
+  const [userRole, setUserRole]             = useState<string>("");
   const [priorityFilter, setPriorityFilter] = useState("ALL");
   const [phaseFilter, setPhaseFilter]       = useState("ALL");
-  const [categoryFilter, setCategoryFilter] = useState("ALL");
-  const [yearFilter, setYearFilter]         = useState<string>("2026");
   const [dateRange, setDateRange] = useState<{ start: string; end: string }>(() => {
     try {
       const saved = typeof window !== "undefined" ? localStorage.getItem("gantt_dateRange") : null;
-      return saved ? JSON.parse(saved) : { start: "", end: "" };
-    } catch { return { start: "", end: "" }; }
+      if (saved) return JSON.parse(saved);
+    } catch { /* ignore */ }
+    const last = subMonths(new Date(), 1);
+    return { start: format(startOfMonth(last), "yyyy-MM-dd"), end: format(endOfMonth(last), "yyyy-MM-dd") };
   });
 
   const handleDateRangeChange = (range: { start: string; end: string }) => {
@@ -145,6 +157,7 @@ export default function ProjectGanttDB() {
   const [tooltip, setTooltip] = useState<{
     seg: PhaseSegment; project: DBProject; x: number; y: number;
   } | null>(null);
+  const [rangeTooltipPos, setRangeTooltipPos] = useState<{ x: number; y: number } | null>(null);
 
   // Refs for synced horizontal scroll between sticky header and body
   const headerRef = useRef<HTMLDivElement>(null);
@@ -157,6 +170,7 @@ export default function ProjectGanttDB() {
   };
 
   useEffect(() => {
+    setUserRole(getRoleFromCookie());
     fetch("/api/projects/gantt", { cache: "no-store" })
       .then(r => r.json())
       .then(json => { if (json.success) setProjects(json.data); else setError(json.error ?? "error"); })
@@ -173,102 +187,53 @@ export default function ProjectGanttDB() {
   }, [projects]);
 
 
-  // Available years — always include current year
-  const availableYears = useMemo(() => {
-    const years = new Set<number>();
-    years.add(new Date().getFullYear());
-    for (const p of projects) {
-      [p.brief_received, p.design_start, p.pm_start, p.handover_start, p.start_date,
-       p.brief_deadline, p.design_end, p.control_start, p.control_end, p.pm_end, p.handover_end]
-        .map(toDate).filter(Boolean).forEach(d => years.add(d!.getFullYear()));
-    }
-    return Array.from(years)
-      .filter(y => y >= 2025)
-      .sort();
-  }, [projects]);
-
   // Date range bounds
   const rangeStart = useMemo(() => dateRange.start ? new Date(dateRange.start) : null, [dateRange.start]);
   const rangeEnd   = useMemo(() => dateRange.end   ? new Date(dateRange.end)   : null, [dateRange.end]);
 
-  const filtered = useMemo(() => {
+  const filteredProjects = useMemo(() => {
     return projects.filter(p => {
       const matchSearch = [p.project_name, p.project_code, p.status_label, p.current_phase_name]
         .join(" ").toLowerCase().includes(search.toLowerCase());
-      const matchPriority  = priorityFilter  === "ALL" || p.priority_code       === priorityFilter;
-      const matchPhase     = phaseFilter     === "ALL" || p.current_phase_code  === phaseFilter;
-      const matchCategory  = categoryFilter  === "ALL" || p.category_code       === categoryFilter;
-      const matchUnit      = !unitFilter || p.unit_code === unitFilter;
-
-      // Year filter — projects with no dates are always shown; otherwise match any date in selected year
-      const yearDates = [
-        p.brief_received, p.design_start, p.pm_start, p.start_date,
-        p.brief_deadline, p.design_end, p.pm_end, p.handover_end,
-      ].map(toDate).filter((d): d is Date => d !== null);
-      const matchYear = yearFilter === "ALL" || yearDates.length === 0
-        || yearDates.some(d => d.getFullYear() === Number(yearFilter));
-
-      // Project overlaps range if any phase date falls within [rangeStart, rangeEnd]
-      let matchRange = true;
-      if (rangeStart && rangeEnd) {
-        const dates = [
-          p.brief_received, p.brief_deadline,
-          p.design_start, p.design_end,
-          p.control_start, p.control_end,
-          p.pm_start, p.pm_end,
-          p.handover_start, p.handover_end,
-          p.start_date, p.end_date,
-        ].map(toDate).filter((d): d is Date => d !== null);
-        const projectMin = dates.length ? new Date(Math.min(...dates.map(d => d.getTime()))) : null;
-        const projectMax = dates.length ? new Date(Math.max(...dates.map(d => d.getTime()))) : null;
-        matchRange = !projectMin || !projectMax
-          ? true
-          : projectMin <= rangeEnd && projectMax >= rangeStart;
-      }
-
-      return matchSearch && matchPriority && matchPhase && matchCategory && matchUnit && matchYear && matchRange;
+      const matchPriority = priorityFilter === "ALL" || p.priority_code      === priorityFilter;
+      const matchPhase    = phaseFilter    === "ALL" || p.current_phase_code === phaseFilter;
+      const matchUnit     = !unitFilter || p.unit_code === unitFilter;
+      // We no longer filter by date range here as per user request
+      return matchSearch && matchPriority && matchPhase && matchUnit;
     });
-  }, [projects, search, priorityFilter, phaseFilter, categoryFilter, unitFilter, yearFilter, rangeStart, rangeEnd]);
+  }, [projects, search, priorityFilter, phaseFilter, unitFilter]);
 
-  // Timeline: year filter sets bounds. Date range is NEVER used to crop — it draws ruler lines instead.
+  // Timeline: always spans full year(s) based on project dates — date range never crops the ruler.
   const timeline = useMemo(() => {
+    const allDates: Date[] = [];
+    for (const p of projects) {
+      [p.brief_received, p.brief_deadline, p.design_start, p.design_end,
+       p.control_start, p.control_end, p.pm_start, p.pm_end,
+       p.handover_start, p.handover_end, p.start_date, p.end_date]
+        .map(toDate).filter((d): d is Date => d !== null).forEach(d => allDates.push(d));
+    }
+
     let s: Date;
     let e: Date;
-
-    if (yearFilter !== "ALL") {
-      const y = Number(yearFilter);
+    if (allDates.length === 0) {
+      const y = new Date().getFullYear();
       s = new Date(y, 0, 1);
       e = new Date(y, 11, 31);
     } else {
-      const allDates: Date[] = [];
-      for (const p of projects) {
-        [p.brief_received, p.brief_deadline, p.design_start, p.design_end,
-         p.control_start, p.control_end, p.pm_start, p.pm_end,
-         p.handover_start, p.handover_end, p.start_date, p.end_date]
-          .map(toDate).filter((d): d is Date => d !== null).forEach(d => allDates.push(d));
-      }
-      if (allDates.length === 0) {
-        const y = new Date().getFullYear();
-        s = new Date(y, 0, 1);
-        e = new Date(y, 11, 31);
-      } else {
-        const minT = Math.min(...allDates.map(d => d.getTime()));
-        const maxT = Math.max(...allDates.map(d => d.getTime()));
-        s = new Date(new Date(minT).getFullYear(), 0, 1);
-        e = new Date(new Date(maxT).getFullYear(), 11, 31);
-      }
+      const minT = Math.min(...allDates.map(d => d.getTime()));
+      const maxT = Math.max(...allDates.map(d => d.getTime()));
+      s = new Date(new Date(minT).getFullYear(), 0, 1);
+      e = new Date(new Date(maxT).getFullYear(), 11, 31);
     }
 
-    // Snap to week boundaries for WEEK_W grid alignment.
-    // Clamp start to Jan 1 of the chosen year so Dec of prior year never leaks in.
     const snappedStart = startOfWeek(s, { weekStartsOn: 1 });
     return {
       start: snappedStart < s ? s : snappedStart,
       end:   endOfWeek(e, { weekStartsOn: 1 }),
     };
-  }, [projects, yearFilter]);
+  }, [projects]);
 
-  // Ruler pixel positions for date range picker
+  // Ruler overlay positions for the selected date range
   const rangeRulers = useMemo(() => {
     if (!rangeStart || !rangeEnd || !isValid(rangeStart) || !isValid(rangeEnd)) return null;
     const days = differenceInCalendarDays(timeline.end, timeline.start) || 1;
@@ -331,14 +296,14 @@ export default function ProjectGanttDB() {
     if (!rangeStart || !rangeEnd) return null;
     let totalActiveProjects = 0;
 
-    filtered.forEach(p => {
+    filteredProjects.forEach(p => {
       const segs = buildSegments(p, timeline.start, totalDays);
       const hasOverlap = segs.some(s => s.start <= rangeEnd && s.end >= rangeStart);
       if (hasOverlap) totalActiveProjects++;
     });
 
     return { totalActiveProjects };
-  }, [filtered, rangeStart, rangeEnd, timeline, totalDays]);
+  }, [filteredProjects, rangeStart, rangeEnd, timeline, totalDays]);
 
   const WEEK_W = 36; // px per week column
   const totalWidth = weekCols.length * WEEK_W; // total gantt width in px
@@ -354,24 +319,40 @@ export default function ProjectGanttDB() {
   );
 
   return (
-    <div className="space-y-3 relative" ref={containerRef}>
-      {/* Controls — single row: search + unit + phase + priority + year */}
+    <div className="space-y-3 relative overflow-x-hidden" ref={containerRef}>
+      {/* Controls: search + ongoing badge + details | datepicker | phase | priority | unit */}
       <div className="flex flex-wrap gap-2 items-center">
-        <label className="relative flex-1 min-w-48">
-          <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Search project, phase, status..."
-            className="w-full rounded-xl border border-slate-200/70 dark:border-white/10 bg-white/70 dark:bg-zinc-900/60 pl-8 pr-3 py-2 text-sm outline-none focus:ring-2 focus:ring-cyan-500/30 text-slate-800 dark:text-white"
-          />
-        </label>
-        <AnimatedDropdown
-          value={unitFilter}
-          onChange={setUnitFilter}
-          options={unitOptions}
-          minWidth={130}
-        />
+        {/* Search + ongoing count + details button */}
+        <div className="flex items-center gap-2 flex-1 min-w-48">
+          <label className="relative flex-1">
+            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search project, phase, status..."
+              className="w-full rounded-xl border border-slate-200/70 dark:border-white/10 bg-white/70 dark:bg-zinc-900/60 pl-8 pr-3 py-2 text-[12px] outline-none text-slate-800 dark:text-white"
+            />
+          </label>
+          <span className="shrink-0 text-[11px] font-bold text-cyan-600 dark:text-cyan-400 bg-cyan-500/10 border border-cyan-500/20 px-2.5 py-1.5 rounded-lg whitespace-nowrap">
+            {rangeSummary ? rangeSummary.totalActiveProjects : 0} ongoing
+          </span>
+          <button
+            disabled={!rangeSummary}
+            onClick={() => {
+              if (!rangeSummary) return;
+              const qs = new URLSearchParams({ start: dateRange.start, end: dateRange.end });
+              router.push(`/dashboard/projects/list?${qs.toString()}`);
+            }}
+            className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all whitespace-nowrap ${
+              rangeSummary
+                ? "bg-cyan-500 hover:bg-cyan-400 text-white shadow-sm shadow-cyan-500/20 cursor-pointer"
+                : "bg-slate-200 dark:bg-zinc-700 text-slate-400 dark:text-zinc-500 cursor-not-allowed"
+            }`}
+          >
+            Details <ArrowRight size={11} />
+          </button>
+        </div>
+        <DateRangePicker value={dateRange} onChange={handleDateRangeChange} />
         <AnimatedDropdown
           value={phaseFilter}
           onChange={setPhaseFilter}
@@ -398,23 +379,12 @@ export default function ProjectGanttDB() {
           minWidth={148}
         />
         <AnimatedDropdown
-          value={yearFilter}
-          onChange={setYearFilter}
-          options={[
-            { value: "ALL", label: "All Years" },
-            ...availableYears.map(y => ({ value: String(y), label: String(y) })),
-          ]}
-          minWidth={110}
-          align="right"
+          value={unitFilter}
+          onChange={setUnitFilter}
+          options={unitOptions}
+          minWidth={130}
         />
-        {(unitFilter || phaseFilter !== "ALL" || priorityFilter !== "ALL" || categoryFilter !== "ALL") && (
-          <button
-            onClick={() => { setUnitFilter(""); setPhaseFilter("ALL"); setPriorityFilter("ALL"); setCategoryFilter("ALL"); }}
-            className="text-[11px] font-semibold text-slate-400 hover:text-rose-400 transition-colors whitespace-nowrap px-2 py-1.5"
-          >
-            Clear ×
-          </button>
-        )}
+        {userRole === "pm" && <QuickMenu align="right" />}
       </div>
 
       {/* Legend */}
@@ -425,42 +395,13 @@ export default function ProjectGanttDB() {
             {ph.label}
           </div>
         ))}
-        <span className="ml-auto text-[11px] text-slate-400 italic">{filtered.length} / {projects.length} projects</span>
       </div>
-
-      {/* Date range picker */}
-      <DateRangePicker value={dateRange} onChange={handleDateRangeChange} />
-
-      {/* Selected Range Banner */}
-      {rangeStart && rangeEnd && rangeSummary && (
-        <div className="flex items-center gap-4 px-4 py-3 rounded-xl border border-slate-200/60 dark:border-white/8 bg-white/50 dark:bg-zinc-900/40">
-          <div className="flex-1">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Date Range Overview</p>
-            <p className="text-sm font-bold text-slate-800 dark:text-white">
-              {rangeSummary.totalActiveProjects} Projects Ongoing
-            </p>
-          </div>
-          <button
-            onClick={() => {
-              const qs = new URLSearchParams({
-                start: dateRange.start,
-                end: dateRange.end,
-              });
-              router.push(`/dashboard/projects/list?${qs.toString()}`);
-            }}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-white text-xs font-bold transition-all shadow-md shadow-cyan-500/20 hover:shadow-cyan-400/30 shrink-0"
-          >
-            Details
-            <ArrowRight size={13} />
-          </button>
-        </div>
-      )}
 
       {/* Gantt */}
       <div className="rounded-2xl border border-slate-200/60 dark:border-white/8 bg-white/60 dark:bg-zinc-900/50 backdrop-blur-sm">
 
         {/* ── Sticky headers (outside overflow-x-auto so they stick on vertical scroll) ── */}
-        <div className="sticky top-14 z-30 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md rounded-t-2xl border-b border-slate-200/60 dark:border-white/8">
+        <div className="sticky top-0 z-30 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md rounded-t-2xl border-b border-slate-200/60 dark:border-white/8">
           {/* header scroll mirror — hidden overflow, synced via JS */}
           <div ref={headerRef} className="overflow-x-hidden">
             <div style={{ minWidth: `${240 + totalWidth}px` }}>
@@ -487,20 +428,22 @@ export default function ProjectGanttDB() {
               <div className="flex">
                 <div className="sticky left-0 z-10 shrink-0 w-60 border-r border-slate-200/60 dark:border-white/8 bg-white/95 dark:bg-zinc-900/95" />
                 <div className="relative flex" style={{ width: `${totalWidth}px` }}>
-                  {weekCols.map((wc, i) => (
-                    <div
-                      key={i}
-                      className={`text-center text-[9px] py-1 border-r shrink-0 ${
-                        wc.isFirstOfMonth
-                          ? "border-slate-300/60 dark:border-white/12 font-bold text-slate-500 dark:text-slate-300"
-                          : "border-slate-100/70 dark:border-white/5 text-slate-400 dark:text-slate-500"
-                      }`}
-                      style={{ width: `${WEEK_W}px` }}
-                      title={`${format(wc.start, "dd MMM")} – ${format(wc.end, "dd MMM yyyy")}`}
-                    >
-                      W{wc.weekNum}
-                    </div>
-                  ))}
+                  {weekCols.map((wc, i) => {
+                    const isLastOfMonth = i < weekCols.length - 1 && weekCols[i + 1].isFirstOfMonth;
+                    return (
+                      <div
+                        key={i}
+                        className={`text-center text-[9px] py-1 border-r shrink-0 ${
+                          isLastOfMonth
+                            ? "border-slate-300/60 dark:border-white/12"
+                            : "border-slate-100/70 dark:border-white/5"
+                        } ${wc.isFirstOfMonth ? "font-bold text-slate-500 dark:text-slate-300" : "text-slate-400 dark:text-slate-500"}`}
+                        style={{ width: `${WEEK_W}px` }}
+                      >
+                        W{wc.weekNum}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -509,7 +452,25 @@ export default function ProjectGanttDB() {
         </div>
 
         {/* ── Scrollable body ── */}
-        <div ref={bodyRef} className="overflow-x-auto relative" onScroll={onBodyScroll}>
+        <div
+          ref={bodyRef}
+          className="overflow-x-auto relative bg-white/95 dark:bg-zinc-900/95"
+          onScroll={onBodyScroll}
+          onMouseMove={(e) => {
+            if (!rangeRulers || !bodyRef.current || !containerRef.current) { setRangeTooltipPos(null); return; }
+            const bodyRect = bodyRef.current.getBoundingClientRect();
+            const contentX = e.clientX - bodyRect.left + bodyRef.current.scrollLeft;
+            const rangeLeft  = 240 + (rangeRulers.startPct  / 100) * totalWidth;
+            const rangeRight = 240 + (rangeRulers.endPct / 100) * totalWidth;
+            if (contentX >= rangeLeft && contentX <= rangeRight) {
+              const cr = containerRef.current.getBoundingClientRect();
+              setRangeTooltipPos({ x: e.clientX - cr.left, y: e.clientY - cr.top });
+            } else {
+              setRangeTooltipPos(null);
+            }
+          }}
+          onMouseLeave={() => setRangeTooltipPos(null)}
+        >
           <div style={{ minWidth: `${240 + totalWidth}px` }} className="relative">
 
             {/* Continuous Vertical Lines Overlay */}
@@ -521,28 +482,25 @@ export default function ProjectGanttDB() {
                 </div>
               </div>
 
-              {/* Date range Selection Block */}
+              {/* Date range overlay block */}
               {rangeRulers && (
                 <div
-                  className="absolute top-0 bottom-0 z-0 pointer-events-none border-t-[3px] border-cyan-400 bg-linear-to-b from-cyan-400/10 to-transparent"
+                  className="absolute top-0 bottom-0 z-0 pointer-events-none border-t-[3px] border-cyan-400 bg-cyan-400/10"
                   style={{
                     left: `${(rangeRulers.startPct / 100) * totalWidth}px`,
                     width: `${((rangeRulers.endPct - rangeRulers.startPct) / 100) * totalWidth}px`,
                   }}
-                >
-                  <div className="absolute top-2 left-1/2 -translate-x-1/2 text-[9px] font-bold text-cyan-50 bg-cyan-950/80 shadow-lg border border-cyan-500/30 px-2.5 py-0.5 rounded-full whitespace-nowrap">
-                    {rangeRulers.startLabel} - {rangeRulers.endLabel}
-                  </div>
-                </div>
+                />
               )}
+
             </div>
 
             {/* Project rows */}
-            {filtered.length === 0 ? (
+            {filteredProjects.length === 0 ? (
               <div className="py-16 text-center text-sm text-slate-400 dark:text-slate-500">
                 No projects match your filter.
               </div>
-            ) : filtered.map(p => {
+            ) : filteredProjects.map(p => {
               const segments = buildSegments(p, timeline.start, totalDays);
               const overallProgress = Number(p.overall_progress_pct ?? 0);
               const pCfg = PRIORITY_CONFIG[p.priority_code ?? ""] ?? { label: p.priority_name ?? "–", color: "#94a3b8", dot: "bg-slate-400" };
@@ -558,15 +516,20 @@ export default function ProjectGanttDB() {
                   className={`border-b border-slate-100/80 dark:border-white/4 last:border-0 ${
                     isActiveToday ? "bg-cyan-50/30 dark:bg-cyan-900/10" : ""
                   }`}
-                  style={isActiveToday ? { borderLeft: `3px solid ${activeTodayPhase?.color ?? "#06b6d4"}` } : {}}
                 >
                   {/* Row */}
                   <div
-                    className="flex items-center hover:bg-slate-50/70 dark:hover:bg-white/3 cursor-pointer transition-colors"
-                    onClick={() => router.push(`/dashboard/projects/${p.id}`)}
+                    className="flex items-center hover:bg-slate-50/70 dark:hover:bg-white/3 transition-colors"
                   >
                     {/* Left: project info — sticky on horizontal scroll */}
-                    <div className="sticky left-0 z-10 shrink-0 w-60 px-3 py-2.5 border-r border-slate-200/40 dark:border-white/5 bg-white/95 dark:bg-zinc-900/95">
+                    <div
+                      className={`sticky left-0 z-10 shrink-0 w-60 px-3 py-2.5 border-r border-slate-200/40 dark:border-white/5 ${
+                        isActiveToday
+                          ? "bg-cyan-50/90 dark:bg-cyan-900/40"
+                          : "bg-white/95 dark:bg-zinc-900/95"
+                      }`}
+                      style={isActiveToday ? { borderLeft: `3px solid ${activeTodayPhase?.color ?? "#06b6d4"}` } : {}}
+                    >
                       <div className="flex items-center gap-1.5 mb-0.5">
                         <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${pCfg.dot}`} />
                         <span className="text-[9px] font-bold uppercase tracking-wider" style={{ color: pCfg.color }}>{pCfg.label}</span>
@@ -582,34 +545,22 @@ export default function ProjectGanttDB() {
                       <p className="text-[11px] font-semibold text-slate-800 dark:text-white leading-snug line-clamp-2">
                         {p.unit_code ? `${p.unit_code} - ${p.project_name.split(" - ").slice(1).join(" - ") || p.project_name}` : p.project_name}
                       </p>
-                      <div className="flex items-center gap-1 mt-1">
-                        <span className="text-[9px] text-slate-400">{p.project_code}</span>
-                        {p.status_label && (
-                          <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-slate-100 dark:bg-white/8 text-slate-500 dark:text-slate-400 ml-auto">{p.status_label}</span>
-                        )}
-                      </div>
-                      {/* Overall progress bar */}
-                      <div className="mt-1.5">
-                        <div className="h-1 rounded-full bg-slate-100 dark:bg-white/8 overflow-hidden">
-                          <div className="h-full rounded-full" style={{ width: `${overallProgress}%`, backgroundColor: pCfg.color, opacity: 0.7 }} />
-                        </div>
-                        <div className="flex justify-between mt-0.5">
-                          <span className="text-[9px] text-slate-400 truncate">{p.current_phase_name ?? "–"}</span>
-                          <span className="text-[9px] font-semibold text-slate-500 dark:text-slate-400 ml-1 shrink-0">{overallProgress}%</span>
-                        </div>
-                      </div>
+                      <span className="text-[9px] text-slate-400 truncate mt-0.5 block">{p.current_phase_name ?? "–"}</span>
                     </div>
 
                     {/* Right: Gantt timeline (fixed pixel width per week) */}
                     <div className="relative overflow-hidden" style={{ width: `${totalWidth}px`, height: "56px" }}>
                       {/* Week grid lines */}
-                      {weekCols.map((wc, i) => (
-                        <div
-                          key={i}
-                          className={`absolute top-0 bottom-0 border-r ${wc.isFirstOfMonth ? "border-slate-300/50 dark:border-white/10" : "border-slate-100/60 dark:border-white/4"}`}
-                          style={{ left: `${i * WEEK_W}px`, width: `${WEEK_W}px` }}
-                        />
-                      ))}
+                      {weekCols.map((_wc, i) => {
+                        const isLastOfMonth = i < weekCols.length - 1 && weekCols[i + 1].isFirstOfMonth;
+                        return (
+                          <div
+                            key={i}
+                            className={`absolute top-0 bottom-0 border-r ${isLastOfMonth ? "border-slate-300/50 dark:border-white/10" : "border-slate-100/60 dark:border-white/4"}`}
+                            style={{ left: `${i * WEEK_W}px`, width: `${WEEK_W}px` }}
+                          />
+                        );
+                      })}
 
                       {/* Phase segments */}
                       {segments.map(seg => {
@@ -619,7 +570,7 @@ export default function ProjectGanttDB() {
                         return (
                           <div
                             key={seg.key}
-                            className="absolute rounded overflow-hidden cursor-pointer transition-all duration-150"
+                            className="absolute rounded overflow-hidden transition-all duration-150"
                             style={{
                               left: `${left}px`,
                               width: `${width}px`,
@@ -682,126 +633,46 @@ export default function ProjectGanttDB() {
         </div>{/* end scrollable body */}
       </div>{/* end gantt card */}
 
-      {/* ── Floating Tooltip — cursor-tracked, full params ── */}
+      {/* ── Phase bar tooltip — just phase + project + date range ── */}
       {tooltip && (() => {
         const { seg, project: pr, x, y } = tooltip;
-        const pCfg = PRIORITY_CONFIG[pr.priority_code ?? ""] ?? { label: pr.priority_name ?? "–", color: "#94a3b8", dot: "bg-slate-400" };
-        const fd = (d: string | null) => d ? format(new Date(d), "dd MMM yyyy") : null;
-
-        // Build param rows per phase
-        type Row = { label: string; value: string | null };
-        const rows: Row[] = [];
-        if (seg.key === "brief") {
-          rows.push(
-            { label: "Received",  value: fd(pr.brief_received) },
-            { label: "Deadline",  value: fd(pr.brief_deadline) },
-            { label: "Progress",  value: `${pr.brief_progress ?? 0}%` },
-          );
-        } else if (seg.key === "design") {
-          rows.push(
-            { label: "Design Start",    value: fd(pr.design_start) },
-            { label: "Design Approval", value: fd(pr.design_end) },
-            { label: "Progress",        value: `${pr.design_progress ?? 0}%` },
-            { label: "Drawing Status",  value: pr.working_drawing_status },
-          );
-        } else if (seg.key === "control") {
-          rows.push(
-            { label: "Tender Start",    value: fd(pr.control_start) },
-            { label: "SPK Released",    value: fd(pr.control_end) },
-            { label: "Contract Amt",    value: pr.phase_contract_amount ? `Rp ${Number(pr.phase_contract_amount).toLocaleString("id-ID")}` : null },
-            { label: "Progress",        value: `${pr.control_progress ?? 0}%` },
-          );
-        } else if (seg.key === "pm") {
-          rows.push(
-            { label: "Commence",     value: fd(pr.pm_start) },
-            { label: "End Contract", value: fd(pr.pm_end) },
-            { label: "Deviation",    value: pr.deviation_days !== null ? (pr.deviation_days > 0 ? `+${pr.deviation_days} days (DELAY)` : `${pr.deviation_days} days (AHEAD)`) : null },
-            { label: "Site Progress",value: pr.current_site_progress },
-            { label: "Progress",     value: `${pr.pm_progress ?? 0}%` },
-          );
-        } else if (seg.key === "handover") {
-          rows.push(
-            { label: "BAST-1",         value: fd(pr.handover_start) },
-            { label: "BAST-2",         value: fd(pr.handover_end) },
-            { label: "Completion",     value: fd(pr.actual_phase_completion_date) },
-            { label: "Status",         value: "✓ Done" },
-          );
-        }
-
-        // Smart positioning: flip if near bottom/right of viewport
-        const TIP_W = 260;
+        const TIP_W = 210;
         const left = x + TIP_W / 2 > (containerRef.current?.clientWidth ?? 1000) ? x - TIP_W - 10 : x + 10;
-        const top  = y + 10;
-
+        const displayName = pr.unit_code
+          ? `${pr.unit_code} – ${pr.project_name.split(" - ").slice(1).join(" - ") || pr.project_name}`
+          : pr.project_name;
         return (
-          <div
-            className="absolute z-999 pointer-events-none animate-in fade-in zoom-in-95 duration-150"
-            style={{ left, top, width: TIP_W }}
-          >
+          <div className="absolute z-999 pointer-events-none" style={{ left, top: y + 10, width: TIP_W }}>
             <div
-              className="rounded-2xl shadow-2xl border overflow-hidden"
+              className="rounded-xl border px-3 py-2.5 shadow-xl"
               style={{
-                backgroundColor: "rgba(15,20,30,0.97)",
-                borderColor: `${seg.color}60`,
-                boxShadow: `0 8px 32px rgba(0,0,0,0.5), 0 0 0 1px ${seg.color}30`,
-                animation: "tooltipIn 0.18s cubic-bezier(0.34,1.4,0.64,1) forwards",
+                backgroundColor: "rgba(15,20,30,0.96)",
+                borderColor: `${seg.color}50`,
+                boxShadow: `0 8px 24px rgba(0,0,0,0.4), 0 0 0 1px ${seg.color}20`,
               }}
             >
-              {/* Header bar */}
-              <div className="px-3 py-2 flex items-center gap-2" style={{ backgroundColor: `${seg.color}22`, borderBottom: `1px solid ${seg.color}30` }}>
+              <div className="flex items-center gap-1.5 mb-1.5">
                 <span className="w-2 h-2 rounded-sm shrink-0" style={{ backgroundColor: seg.color }} />
-                <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: seg.color }}>{seg.label}</span>
-                <span className="ml-auto text-[9px] font-bold" style={{ color: pCfg.color }}>● {pCfg.label}</span>
+                <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: seg.color }}>{seg.label}</span>
               </div>
-              {/* Project name */}
-              <div className="px-3 pt-2 pb-1">
-                <p className="text-[11px] font-semibold text-white leading-tight">{pr.project_name}</p>
-                <p className="text-[9px] text-white/40 mt-0.5">{pr.project_code} · {pr.status_label ?? ""}</p>
-              </div>
-              {/* Divider */}
-              <div className="mx-3 my-1 h-px" style={{ backgroundColor: `${seg.color}25` }} />
-              {/* Params */}
-              <div className="px-3 pb-3 space-y-1.5">
-                {/* Date range always first */}
-                <div className="flex items-center gap-1.5 text-[10px]">
-                  <span className="text-white/40 w-16 shrink-0">Duration</span>
-                  <span className="text-white/80 font-medium">{format(seg.start, "dd MMM yy")} → {format(seg.end, "dd MMM yy")}</span>
-                </div>
-                {rows.filter(r => r.value).map(r => (
-                  <div key={r.label} className="flex items-start gap-1.5 text-[10px]">
-                    <span className="text-white/40 w-16 shrink-0">{r.label}</span>
-                    <span className={`font-medium ${
-                      r.label === "Deviation" && r.value?.includes("DELAY") ? "text-rose-400" :
-                      r.label === "Deviation" && r.value?.includes("AHEAD") ? "text-green-400" :
-                      "text-white/85"
-                    }`}>{r.value}</span>
-                  </div>
-                ))}
-                {/* Progress bar / Done badge */}
-                {seg.key === "handover" ? (
-                  <div className="flex items-center gap-2 pt-1">
-                    <span className="text-[10px] font-bold text-green-400">✓ Handover Complete</span>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-2 pt-1">
-                    <div className="flex-1 h-1.5 rounded-full bg-white/10 overflow-hidden">
-                      <div className="h-full rounded-full transition-all" style={{ width: `${seg.progress}%`, backgroundColor: seg.color }} />
-                    </div>
-                    <span className="text-[10px] font-bold" style={{ color: seg.color }}>{seg.progress}%</span>
-                  </div>
-                )}
-              </div>
+              <p className="text-[11px] font-semibold text-white leading-snug mb-1.5 line-clamp-2">{displayName}</p>
+              <p className="text-[10px] text-white/55">{format(seg.start, "dd MMM yy")} → {format(seg.end, "dd MMM yy")}</p>
             </div>
           </div>
         );
       })()}
 
-      <style>{`
-        @keyframes tooltipIn {
-          from { opacity: 0; transform: scale(0.9) translateY(4px); }
-          to   { opacity: 1; transform: scale(1)   translateY(0); }
-        }
-      `}</style>
+      {/* ── Range date tooltip — follows cursor inside blue overlay ── */}
+      {rangeTooltipPos && rangeRulers && !tooltip && (
+        <div
+          className="absolute z-100 pointer-events-none"
+          style={{ left: rangeTooltipPos.x + 12, top: rangeTooltipPos.y - 8 }}
+        >
+          <div className="text-[10px] font-bold text-cyan-50 bg-cyan-950/90 border border-cyan-500/30 px-2.5 py-1 rounded-full whitespace-nowrap shadow-lg">
+            {rangeRulers.startLabel} → {rangeRulers.endLabel}
+          </div>
+        </div>
+      )}
 
     </div>
   );

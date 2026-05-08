@@ -5,10 +5,13 @@
       "Bash(node -e ' *)",
       "Bash(find \"/c/Users/abrah/clickup-dashboard/src/app/api/capex\" -type d -empty -delete)",
       "Bash(node -e ':*)",
-      "Bash(ls c:/Users/abrah/clickup-dashboard/.env*)"
+      "Bash(ls c:/Users/abrah/clickup-dashboard/.env*)",
+      "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\abrah\\\\clickup-dashboard\" -Force)",
+      "Bash(Select-Object Name, Mode)"
     ],
     "additionalDirectories": [
-      "C:\\Users\\abrah\\clickup-dashboard\\src\\app\\api\\clickup"
+      "C:\\Users\\abrah\\clickup-dashboard\\src\\app\\api\\clickup",
+      "\\dev"
     ]
   }
 }

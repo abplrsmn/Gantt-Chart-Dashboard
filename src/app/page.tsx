@@ -1,112 +1,135 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ShieldAlert } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
-  const [isDark, setIsDark] = useState(true);
-  const [email, setEmail] = useState("");
+  const [email, setEmail]       = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-
-  // Simple toggle for preview purposes
-  useEffect(() => {
-    if (isDark) {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-    }
-  }, [isDark]);
+  const [error, setError]       = useState("");
+  const [loading, setLoading]   = useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setLoading(true);
 
     try {
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+      const res  = await fetch("/api/auth/login", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ email, password }),
       });
       const data = await res.json();
+
       if (!res.ok || !data?.success) {
-        setError(data?.error || 'Invalid credentials. Please check your email and password.');
+        setError(data?.error || "Invalid credentials. Please check your email and password.");
         return;
       }
-      router.push('/dashboard');
+
+      // Restore the user's last saved theme before navigating to dashboard
+      try {
+        const saved = localStorage.getItem("theme") || "dark";
+        const resolved =
+          saved === "system"
+            ? window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"
+            : saved;
+        document.documentElement.classList.remove("light", "dark");
+        document.documentElement.classList.add(resolved);
+      } catch { /* ignore — theme will be applied by ThemeProvider on dashboard */ }
+
+      router.push("/dashboard");
       router.refresh();
     } catch {
-      setError('Login failed. Please try again.');
+      setError("Login failed. Please try again.");
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div className={`min-h-screen w-full flex items-center justify-center transition-colors duration-500 ${isDark ? 'mesh-bg-dark' : 'mesh-bg-light'}`}>
-      
-      {/* Theme Toggle (Top Right) */}
-      <div className="absolute top-4 right-4">
-        <button 
-          onClick={() => setIsDark(!isDark)}
-          className="p-2 rounded-full glass-panel hover:bg-white/50 dark:hover:bg-black/50 transition"
-        >
-          {isDark ? '☀️' : '🌙'}
-        </button>
-      </div>
-
-      {/* Login Glass Card */}
-      <div className="glass-panel w-full max-w-md p-8 rounded-3xl mx-4 relative overflow-hidden">
-        {/* Subtle decorative glow inside card */}
-        <div className="absolute -top-20 -right-20 w-40 h-40 bg-blue-500/20 rounded-full blur-3xl"></div>
-        <div className="absolute -bottom-20 -left-20 w-40 h-40 bg-purple-500/20 rounded-full blur-3xl"></div>
+    // Always light/white background — independent of theme system
+    <div
+      className="min-h-screen w-full flex items-center justify-center"
+      style={{
+        background:
+          "radial-gradient(ellipse at 60% 20%, #ede9fe 0%, #f0f4ff 40%, #f8faff 100%)",
+      }}
+    >
+      {/* Login Card — always light/white style */}
+      <div
+        className="w-full max-w-md p-8 rounded-3xl mx-4 relative overflow-hidden"
+        style={{
+          background:
+            "linear-gradient(135deg, rgba(255,255,255,0.96) 0%, rgba(241,245,255,0.94) 100%)",
+          backdropFilter: "blur(24px)",
+          border: "1px solid rgba(255,255,255,0.6)",
+          boxShadow:
+            "0 4px 6px -1px rgba(0,0,0,0.1), 0 32px 80px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.1)",
+        }}
+      >
+        {/* Decorative blobs */}
+        <div className="absolute -top-16 -right-16 w-40 h-40 rounded-full blur-3xl" style={{ background: "rgba(99,102,241,0.18)" }} />
+        <div className="absolute -bottom-16 -left-16 w-40 h-40 rounded-full blur-3xl" style={{ background: "rgba(139,92,246,0.15)" }} />
 
         <div className="relative z-10 flex flex-col items-center">
-          <div className="w-16 h-16 bg-gradient-to-tr from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg mb-6 text-white">
+          {/* Logo */}
+          <div className="w-16 h-16 bg-gradient-to-tr from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/30 mb-6 text-white">
             <ShieldAlert size={32} />
           </div>
-          
-          <h1 className="text-2xl font-bold text-slate-800 dark:text-white mb-2 text-center">
+
+          <h1 className="text-2xl font-bold text-slate-800 mb-1.5 text-center">
             Command Center
           </h1>
-          <p className="text-slate-600 dark:text-slate-300 text-sm mb-8 text-center">
+          <p className="text-slate-500 text-sm mb-8 text-center">
             Enter your credentials to access the workspace.
           </p>
 
           <form onSubmit={handleLogin} className="w-full space-y-4">
             <div>
-              <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1 ml-1">Work Email</label>
-              <input 
+              <label className="block text-xs font-semibold text-slate-600 mb-1.5 ml-0.5">
+                Work Email
+              </label>
+              <input
                 type="email"
                 value={email}
                 onChange={(e) => { setEmail(e.target.value); setError(""); }}
                 placeholder="Enter email"
-                className="w-full px-4 py-3 rounded-xl bg-white/30 dark:bg-black/20 border border-white/40 dark:border-white/10 focus:outline-none focus:ring-2 focus:ring-blue-500/50 text-slate-800 dark:text-white placeholder:text-slate-500 dark:placeholder:text-slate-400 shadow-inner"
+                className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-400 text-slate-800 placeholder:text-slate-400 shadow-sm transition-all"
                 required
+                autoComplete="email"
               />
             </div>
-            
+
             <div>
-              <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1 ml-1">Password</label>
-              <input 
+              <label className="block text-xs font-semibold text-slate-600 mb-1.5 ml-0.5">
+                Password
+              </label>
+              <input
                 type="password"
                 value={password}
                 onChange={(e) => { setPassword(e.target.value); setError(""); }}
                 placeholder="Enter password"
-                className="w-full px-4 py-3 rounded-xl bg-white/30 dark:bg-black/20 border border-white/40 dark:border-white/10 focus:outline-none focus:ring-2 focus:ring-blue-500/50 text-slate-800 dark:text-white placeholder:text-slate-500 dark:placeholder:text-slate-400 shadow-inner"
+                className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-400 text-slate-800 placeholder:text-slate-400 shadow-sm transition-all"
                 required
+                autoComplete="current-password"
               />
             </div>
 
             {error && (
-              <p className="text-xs text-red-400 text-center -mt-1">{error}</p>
+              <p className="text-xs text-red-500 text-center -mt-1 font-medium">
+                {error}
+              </p>
             )}
 
-            <button 
+            <button
               type="submit"
-              className="w-full py-3 mt-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white rounded-xl font-medium shadow-lg shadow-blue-500/30 transition-all active:scale-[0.98]"
+              disabled={loading}
+              className="w-full py-3 mt-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 disabled:opacity-60 text-white rounded-xl font-semibold shadow-lg shadow-blue-500/25 transition-all active:scale-[0.98]"
             >
-              Sign In
+              {loading ? "Signing in…" : "Sign In"}
             </button>
           </form>
         </div>

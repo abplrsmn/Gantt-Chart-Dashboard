@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, Fragment } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { format } from "date-fns";
 import {
-  ArrowLeft, ChevronDown,
-  User, Building2, ClipboardList, AlertTriangle, Zap,
-  Activity, Clock, FileText,
+  ArrowLeft, ArrowRight, ChevronDown, ChevronRight,
+  User, Users, Building2, ClipboardList, AlertTriangle, Zap,
+  Activity, Clock, FileText, Paperclip
 } from "lucide-react";
 import SCurveCharts from "@/components/dashboard/SCurveCharts";
 
@@ -75,17 +75,6 @@ type PersonRow = {
   email: string | null;
 };
 
-type LogRow = {
-  id: string;
-  field_name: string | null;
-  old_value: string | null;
-  new_value: string | null;
-  change_summary: string | null;
-  changed_by_name: string | null;
-  action_type: string | null;
-  created_at: string;
-};
-
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function fmtDate(v: string | null | undefined): string {
   if (!v) return "—";
@@ -117,6 +106,8 @@ type PhaseDef = {
   color: string;
   weight: number;
   progressKey: keyof ProjectDetail;
+  startKey: keyof ProjectDetail;
+  endKey: keyof ProjectDetail;
   fields: FieldDef[];
 };
 
@@ -125,6 +116,7 @@ const PHASE_DEFS: PhaseDef[] = [
     key: "brief", phaseCode: "operational_brief",
     label: "Operational Brief", color: "#64748b", weight: 10,
     progressKey: "brief_progress",
+    startKey: "brief_received", endKey: "brief_deadline",
     fields: [
       { label: "Brief Received",  key: "brief_received", format: "date" },
       { label: "Brief Deadline",  key: "brief_deadline", format: "date" },
@@ -135,6 +127,7 @@ const PHASE_DEFS: PhaseDef[] = [
     key: "design", phaseCode: "design",
     label: "Design", color: "#3b82f6", weight: 20,
     progressKey: "design_progress",
+    startKey: "design_start", endKey: "design_end",
     fields: [
       { label: "Start Design",    key: "design_start",           format: "date" },
       { label: "Design Approval", key: "design_end",             format: "date" },
@@ -146,6 +139,7 @@ const PHASE_DEFS: PhaseDef[] = [
     key: "control", phaseCode: "project_control",
     label: "Project Control", color: "#f59e0b", weight: 15,
     progressKey: "control_progress",
+    startKey: "control_start", endKey: "control_end",
     fields: [
       { label: "Tender Start",     key: "control_start",         format: "date" },
       { label: "SPK Released",     key: "control_end",           format: "date" },
@@ -157,6 +151,7 @@ const PHASE_DEFS: PhaseDef[] = [
     key: "pm", phaseCode: "project_management",
     label: "Project Management", color: "#14b8a6", weight: 45,
     progressKey: "pm_progress",
+    startKey: "pm_start", endKey: "pm_end",
     fields: [
       { label: "Commence Date", key: "pm_start",              format: "date" },
       { label: "End Contract",  key: "pm_end",                format: "date" },
@@ -169,6 +164,7 @@ const PHASE_DEFS: PhaseDef[] = [
     key: "handover", phaseCode: "handover",
     label: "Handover", color: "#22c55e", weight: 10,
     progressKey: "handover_progress",
+    startKey: "handover_start", endKey: "handover_end",
     fields: [
       { label: "BAST 1",          key: "handover_start",               format: "date" },
       { label: "BAST 2",          key: "handover_end",                 format: "date" },
@@ -201,62 +197,97 @@ function SectionCard({ title, icon: Icon, children }: {
   );
 }
 
-function PhaseCard({ ph, project, defaultOpen }: {
+function PhaseCard({ ph, project, isCurrent, isPast, people }: {
   ph: PhaseDef;
   project: ProjectDetail;
-  defaultOpen: boolean;
+  isCurrent: boolean;
+  isPast: boolean;
+  people: PersonRow[];
 }) {
-  const [open, setOpen] = useState(defaultOpen);
-
   function renderValue(f: FieldDef): string {
     const raw = project[f.key];
+    if (raw === null || raw === undefined || raw === "") return "—";
     if (f.format === "date") return fmtDate(raw as string | null);
     if (f.format === "currency") return fmtCurrency(raw as string | null);
-    return raw != null ? String(raw) : "—";
+    return String(raw);
   }
 
-  const visibleFields = ph.fields.filter(f => {
-    const v = project[f.key];
-    return v !== null && v !== undefined && v !== "";
-  });
+  const startVal = fmtDate(project[ph.startKey] as string | null);
+  const endVal   = fmtDate(project[ph.endKey]   as string | null);
+  const hasPeriod = startVal !== "—" || endVal !== "—";
+
+  const approvers = people.filter(p => p.role_code === "approver");
 
   return (
-    <div className="rounded-xl border overflow-hidden" style={{ borderColor: ph.color + "30" }}>
-      <button
-        onClick={() => setOpen(o => !o)}
-        className="w-full flex items-center gap-3 px-3.5 py-3 text-left transition-colors hover:bg-white/5"
-        style={{ backgroundColor: ph.color + "10" }}
+    <div
+      className="rounded-xl border overflow-hidden transition-all"
+      style={{
+        borderColor: isCurrent ? `${ph.color}60` : isPast ? `${ph.color}28` : "rgba(255,255,255,0.06)",
+        boxShadow: isCurrent ? `0 2px 16px ${ph.color}18` : "none",
+        opacity: !isCurrent && !isPast ? 0.65 : 1,
+      }}
+    >
+      <div
+        className="flex items-center gap-3 px-3.5 py-3"
+        style={{ backgroundColor: isCurrent ? `${ph.color}18` : isPast ? `${ph.color}0a` : `${ph.color}06` }}
       >
-        <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: ph.color }} />
-        <span className="flex-1 text-xs font-bold uppercase tracking-wider" style={{ color: ph.color }}>
+        <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: ph.color, opacity: isCurrent ? 1 : 0.5 }} />
+        <span className="flex-1 text-xs font-bold uppercase tracking-wider" style={{ color: isCurrent ? ph.color : `${ph.color}99` }}>
           {ph.label}
-        </span>
-        <span className="text-[10px] text-slate-500 dark:text-slate-400">{ph.weight}% weight</span>
-        <ChevronDown
-          size={12}
-          className="text-slate-400 transition-transform duration-200 shrink-0 ml-2"
-          style={{ transform: open ? "rotate(180deg)" : "rotate(0deg)" }}
-        />
-      </button>
-
-      {open && (
-        <div className="px-4 py-3 bg-white/40 dark:bg-zinc-900/30">
-          {visibleFields.length === 0 ? (
-            <p className="text-xs text-slate-400 italic py-1">No data available</p>
-          ) : (
-            <div className="grid grid-cols-2 gap-x-6 gap-y-3">
-              {visibleFields.map(f => (
-                <div key={f.key as string} className={f.fullWidth ? "col-span-2" : ""}>
-                  <p className="text-[9px] uppercase tracking-widest text-slate-400 mb-0.5">{f.label}</p>
-                  <p className={`font-semibold text-slate-700 dark:text-slate-200 ${f.fullWidth ? "text-[11px] leading-relaxed" : "text-xs"}`}>
-                    {renderValue(f)}
-                  </p>
-                </div>
-              ))}
-            </div>
+          {isCurrent && (
+            <span className="ml-2 text-[8px] font-bold px-1.5 py-0.5 rounded-full align-middle" style={{ backgroundColor: `${ph.color}28`, color: ph.color }}>
+              CURRENT
+            </span>
           )}
+        </span>
+      </div>
+
+      <div className="px-4 py-3 bg-white/40 dark:bg-zinc-900/30 space-y-3">
+        {/* Main params + Assigned By */}
+        <div className="grid grid-cols-2 gap-x-6 gap-y-3">
+          {ph.fields.filter(f => f.label !== "Notes").map(f => {
+            const val = renderValue(f);
+            return (
+              <div key={f.key as string} className={f.fullWidth ? "col-span-2" : ""}>
+                <p className="text-[9px] uppercase tracking-widest text-slate-400 mb-0.5">{f.label}</p>
+                <p className={`font-semibold ${f.fullWidth ? "text-[11px] leading-relaxed" : "text-xs"} ${val === "—" ? "text-slate-500 dark:text-slate-600 italic" : "text-slate-700 dark:text-slate-200"}`}>
+                  {val}
+                </p>
+              </div>
+            );
+          })}
+
+          {/* Assigned By — same level as other params */}
+          <div className="col-span-2">
+            <p className="text-[9px] uppercase tracking-widest text-slate-400 mb-1">Assigned By</p>
+            {approvers.length > 0 ? (
+              <div className="flex flex-wrap gap-1.5">
+                {approvers.map(a => (
+                  <span key={a.id} className="inline-flex items-center gap-1 text-[10px] font-medium text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-white/6 px-2 py-0.5 rounded-md">
+                    <User size={9} className="text-slate-400 shrink-0" />
+                    {a.full_name ?? a.raw_person_name ?? "—"}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <p className="text-[10px] italic text-slate-400 dark:text-slate-600">—</p>
+            )}
+          </div>
         </div>
-      )}
+
+        {/* Notes — separated */}
+        {ph.fields.filter(f => f.label === "Notes").map(f => {
+          const val = renderValue(f);
+          return (
+            <div key={f.key as string} className="pt-2 border-t border-slate-200/40 dark:border-white/6">
+              <p className="text-[9px] uppercase tracking-widest text-slate-400 mb-0.5">Notes</p>
+              <p className={`text-[11px] leading-relaxed font-semibold ${val === "—" ? "text-slate-500 dark:text-slate-600 italic" : "text-slate-700 dark:text-slate-200"}`}>
+                {val}
+              </p>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -268,7 +299,6 @@ export default function ProjectDetailPage() {
 
   const [project, setProject] = useState<ProjectDetail | null>(null);
   const [people, setPeople]   = useState<PersonRow[]>([]);
-  const [logs, setLogs]       = useState<LogRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState<string | null>(null);
 
@@ -280,7 +310,6 @@ export default function ProjectDetailPage() {
         if (json.success) {
           setProject(json.data.project);
           setPeople(json.data.people);
-          setLogs(json.data.logs);
         } else {
           setError(json.error ?? "Unknown error");
         }
@@ -363,16 +392,19 @@ export default function ProjectDetailPage() {
       <div className="flex items-center gap-3">
         <button
           onClick={() => router.back()}
-          className="p-2 rounded-xl bg-white/50 dark:bg-zinc-800/50 hover:bg-white dark:hover:bg-zinc-800 transition-colors shadow-sm shrink-0"
+          className="flex items-center gap-1.5 text-sm font-semibold text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors shrink-0"
         >
-          <ArrowLeft size={16} className="text-slate-600 dark:text-gray-300" />
+          <ArrowLeft size={15} />
+          Go Back
         </button>
-        <div className="min-w-0">
-          <h2 className="text-base font-bold text-slate-800 dark:text-white leading-snug">
-            {project.project_name}
-          </h2>
-          <p className="text-[11px] text-slate-400 mt-0.5">{project.project_code}</p>
-        </div>
+        <button
+          onClick={() => router.push(`/dashboard/projects/${id}/audit`)}
+          className="ml-auto shrink-0 flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/60 dark:bg-zinc-900/50 text-slate-500 dark:text-slate-400 hover:border-cyan-400/50 hover:text-cyan-500 dark:hover:text-cyan-400 transition-all text-xs font-semibold"
+        >
+          <Clock size={13} />
+          View Audit Log
+          <ArrowRight size={12} />
+        </button>
       </div>
 
       {/* ── Summary / Blockers / Next Action ───────────────────────────── */}
@@ -466,63 +498,148 @@ export default function ProjectDetailPage() {
         </SectionCard>
       )}
 
-      {/* ── Phase Parameters + Audit Log ── side by side ───────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
+      {/* ── Descriptions Grid ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Project Description */}
+        <SectionCard title="Project Description" icon={FileText}>
+          <div className="p-4 space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="col-span-2">
+                <p className="text-[10px] uppercase tracking-widest text-slate-400 mb-1">Project Name</p>
+                <p className="text-base font-bold text-slate-700 dark:text-slate-200">{project.project_name}</p>
+              </div>
+              <div>
+                <p className="text-[10px] uppercase tracking-widest text-slate-400 mb-1">Project ID</p>
+                <p className="text-sm font-semibold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-white/5 px-2 py-1 rounded inline-block">
+                  {project.project_code}
+                </p>
+              </div>
+              <div>
+                <p className="text-[10px] uppercase tracking-widest text-slate-400 mb-1">PIC</p>
+                <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">
+                  {people.find(p => p.role_code === "pic")?.full_name
+                    ?? people.find(p => p.role_code === "pic")?.raw_person_name
+                    ?? "—"}
+                </p>
+              </div>
+              <div className="col-span-2">
+                <p className="text-[10px] uppercase tracking-widest text-slate-400 mb-1">Priority</p>
+                {project.priority_name ? (
+                  <span
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold px-2 py-0.5 rounded-md"
+                    style={{ backgroundColor: `${project.priority_color}20`, color: project.priority_color ?? undefined }}
+                  >
+                    <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: project.priority_color ?? undefined }} />
+                    {project.priority_name}
+                  </span>
+                ) : (
+                  <span className="text-sm italic text-slate-400 dark:text-slate-600">—</span>
+                )}
+              </div>
+              <div className="col-span-2">
+                <p className="text-[10px] uppercase tracking-widest text-slate-400 mb-1 flex items-center gap-1.5">
+                  <Building2 size={11} className="text-slate-400" />
+                  Location
+                </p>
+                <div className="px-3 py-2.5 rounded-lg border border-dashed border-slate-200/70 dark:border-white/8 text-slate-400 dark:text-slate-600">
+                  <span className="text-xs italic">Address not specified</span>
+                </div>
+              </div>
+            </div>
 
-        <SectionCard title="Phase Parameters" icon={Activity}>
-          <div className="p-4 space-y-2">
-            {PHASE_DEFS.map((ph, i) => (
-              <PhaseCard
-                key={ph.key}
-                ph={ph}
-                project={project}
-                defaultOpen={project.current_phase_code === ph.phaseCode || i === 0}
-              />
-            ))}
+            {/* Attachments */}
+            <div className="pt-2 border-t border-slate-200/50 dark:border-white/8">
+              <p className="text-[10px] uppercase tracking-widest text-slate-400 mb-2 flex items-center gap-1.5">
+                <Paperclip size={11} className="text-slate-400" />
+                Attachments
+              </p>
+              <div className="px-3 py-2.5 rounded-lg border border-dashed border-slate-200/70 dark:border-white/8 text-slate-400 dark:text-slate-600">
+                <span className="text-xs italic">No attachments</span>
+              </div>
+            </div>
+
+            {/* Stakeholders */}
+            <div className="pt-2 border-t border-slate-200/50 dark:border-white/8">
+              <p className="text-[10px] uppercase tracking-widest text-slate-400 mb-2 flex items-center gap-1.5">
+                <Users size={11} className="text-slate-400" />
+                Stakeholders
+              </p>
+              {people.some(p => p.role_code === "stakeholder") ? (
+                <div className="flex flex-wrap gap-1.5">
+                  {people.filter(p => p.role_code === "stakeholder").map(s => (
+                    <span key={s.id} className="inline-flex items-center gap-1 text-xs font-medium text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-white/6 px-2 py-1 rounded-md">
+                      <Building2 size={10} className="text-slate-400 shrink-0" />
+                      {s.full_name ?? s.raw_person_name ?? s.raw_organization_name ?? "—"}
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <div className="px-3 py-2.5 rounded-lg border border-dashed border-slate-200/70 dark:border-white/8 text-slate-400 dark:text-slate-600">
+                  <span className="text-xs italic">No stakeholders</span>
+                </div>
+              )}
+            </div>
           </div>
         </SectionCard>
 
-        <SectionCard title="Audit Log" icon={Clock}>
-          {logs.length === 0 ? (
-            <div className="px-4 py-10 text-center">
-              <Clock size={24} className="mx-auto mb-2 text-slate-300 dark:text-slate-600" />
-              <p className="text-xs text-slate-400">No audit entries yet</p>
-            </div>
-          ) : (
-            <div className="divide-y divide-slate-200/40 dark:divide-white/5">
-              {logs.map(log => (
-                <div key={log.id} className="flex items-start gap-3 px-4 py-3 hover:bg-slate-50/50 dark:hover:bg-white/2 transition-colors">
-                  <div className="w-1.5 h-1.5 rounded-full bg-cyan-500 mt-1.5 shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[11px] text-slate-700 dark:text-slate-200">
-                      {log.change_summary ?? (
-                        <>
-                          <span className="font-semibold">{log.field_name ?? "Field"}</span>
-                          {log.old_value && <> changed from <span className="text-red-400">{log.old_value}</span></>}
-                          {log.new_value && <> to <span className="text-cyan-500">{log.new_value}</span></>}
-                        </>
-                      )}
-                    </p>
-                    <div className="flex items-center gap-2 mt-0.5">
-                      {log.changed_by_name && (
-                        <span className="text-[10px] text-slate-400">{log.changed_by_name}</span>
-                      )}
-                      {log.action_type && (
-                        <span className="text-[9px] font-bold uppercase text-slate-500 bg-slate-100 dark:bg-white/8 px-1 py-0.5 rounded">
-                          {log.action_type}
-                        </span>
-                      )}
+        {/* ── Phase Parameters ─────────────────────────────────────────────── */}
+        <SectionCard title="Phase Parameters" icon={Activity}>
+          {/* Phase flow stepper */}
+          <div className="px-4 pt-4 pb-4 border-b border-slate-200/50 dark:border-white/8">
+            <div className="flex items-stretch gap-1">
+              {PHASE_DEFS.map((ph, i) => {
+                const currentIdx = PHASE_DEFS.findIndex(p => p.phaseCode === project.current_phase_code);
+                const isCurrent = i === currentIdx;
+                const isPast = i < currentIdx;
+                return (
+                  <Fragment key={ph.key}>
+                    <div
+                      className="flex-1 flex flex-col items-center justify-center px-2 py-2.5 rounded-xl text-center transition-all"
+                      style={{
+                        backgroundColor: isCurrent ? `${ph.color}22` : isPast ? `${ph.color}10` : "rgba(255,255,255,0.02)",
+                        border: `1.5px solid ${isCurrent ? `${ph.color}70` : isPast ? `${ph.color}35` : "rgba(255,255,255,0.06)"}`,
+                        opacity: !isCurrent && !isPast ? 0.5 : 1,
+                      }}
+                    >
+                      {isCurrent && <span className="w-1.5 h-1.5 rounded-full mb-1 animate-pulse" style={{ backgroundColor: ph.color }} />}
+                      {isPast && <span className="text-[9px] mb-1 leading-none" style={{ color: ph.color }}>✓</span>}
+                      {!isCurrent && !isPast && <span className="text-[9px] mb-1 leading-none text-slate-600">○</span>}
+                      <span
+                        className="text-[8px] font-extrabold uppercase tracking-wider leading-tight block"
+                        style={{ color: isCurrent ? ph.color : isPast ? `${ph.color}cc` : "#475569" }}
+                      >
+                        {ph.label}
+                      </span>
                     </div>
-                  </div>
-                  <span className="text-[9px] text-slate-400 shrink-0 mt-0.5">
-                    {format(new Date(log.created_at), "dd MMM yyyy HH:mm")}
-                  </span>
-                </div>
-              ))}
+                    {i < PHASE_DEFS.length - 1 && (
+                      <div className="self-center shrink-0 text-slate-600 dark:text-slate-700">
+                        <ChevronRight size={10} />
+                      </div>
+                    )}
+                  </Fragment>
+                );
+              })}
             </div>
-          )}
-        </SectionCard>
+          </div>
 
+          {/* Phase details */}
+          <div className="p-4 space-y-2">
+            {PHASE_DEFS.map((ph) => {
+              const currentIdx = PHASE_DEFS.findIndex(p => p.phaseCode === project.current_phase_code);
+              const phIdx = PHASE_DEFS.findIndex(p => p.key === ph.key);
+              return (
+                <PhaseCard
+                  key={ph.key}
+                  ph={ph}
+                  project={project}
+                  isCurrent={project.current_phase_code === ph.phaseCode}
+                  isPast={phIdx < currentIdx}
+                  people={people}
+                />
+              );
+            })}
+          </div>
+        </SectionCard>
       </div>
 
       {/* ── S-Curve ────────────────────────────────────────────────────── */}

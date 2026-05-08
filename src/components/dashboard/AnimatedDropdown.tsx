@@ -61,13 +61,12 @@ export default function AnimatedDropdown({
 
       {/* Dropdown panel */}
       <div
-        className="absolute z-50 mt-1.5 rounded-xl border border-white/10 shadow-2xl overflow-hidden"
+        className="absolute z-50 mt-1.5 rounded-xl border border-slate-200 dark:border-white/10 shadow-xl overflow-hidden bg-white dark:bg-zinc-950/97"
         style={{
           ...(align === "right" ? { right: 0 } : { left: 0 }),
           minWidth: `${minWidth}px`,
-          backgroundColor: "rgba(11,15,26,0.97)",
           backdropFilter: "blur(20px)",
-          boxShadow: "0 16px 48px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.06)",
+          boxShadow: "0 8px 32px rgba(0,0,0,0.12), 0 0 0 1px rgba(0,0,0,0.05)",
           transformOrigin: "top",
           transition: "opacity 0.18s ease, transform 0.18s cubic-bezier(0.34,1.4,0.64,1)",
           opacity: open ? 1 : 0,
@@ -84,15 +83,15 @@ export default function AnimatedDropdown({
                 onClick={() => { onChange(opt.value); setOpen(false); }}
                 className={`w-full flex items-center gap-2.5 px-3 py-1.5 text-[12px] font-medium transition-all ${
                   active
-                    ? "text-white bg-white/8"
-                    : "text-white/60 hover:text-white hover:bg-white/5"
+                    ? "text-slate-900 dark:text-white bg-slate-100 dark:bg-white/8"
+                    : "text-slate-600 dark:text-white/60 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-white/5"
                 }`}
               >
                 {opt.color && (
                   <span className="w-2 h-2 rounded-sm shrink-0" style={{ backgroundColor: opt.color, opacity: active ? 1 : 0.5 }} />
                 )}
                 <span className="flex-1 text-left">{opt.label}</span>
-                {active && <Check size={11} className="text-cyan-400 shrink-0" />}
+                {active && <Check size={11} className="text-cyan-500 dark:text-cyan-400 shrink-0" />}
               </button>
             );
           })}

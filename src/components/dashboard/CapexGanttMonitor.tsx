@@ -658,7 +658,7 @@ export default function CapexGanttMonitor() {
 
       <section className="glass-card p-4 overflow-x-auto relative">
         <div className="min-w-[2200px]">
-          <div className="grid grid-cols-[320px_1fr] items-center gap-3 pb-2 border-b border-slate-300/80 dark:border-white/15">
+          <div className="grid grid-cols-[320px_1fr] items-center gap-3 pb-2 border-b border-slate-400/60 dark:border-white/15">
             <div className="rounded-md bg-slate-900 px-3 py-2 text-xs font-bold uppercase tracking-wide text-white">Hotel / Project</div>
             <div className="grid gap-1" style={{ gridTemplateColumns: `repeat(${weekBuckets.length}, minmax(0, 1fr))` }}>
               {monthSegments.map((segment) => (
@@ -674,7 +674,7 @@ export default function CapexGanttMonitor() {
           </div>
 
           {!simpleMode && (
-            <div className="grid grid-cols-[320px_1fr] items-center gap-3 pt-2 pb-3 border-b border-slate-200/40 dark:border-white/10">
+            <div className="grid grid-cols-[320px_1fr] items-center gap-3 pt-2 pb-3 border-b border-slate-400/40 dark:border-white/10">
               <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400 dark:text-slate-500">Week</div>
               <div className="grid gap-1" style={{ gridTemplateColumns: `repeat(${weekBuckets.length}, minmax(0, 1fr))` }}>
                 {weekBuckets.map((bucket, index) => {
@@ -711,7 +711,7 @@ export default function CapexGanttMonitor() {
                     <div className="rounded-md bg-cyan-500/10 border border-cyan-500/20 px-3 py-2 text-sm font-bold text-cyan-700 dark:text-cyan-300">
                       {group.hotel} ({group.items.length} project)
                     </div>
-                    <div className="h-px bg-slate-300/80 dark:bg-white/15"></div>
+                    <div className="h-px bg-slate-400/70 dark:bg-white/15"></div>
                   </div>
 
                   {group.items.map((project) => {
@@ -730,10 +730,10 @@ export default function CapexGanttMonitor() {
                         <div className="relative h-10">
                           <div className={`absolute inset-0 grid ${simpleMode ? "opacity-35" : "opacity-100"}`} style={{ gridTemplateColumns: `repeat(${weekBuckets.length}, minmax(0, 1fr))` }}>
                             {weekBuckets.map((bucket, index) => (
-                              <div key={`line-${bucket.start.toISOString()}-${index}`} className="h-full border-r border-slate-300/80 dark:border-white/15"></div>
+                              <div key={`line-${bucket.start.toISOString()}-${index}`} className="h-full border-r border-slate-400/50 dark:border-white/15"></div>
                             ))}
                           </div>
-                          <div className="absolute left-0 right-0 top-1/2 h-[2px] -translate-y-1/2 bg-slate-400/80 dark:bg-white/25"></div>
+                          <div className="absolute left-0 right-0 top-1/2 h-[2px] -translate-y-1/2 bg-slate-500/60 dark:bg-white/25"></div>
 
                           <div
                             className="absolute top-1/2 h-6 -translate-y-1/2 rounded-full"
