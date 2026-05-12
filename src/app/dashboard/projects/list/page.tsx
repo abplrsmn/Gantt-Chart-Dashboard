@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, Search } from "lucide-react";
 import { format } from "date-fns";
@@ -47,7 +47,7 @@ const PHASE_COLORS: Record<string, string> = {
   project_control: "#f59e0b", project_management: "#14b8a6", handover: "#22c55e",
 };
 
-export default function ProjectListPage() {
+function ProjectListContent() {
   const router = useRouter();
   const params = useSearchParams();
   const startParam = params.get("start") ?? "";
@@ -220,5 +220,13 @@ export default function ProjectListPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function ProjectListPage() {
+  return (
+    <Suspense>
+      <ProjectListContent />
+    </Suspense>
   );
 }
