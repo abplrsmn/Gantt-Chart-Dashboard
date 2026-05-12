@@ -7,7 +7,16 @@
       "Bash(node -e ':*)",
       "Bash(ls c:/Users/abrah/clickup-dashboard/.env*)",
       "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\abrah\\\\clickup-dashboard\" -Force)",
-      "Bash(Select-Object Name, Mode)"
+      "Bash(Select-Object Name, Mode)",
+      "Bash(python check_502.py)",
+      "Bash(pip install *)",
+      "Bash(python -X utf8 check_502.py)",
+      "Bash(python -X utf8 fix_502.py)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git push *)",
+      "Bash(python -X utf8 deploy_fix.py)",
+      "Bash(python -X utf8 -)"
     ],
     "additionalDirectories": [
       "C:\\Users\\abrah\\clickup-dashboard\\src\\app\\api\\clickup",

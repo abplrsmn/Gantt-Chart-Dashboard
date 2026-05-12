@@ -646,27 +646,34 @@ export default function ProjectGanttDB() {
       {/* ── Phase bar tooltip — just phase + project + date range ── */}
       {tooltip && (() => {
         const { seg, project: pr, x, y } = tooltip;
-        const TIP_W = 210;
-        const left = x + TIP_W / 2 > (containerRef.current?.clientWidth ?? 1000) ? x - TIP_W - 10 : x + 10;
+        const TIP_W  = 220;
+        const TIP_H  = 90; // approximate tooltip height
+        const contH  = containerRef.current?.clientHeight ?? 600;
+        const contW  = containerRef.current?.clientWidth  ?? 1000;
+        // flip left if near right edge
+        const left = x + TIP_W + 10 > contW ? x - TIP_W - 10 : x + 10;
+        // flip above if near bottom edge
+        const top  = y + TIP_H + 10 > contH ? y - TIP_H - 8 : y + 10;
         const displayName = pr.unit_code
           ? `${pr.unit_code} – ${pr.project_name.split(" - ").slice(1).join(" - ") || pr.project_name}`
           : pr.project_name;
         return (
-          <div className="absolute z-999 pointer-events-none" style={{ left, top: y + 10, width: TIP_W }}>
+          <div className="absolute z-999 pointer-events-none" style={{ left, top, width: TIP_W }}>
             <div
-              className="rounded-xl border px-3 py-2.5 shadow-xl"
+              className="rounded-xl border px-3 py-2.5 shadow-xl
+                bg-white dark:bg-zinc-900
+                border-slate-200 dark:border-zinc-700"
               style={{
-                backgroundColor: "rgba(15,20,30,0.96)",
-                borderColor: `${seg.color}50`,
-                boxShadow: `0 8px 24px rgba(0,0,0,0.4), 0 0 0 1px ${seg.color}20`,
+                borderColor: `${seg.color}40`,
+                boxShadow: `0 8px 24px rgba(0,0,0,0.12), 0 0 0 1px ${seg.color}20`,
               }}
             >
               <div className="flex items-center gap-1.5 mb-1.5">
                 <span className="w-2 h-2 rounded-sm shrink-0" style={{ backgroundColor: seg.color }} />
                 <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: seg.color }}>{seg.label}</span>
               </div>
-              <p className="text-[11px] font-semibold text-white leading-snug mb-1.5 line-clamp-2">{displayName}</p>
-              <p className="text-[10px] text-white/55">{format(seg.start, "dd MMM yy")} → {format(seg.end, "dd MMM yy")}</p>
+              <p className="text-[11px] font-semibold text-slate-800 dark:text-white leading-snug mb-1.5 line-clamp-2">{displayName}</p>
+              <p className="text-[10px] text-slate-400 dark:text-white/55">{format(seg.start, "dd MMM yy")} → {format(seg.end, "dd MMM yy")}</p>
             </div>
           </div>
         );
