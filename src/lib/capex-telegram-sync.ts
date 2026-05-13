@@ -2,6 +2,7 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import { CLICKUP_API_BASE_URL, fetchClickUp, resolveAnyTargetListByName } from '@/lib/clickup-target';
 import { resolveAssigneeId } from '@/lib/clickup-write';
+import { getDbPool } from '@/lib/db';
 
 const TARGET_SPACE_NAME = (process.env.CAPEX_TARGET_SPACE_NAME || 'Project').trim();
 const TARGET_LIST_NAME = (process.env.CAPEX_TARGET_LIST_NAME || 'CAPEX Gantt 2026').trim();
@@ -31,6 +32,15 @@ type CapexSyncInput = {
   spkReleased?: string;
   actualCompletion?: string;
   assignee?: string;
+};
+
+type ProjectAuditInput = {
+  unit: string;
+  project: string;
+  phase: string;
+  action: 'created' | 'updated';
+  normalized: Record<string, unknown>;
+  changedBy?: string;
 };
 
 type ClickUpTaskLite = {
@@ -293,6 +303,56 @@ function findBestExistingTask(tasks: ClickUpTaskLite[], input: CapexSyncInput, s
   return ranked[0]?.task || null;
 }
 
+async function appendProjectAuditLog(input: ProjectAuditInput) {
+  let client;
+  try {
+    const pool = getDbPool();
+    client = await pool.connect();
+    const unit = input.unit.trim().toUpperCase();
+    const project = input.project.trim();
+    const normalizedProject = normalizeText(project);
+    const normalizedWithUnit = normalizeText(normalizeTaskName(unit, project));
+
+    const projectRes = await client.query(
+      `SELECT p.id, p.project_name
+         FROM projects p
+         LEFT JOIN master_units mu ON mu.id = p.unit_id
+        WHERE UPPER(COALESCE(mu.unit_code, '')) = $1
+          AND (
+            LOWER(TRIM(p.project_name)) = LOWER(TRIM($2))
+            OR LOWER(TRIM(p.project_name)) = LOWER(TRIM($3))
+            OR regexp_replace(lower(p.project_name), '[^a-z0-9]+', ' ', 'g') = $4
+            OR regexp_replace(lower(p.project_name), '[^a-z0-9]+', ' ', 'g') = $5
+          )
+        ORDER BY p.updated_at DESC NULLS LAST, p.id DESC
+        LIMIT 1`,
+      [unit, project, normalizeTaskName(unit, project), normalizedProject, normalizedWithUnit]
+    );
+
+    const projectId = projectRes.rows[0]?.id;
+    if (!projectId) return;
+
+    await client.query(
+      `INSERT INTO project_change_logs
+         (project_id, field_name, old_value, new_value, change_summary, changed_by_name, action_type, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())`,
+      [
+        projectId,
+        `telegram_${input.phase.toLowerCase().replace(/\s+/g, '_')}`,
+        null,
+        JSON.stringify(input.normalized),
+        `Project Team Telegram ${input.action} update for ${input.phase}`,
+        input.changedBy || 'Project Team Telegram',
+        'field_updated',
+      ]
+    );
+  } catch (error) {
+    console.error('Failed to append project change audit log:', error);
+  } finally {
+    client?.release();
+  }
+}
+
 function resolveCustomFieldValue(field: any, value: unknown) {
   if (value === undefined || value === null || value === '') return undefined;
   if (field?.type === 'currency' || field?.type === 'number') {
@@ -464,6 +524,24 @@ export async function syncCapexTelegramUpdate(input: CapexSyncInput) {
         }),
       });
 
+  const normalized = {
+    unit,
+    project,
+    progress,
+    phase,
+    deviationDays,
+    remarks,
+  };
+
+  await appendProjectAuditLog({
+    unit,
+    project,
+    phase,
+    action: existingTask ? 'updated' : 'created',
+    normalized,
+    changedBy: input.assignee,
+  });
+
   return {
     success: true,
     action: existingTask ? 'updated' : 'created',
@@ -486,13 +564,6 @@ export async function syncCapexTelegramUpdate(input: CapexSyncInput) {
       remarks,
       delayed: typeof deviationDays === 'number' && deviationDays > 0,
     }),
-    normalized: {
-      unit,
-      project,
-      progress,
-      phase,
-      deviationDays,
-      remarks,
-    },
+    normalized,
   };
 }

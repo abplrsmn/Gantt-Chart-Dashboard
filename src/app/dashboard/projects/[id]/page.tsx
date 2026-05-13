@@ -207,7 +207,7 @@ function PhaseCard({ ph, project, isCurrent, isPast, people }: {
   }
 
   const phasePeople = people.filter(p => p.phase_id === ph.phaseId);
-  const assignedBy  = phasePeople.filter(p => p.role_code === "approver" || p.role_code === "requester");
+  const assignedBy  = phasePeople.filter(p => p.role_code === "pic");
 
   return (
     <div
@@ -248,7 +248,7 @@ function PhaseCard({ ph, project, isCurrent, isPast, people }: {
             );
           })}
 
-          {/* Assigned By */}
+          {/* Assigned By — phase PIC / owner for this phase */}
           <div className="col-span-2">
             <p className="text-[9px] uppercase tracking-widest text-slate-400 mb-1">Assigned By</p>
             {assignedBy.length > 0 ? (
