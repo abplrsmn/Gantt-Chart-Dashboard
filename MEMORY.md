@@ -30,6 +30,7 @@
 - CAPEX execution rule: if only one phase is provided, still ensure the same project exists in the other milestone parents with placeholder `-` values so Milestone Phase stays structurally complete.
 
 - Project phase date-range mindset: first set a master project date range (`project_start_date` to `project_end_date`) as the container/guardrail; then split/segment the five milestone phases inside that range with their own phase start/end dates. Phase dates should stay inside the project range, avoid invalid overlaps when workflow is linear, and remain `-`/empty until provided. Natural-language input should normalize project range first, then map any provided phase ranges into the corresponding phase fields.
+- Chart date-range accuracy rule: Project Gantt and S-curve project-level timelines must use the master `projects.start_date` to `projects.end_date` range exactly. Do not extend hover/axis labels to calendar week boundaries or fallback phase dates when master dates exist.
 
 ## Telegram Groups
 - `-1003543183529` = Tech

@@ -77,6 +77,7 @@ These rules are safe to use across shared/group sessions and should be treated a
 
 ### Data model
 - Project data has 2 linked layers:
+- Chart date-range accuracy rule: Project Gantt and S-curve project-level timelines must use the master `projects.start_date` to `projects.end_date` range exactly. Do not extend hover/axis labels to calendar week boundaries or fallback phase dates when master dates exist.
   1. summary milestone tracking (`projects` + `project_phases`)
   2. detailed execution/S-curve tracking inside the same project
 - S-curve is not a fake milestone. It represents detailed work breakdown inside a project, including tahap/subtask, bobot, and time-bucketed plan vs actual progress.

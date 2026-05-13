@@ -7,7 +7,7 @@ import {
 } from "recharts";
 import {
   format, differenceInCalendarDays, isAfter,
-  startOfWeek, endOfWeek, addWeeks, addDays,
+  addWeeks, addDays,
 } from "date-fns";
 import { Activity } from "lucide-react";
 import AnimatedDropdown from "./AnimatedDropdown";
@@ -48,6 +48,15 @@ type DBProject = {
 interface Props { projects: DBProject[]; hidePhaseDetails?: boolean; }
 
 type SCurvePoint = { month: string; target: number; actual: number | null };
+
+function pushUniquePoint(points: SCurvePoint[], point: SCurvePoint) {
+  const last = points[points.length - 1];
+  if (last?.month === point.month) {
+    points[points.length - 1] = point;
+  } else {
+    points.push(point);
+  }
+}
 
 interface SubTask {
   id: string;
@@ -203,32 +212,38 @@ function buildSingleProjectData(
 
   if (tasks.length === 0) return { points: [], tasks: [] };
 
-  const timelineStart = tasks[0].start;
-  const timelineEnd   = tasks[tasks.length - 1].end;
   const points: SCurvePoint[] = [];
-  let cursor = startOfWeek(timelineStart, { weekStartsOn: 1 });
+  let cursor = projectStart;
   const today = new Date();
 
-  while (cursor <= endOfWeek(timelineEnd, { weekStartsOn: 1 })) {
+  const buildPoint = (pointDate: Date): SCurvePoint => {
     let targetSum = 0;
     let actualSum = 0;
     for (const t of tasks) {
       const duration   = Math.max(1, differenceInCalendarDays(t.end, t.start));
-      const daysTarget = Math.min(duration, Math.max(0, differenceInCalendarDays(cursor, t.start)));
+      const daysTarget = Math.min(duration, Math.max(0, differenceInCalendarDays(pointDate, t.start)));
       targetSum += (daysTarget / duration) * t.weight;
-      if (!isAfter(cursor, today)) {
-        const daysActual  = Math.min(duration, Math.max(0, differenceInCalendarDays(cursor, t.start)));
+      if (!isAfter(pointDate, today)) {
+        const daysActual  = Math.min(duration, Math.max(0, differenceInCalendarDays(pointDate, t.start)));
         const expectedPct = (daysActual / duration) * 100;
         actualSum += (Math.min(expectedPct, t.progress) / 100) * t.weight;
       }
     }
-    points.push({
-      month:  format(cursor, "dd MMM yy"),
+    return {
+      month:  format(pointDate, "dd MMM yy"),
       target: Number(targetSum.toFixed(2)),
-      actual: !isAfter(cursor, today) ? Number(actualSum.toFixed(2)) : null,
-    });
+      actual: !isAfter(pointDate, today) ? Number(actualSum.toFixed(2)) : null,
+    };
+  };
+
+  // Keep the S-curve X-axis inside the exact master project range.
+  // Do not snap the chart to full calendar weeks; if a project is 12 May–12 Jun,
+  // the visible curve should start at 12 May and end at 12 Jun.
+  while (cursor < projectEnd) {
+    pushUniquePoint(points, buildPoint(cursor));
     cursor = addWeeks(cursor, 1);
   }
+  pushUniquePoint(points, buildPoint(projectEnd));
 
   return { points, tasks };
 }
