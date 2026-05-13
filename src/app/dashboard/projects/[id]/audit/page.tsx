@@ -6,7 +6,7 @@ import { format, formatDistanceToNow } from "date-fns";
 import { id as localeId } from "date-fns/locale";
 import {
   ArrowLeft, Clock, FilePlus, Pencil, CheckCircle2,
-  CalendarClock, Zap, Filter, RefreshCw, ChevronLeft, ChevronRight,
+  CalendarClock, Zap, RefreshCw, ChevronLeft, ChevronRight,
   Inbox,
 } from "lucide-react";
 
@@ -88,15 +88,6 @@ const ACTION_CONFIG: Record<
     Icon: Pencil,
   },
 };
-
-const FILTER_OPTIONS: { value: string; label: string }[] = [
-  { value: "", label: "All" },
-  { value: "project_created",      label: "Created" },
-  { value: "field_updated",        label: "Field Update" },
-  { value: "phase_approved",       label: "Approval" },
-  { value: "deadline_delayed",     label: "Delayed" },
-  { value: "deadline_accelerated", label: "Moved Up" },
-];
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 function fmtTimestamp(iso: string) {
@@ -234,7 +225,6 @@ export default function AuditLogPage() {
   const [logs,    setLogs]    = useState<AuditLog[]>([]);
   const [meta,    setMeta]    = useState<Meta>({ page: 1, limit: 50, total: 0, pages: 1 });
   const [loading, setLoading] = useState(true);
-  const [filter,  setFilter]  = useState("");
   const [page,    setPage]    = useState(1);
 
   const fetchLogs = useCallback(async () => {
@@ -242,7 +232,6 @@ export default function AuditLogPage() {
     setLoading(true);
     try {
       const qs = new URLSearchParams({ page: String(page), limit: "50" });
-      if (filter) qs.set("action", filter);
       const res  = await fetch(`/api/projects/${id}/audit?${qs}`, { cache: "no-store" });
       const json = await res.json();
       if (json.success) {
@@ -252,15 +241,9 @@ export default function AuditLogPage() {
     } finally {
       setLoading(false);
     }
-  }, [id, page, filter]);
+  }, [id, page]);
 
   useEffect(() => { fetchLogs(); }, [fetchLogs]);
-
-  // Reset to page 1 when filter changes
-  const handleFilter = (val: string) => {
-    setFilter(val);
-    setPage(1);
-  };
 
   return (
     <div className="space-y-4 pb-10 animate-page-enter">
@@ -284,26 +267,6 @@ export default function AuditLogPage() {
         </button>
       </div>
 
-      {/* ── Filter tabs ── */}
-      <div className="glass-card px-3 py-2.5 flex items-center gap-2 overflow-x-auto">
-        <Filter size={12} className="text-slate-400 shrink-0" />
-        <div className="flex items-center gap-1.5">
-          {FILTER_OPTIONS.map(opt => (
-            <button
-              key={opt.value}
-              onClick={() => handleFilter(opt.value)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
-                filter === opt.value
-                  ? "bg-cyan-500/15 text-cyan-600 dark:text-cyan-400 border border-cyan-400/40"
-                  : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/8"
-              }`}
-            >
-              {opt.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
       {/* ── Log timeline ── */}
       <div className="glass-card px-4 pt-4 pb-1">
         {loading ? (
@@ -317,9 +280,7 @@ export default function AuditLogPage() {
             </div>
             <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">No logs yet</p>
             <p className="text-xs text-slate-400 max-w-xs">
-              {filter
-                ? "No activity found for this filter."
-                : "No changes have been recorded for this project yet."}
+              No changes have been recorded for this project yet.
             </p>
           </div>
         ) : (
