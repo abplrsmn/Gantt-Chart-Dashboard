@@ -92,6 +92,8 @@ type PhaseSegment = {
   widthPct: number;
 };
 
+type BarTooltipSegment = Pick<PhaseSegment, "label" | "color" | "start" | "end"> & { key: string };
+
 type WeekCol = { start: Date; end: Date; weekNum: number; monthLabel: string; isFirstOfMonth: boolean };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -180,9 +182,8 @@ export default function ProjectGanttDB() {
   };
   const [unitFilter, setUnitFilter]         = useState<string>("");
   const [tooltip, setTooltip] = useState<{
-    seg: PhaseSegment; project: DBProject; x: number; y: number;
+    seg: BarTooltipSegment; project: DBProject; x: number; y: number;
   } | null>(null);
-  const [rangeTooltipPos, setRangeTooltipPos] = useState<{ x: number; y: number } | null>(null);
 
   // Refs for synced horizontal scroll between sticky header and body
   const headerRef = useRef<HTMLDivElement>(null);
@@ -484,20 +485,7 @@ export default function ProjectGanttDB() {
           ref={bodyRef}
           className="overflow-x-auto relative bg-white/95 dark:bg-zinc-900/95"
           onScroll={onBodyScroll}
-          onMouseMove={(e) => {
-            if (!rangeRulers || !bodyRef.current || !containerRef.current) { setRangeTooltipPos(null); return; }
-            const bodyRect = bodyRef.current.getBoundingClientRect();
-            const contentX = e.clientX - bodyRect.left + bodyRef.current.scrollLeft;
-            const rangeLeft  = 240 + (rangeRulers.startPct  / 100) * totalWidth;
-            const rangeRight = 240 + (rangeRulers.endPct / 100) * totalWidth;
-            if (contentX >= rangeLeft && contentX <= rangeRight) {
-              const cr = containerRef.current.getBoundingClientRect();
-              setRangeTooltipPos({ x: e.clientX - cr.left, y: e.clientY - cr.top });
-            } else {
-              setRangeTooltipPos(null);
-            }
-          }}
-          onMouseLeave={() => setRangeTooltipPos(null)}
+          onMouseLeave={() => setTooltip(null)}
         >
           <div style={{ minWidth: `${240 + totalWidth}px` }} className="relative">
 
@@ -601,13 +589,29 @@ export default function ProjectGanttDB() {
                               height: "24px",
                               zIndex: 0,
                             }}
-                            title={`Project Range: ${format(projectRangeBar.start, "dd MMM yy")} → ${format(projectRangeBar.end, "dd MMM yy")} — Click for details`}
                             role="button"
                             tabIndex={0}
                             onClick={() => router.push(`/dashboard/projects/${p.id}`)}
                             onKeyDown={(e) => {
                               if (e.key === "Enter" || e.key === " ") router.push(`/dashboard/projects/${p.id}`);
                             }}
+                            onMouseMove={e => {
+                              if (!containerRef.current) return;
+                              const rect = containerRef.current.getBoundingClientRect();
+                              setTooltip({
+                                seg: {
+                                  key: "project-range",
+                                  label: "Project Date Range",
+                                  color: "#94a3b8",
+                                  start: projectRangeBar.start,
+                                  end: projectRangeBar.end,
+                                },
+                                project: p,
+                                x: e.clientX - rect.left,
+                                y: e.clientY - rect.top,
+                              });
+                            }}
+                            onMouseLeave={() => setTooltip(null)}
                           />
                         );
                       })()}
@@ -671,7 +675,7 @@ export default function ProjectGanttDB() {
         </div>{/* end scrollable body */}
       </div>{/* end gantt card */}
 
-      {/* ── Phase bar tooltip — just phase + project + date range ── */}
+      {/* ── Bar tooltip — one source of truth for project/phase date ranges ── */}
       {tooltip && (() => {
         const { seg, project: pr, x, y } = tooltip;
         const TIP_W  = 220;
@@ -701,23 +705,11 @@ export default function ProjectGanttDB() {
                 <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: seg.color }}>{seg.label}</span>
               </div>
               <p className="text-[11px] font-semibold text-slate-800 dark:text-white leading-snug mb-1.5 line-clamp-2">{displayName}</p>
-              <p className="text-[10px] text-slate-400 dark:text-white/55">{format(seg.start, "dd MMM yy")} → {format(seg.end, "dd MMM yy")} · Click bar for details</p>
+              <p className="text-[10px] text-slate-400 dark:text-white/55">{format(seg.start, "dd MMM yy")} → {format(seg.end, "dd MMM yy")}</p>
             </div>
           </div>
         );
       })()}
-
-      {/* ── Range date tooltip — follows cursor inside blue overlay ── */}
-      {rangeTooltipPos && rangeRulers && !tooltip && (
-        <div
-          className="absolute z-100 pointer-events-none"
-          style={{ left: rangeTooltipPos.x + 12, top: rangeTooltipPos.y - 8 }}
-        >
-          <div className="text-[10px] font-bold text-cyan-50 bg-cyan-950/90 border border-cyan-500/30 px-2.5 py-1 rounded-full whitespace-nowrap shadow-lg">
-            {rangeRulers.startLabel} → {rangeRulers.endLabel}
-          </div>
-        </div>
-      )}
 
     </div>
   );
