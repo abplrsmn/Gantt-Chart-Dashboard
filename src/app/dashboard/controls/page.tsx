@@ -1,8 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Activity, Bot, Cpu, Database, Server, Terminal, Zap, RefreshCw, WifiOff } from "lucide-react";
+import {
+  Activity, Bot, Cpu, Database, Server, Terminal, Zap,
+  RefreshCw, WifiOff, DollarSign, TrendingUp, Clock, Wifi,
+} from "lucide-react";
 
+// ─── Types ────────────────────────────────────────────────────────────────────
 type AgentData = {
   id: string;
   name: string;
@@ -11,6 +15,31 @@ type AgentData = {
   tokens: string;
   limit: string;
   percent: number;
+  costFmt: string;
+  lastSeen: string;
+};
+
+type ModelBreakdown = {
+  model: string;
+  label: string;
+  tokens: string;
+  tokensRaw: number;
+  costFmt: string;
+  costUsd: number;
+};
+
+type TelemetrySummary = {
+  totalTokens: string;
+  totalTokensRaw: number;
+  totalCostUsd: number;
+  totalCostFmt: string;
+  rateLimitStatus: string;
+  uptime: string;
+  gateway: string;
+  gatewayOk: boolean;
+  eventLoopDegraded?: boolean;
+  tasks?: { total: number; active: number; failures: number };
+  modelBreakdown: ModelBreakdown[];
 };
 
 type LogEntry = {
@@ -20,13 +49,6 @@ type LogEntry = {
   agent: string;
   action: string;
   type: 'success' | 'info' | 'warning';
-};
-
-type TelemetrySummary = {
-  totalTokens: string;
-  rateLimitStatus: string;
-  uptime: string;
-  gateway: string;
 };
 
 type TelemetryResponse = {
@@ -42,71 +64,76 @@ type TelemetryResponse = {
 
 const EMPTY_TELEMETRY: TelemetrySummary = {
   totalTokens: '0',
-  rateLimitStatus: 'Unknown',
-  uptime: 'Unknown',
-  gateway: 'Unavailable',
+  totalTokensRaw: 0,
+  totalCostUsd: 0,
+  totalCostFmt: '$0.0000',
+  rateLimitStatus: '—',
+  uptime: '—',
+  gateway: '—',
+  gatewayOk: false,
+  modelBreakdown: [],
 };
 
-const POLL_INTERVAL_MS = 10000;
+const POLL_MS = 10_000;
 
-function getAgentStatusTone(status: string) {
-  const normalized = status.toLowerCase();
-  if (["active", "processing", "busy", "running"].includes(normalized)) {
-    return {
-      badge: 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400',
-      dot: 'bg-amber-500 animate-pulse',
-      label: status,
-    };
-  }
-
-  if (["offline", "disconnected", "down"].includes(normalized)) {
-    return {
-      badge: 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400',
-      dot: 'bg-red-500',
-      label: status,
-    };
-  }
-
-  return {
-    badge: 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400',
-    dot: 'bg-green-500',
-    label: status,
-  };
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+function agentTone(status: string) {
+  const s = status.toLowerCase();
+  if (["active", "processing", "busy", "running"].includes(s))
+    return { badge: 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400', dot: 'bg-amber-500 animate-pulse', label: status };
+  if (["offline", "disconnected", "down"].includes(s))
+    return { badge: 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400', dot: 'bg-red-500', label: status };
+  return { badge: 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400', dot: 'bg-green-500', label: status };
 }
 
+// ─── Sub-components ───────────────────────────────────────────────────────────
+function StatCard({
+  icon: Icon, iconColor, label, value, sub,
+}: {
+  icon: React.ElementType; iconColor: string; label: string; value: string; sub: string;
+}) {
+  return (
+    <div className="glass-card p-4 relative overflow-hidden">
+      <div className="flex items-center gap-2 mb-2">
+        <Icon className={iconColor} size={15} />
+        <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">{label}</p>
+      </div>
+      <p className="text-xl font-bold text-slate-800 dark:text-white mt-1 truncate">{value}</p>
+      <p className="text-[10px] font-medium text-slate-400 mt-1 truncate">{sub}</p>
+    </div>
+  );
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
 export default function ControlsPage() {
-  const [agents, setAgents] = useState<AgentData[]>([]);
-  const [telemetry, setTelemetry] = useState<TelemetrySummary>(EMPTY_TELEMETRY);
-  const [logs, setLogs] = useState<LogEntry[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [agents,      setAgents]      = useState<AgentData[]>([]);
+  const [telemetry,   setTelemetry]   = useState<TelemetrySummary>(EMPTY_TELEMETRY);
+  const [logs,        setLogs]        = useState<LogEntry[]>([]);
+  const [loading,     setLoading]     = useState(true);
+  const [error,       setError]       = useState("");
   const [selectedAgent, setSelectedAgent] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
-  const [stale, setStale] = useState(false);
+  const [stale,       setStale]       = useState(false);
+  const [source,      setSource]      = useState("");
 
   const fetchTelemetry = async () => {
     try {
       setLoading(true);
-      const res = await fetch('/api/ai-telemetry', { cache: 'no-store' });
+      const res  = await fetch('/api/ai-telemetry', { cache: 'no-store' });
       const data = (await res.json()) as TelemetryResponse;
-
       setAgents(data.agents ?? []);
       setTelemetry(data.telemetry ?? EMPTY_TELEMETRY);
       setLogs(data.logs ?? []);
       setLastUpdated(data.lastUpdated ?? null);
       setStale(Boolean(data.stale));
-
-      if (data.success) {
-        setError("");
-      } else {
-        setError(data.error || 'Failed to fetch telemetry data');
-      }
+      setSource(data.source ?? '');
+      setError(data.success ? '' : (data.error ?? 'Failed to fetch telemetry'));
     } catch (err: unknown) {
       setAgents([]);
       setTelemetry(EMPTY_TELEMETRY);
       setLogs([]);
       setStale(true);
-      setError(err instanceof Error ? err.message : "Failed to fetch telemetry data");
+      setError(err instanceof Error ? err.message : 'Connection failed');
     } finally {
       setLoading(false);
     }
@@ -114,216 +141,302 @@ export default function ControlsPage() {
 
   useEffect(() => {
     fetchTelemetry();
-    const id = setInterval(fetchTelemetry, POLL_INTERVAL_MS);
+    const id = setInterval(fetchTelemetry, POLL_MS);
     return () => clearInterval(id);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const activeAgents = useMemo(() => {
-    return agents.filter((a) => !['offline', 'disconnected', 'down'].includes(a.status.toLowerCase())).length;
-  }, [agents]);
+  const activeAgents = useMemo(
+    () => agents.filter(a => !['offline', 'disconnected', 'down'].includes(a.status.toLowerCase())).length,
+    [agents]
+  );
 
-  const selectedAgentName = useMemo(() => {
-    return agents.find((a) => a.id === selectedAgent)?.name;
-  }, [agents, selectedAgent]);
+  const selectedAgentName = useMemo(
+    () => agents.find(a => a.id === selectedAgent)?.name,
+    [agents, selectedAgent]
+  );
 
   const displayLogs = useMemo(() => {
-    if (!selectedAgent) return [];
-
-    return logs.filter((log) => {
-      if (log.agentId) return log.agentId === selectedAgent;
-      return log.agent.toLowerCase().includes(selectedAgent.toLowerCase());
-    });
+    if (!selectedAgent) return logs;
+    return logs.filter(l => l.agentId === selectedAgent || l.agent.toLowerCase().includes(selectedAgent.toLowerCase()));
   }, [logs, selectedAgent]);
 
   const freshnessText = lastUpdated
     ? new Date(lastUpdated).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
     : 'Never';
 
+  const isConnected = !error && !stale;
+
   return (
-    <div className="space-y-6 pb-6 animate-page-enter">
-      <div className="flex items-center justify-between mb-4">
+    <div className="space-y-5 pb-6 animate-page-enter">
+
+      {/* ── Header ── */}
+      <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Server className="text-blue-500" size={24} />
+          <Server className="text-blue-500" size={20} />
           <h2 className="text-lg font-bold text-slate-800 dark:text-white">AI Mission Control</h2>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
+          {/* Connection status */}
           {error ? (
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/50 rounded-lg text-xs font-medium text-red-700 dark:text-red-400">
-              <WifiOff size={14} /> {stale ? 'Telemetry Stale' : 'Connection Error'}
+            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/50 rounded-lg text-xs font-semibold text-red-600 dark:text-red-400">
+              <WifiOff size={12} /> {stale ? 'Stale' : 'Offline'}
             </div>
           ) : (
-            <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium border ${stale ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800/50 text-amber-700 dark:text-amber-400' : 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800/50 text-green-700 dark:text-green-400'}`}>
-              <span className={`w-2 h-2 rounded-full ${stale ? 'bg-amber-500' : 'bg-green-500 animate-pulse'}`}></span>
-              {stale ? 'Using Last Known State' : 'Live Sync Active'}
+            <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border ${
+              stale
+                ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800/50 text-amber-600 dark:text-amber-400'
+                : 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800/50 text-green-600 dark:text-green-400'
+            }`}>
+              <span className={`w-1.5 h-1.5 rounded-full ${stale ? 'bg-amber-500' : 'bg-green-500 animate-pulse'}`} />
+              {stale ? 'Last Known' : 'Live'}
             </div>
           )}
           <button
             onClick={fetchTelemetry}
             disabled={loading}
-            className="flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors disabled:opacity-50"
+            className="flex items-center gap-1.5 px-3 py-1.5 glass-card text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-white transition-colors disabled:opacity-50"
           >
-            <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
-            Force Sync
+            <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
+            Sync
           </button>
         </div>
       </div>
 
-      <div className="text-[11px] text-slate-500 dark:text-slate-400 -mt-2">
-        Last update: <span className="font-semibold">{freshnessText}</span>
+      {/* ── Meta row ── */}
+      <div className="flex items-center gap-4 text-[11px] text-slate-400 -mt-1">
+        <span className="flex items-center gap-1"><Clock size={10} /> Updated: <span className="font-semibold text-slate-500">{freshnessText}</span></span>
+        {source && <span className="flex items-center gap-1"><Wifi size={10} /> via <span className="font-semibold text-slate-500">{source}</span></span>}
+        {error && <span className="text-red-400 font-medium truncate max-w-xs">{error}</span>}
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="glass-card p-4 relative overflow-hidden">
-          <div className="flex items-center gap-2 mb-2">
-            <Bot className="text-blue-500" size={16} />
-            <p className="text-xs font-semibold text-slate-500 dark:text-gray-400">Active Agents</p>
-          </div>
-          <p className="text-2xl font-bold text-slate-800 dark:text-white mt-1">{activeAgents}</p>
-          <p className="text-[10px] font-medium text-slate-400 mt-1">{agents.length} detected</p>
-        </div>
-
-        <div className="glass-card p-4 relative overflow-hidden">
-          <div className="flex items-center gap-2 mb-2">
-            <Cpu className="text-purple-500" size={16} />
-            <p className="text-xs font-semibold text-slate-500 dark:text-gray-400">Token Usage</p>
-          </div>
-          <p className="text-2xl font-bold text-slate-800 dark:text-white mt-1">{telemetry.totalTokens}</p>
-          <p className="text-[10px] font-medium text-slate-400 mt-1">Real-time telemetry</p>
-        </div>
-
-        <div className="glass-card p-4 relative overflow-hidden">
-          <div className="flex items-center gap-2 mb-2">
-            <Zap className="text-green-500" size={16} />
-            <p className="text-xs font-semibold text-slate-500 dark:text-gray-400">Rate Limits</p>
-          </div>
-          <p className="text-2xl font-bold text-slate-800 dark:text-white mt-1">{telemetry.rateLimitStatus}</p>
-          <p className="text-[10px] font-medium text-slate-400 mt-1">Gateway reported</p>
-        </div>
-
-        <div className="glass-card p-4 relative overflow-hidden">
-          <div className="flex items-center gap-2 mb-2">
-            <Activity className="text-orange-500" size={16} />
-            <p className="text-xs font-semibold text-slate-500 dark:text-gray-400">Gateway</p>
-          </div>
-          <p className="text-2xl font-bold text-slate-800 dark:text-white mt-1 truncate">{telemetry.uptime}</p>
-          <p className="text-[10px] font-medium text-slate-400 mt-1 truncate">{telemetry.gateway}</p>
-        </div>
+      {/* ── Stat cards ── */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <StatCard
+          icon={Bot} iconColor="text-blue-500"
+          label="Active Agents"
+          value={String(activeAgents)}
+          sub={`${agents.length} detected`}
+        />
+        <StatCard
+          icon={Cpu} iconColor="text-purple-500"
+          label="Total Tokens"
+          value={telemetry.totalTokens}
+          sub="across all sessions"
+        />
+        <StatCard
+          icon={DollarSign} iconColor="text-emerald-500"
+          label="Est. Cost"
+          value={telemetry.totalCostFmt}
+          sub="based on model pricing"
+        />
+        <StatCard
+          icon={isConnected ? Activity : WifiOff}
+          iconColor={isConnected ? 'text-orange-500' : 'text-red-400'}
+          label="Gateway"
+          value={telemetry.gatewayOk ? 'Online' : (isConnected ? 'Checking' : 'Offline')}
+          sub={telemetry.rateLimitStatus}
+        />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
-        <div className="glass-card p-5 lg:col-span-1 flex flex-col h-[400px]">
-          <h3 className="text-sm font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2">
-            <Database size={16} className="text-blue-500" />
+      {/* ── Cost + model breakdown ── */}
+      {telemetry.modelBreakdown.length > 0 && (
+        <div className="glass-card p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <TrendingUp size={14} className="text-emerald-500" />
+            <h3 className="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-widest">Cost Breakdown by Model</h3>
+          </div>
+          <div className="space-y-2">
+            {telemetry.modelBreakdown.map(m => {
+              const maxCost = Math.max(...telemetry.modelBreakdown.map(x => x.costUsd), 0.0001);
+              const barPct = Math.max(2, (m.costUsd / maxCost) * 100);
+              return (
+                <div key={m.model} className="flex items-center gap-3">
+                  <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 w-36 truncate shrink-0">{m.label}</span>
+                  <div className="flex-1 bg-slate-100 dark:bg-white/8 rounded-full h-1.5 overflow-hidden">
+                    <div className="h-1.5 rounded-full bg-emerald-500 transition-all duration-700" style={{ width: `${barPct}%` }} />
+                  </div>
+                  <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 w-20 text-right shrink-0">{m.costFmt}</span>
+                  <span className="text-[10px] text-slate-400 w-16 text-right shrink-0">{m.tokens} tok</span>
+                </div>
+              );
+            })}
+          </div>
+          <div className="mt-3 pt-3 border-t border-slate-200/60 dark:border-white/8 flex justify-between items-center">
+            <span className="text-[11px] text-slate-400">Total estimated cost (current sessions)</span>
+            <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">{telemetry.totalCostFmt}</span>
+          </div>
+        </div>
+      )}
+
+      {/* ── Agents + Feed ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+
+        {/* Agent list */}
+        <div className="glass-card p-4 lg:col-span-1 flex flex-col" style={{ minHeight: '420px', maxHeight: '520px' }}>
+          <h3 className="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-widest mb-1 flex items-center gap-2">
+            <Database size={13} className="text-blue-500" />
             Agent Subsystems
           </h3>
-          <p className="text-xs text-slate-500 mb-4">Click an agent to view its specific telemetry feed.</p>
+          <p className="text-[10px] text-slate-400 mb-3">Click an agent to filter the log.</p>
 
-          <div className="space-y-4 overflow-y-auto pr-2 flex-1 custom-scrollbar">
-            {agents.length > 0 ? agents.map(agent => {
+          <div className="space-y-3 overflow-y-auto flex-1 pr-1">
+            {agents.length === 0 ? (
+              <div className="flex justify-center py-12">
+                {loading
+                  ? <RefreshCw size={20} className="text-blue-500 animate-spin" />
+                  : <p className="text-xs text-slate-400">No agents reported.</p>
+                }
+              </div>
+            ) : agents.map(agent => {
               const isSelected = selectedAgent === agent.id;
-              const tone = getAgentStatusTone(agent.status);
-
+              const tone = agentTone(agent.status);
               return (
                 <div
                   key={agent.id}
-                  onClick={() => setSelectedAgent(agent.id)}
-                  className={`p-4 rounded-xl border cursor-pointer transition-all duration-200 ${
+                  onClick={() => setSelectedAgent(isSelected ? null : agent.id)}
+                  className={`p-3.5 rounded-xl border cursor-pointer transition-all ${
                     isSelected
-                      ? 'bg-blue-50/50 dark:bg-blue-900/10 border-blue-400 shadow-md ring-1 ring-blue-400/50'
-                      : 'bg-white/50 dark:bg-slate-800/30 border-slate-200/60 dark:border-slate-700/50 hover:border-blue-300 dark:hover:border-blue-700 hover:shadow-sm'
+                      ? 'bg-blue-50/50 dark:bg-blue-900/10 border-blue-400/70 ring-1 ring-blue-400/30'
+                      : 'bg-white/50 dark:bg-white/3 border-slate-200/60 dark:border-white/8 hover:border-blue-300/60 dark:hover:border-blue-500/30'
                   }`}
                 >
-                  <div className="flex justify-between items-start mb-3 gap-3">
+                  {/* Name + status */}
+                  <div className="flex justify-between items-start gap-2 mb-2">
                     <div className="min-w-0">
-                      <span className="text-sm font-bold text-slate-800 dark:text-gray-100 block truncate">{agent.name}</span>
-                      <span className="text-[9px] px-2 py-0.5 rounded-full font-bold tracking-wider mt-1.5 inline-block bg-slate-100 text-slate-700 dark:bg-slate-500/20 dark:text-slate-300 max-w-full truncate">
+                      <span className="text-sm font-bold text-slate-800 dark:text-slate-100 block truncate">{agent.name}</span>
+                      <span className="text-[9px] px-1.5 py-0.5 rounded font-bold bg-slate-100 dark:bg-white/8 text-slate-500 dark:text-slate-400 inline-block mt-1 max-w-full truncate">
                         {agent.model || 'Unknown model'}
                       </span>
                     </div>
-                    <div className={`flex items-center gap-1.5 text-[10px] font-bold px-2 py-1 rounded-full ${tone.badge}`}>
-                      <span className={`w-1.5 h-1.5 rounded-full ${tone.dot}`}></span>
+                    <span className={`flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-full shrink-0 ${tone.badge}`}>
+                      <span className={`w-1.5 h-1.5 rounded-full ${tone.dot}`} />
                       {tone.label}
+                    </span>
+                  </div>
+
+                  {/* Token bar */}
+                  <div className="mt-2 pt-2 border-t border-slate-100 dark:border-white/6">
+                    <div className="flex justify-between text-[10px] mb-1">
+                      <span className="text-slate-400 flex items-center gap-1"><Cpu size={9} /> Context</span>
+                      <span className="font-semibold text-slate-600 dark:text-slate-300">{agent.tokens} / {agent.limit}</span>
+                    </div>
+                    <div className="w-full bg-slate-200 dark:bg-white/8 rounded-full h-1 overflow-hidden">
+                      <div
+                        className={`h-1 rounded-full transition-all ${
+                          agent.status.toLowerCase() === 'offline' ? 'bg-red-400/50' :
+                          agent.percent > 80 ? 'bg-orange-500' : 'bg-blue-500'
+                        }`}
+                        style={{ width: `${Math.max(agent.percent, 1)}%` }}
+                      />
                     </div>
                   </div>
 
-                  <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-700/50">
-                    <div className="flex justify-between text-[10px] mb-1.5 gap-2">
-                      <span className="text-slate-500 dark:text-slate-400 flex items-center gap-1">
-                        <Database size={10} /> Context Usage
-                      </span>
-                      <span className="font-semibold text-slate-700 dark:text-slate-300 whitespace-nowrap">{agent.tokens} / {agent.limit}</span>
-                    </div>
-                    <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-1.5 overflow-hidden">
-                      <div
-                        className={`h-1.5 rounded-full transition-all duration-1000 ${
-                          agent.status.toLowerCase() === 'offline' ? 'bg-red-500/50' :
-                          agent.percent > 80 ? 'bg-orange-500' : 'bg-blue-500'
-                        }`}
-                        style={{ width: `${Math.max(agent.percent, 2)}%` }}
-                      ></div>
-                    </div>
+                  {/* Cost + last seen */}
+                  <div className="flex justify-between items-center mt-2 text-[10px]">
+                    <span className="text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-0.5">
+                      <DollarSign size={9} /> {agent.costFmt}
+                    </span>
+                    <span className="text-slate-400 flex items-center gap-1">
+                      <Clock size={9} /> {agent.lastSeen}
+                    </span>
                   </div>
                 </div>
               );
-            }) : (
-              <div className="flex justify-center py-12 text-xs text-slate-500 dark:text-slate-400">
-                {loading ? <RefreshCw size={24} className="text-blue-500 animate-spin" /> : 'No agents reported by telemetry source.'}
-              </div>
-            )}
+            })}
           </div>
         </div>
 
-        <div className="glass-card p-0 lg:col-span-2 overflow-hidden flex flex-col border border-slate-200 dark:border-slate-700/50 h-[400px]">
-          <div className="px-5 py-4 border-b border-slate-200 dark:border-slate-700/50 bg-slate-50/80 dark:bg-slate-800/40 flex justify-between items-center">
-            <h3 className="text-sm font-bold text-slate-800 dark:text-white flex items-center gap-2">
-              <Terminal size={16} className="text-slate-500" />
+        {/* Live feed */}
+        <div className="glass-card p-0 lg:col-span-2 overflow-hidden flex flex-col" style={{ minHeight: '420px', maxHeight: '520px' }}>
+          {/* Feed header */}
+          <div className="px-4 py-3 border-b border-slate-200/60 dark:border-white/8 bg-slate-50/80 dark:bg-white/3 flex items-center justify-between shrink-0">
+            <h3 className="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-widest flex items-center gap-2">
+              <Terminal size={13} className="text-slate-400" />
               Live Telemetry Feed
               {selectedAgent && selectedAgentName && (
-                <span className="ml-2 text-xs font-normal text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/30 px-2 py-0.5 rounded-full">
-                  Filtering: {selectedAgentName}
+                <span className="ml-1 text-[10px] font-semibold text-blue-500 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/30 px-2 py-0.5 rounded-full">
+                  {selectedAgentName}
                 </span>
               )}
             </h3>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
               {selectedAgent && (
                 <button
                   onClick={() => setSelectedAgent(null)}
-                  className="text-[10px] text-slate-500 hover:text-slate-800 dark:hover:text-white transition-colors"
+                  className="text-[10px] text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
                 >
-                  Clear Filter
+                  Clear filter
                 </button>
               )}
-              <span className="text-[10px] font-bold tracking-widest text-slate-400 flex items-center gap-1.5 bg-white dark:bg-slate-900 px-2 py-1 rounded-md shadow-sm border border-slate-200 dark:border-slate-800">
-                <span className={`w-1.5 h-1.5 rounded-full ${stale ? 'bg-amber-500' : 'bg-red-500 animate-pulse'}`}></span>
+              <span className={`text-[9px] font-bold tracking-widest px-2 py-1 rounded border flex items-center gap-1 ${
+                stale
+                  ? 'text-amber-500 border-amber-300/50 bg-amber-50 dark:bg-amber-500/10'
+                  : 'text-red-500 border-red-300/50 bg-red-50 dark:bg-red-500/10'
+              }`}>
+                <span className={`w-1.5 h-1.5 rounded-full ${stale ? 'bg-amber-500' : 'bg-red-500 animate-pulse'}`} />
                 {stale ? 'STALE' : 'LIVE'}
               </span>
             </div>
           </div>
 
-          <div className="p-5 font-mono text-[12px] leading-relaxed text-slate-700 dark:text-slate-300 bg-slate-50/70 dark:bg-[#0f172a] flex-1 overflow-auto h-full custom-scrollbar">
-            {!selectedAgent ? (
-              <div className="flex flex-col items-center justify-center h-full text-slate-500 dark:text-slate-400 space-y-4">
-                <Bot size={48} className="opacity-20" />
-                <p className="text-sm tracking-wide">Choose an agent on the left to view its telemetry feed.</p>
-              </div>
-            ) : displayLogs.length > 0 ? (
-              <div className="space-y-3">
-                <p className="text-emerald-600 dark:text-emerald-400 mb-6">--- Telemetry stream for {selectedAgentName} ---</p>
-                {displayLogs.map(log => (
-                  <div key={log.id} className="flex gap-3 py-1">
-                    <span className="text-blue-600 dark:text-blue-400 shrink-0">[{log.time}]</span>
-                    <span className="text-slate-700 dark:text-slate-300">{log.action}</span>
-                  </div>
-                ))}
+          {/* Feed body */}
+          <div className="font-mono text-[11px] leading-relaxed flex-1 overflow-auto p-4 bg-slate-50/50 dark:bg-[#0f172a]">
+            {displayLogs.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full text-slate-400 gap-3">
+                <Bot size={36} className="opacity-20" />
+                <p className="text-xs">
+                  {selectedAgent
+                    ? `No log entries for ${selectedAgentName}.`
+                    : agents.length === 0
+                    ? 'No agent data available. Gateway may be offline.'
+                    : 'Select an agent to filter, or waiting for session data...'}
+                </p>
               </div>
             ) : (
-              <div className="flex flex-col items-center justify-center h-full text-slate-500 dark:text-slate-400">
-                <p>No telemetry feed entries for this agent yet.</p>
+              <div className="space-y-2">
+                {selectedAgent && (
+                  <p className="text-emerald-600 dark:text-emerald-400 mb-3 text-[10px]">
+                    --- stream: {selectedAgentName} ---
+                  </p>
+                )}
+                {displayLogs.map(log => (
+                  <div key={log.id} className="flex gap-2 py-0.5">
+                    <span className="text-blue-500 dark:text-blue-400 shrink-0 text-[10px]">[{log.time}]</span>
+                    <span className={`${log.type === 'success' ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-500 dark:text-slate-400'} break-all`}>
+                      {log.action}
+                    </span>
+                  </div>
+                ))}
               </div>
             )}
           </div>
         </div>
       </div>
+
+      {/* ── Uptime info ── */}
+      <div className="glass-card px-4 py-3 flex items-center gap-3 flex-wrap">
+        <Zap size={13} className="text-cyan-500 shrink-0" />
+        <div className="flex flex-wrap gap-x-6 gap-y-1 text-[11px]">
+          <span className="text-slate-400">Gateway: <span className="font-semibold text-slate-600 dark:text-slate-300">{telemetry.gateway}</span></span>
+          <span className="text-slate-400">Status: <span className="font-semibold text-slate-600 dark:text-slate-300">{telemetry.uptime}</span></span>
+          <span className="text-slate-400">Channels: <span className="font-semibold text-slate-600 dark:text-slate-300">{telemetry.rateLimitStatus}</span></span>
+          {telemetry.tasks && (
+            <span className="text-slate-400">
+              Tasks: <span className="font-semibold text-slate-600 dark:text-slate-300">{telemetry.tasks.active} active</span>
+              {telemetry.tasks.failures > 0 && (
+                <span className="ml-1 text-red-400 font-semibold">· {telemetry.tasks.failures} failed</span>
+              )}
+            </span>
+          )}
+          {telemetry.eventLoopDegraded && (
+            <span className="text-amber-500 font-semibold flex items-center gap-1">
+              <Activity size={9} /> Event loop degraded (high CPU)
+            </span>
+          )}
+        </div>
+      </div>
+
     </div>
   );
 }

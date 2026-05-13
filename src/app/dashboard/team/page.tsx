@@ -15,9 +15,9 @@ export default function TeamPage() {
           <Users size={32} />
         </div>
         <div>
-          <h3 className="text-base font-bold text-slate-800 dark:text-white mb-1">Halaman Teams sedang dipersiapkan</h3>
+          <h3 className="text-base font-bold text-slate-800 dark:text-white mb-1">Teams coming soon</h3>
           <p className="text-xs text-slate-500 dark:text-gray-400 max-w-sm">
-            Halaman ini akan segera terhubung ke data tim dari database.
+            This page will be connected to team data from the database soon.
           </p>
         </div>
       </div>

@@ -4,8 +4,8 @@ import { useEffect, useMemo, useState, Fragment } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { format } from "date-fns";
 import {
-  ArrowLeft, ArrowRight, ChevronDown, ChevronRight,
-  User, Users, Building2, ClipboardList, AlertTriangle, Zap,
+  ArrowLeft, ChevronRight,
+  User, Users, Building2,
   Activity, Clock, FileText, Paperclip
 } from "lucide-react";
 import SCurveCharts from "@/components/dashboard/SCurveCharts";
@@ -188,28 +188,7 @@ const PHASE_DEFS: PhaseDef[] = [
   },
 ];
 
-const ROLE_ORDER = ["pic", "assignee", "stakeholder", "approver", "requester", "vendor"];
-const ROLE_ICONS: Record<string, React.ElementType> = {
-  pic: User, assignee: User, stakeholder: Building2,
-  approver: ClipboardList, requester: FileText, vendor: Building2,
-};
 
-// ─── Sub-components ───────────────────────────────────────────────────────────
-function SectionCard({ title, icon: Icon, children }: {
-  title: string;
-  icon: React.ElementType;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="glass-card overflow-hidden">
-      <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-200/50 dark:border-white/8">
-        <Icon size={13} className="text-cyan-500 shrink-0" />
-        <h3 className="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-widest">{title}</h3>
-      </div>
-      {children}
-    </div>
-  );
-}
 
 function PhaseCard({ ph, project, isCurrent, isPast, people }: {
   ph: PhaseDef;
@@ -225,10 +204,6 @@ function PhaseCard({ ph, project, isCurrent, isPast, people }: {
     if (f.format === "currency") return fmtCurrency(raw as string | null);
     return String(raw);
   }
-
-  const startVal = fmtDate(project[ph.startKey] as string | null);
-  const endVal   = fmtDate(project[ph.endKey]   as string | null);
-  const hasPeriod = startVal !== "—" || endVal !== "—";
 
   const approvers = people.filter(p => p.role_code === "approver");
 
@@ -334,24 +309,6 @@ export default function ProjectDetailPage() {
       .finally(() => setLoading(false));
   }, [id]);
 
-  const peopleByRole = useMemo(() => {
-    const map = new Map<string, PersonRow[]>();
-    for (const p of people) {
-      const role = p.role_code ?? "other";
-      if (!map.has(role)) map.set(role, []);
-      map.get(role)!.push(p);
-    }
-    return map;
-  }, [people]);
-
-  const orderedRoles = useMemo(() => {
-    const roles = Array.from(peopleByRole.keys());
-    return [
-      ...ROLE_ORDER.filter(r => roles.includes(r)),
-      ...roles.filter(r => !ROLE_ORDER.includes(r)),
-    ];
-  }, [peopleByRole]);
-
   // Build project in SCurveCharts-compatible shape
   const scProject = useMemo(() => {
     if (!project) return null;
@@ -419,7 +376,6 @@ export default function ProjectDetailPage() {
         >
           <Clock size={13} />
           View Audit Log
-          <ArrowRight size={12} />
         </button>
       </div>
 
@@ -427,16 +383,23 @@ export default function ProjectDetailPage() {
 
       {/* Team/stakeholder details are shown inside Project Description fields. */}
 
-      {/* ── Descriptions Grid ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      {/* ── Single combined card: Description → Phase Parameters ── */}
+      <div className="glass-card overflow-hidden">
+
         {/* Project Description */}
-        <SectionCard title="Project Description" icon={FileText}>
+        <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-200/50 dark:border-white/8">
+          <FileText size={13} className="text-cyan-500 shrink-0" />
+          <h3 className="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-widest">Project Description</h3>
+        </div>
+        <div className="grid grid-cols-2 divide-x divide-slate-200/50 dark:divide-white/8">
+
+          {/* ── Kiri: Project Name, ID, PIC, Priority ── */}
           <div className="p-4 space-y-4">
+            <div>
+              <p className="text-[10px] uppercase tracking-widest text-slate-400 mb-1">Project Name</p>
+              <p className="text-base font-bold text-slate-700 dark:text-slate-200 leading-snug">{project.project_name}</p>
+            </div>
             <div className="grid grid-cols-2 gap-4">
-              <div className="col-span-2">
-                <p className="text-[10px] uppercase tracking-widest text-slate-400 mb-1">Project Name</p>
-                <p className="text-base font-bold text-slate-700 dark:text-slate-200">{project.project_name}</p>
-              </div>
               <div>
                 <p className="text-[10px] uppercase tracking-widest text-slate-400 mb-1">Project ID</p>
                 <p className="text-sm font-semibold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-white/5 px-2 py-1 rounded inline-block">
@@ -451,39 +414,44 @@ export default function ProjectDetailPage() {
                     ?? "—"}
                 </p>
               </div>
-              <div className="col-span-2">
-                <p className="text-[10px] uppercase tracking-widest text-slate-400 mb-1">Priority</p>
-                {project.priority_name ? (
-                  <span
-                    className="inline-flex items-center gap-1.5 text-xs font-semibold px-2 py-0.5 rounded-md"
-                    style={{ backgroundColor: `${project.priority_color}20`, color: project.priority_color ?? undefined }}
-                  >
-                    <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: project.priority_color ?? undefined }} />
-                    {project.priority_name}
-                  </span>
-                ) : (
-                  <span className="text-sm italic text-slate-400 dark:text-slate-600">—</span>
-                )}
-              </div>
-              <div className="col-span-2">
-                <p className="text-[10px] uppercase tracking-widest text-slate-400 mb-1 flex items-center gap-1.5">
-                  <Building2 size={11} className="text-slate-400" />
-                  Location
-                </p>
-                <div className="px-3 py-2.5 rounded-lg border border-dashed border-slate-200/70 dark:border-white/8 text-slate-400 dark:text-slate-600">
-                  <span className="text-xs italic">Address not specified</span>
-                </div>
+            </div>
+            <div>
+              <p className="text-[10px] uppercase tracking-widest text-slate-400 mb-1">Priority</p>
+              {project.priority_name ? (
+                <span
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold px-2 py-0.5 rounded-md"
+                  style={{ backgroundColor: `${project.priority_color}20`, color: project.priority_color ?? undefined }}
+                >
+                  <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: project.priority_color ?? undefined }} />
+                  {project.priority_name}
+                </span>
+              ) : (
+                <span className="text-sm italic text-slate-400 dark:text-slate-600">—</span>
+              )}
+            </div>
+          </div>
+
+          {/* ── Kanan: Location, Attachments, Stakeholders ── */}
+          <div className="p-4 space-y-4">
+            {/* Location */}
+            <div>
+              <p className="text-[10px] uppercase tracking-widest text-slate-400 mb-1 flex items-center gap-1.5">
+                <Building2 size={11} className="text-slate-400" />
+                Location
+              </p>
+              <div className="px-3 py-2 rounded-lg border border-dashed border-slate-200/70 dark:border-white/8 text-slate-400 dark:text-slate-600">
+                <span className="text-xs italic">Address not specified</span>
               </div>
             </div>
 
             {/* Attachments */}
-            <div className="pt-2 border-t border-slate-200/50 dark:border-white/8">
+            <div>
               <p className="text-[10px] uppercase tracking-widest text-slate-400 mb-2 flex items-center gap-1.5">
                 <Paperclip size={11} className="text-slate-400" />
                 Attachments
               </p>
               {attachments.length > 0 ? (
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   {attachments.map(att => {
                     const isImage = (att.mime_type ?? "").startsWith("image/");
                     return (
@@ -492,14 +460,14 @@ export default function ProjectDetailPage() {
                         href={att.file_url ?? "#"}
                         target="_blank"
                         rel="noreferrer"
-                        className="flex items-center gap-3 rounded-lg border border-slate-200/70 dark:border-white/8 bg-white/60 dark:bg-white/[0.03] px-3 py-2 hover:border-cyan-300/70 dark:hover:border-cyan-400/40 transition-colors"
+                        className="flex items-center gap-3 rounded-lg border border-slate-200/70 dark:border-white/8 bg-white/60 dark:bg-white/3 px-3 py-2 hover:border-cyan-300/70 dark:hover:border-cyan-400/40 transition-colors"
                       >
                         {isImage && att.file_url ? (
                           // eslint-disable-next-line @next/next/no-img-element
-                          <img src={att.file_url} alt={att.file_name} className="h-10 w-10 rounded-md object-cover border border-slate-200/70 dark:border-white/10" />
+                          <img src={att.file_url} alt={att.file_name} className="h-8 w-8 rounded object-cover border border-slate-200/70 dark:border-white/10 shrink-0" />
                         ) : (
-                          <div className="h-10 w-10 rounded-md border border-slate-200/70 dark:border-white/10 flex items-center justify-center text-slate-400">
-                            <FileText size={16} />
+                          <div className="h-8 w-8 rounded border border-slate-200/70 dark:border-white/10 flex items-center justify-center text-slate-400 shrink-0">
+                            <FileText size={14} />
                           </div>
                         )}
                         <div className="min-w-0 flex-1">
@@ -513,14 +481,14 @@ export default function ProjectDetailPage() {
                   })}
                 </div>
               ) : (
-                <div className="px-3 py-2.5 rounded-lg border border-dashed border-slate-200/70 dark:border-white/8 text-slate-400 dark:text-slate-600">
+                <div className="px-3 py-2 rounded-lg border border-dashed border-slate-200/70 dark:border-white/8 text-slate-400 dark:text-slate-600">
                   <span className="text-xs italic">No attachments</span>
                 </div>
               )}
             </div>
 
             {/* Stakeholders */}
-            <div className="pt-2 border-t border-slate-200/50 dark:border-white/8">
+            <div>
               <p className="text-[10px] uppercase tracking-widest text-slate-400 mb-2 flex items-center gap-1.5">
                 <Users size={11} className="text-slate-400" />
                 Stakeholders
@@ -535,72 +503,80 @@ export default function ProjectDetailPage() {
                   ))}
                 </div>
               ) : (
-                <div className="px-3 py-2.5 rounded-lg border border-dashed border-slate-200/70 dark:border-white/8 text-slate-400 dark:text-slate-600">
+                <div className="px-3 py-2 rounded-lg border border-dashed border-slate-200/70 dark:border-white/8 text-slate-400 dark:text-slate-600">
                   <span className="text-xs italic">No stakeholders</span>
                 </div>
               )}
             </div>
           </div>
-        </SectionCard>
 
-        {/* ── Phase Parameters ─────────────────────────────────────────────── */}
-        <SectionCard title="Phase Parameters" icon={Activity}>
-          {/* Phase flow stepper */}
-          <div className="px-4 pt-4 pb-4 border-b border-slate-200/50 dark:border-white/8">
-            <div className="flex items-stretch gap-1">
-              {PHASE_DEFS.map((ph, i) => {
-                const currentIdx = PHASE_DEFS.findIndex(p => p.phaseCode === project.current_phase_code);
-                const isCurrent = i === currentIdx;
-                const isPast = i < currentIdx;
-                return (
-                  <Fragment key={ph.key}>
-                    <div
-                      className="flex-1 flex flex-col items-center justify-center px-2 py-2.5 rounded-xl text-center transition-all"
-                      style={{
-                        backgroundColor: isCurrent ? `${ph.color}22` : isPast ? `${ph.color}10` : "rgba(255,255,255,0.02)",
-                        border: `1.5px solid ${isCurrent ? `${ph.color}70` : isPast ? `${ph.color}35` : "rgba(255,255,255,0.06)"}`,
-                        opacity: !isCurrent && !isPast ? 0.5 : 1,
-                      }}
-                    >
-                      {isCurrent && <span className="w-1.5 h-1.5 rounded-full mb-1 animate-pulse" style={{ backgroundColor: ph.color }} />}
-                      {isPast && <span className="text-[9px] mb-1 leading-none" style={{ color: ph.color }}>✓</span>}
-                      {!isCurrent && !isPast && <span className="text-[9px] mb-1 leading-none text-slate-600">○</span>}
-                      <span
-                        className="text-[8px] font-extrabold uppercase tracking-wider leading-tight block"
-                        style={{ color: isCurrent ? ph.color : isPast ? `${ph.color}cc` : "#475569" }}
-                      >
-                        {ph.label}
-                      </span>
-                    </div>
-                    {i < PHASE_DEFS.length - 1 && (
-                      <div className="self-center shrink-0 text-slate-600 dark:text-slate-700">
-                        <ChevronRight size={10} />
-                      </div>
-                    )}
-                  </Fragment>
-                );
-              })}
-            </div>
-          </div>
+        </div>
 
-          {/* Phase details */}
-          <div className="p-4 space-y-2">
-            {PHASE_DEFS.map((ph) => {
+        {/* ── Divider ── */}
+        <div className="border-t border-slate-200/60 dark:border-white/10" />
+
+        {/* Phase Parameters */}
+        <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-200/50 dark:border-white/8">
+          <Activity size={13} className="text-cyan-500 shrink-0" />
+          <h3 className="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-widest">Phase Parameters</h3>
+        </div>
+
+        {/* Phase flow stepper */}
+        <div className="px-4 pt-4 pb-4 border-b border-slate-200/50 dark:border-white/8">
+          <div className="flex items-stretch gap-1">
+            {PHASE_DEFS.map((ph, i) => {
               const currentIdx = PHASE_DEFS.findIndex(p => p.phaseCode === project.current_phase_code);
-              const phIdx = PHASE_DEFS.findIndex(p => p.key === ph.key);
+              const isCurrent = i === currentIdx;
+              const isPast = i < currentIdx;
               return (
-                <PhaseCard
-                  key={ph.key}
-                  ph={ph}
-                  project={project}
-                  isCurrent={project.current_phase_code === ph.phaseCode}
-                  isPast={phIdx < currentIdx}
-                  people={people}
-                />
+                <Fragment key={ph.key}>
+                  <div
+                    className="flex-1 flex flex-col items-center justify-center px-2 py-2.5 rounded-xl text-center transition-all"
+                    style={{
+                      backgroundColor: isCurrent ? `${ph.color}22` : isPast ? `${ph.color}10` : "rgba(255,255,255,0.02)",
+                      border: `1.5px solid ${isCurrent ? `${ph.color}70` : isPast ? `${ph.color}35` : "rgba(255,255,255,0.06)"}`,
+                      opacity: !isCurrent && !isPast ? 0.5 : 1,
+                    }}
+                  >
+                    {isCurrent && <span className="w-1.5 h-1.5 rounded-full mb-1 animate-pulse" style={{ backgroundColor: ph.color }} />}
+                    {isPast && <span className="text-[9px] mb-1 leading-none" style={{ color: ph.color }}>✓</span>}
+                    {!isCurrent && !isPast && <span className="text-[9px] mb-1 leading-none text-slate-600">○</span>}
+                    <span
+                      className="text-[8px] font-extrabold uppercase tracking-wider leading-tight block"
+                      style={{ color: isCurrent ? ph.color : isPast ? `${ph.color}cc` : "#475569" }}
+                    >
+                      {ph.label}
+                    </span>
+                  </div>
+                  {i < PHASE_DEFS.length - 1 && (
+                    <div className="self-center shrink-0 text-slate-600 dark:text-slate-700">
+                      <ChevronRight size={10} />
+                    </div>
+                  )}
+                </Fragment>
               );
             })}
           </div>
-        </SectionCard>
+        </div>
+
+        {/* Phase details */}
+        <div className="p-4 space-y-2">
+          {PHASE_DEFS.map((ph) => {
+            const currentIdx = PHASE_DEFS.findIndex(p => p.phaseCode === project.current_phase_code);
+            const phIdx = PHASE_DEFS.findIndex(p => p.key === ph.key);
+            return (
+              <PhaseCard
+                key={ph.key}
+                ph={ph}
+                project={project}
+                isCurrent={project.current_phase_code === ph.phaseCode}
+                isPast={phIdx < currentIdx}
+                people={people}
+              />
+            );
+          })}
+        </div>
+
       </div>
 
       {/* ── S-Curve ────────────────────────────────────────────────────── */}

@@ -15,9 +15,9 @@ export default function AlertsPage() {
           <ShieldAlert size={32} />
         </div>
         <div>
-          <h3 className="text-base font-bold text-slate-800 dark:text-white mb-1">Alerts sedang dipersiapkan</h3>
+          <h3 className="text-base font-bold text-slate-800 dark:text-white mb-1">Alerts coming soon</h3>
           <p className="text-xs text-slate-500 dark:text-gray-400 max-w-sm">
-            Halaman ini akan segera terhubung ke sistem monitoring database.
+            This page will be connected to the database monitoring system soon.
           </p>
         </div>
       </div>

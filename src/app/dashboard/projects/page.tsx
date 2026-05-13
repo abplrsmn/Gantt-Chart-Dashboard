@@ -45,11 +45,16 @@ export default function ProjectsPage() {
   });
 
   useEffect(() => {
-    fetch("/api/projects/gantt", { cache: "no-store" })
-      .then(r => r.json())
-      .then(json => { if (json.success) setProjects(json.data); })
-      .catch(() => {})
-      .finally(() => setLoading(false));
+    const load = () =>
+      fetch("/api/projects/gantt", { cache: "no-store" })
+        .then(r => r.json())
+        .then(json => { if (json.success) setProjects(json.data); })
+        .catch(() => {})
+        .finally(() => setLoading(false));
+
+    load();
+    const id = setInterval(load, 30_000);
+    return () => clearInterval(id);
   }, []);
 
   const handleDateRangeChange = (range: { start: string; end: string }) => {
@@ -98,7 +103,7 @@ export default function ProjectsPage() {
         <div className="flex items-center gap-2">
           <CalendarDays size={14} className="text-slate-400" />
           <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-widest">
-            Pilih rentang tanggal
+            Select date range
           </p>
         </div>
 
@@ -109,14 +114,14 @@ export default function ProjectsPage() {
           <div className="flex items-center justify-between gap-4 pt-2 border-t border-slate-200/50 dark:border-white/8">
             <div>
               {loading ? (
-                <p className="text-sm text-slate-400">Menghitung proyek...</p>
+                <p className="text-sm text-slate-400">Counting projects...</p>
               ) : (
                 <>
                   <p className="text-3xl font-bold text-slate-800 dark:text-white">
                     {matchedProjects.length}
                   </p>
                   <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                    proyek aktif dalam rentang ini
+                    active projects in this range
                   </p>
                 </>
               )}
@@ -135,7 +140,7 @@ export default function ProjectsPage() {
 
         {!hasRange && !loading && (
           <p className="text-xs text-slate-400 dark:text-slate-500 italic">
-            Pilih tanggal mulai dan akhir untuk melihat proyek yang aktif.
+            Select a start and end date to see active projects in that range.
           </p>
         )}
       </div>

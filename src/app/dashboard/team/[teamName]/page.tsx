@@ -27,9 +27,9 @@ export default function TeamDetailsPage() {
           <Users size={32} />
         </div>
         <div>
-          <h3 className="text-base font-bold text-slate-800 dark:text-white mb-1">Halaman Team Detail sedang dipersiapkan</h3>
+          <h3 className="text-base font-bold text-slate-800 dark:text-white mb-1">Team detail coming soon</h3>
           <p className="text-xs text-slate-500 dark:text-gray-400 max-w-sm">
-            Data anggota tim akan segera terhubung ke database.
+            Team member data will be connected to the database soon.
           </p>
         </div>
       </div>

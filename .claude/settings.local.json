@@ -16,7 +16,11 @@
       "Bash(git commit *)",
       "Bash(git push *)",
       "Bash(python -X utf8 deploy_fix.py)",
-      "Bash(python -X utf8 -)"
+      "Bash(python -X utf8 -)",
+      "Bash(node -e \"require\\('date-fns/locale'\\)\")",
+      "Bash(node -e \"const {id} = require\\('c:/Users/abrah/clickup-dashboard/node_modules/date-fns/locale'\\); console.log\\(id ? 'ok' : 'fail'\\)\")",
+      "Bash(python -X utf8 diag_gateway.py)",
+      "Bash(del \"c:\\\\Users\\\\abrah\\\\clickup-dashboard\\\\diag_gateway.py\")"
     ],
     "additionalDirectories": [
       "C:\\Users\\abrah\\clickup-dashboard\\src\\app\\api\\clickup",

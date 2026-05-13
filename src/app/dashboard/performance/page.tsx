@@ -20,9 +20,9 @@ export default function HealthPage() {
           <Activity size={32} />
         </div>
         <div>
-          <h3 className="text-base font-bold text-slate-800 dark:text-white mb-1">Performance sedang dipersiapkan</h3>
+          <h3 className="text-base font-bold text-slate-800 dark:text-white mb-1">Performance coming soon</h3>
           <p className="text-xs text-slate-500 dark:text-gray-400 max-w-sm">
-            Halaman ini akan segera terhubung ke data performa dari database.
+            This page will be connected to performance data from the database soon.
           </p>
         </div>
       </div>
