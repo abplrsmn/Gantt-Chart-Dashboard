@@ -207,7 +207,6 @@ function PhaseCard({ ph, project, isCurrent, isPast, people }: {
   }
 
   const phasePeople = people.filter(p => p.phase_id === ph.phaseId);
-  const phasePics   = phasePeople.filter(p => p.role_code === "pic");
   const assignedBy  = phasePeople.filter(p => p.role_code === "approver" || p.role_code === "requester");
 
   return (
@@ -249,24 +248,7 @@ function PhaseCard({ ph, project, isCurrent, isPast, people }: {
             );
           })}
 
-          {/* PIC — phase owner, separate from Assigned By */}
-          <div className="col-span-2">
-            <p className="text-[9px] uppercase tracking-widest text-slate-400 mb-1">PIC</p>
-            {phasePics.length > 0 ? (
-              <div className="flex flex-wrap gap-1.5">
-                {phasePics.map(pic => (
-                  <span key={pic.id} className="inline-flex items-center gap-1 text-[10px] font-medium text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-white/6 px-2 py-0.5 rounded-md">
-                    <User size={9} className="text-slate-400 shrink-0" />
-                    {pic.full_name ?? pic.raw_person_name ?? "—"}
-                  </span>
-                ))}
-              </div>
-            ) : (
-              <p className="text-[10px] italic text-slate-400 dark:text-slate-600">—</p>
-            )}
-          </div>
-
-          {/* Assigned By — assignment source, not the phase PIC */}
+          {/* Assigned By */}
           <div className="col-span-2">
             <p className="text-[9px] uppercase tracking-widest text-slate-400 mb-1">Assigned By</p>
             {assignedBy.length > 0 ? (
@@ -413,27 +395,17 @@ export default function ProjectDetailPage() {
         </div>
         <div className="grid grid-cols-2 divide-x divide-slate-200/50 dark:divide-white/8">
 
-          {/* ── Kiri: Project Name, ID, PIC, Priority ── */}
+          {/* ── Left: Project Name, ID, Priority ── */}
           <div className="p-4 space-y-4">
             <div>
               <p className="text-[10px] uppercase tracking-widest text-slate-400 mb-1">Project Name</p>
               <p className="text-base font-bold text-slate-700 dark:text-slate-200 leading-snug">{project.project_name}</p>
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <p className="text-[10px] uppercase tracking-widest text-slate-400 mb-1">Project ID</p>
-                <p className="text-sm font-semibold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-white/5 px-2 py-1 rounded inline-block">
-                  {project.project_code}
-                </p>
-              </div>
-              <div>
-                <p className="text-[10px] uppercase tracking-widest text-slate-400 mb-1">PIC</p>
-                <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">
-                  {people.find(p => p.role_code === "pic")?.full_name
-                    ?? people.find(p => p.role_code === "pic")?.raw_person_name
-                    ?? "—"}
-                </p>
-              </div>
+            <div>
+              <p className="text-[10px] uppercase tracking-widest text-slate-400 mb-1">Project ID</p>
+              <p className="text-sm font-semibold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-white/5 px-2 py-1 rounded inline-block">
+                {project.project_code}
+              </p>
             </div>
             <div>
               <p className="text-[10px] uppercase tracking-widest text-slate-400 mb-1">Priority</p>
