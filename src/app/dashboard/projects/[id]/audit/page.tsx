@@ -16,7 +16,9 @@ type ActionType =
   | "field_updated"
   | "phase_approved"
   | "deadline_delayed"
-  | "deadline_accelerated";
+  | "deadline_accelerated"
+  | "create"
+  | "update";
 
 type AuditLog = {
   id: string;
@@ -25,7 +27,7 @@ type AuditLog = {
   new_value: string | null;
   change_summary: string | null;
   changed_by_name: string | null;
-  action_type: ActionType;
+  action_type: string;
   created_at: string;
 };
 
@@ -71,6 +73,20 @@ const ACTION_CONFIG: Record<
     border: "border-amber-200 dark:border-amber-500/30",
     Icon: Zap,
   },
+  create: {
+    label: "Project Created",
+    color: "#22c55e",
+    bg: "bg-emerald-50 dark:bg-emerald-500/10",
+    border: "border-emerald-200 dark:border-emerald-500/30",
+    Icon: FilePlus,
+  },
+  update: {
+    label: "Field Diupdate",
+    color: "#3b82f6",
+    bg: "bg-blue-50 dark:bg-blue-500/10",
+    border: "border-blue-200 dark:border-blue-500/30",
+    Icon: Pencil,
+  },
 };
 
 const FILTER_OPTIONS: { value: string; label: string }[] = [
@@ -100,9 +116,13 @@ function avatarInitials(name: string | null): string {
     .join("");
 }
 
+function getActionConfig(type: string | null | undefined) {
+  return ACTION_CONFIG[(type ?? "") as ActionType] ?? ACTION_CONFIG.field_updated;
+}
+
 // ─── Sub-components ───────────────────────────────────────────────────────────
-function ActionBadge({ type }: { type: ActionType }) {
-  const cfg = ACTION_CONFIG[type];
+function ActionBadge({ type }: { type: string }) {
+  const cfg = getActionConfig(type);
   const { Icon } = cfg;
   return (
     <span
@@ -116,7 +136,7 @@ function ActionBadge({ type }: { type: ActionType }) {
 }
 
 function LogEntry({ log }: { log: AuditLog }) {
-  const cfg = ACTION_CONFIG[log.action_type] ?? ACTION_CONFIG.field_updated;
+  const cfg = getActionConfig(log.action_type);
   const { Icon } = cfg;
   const ts = fmtTimestamp(log.created_at);
 
