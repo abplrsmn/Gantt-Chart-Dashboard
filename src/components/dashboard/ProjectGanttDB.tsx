@@ -638,8 +638,6 @@ export default function ProjectGanttDB() {
                               if (e.key === "Enter" || e.key === " ") router.push(`/dashboard/projects/${p.id}`);
                             }}
                             onMouseMove={e => {
-                              if (!containerRef.current) return;
-                              const rect = containerRef.current.getBoundingClientRect();
                               setTooltip({
                                 seg: {
                                   key: "project-range",
@@ -650,8 +648,8 @@ export default function ProjectGanttDB() {
                                 },
                                 project: p,
                                 phases: phaseDates,
-                                x: e.clientX - rect.left,
-                                y: e.clientY - rect.top,
+                                x: e.clientX,
+                                y: e.clientY,
                               });
                             }}
                             onMouseLeave={() => setTooltip(null)}
@@ -698,17 +696,20 @@ export default function ProjectGanttDB() {
         const { seg, project: pr, phases, x, y } = tooltip;
         const TIP_W  = 320;
         const TIP_H  = 235; // approximate tooltip height
-        const contH  = containerRef.current?.clientHeight ?? 600;
-        const contW  = containerRef.current?.clientWidth  ?? 1000;
-        // flip left if near right edge
-        const left = x + TIP_W + 10 > contW ? x - TIP_W - 10 : x + 10;
-        // flip above if near bottom edge
-        const top  = y + TIP_H + 10 > contH ? y - TIP_H - 8 : y + 10;
+        const viewportW = typeof window !== "undefined" ? window.innerWidth : 1000;
+        const viewportH = typeof window !== "undefined" ? window.innerHeight : 700;
+        const margin = 12;
+        // Use fixed viewport coordinates and clamp to screen, so the tooltip never
+        // gets pushed above the visible area or clipped by the Gantt container.
+        const rawLeft = x + TIP_W + margin > viewportW ? x - TIP_W - margin : x + margin;
+        const rawTop  = y + TIP_H + margin > viewportH ? y - TIP_H - margin : y + margin;
+        const left = Math.max(margin, Math.min(rawLeft, viewportW - TIP_W - margin));
+        const top  = Math.max(margin, Math.min(rawTop,  viewportH - TIP_H - margin));
         const displayName = pr.unit_code
           ? `${pr.unit_code} – ${pr.project_name.split(" - ").slice(1).join(" - ") || pr.project_name}`
           : pr.project_name;
         return (
-          <div className="absolute z-999 pointer-events-none" style={{ left, top, width: TIP_W }}>
+          <div className="fixed z-999 pointer-events-none" style={{ left, top, width: TIP_W }}>
             <div
               className="rounded-xl border px-3 py-2.5 shadow-xl
                 bg-white dark:bg-zinc-900
