@@ -115,6 +115,7 @@ type FieldDef = {
 
 type PhaseDef = {
   key: string;
+  phaseId: number;
   phaseCode: string;
   label: string;
   color: string;
@@ -127,7 +128,7 @@ type PhaseDef = {
 
 const PHASE_DEFS: PhaseDef[] = [
   {
-    key: "brief", phaseCode: "operational_brief",
+    key: "brief", phaseId: 1, phaseCode: "operational_brief",
     label: "Operational Brief", color: "#64748b", weight: 10,
     progressKey: "brief_progress",
     startKey: "brief_received", endKey: "brief_deadline",
@@ -138,7 +139,7 @@ const PHASE_DEFS: PhaseDef[] = [
     ],
   },
   {
-    key: "design", phaseCode: "design",
+    key: "design", phaseId: 2, phaseCode: "design",
     label: "Design", color: "#3b82f6", weight: 20,
     progressKey: "design_progress",
     startKey: "design_start", endKey: "design_end",
@@ -150,7 +151,7 @@ const PHASE_DEFS: PhaseDef[] = [
     ],
   },
   {
-    key: "control", phaseCode: "project_control",
+    key: "control", phaseId: 3, phaseCode: "project_control",
     label: "Project Control", color: "#f59e0b", weight: 15,
     progressKey: "control_progress",
     startKey: "control_start", endKey: "control_end",
@@ -162,7 +163,7 @@ const PHASE_DEFS: PhaseDef[] = [
     ],
   },
   {
-    key: "pm", phaseCode: "project_management",
+    key: "pm", phaseId: 4, phaseCode: "project_management",
     label: "Project Management", color: "#14b8a6", weight: 45,
     progressKey: "pm_progress",
     startKey: "pm_start", endKey: "pm_end",
@@ -175,7 +176,7 @@ const PHASE_DEFS: PhaseDef[] = [
     ],
   },
   {
-    key: "handover", phaseCode: "handover",
+    key: "handover", phaseId: 5, phaseCode: "handover",
     label: "Handover", color: "#22c55e", weight: 10,
     progressKey: "handover_progress",
     startKey: "handover_start", endKey: "handover_end",
@@ -230,7 +231,9 @@ function PhaseCard({ ph, project, isCurrent, isPast, people }: {
   const endVal   = fmtDate(project[ph.endKey]   as string | null);
   const hasPeriod = startVal !== "—" || endVal !== "—";
 
-  const approvers = people.filter(p => p.role_code === "approver");
+  const phasePeople = people.filter(p => p.phase_id === ph.phaseId);
+  const phasePics = phasePeople.filter(p => p.role_code === "pic");
+  const assignedBy = phasePeople.filter(p => p.role_code === "approver" || p.role_code === "requester");
 
   return (
     <div
@@ -271,12 +274,29 @@ function PhaseCard({ ph, project, isCurrent, isPast, people }: {
             );
           })}
 
-          {/* Assigned By — same level as other params */}
+          {/* PIC — phase owner, separate from Assigned By */}
+          <div className="col-span-2">
+            <p className="text-[9px] uppercase tracking-widest text-slate-400 mb-1">PIC</p>
+            {phasePics.length > 0 ? (
+              <div className="flex flex-wrap gap-1.5">
+                {phasePics.map(pic => (
+                  <span key={pic.id} className="inline-flex items-center gap-1 text-[10px] font-medium text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-white/6 px-2 py-0.5 rounded-md">
+                    <User size={9} className="text-slate-400 shrink-0" />
+                    {pic.full_name ?? pic.raw_person_name ?? "—"}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <p className="text-[10px] italic text-slate-400 dark:text-slate-600">—</p>
+            )}
+          </div>
+
+          {/* Assigned By — assignment source, not the phase PIC */}
           <div className="col-span-2">
             <p className="text-[9px] uppercase tracking-widest text-slate-400 mb-1">Assigned By</p>
-            {approvers.length > 0 ? (
+            {assignedBy.length > 0 ? (
               <div className="flex flex-wrap gap-1.5">
-                {approvers.map(a => (
+                {assignedBy.map(a => (
                   <span key={a.id} className="inline-flex items-center gap-1 text-[10px] font-medium text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-white/6 px-2 py-0.5 rounded-md">
                     <User size={9} className="text-slate-400 shrink-0" />
                     {a.full_name ?? a.raw_person_name ?? "—"}
@@ -441,14 +461,6 @@ export default function ProjectDetailPage() {
                 <p className="text-[10px] uppercase tracking-widest text-slate-400 mb-1">Project ID</p>
                 <p className="text-sm font-semibold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-white/5 px-2 py-1 rounded inline-block">
                   {project.project_code}
-                </p>
-              </div>
-              <div>
-                <p className="text-[10px] uppercase tracking-widest text-slate-400 mb-1">PIC</p>
-                <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">
-                  {people.find(p => p.role_code === "pic")?.full_name
-                    ?? people.find(p => p.role_code === "pic")?.raw_person_name
-                    ?? "—"}
                 </p>
               </div>
               <div className="col-span-2">
