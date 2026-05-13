@@ -94,6 +94,15 @@ type PhaseSegment = {
 
 type BarTooltipSegment = Pick<PhaseSegment, "label" | "color" | "start" | "end"> & { key: string };
 
+type PhaseDateInfo = {
+  key: PhaseKey;
+  label: string;
+  color: string;
+  start: Date | null;
+  end: Date | null;
+  progress: number;
+};
+
 type WeekCol = { start: Date; end: Date; weekNum: number; monthLabel: string; isFirstOfMonth: boolean };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -163,6 +172,23 @@ function buildProjectRangeBar(p: DBProject, timelineStart: Date, totalDays: numb
   };
 }
 
+function getProjectPhaseDates(p: DBProject): PhaseDateInfo[] {
+  const dates: Record<PhaseKey, { start: Date | null; end: Date | null; progress: number }> = {
+    brief:    { start: toDate(p.brief_received), end: toDate(p.brief_deadline), progress: Number(p.brief_progress ?? 0) },
+    design:   { start: toDate(p.design_start),   end: toDate(p.design_end),     progress: Number(p.design_progress ?? 0) },
+    control:  { start: toDate(p.control_start),  end: toDate(p.control_end),    progress: Number(p.control_progress ?? 0) },
+    pm:       { start: toDate(p.pm_start),       end: toDate(p.pm_end),         progress: Number(p.pm_progress ?? 0) },
+    handover: { start: toDate(p.handover_start), end: toDate(p.handover_end),   progress: Number(p.handover_progress ?? 0) },
+  };
+  return PHASES.map(ph => ({ ...ph, ...dates[ph.key] }));
+}
+
+function fmtRange(start: Date | null, end: Date | null): string {
+  if (!start && !end) return "—";
+  if (start && end) return `${format(start, "dd MMM yy")} → ${format(end, "dd MMM yy")}`;
+  return start ? `${format(start, "dd MMM yy")} → —` : `— → ${format(end!, "dd MMM yy")}`;
+}
+
 function isPhaseActive(phKey: PhaseKey, phaseCode: string | null): boolean {
   if (!phaseCode) return false;
   return PHASE_CODE_MAP[phaseCode] === phKey;
@@ -194,7 +220,7 @@ export default function ProjectGanttDB() {
   };
   const [unitFilter, setUnitFilter]         = useState<string>("");
   const [tooltip, setTooltip] = useState<{
-    seg: BarTooltipSegment; project: DBProject; x: number; y: number;
+    seg: BarTooltipSegment; project: DBProject; phases: PhaseDateInfo[]; x: number; y: number;
   } | null>(null);
 
   // Refs for synced horizontal scroll between sticky header and body
@@ -526,6 +552,7 @@ export default function ProjectGanttDB() {
               </div>
             ) : filteredProjects.map(p => {
               const segments = buildSegments(p, timeline.start, totalDays);
+              const phaseDates = getProjectPhaseDates(p);
               const projectRangeBar = buildProjectRangeBar(p, timeline.start, totalDays);
               const overallProgress = Number(p.overall_progress_pct ?? 0);
               const pCfg = PRIORITY_CONFIG[p.priority_code ?? ""] ?? { label: p.priority_name ?? "–", color: "#94a3b8", dot: "bg-slate-400" };
@@ -591,15 +618,18 @@ export default function ProjectGanttDB() {
                       {projectRangeBar && (() => {
                         const left = (projectRangeBar.offsetPct / 100) * totalWidth;
                         const width = Math.max(4, (projectRangeBar.widthPct / 100) * totalWidth);
+                        const isHovered = tooltip?.project.id === p.id;
                         return (
                           <div
-                            className="absolute rounded-full border border-slate-300/80 bg-slate-200/80 dark:border-white/10 dark:bg-white/12 shadow-inner cursor-pointer hover:ring-2 hover:ring-cyan-400/50"
+                            className="absolute rounded-full border border-slate-300/80 bg-slate-200/80 dark:border-white/10 dark:bg-white/12 shadow-inner cursor-pointer overflow-hidden transition-all duration-150 hover:ring-2 hover:ring-cyan-400/50"
                             style={{
                               left: `${left}px`,
                               width: `${width}px`,
                               top: "14px",
                               height: "24px",
-                              zIndex: 0,
+                              zIndex: 3,
+                              filter: isHovered ? "brightness(1.12) drop-shadow(0 4px 8px rgba(0,0,0,0.3))" : "none",
+                              transform: isHovered ? "scaleY(1.12)" : "scaleY(1)",
                             }}
                             role="button"
                             tabIndex={0}
@@ -619,63 +649,39 @@ export default function ProjectGanttDB() {
                                   end: projectRangeBar.end,
                                 },
                                 project: p,
+                                phases: phaseDates,
                                 x: e.clientX - rect.left,
                                 y: e.clientY - rect.top,
                               });
                             }}
                             onMouseLeave={() => setTooltip(null)}
-                          />
-                        );
-                      })()}
-
-                      {/* Phase segments */}
-                      {segments.map(seg => {
-                        const active = isPhaseActive(seg.key, p.current_phase_code);
-                        const left = (seg.offsetPct / 100) * totalWidth;
-                        const width = Math.max(4, (seg.widthPct / 100) * totalWidth);
-                        return (
-                          <div
-                            key={seg.key}
-                            className="absolute rounded-full overflow-hidden transition-all duration-150 cursor-pointer"
-                            style={{
-                              left: `${left}px`,
-                              width: `${width}px`,
-                              top: "14px",
-                              height: "24px",
-                              backgroundColor: seg.color,
-                              opacity: active ? 1 : 0.38,
-                              outline: active ? `2px solid ${seg.color}` : "none",
-                              outlineOffset: "1px",
-                              zIndex: active ? 5 : 1,
-                              filter: tooltip?.seg.key === seg.key && tooltip?.project.id === p.id
-                                ? "brightness(1.25) drop-shadow(0 4px 8px rgba(0,0,0,0.35))"
-                                : "none",
-                              transform: tooltip?.seg.key === seg.key && tooltip?.project.id === p.id
-                                ? "scaleY(1.18)"
-                                : "scaleY(1)",
-                            }}
-                            role="button"
-                            tabIndex={0}
-                            onClick={() => router.push(`/dashboard/projects/${p.id}`)}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter" || e.key === " ") router.push(`/dashboard/projects/${p.id}`);
-                            }}
-                             onMouseMove={e => {
-                               if (!containerRef.current) return;
-                               const rect = containerRef.current.getBoundingClientRect();
-                               setTooltip({ 
-                                 seg, 
-                                 project: p, 
-                                 x: e.clientX - rect.left, 
-                                 y: e.clientY - rect.top 
-                               });
-                             }}
-                            onMouseLeave={() => setTooltip(null)}
                           >
-                            <div className="absolute left-0 top-0 h-full" style={{ width: `${seg.progress}%`, backgroundColor: "rgba(255,255,255,0.22)" }} />
+                            {segments.map(seg => {
+                              const active = isPhaseActive(seg.key, p.current_phase_code);
+                              const segLeft = ((seg.offsetPct - projectRangeBar.offsetPct) / 100) * totalWidth;
+                              const segWidth = Math.max(2, (seg.widthPct / 100) * totalWidth);
+                              const clippedLeft = Math.max(0, segLeft);
+                              const clippedWidth = Math.max(0, Math.min(segWidth, width - clippedLeft));
+                              if (clippedWidth <= 0) return null;
+                              return (
+                                <div
+                                  key={seg.key}
+                                  className="absolute top-0 bottom-0"
+                                  style={{
+                                    left: `${clippedLeft}px`,
+                                    width: `${clippedWidth}px`,
+                                    backgroundColor: seg.color,
+                                    opacity: active ? 1 : 0.52,
+                                    boxShadow: active ? `inset 0 0 0 2px ${seg.color}, inset 0 0 0 3px rgba(255,255,255,0.28)` : "none",
+                                  }}
+                                >
+                                  <div className="absolute left-0 top-0 h-full" style={{ width: `${seg.progress}%`, backgroundColor: "rgba(255,255,255,0.18)" }} />
+                                </div>
+                              );
+                            })}
                           </div>
                         );
-                      })}
+                      })()}
                     </div>
                   </div>
 
@@ -689,9 +695,9 @@ export default function ProjectGanttDB() {
 
       {/* ── Bar tooltip — one source of truth for project/phase date ranges ── */}
       {tooltip && (() => {
-        const { seg, project: pr, x, y } = tooltip;
-        const TIP_W  = 220;
-        const TIP_H  = 90; // approximate tooltip height
+        const { seg, project: pr, phases, x, y } = tooltip;
+        const TIP_W  = 320;
+        const TIP_H  = 235; // approximate tooltip height
         const contH  = containerRef.current?.clientHeight ?? 600;
         const contW  = containerRef.current?.clientWidth  ?? 1000;
         // flip left if near right edge
@@ -714,10 +720,28 @@ export default function ProjectGanttDB() {
             >
               <div className="flex items-center gap-1.5 mb-1.5">
                 <span className="w-2 h-2 rounded-sm shrink-0" style={{ backgroundColor: seg.color }} />
-                <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: seg.color }}>{seg.label}</span>
+                <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: seg.color }}>Project Lifecycle</span>
               </div>
               <p className="text-[11px] font-semibold text-slate-800 dark:text-white leading-snug mb-1.5 line-clamp-2">{displayName}</p>
-              <p className="text-[10px] text-slate-400 dark:text-white/55">{format(seg.start, "dd MMM yy")} → {format(seg.end, "dd MMM yy")}</p>
+              <p className="text-[10px] text-slate-400 dark:text-white/55 mb-2">
+                Project range: <span className="font-semibold text-slate-600 dark:text-white/75">{format(seg.start, "dd MMM yy")} → {format(seg.end, "dd MMM yy")}</span>
+              </p>
+              <div className="space-y-1.5 border-t border-slate-200/70 dark:border-white/8 pt-2">
+                {phases.map(ph => {
+                  const active = isPhaseActive(ph.key, pr.current_phase_code);
+                  return (
+                    <div key={ph.key} className="flex items-center gap-2 text-[10px]">
+                      <span className="w-2 h-2 rounded-sm shrink-0" style={{ backgroundColor: ph.color, opacity: ph.start || ph.end ? 1 : 0.35 }} />
+                      <span className="w-[104px] truncate font-semibold text-slate-600 dark:text-white/70">
+                        {ph.label}{active ? " • current" : ""}
+                      </span>
+                      <span className="flex-1 text-right font-mono text-slate-500 dark:text-white/55">
+                        {fmtRange(ph.start, ph.end)}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </div>
         );
