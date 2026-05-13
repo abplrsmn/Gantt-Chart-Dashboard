@@ -134,6 +134,21 @@ function buildSegments(p: DBProject, timelineStart: Date, totalDays: number): Ph
   });
 }
 
+function buildProjectRangeBar(p: DBProject, timelineStart: Date, totalDays: number) {
+  const start = toDate(p.start_date);
+  const end = toDate(p.end_date);
+  if (!start || !end || end < start) return null;
+
+  const offsetDays = differenceInCalendarDays(start, timelineStart);
+  const widthDays = Math.max(1, differenceInCalendarDays(end, start) + 1);
+  return {
+    start,
+    end,
+    offsetPct: Math.max(0, (offsetDays / totalDays) * 100),
+    widthPct: Math.max(0.3, (widthDays / totalDays) * 100),
+  };
+}
+
 function isPhaseActive(phKey: PhaseKey, phaseCode: string | null): boolean {
   if (!phaseCode) return false;
   return PHASE_CODE_MAP[phaseCode] === phKey;
@@ -307,9 +322,12 @@ export default function ProjectGanttDB() {
     let totalActiveProjects = 0;
 
     filteredProjects.forEach(p => {
+      const projectStart = toDate(p.start_date);
+      const projectEnd = toDate(p.end_date);
       const segs = buildSegments(p, timeline.start, totalDays);
-      const hasOverlap = segs.some(s => s.start <= rangeEnd && s.end >= rangeStart);
-      if (hasOverlap) totalActiveProjects++;
+      const hasProjectOverlap = !!(projectStart && projectEnd && projectStart <= rangeEnd && projectEnd >= rangeStart);
+      const hasSegmentOverlap = segs.some(s => s.start <= rangeEnd && s.end >= rangeStart);
+      if (hasProjectOverlap || hasSegmentOverlap) totalActiveProjects++;
     });
 
     return { totalActiveProjects };
@@ -486,11 +504,7 @@ export default function ProjectGanttDB() {
             {/* Continuous Vertical Lines Overlay */}
             <div className="absolute top-0 bottom-0 pointer-events-none" style={{ left: "240px", width: `${totalWidth}px`, zIndex: 10 }}>
               {/* Today line */}
-              <div className="absolute top-0 bottom-0 border-l-[1.5px] border-dashed border-red-500/80" style={{ left: `${(todayOffsetPct / 100) * totalWidth}px` }}>
-                <div className="absolute top-2 left-1/2 -translate-x-1/2 bg-red-500/90 text-white text-[8px] font-bold px-1.5 py-0.5 rounded shadow-sm whitespace-nowrap">
-                  Current Date
-                </div>
-              </div>
+              <div className="absolute top-0 bottom-0 border-l-[3px] border-dashed border-red-500/90" style={{ left: `${(todayOffsetPct / 100) * totalWidth}px` }} />
 
               {/* Date range overlay block */}
               {rangeRulers && (
@@ -512,6 +526,7 @@ export default function ProjectGanttDB() {
               </div>
             ) : filteredProjects.map(p => {
               const segments = buildSegments(p, timeline.start, totalDays);
+              const projectRangeBar = buildProjectRangeBar(p, timeline.start, totalDays);
               const overallProgress = Number(p.overall_progress_pct ?? 0);
               const pCfg = PRIORITY_CONFIG[p.priority_code ?? ""] ?? { label: p.priority_name ?? "–", color: "#94a3b8", dot: "bg-slate-400" };
 
@@ -572,6 +587,31 @@ export default function ProjectGanttDB() {
                         );
                       })}
 
+                      {/* Empty project range bar first: visual field/container for all phase segments */}
+                      {projectRangeBar && (() => {
+                        const left = (projectRangeBar.offsetPct / 100) * totalWidth;
+                        const width = Math.max(4, (projectRangeBar.widthPct / 100) * totalWidth);
+                        return (
+                          <div
+                            className="absolute rounded-full border border-slate-300/80 bg-slate-200/80 dark:border-white/10 dark:bg-white/12 shadow-inner cursor-pointer hover:ring-2 hover:ring-cyan-400/50"
+                            style={{
+                              left: `${left}px`,
+                              width: `${width}px`,
+                              top: "14px",
+                              height: "24px",
+                              zIndex: 0,
+                            }}
+                            title={`Project Range: ${format(projectRangeBar.start, "dd MMM yy")} → ${format(projectRangeBar.end, "dd MMM yy")} — Click for details`}
+                            role="button"
+                            tabIndex={0}
+                            onClick={() => router.push(`/dashboard/projects/${p.id}`)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" || e.key === " ") router.push(`/dashboard/projects/${p.id}`);
+                            }}
+                          />
+                        );
+                      })()}
+
                       {/* Phase segments */}
                       {segments.map(seg => {
                         const active = isPhaseActive(seg.key, p.current_phase_code);
@@ -580,7 +620,7 @@ export default function ProjectGanttDB() {
                         return (
                           <div
                             key={seg.key}
-                            className="absolute rounded overflow-hidden transition-all duration-150"
+                            className="absolute rounded-full overflow-hidden transition-all duration-150 cursor-pointer"
                             style={{
                               left: `${left}px`,
                               width: `${width}px`,
@@ -598,6 +638,12 @@ export default function ProjectGanttDB() {
                                 ? "scaleY(1.18)"
                                 : "scaleY(1)",
                             }}
+                            role="button"
+                            tabIndex={0}
+                            onClick={() => router.push(`/dashboard/projects/${p.id}`)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" || e.key === " ") router.push(`/dashboard/projects/${p.id}`);
+                            }}
                              onMouseMove={e => {
                                if (!containerRef.current) return;
                                const rect = containerRef.current.getBoundingClientRect();
@@ -610,25 +656,7 @@ export default function ProjectGanttDB() {
                              }}
                             onMouseLeave={() => setTooltip(null)}
                           >
-                            {seg.key === "handover" ? (
-                              <>
-                                <div className="absolute inset-0 bg-white/15" />
-                                {width > 20 && (
-                                  <span className="absolute inset-0 flex items-center justify-center text-[8px] font-bold text-white">
-                                    ✓ Done
-                                  </span>
-                                )}
-                              </>
-                            ) : (
-                              <>
-                                <div className="absolute left-0 top-0 h-full" style={{ width: `${seg.progress}%`, backgroundColor: "rgba(255,255,255,0.22)" }} />
-                                {width > 28 && (
-                                  <span className="absolute inset-0 flex items-center px-1.5 text-[8px] font-bold text-white truncate">
-                                    {seg.label.split(" ").map(w => w[0]).join("")}
-                                  </span>
-                                )}
-                              </>
-                            )}
+                            <div className="absolute left-0 top-0 h-full" style={{ width: `${seg.progress}%`, backgroundColor: "rgba(255,255,255,0.22)" }} />
                           </div>
                         );
                       })}
@@ -673,7 +701,7 @@ export default function ProjectGanttDB() {
                 <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: seg.color }}>{seg.label}</span>
               </div>
               <p className="text-[11px] font-semibold text-slate-800 dark:text-white leading-snug mb-1.5 line-clamp-2">{displayName}</p>
-              <p className="text-[10px] text-slate-400 dark:text-white/55">{format(seg.start, "dd MMM yy")} → {format(seg.end, "dd MMM yy")}</p>
+              <p className="text-[10px] text-slate-400 dark:text-white/55">{format(seg.start, "dd MMM yy")} → {format(seg.end, "dd MMM yy")} · Click bar for details</p>
             </div>
           </div>
         );

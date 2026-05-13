@@ -75,6 +75,20 @@ type PersonRow = {
   email: string | null;
 };
 
+type AttachmentRow = {
+  id: string;
+  file_name: string;
+  file_type: string | null;
+  mime_type: string | null;
+  file_url: string | null;
+  file_size_bytes: string | null;
+  source_channel: string | null;
+  source_message_id: string | null;
+  uploaded_by_name: string | null;
+  created_at: string;
+  phase_name: string | null;
+};
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function fmtDate(v: string | null | undefined): string {
   if (!v) return "—";
@@ -299,6 +313,7 @@ export default function ProjectDetailPage() {
 
   const [project, setProject] = useState<ProjectDetail | null>(null);
   const [people, setPeople]   = useState<PersonRow[]>([]);
+  const [attachments, setAttachments] = useState<AttachmentRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState<string | null>(null);
 
@@ -310,6 +325,7 @@ export default function ProjectDetailPage() {
         if (json.success) {
           setProject(json.data.project);
           setPeople(json.data.people);
+          setAttachments(json.data.attachments ?? []);
         } else {
           setError(json.error ?? "Unknown error");
         }
@@ -407,96 +423,9 @@ export default function ProjectDetailPage() {
         </button>
       </div>
 
-      {/* ── Summary / Blockers / Next Action ───────────────────────────── */}
-      {(project.summary_brief || project.blocker_note || project.next_action_note) && (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          {project.summary_brief && (
-            <div className="glass-card p-4">
-              <div className="flex items-center gap-1.5 mb-2">
-                <FileText size={11} className="text-cyan-500" />
-                <p className="text-[9px] uppercase tracking-widest font-bold text-slate-400">Summary</p>
-              </div>
-              <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">{project.summary_brief}</p>
-            </div>
-          )}
-          {project.blocker_note && (
-            <div className="glass-card p-4 border-red-500/20 dark:border-red-500/20">
-              <div className="flex items-center gap-1.5 mb-2">
-                <AlertTriangle size={11} className="text-red-400" />
-                <p className="text-[9px] uppercase tracking-widest font-bold text-red-400">Blocker</p>
-              </div>
-              <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">{project.blocker_note}</p>
-            </div>
-          )}
-          {project.next_action_note && (
-            <div className="glass-card p-4 border-cyan-500/20 dark:border-cyan-500/20">
-              <div className="flex items-center gap-1.5 mb-2">
-                <Zap size={11} className="text-cyan-400" />
-                <p className="text-[9px] uppercase tracking-widest font-bold text-cyan-400">Next Action</p>
-              </div>
-              <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">{project.next_action_note}</p>
-            </div>
-          )}
-        </div>
-      )}
+      {/* Summary is shown inside phase notes/cards; keep top area focused on project metadata. */}
 
-      {/* ── People ─────────────────────────────────────────────────────── */}
-      {people.length > 0 && (
-        <SectionCard title="Team & Stakeholders" icon={User}>
-          <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {orderedRoles.map(role => {
-              const members = peopleByRole.get(role) ?? [];
-              const RoleIcon = ROLE_ICONS[role] ?? User;
-              return (
-                <div key={role}>
-                  <div className="flex items-center gap-1.5 mb-2">
-                    <RoleIcon size={11} className="text-slate-400 shrink-0" />
-                    <p className="text-[9px] uppercase tracking-widest font-bold text-slate-400">
-                      {members[0]?.role_name ?? role}
-                    </p>
-                  </div>
-                  <div className="space-y-1.5">
-                    {members.map(m => {
-                      const name = m.full_name ?? m.raw_person_name ?? "—";
-                      const org  = m.raw_organization_name;
-                      const title = m.job_title ?? m.department;
-                      return (
-                        <div key={m.id} className="flex items-start gap-2.5 rounded-lg bg-slate-50/60 dark:bg-white/4 px-3 py-2">
-                          <div className="w-6 h-6 rounded-full bg-cyan-500/15 flex items-center justify-center shrink-0 mt-0.5">
-                            <span className="text-[9px] font-bold text-cyan-600 dark:text-cyan-400">
-                              {name.charAt(0).toUpperCase()}
-                            </span>
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-[11px] font-semibold text-slate-700 dark:text-slate-200 truncate">
-                              {name}
-                              {m.is_primary && (
-                                <span className="ml-1 text-[8px] font-bold text-cyan-500 uppercase">Primary</span>
-                              )}
-                            </p>
-                            {(title || org) && (
-                              <p className="text-[10px] text-slate-400 truncate">
-                                {[title, org].filter(Boolean).join(" · ")}
-                              </p>
-                            )}
-                          </div>
-                          {m.email && (
-                            <a href={`mailto:${m.email}`}
-                              className="text-[9px] text-cyan-500 hover:underline shrink-0 mt-0.5"
-                              onClick={e => e.stopPropagation()}>
-                              Email
-                            </a>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </SectionCard>
-      )}
+      {/* Team/stakeholder details are shown inside Project Description fields. */}
 
       {/* ── Descriptions Grid ── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -553,9 +482,41 @@ export default function ProjectDetailPage() {
                 <Paperclip size={11} className="text-slate-400" />
                 Attachments
               </p>
-              <div className="px-3 py-2.5 rounded-lg border border-dashed border-slate-200/70 dark:border-white/8 text-slate-400 dark:text-slate-600">
-                <span className="text-xs italic">No attachments</span>
-              </div>
+              {attachments.length > 0 ? (
+                <div className="space-y-2">
+                  {attachments.map(att => {
+                    const isImage = (att.mime_type ?? "").startsWith("image/");
+                    return (
+                      <a
+                        key={att.id}
+                        href={att.file_url ?? "#"}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex items-center gap-3 rounded-lg border border-slate-200/70 dark:border-white/8 bg-white/60 dark:bg-white/[0.03] px-3 py-2 hover:border-cyan-300/70 dark:hover:border-cyan-400/40 transition-colors"
+                      >
+                        {isImage && att.file_url ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={att.file_url} alt={att.file_name} className="h-10 w-10 rounded-md object-cover border border-slate-200/70 dark:border-white/10" />
+                        ) : (
+                          <div className="h-10 w-10 rounded-md border border-slate-200/70 dark:border-white/10 flex items-center justify-center text-slate-400">
+                            <FileText size={16} />
+                          </div>
+                        )}
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-xs font-semibold text-slate-700 dark:text-slate-200">{att.file_name}</p>
+                          <p className="text-[10px] text-slate-400">
+                            {att.phase_name ?? "Project"} · {att.uploaded_by_name ?? att.source_channel ?? "Uploaded"}
+                          </p>
+                        </div>
+                      </a>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="px-3 py-2.5 rounded-lg border border-dashed border-slate-200/70 dark:border-white/8 text-slate-400 dark:text-slate-600">
+                  <span className="text-xs italic">No attachments</span>
+                </div>
+              )}
             </div>
 
             {/* Stakeholders */}

@@ -47,7 +47,12 @@ type CapexProject = {
   deadlineRisk?: "none" | "normal" | "near" | "overdue";
   blocked?: boolean;
   milestones?: CapexMilestones;
-  source?: "clickup" | "seed";
+  phaseWindows?: Array<{
+    phase: CapexPhase;
+    start?: string;
+    end?: string;
+  }>;
+  source?: "clickup" | "seed" | "db-summary";
 };
 
 type CapexMappingRow = {
@@ -192,17 +197,38 @@ const resolveMilestoneSegments = (project: CapexProject, timelineStart: Date) =>
   const fallbackEnd = fallbackRawEnd < fallbackStart ? addDays(fallbackStart, 14) : fallbackRawEnd;
   const effectivePhase = getEffectivePhase(project);
 
+  const explicitWindows = (project.phaseWindows || [])
+    .map((window) => ({
+      phase: window.phase,
+      startDate: parseFlexibleDate(window.start),
+      endDate: parseFlexibleDate(window.end),
+    }))
+    .filter((window): window is { phase: CapexPhase; startDate: Date; endDate: Date } => !!window.startDate && !!window.endDate && window.endDate >= window.startDate)
+    .sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
+
+  if (project.phaseWindows) {
+    return explicitWindows.map((window) => {
+      const boundedStart = window.startDate < fallbackStart ? fallbackStart : window.startDate;
+      const boundedRawEnd = window.endDate > fallbackEnd ? fallbackEnd : window.endDate;
+      const boundedEnd = boundedRawEnd < boundedStart ? boundedStart : boundedRawEnd;
+      return { phase: window.phase, startDate: boundedStart, endDate: boundedEnd };
+    });
+  }
+
   const brief = parseFlexibleDate(project.milestones?.briefDate);
   const design = parseFlexibleDate(project.milestones?.designDate);
   const control = parseFlexibleDate(project.milestones?.controlDate);
   const pm = parseFlexibleDate(project.milestones?.projectManagementDate);
+  const handover = parseFlexibleDate(project.milestones?.handoverDate);
 
   const points = [
     brief ? { phase: "brief" as CapexPhase, at: brief } : null,
     design ? { phase: "design" as CapexPhase, at: design } : null,
     control ? { phase: "control" as CapexPhase, at: control } : null,
     pm ? { phase: "project_management" as CapexPhase, at: pm } : null,
-  ].filter((item): item is { phase: CapexPhase; at: Date } => item !== null);
+    handover ? { phase: "handover" as CapexPhase, at: handover } : null,
+  ].filter((item): item is { phase: CapexPhase; at: Date } => item !== null)
+    .sort((a, b) => a.at.getTime() - b.at.getTime());
 
   const ranges: Array<{ phase: CapexPhase; startDate: Date; endDate: Date }> = [];
   for (let i = 0; i < points.length; i += 1) {
@@ -210,27 +236,20 @@ const resolveMilestoneSegments = (project: CapexProject, timelineStart: Date) =>
     const next = points[i + 1];
     ranges.push({
       phase: current.phase,
-      startDate: current.at,
-      endDate: next?.at ?? fallbackEnd,
+      startDate: current.at < fallbackStart ? fallbackStart : current.at,
+      endDate: next?.at ? addDays(next.at, -1) : fallbackEnd,
     });
   }
 
   if (ranges.length === 0) {
     ranges.push({ phase: effectivePhase === "done" || effectivePhase === "blocked" ? "project_management" : effectivePhase, startDate: fallbackStart, endDate: fallbackEnd });
-  } else {
-    const lastEnd = ranges[ranges.length - 1]?.endDate ?? fallbackStart;
-    if (lastEnd < fallbackEnd) {
-      const remainingPhase = effectivePhase === "blocked" || effectivePhase === "done" ? effectivePhase : effectivePhase;
-      ranges.push({
-        phase: remainingPhase,
-        startDate: lastEnd,
-        endDate: fallbackEnd,
-      });
-    }
+  } else if (ranges[0].startDate > fallbackStart) {
+    ranges.unshift({ phase: "brief", startDate: fallbackStart, endDate: addDays(ranges[0].startDate, -1) });
   }
 
   return ranges.map((range) => {
-    const safeEnd = range.endDate < range.startDate ? addDays(range.startDate, 7) : range.endDate;
+    const boundedEnd = range.endDate > fallbackEnd ? fallbackEnd : range.endDate;
+    const safeEnd = boundedEnd < range.startDate ? range.startDate : boundedEnd;
     return { ...range, endDate: safeEnd };
   });
 };
@@ -245,6 +264,19 @@ const getPhaseLabel = (phase?: CapexPhase) => {
     case "done": return "Completed";
     case "blocked": return "Blocked";
     default: return "Operational Brief";
+  }
+};
+
+const getPhaseBarColor = (phase?: CapexPhase) => {
+  switch (phase) {
+    case "brief": return "#64748b";
+    case "design": return "#2563eb";
+    case "control": return "#f59e0b";
+    case "project_management": return "#0d9488";
+    case "handover": return "#059669";
+    case "done": return "#166534";
+    case "blocked": return "#e11d48";
+    default: return "#0891b2";
   }
 };
 
@@ -584,16 +616,32 @@ export default function CapexGanttMonitor() {
 
     for (const project of filteredProjects) {
       const fallbackWindow = resolvePhaseWindow(project, timeline.start);
-      const clampedStart = fallbackWindow.startDate < timeline.start ? timeline.start : fallbackWindow.startDate;
-      const clampedEnd = fallbackWindow.endDate > timeline.end ? timeline.end : fallbackWindow.endDate;
+      const projectStart = parseFlexibleDate(project.start) ?? fallbackWindow.startDate;
+      const projectEndRaw = parseFlexibleDate(project.end) ?? fallbackWindow.endDate;
+      const projectEnd = projectEndRaw < projectStart ? fallbackWindow.endDate : projectEndRaw;
+      const clampedStart = projectStart < timeline.start ? timeline.start : projectStart;
+      const clampedEnd = projectEnd > timeline.end ? timeline.end : projectEnd;
       const startDate = clampedStart;
       const endDate = clampedEnd < clampedStart ? clampedStart : clampedEnd;
       const offset = Math.max(0, (differenceInCalendarDays(startDate, timeline.start) / totalDays) * 100);
       const width = Math.max(1.1, ((Math.max(1, differenceInCalendarDays(endDate, startDate) + 1)) / totalDays) * 100);
       const progressPct = typeof project.progress === "number" ? Math.max(0, Math.min(100, project.progress)) : undefined;
       const deadlineRisk = getDeadlineRisk(project);
-      const tonePhase = getEffectivePhase(project);
-      const segments = [{ phase: tonePhase, startDate, endDate, offset, width }];
+      const segments = resolveMilestoneSegments(project, timeline.start)
+        .map((segment) => {
+          const segmentStart = segment.startDate < timeline.start ? timeline.start : segment.startDate;
+          const segmentEnd = segment.endDate > timeline.end ? timeline.end : segment.endDate;
+          if (segmentEnd < timeline.start || segmentStart > timeline.end) return null;
+          const safeEnd = segmentEnd < segmentStart ? segmentStart : segmentEnd;
+          return {
+            ...segment,
+            startDate: segmentStart,
+            endDate: safeEnd,
+            offset: Math.max(0, (differenceInCalendarDays(segmentStart, timeline.start) / totalDays) * 100),
+            width: Math.max(0.8, ((Math.max(1, differenceInCalendarDays(safeEnd, segmentStart) + 1)) / totalDays) * 100),
+          };
+        })
+        .filter((segment): segment is GanttRow["segments"][number] => segment !== null);
 
       map.set(project.id, { project, startDate, endDate, offset, width, segments, progressPct, deadlineRisk });
     }
@@ -736,21 +784,36 @@ export default function CapexGanttMonitor() {
                           <div className="absolute left-0 right-0 top-1/2 h-[2px] -translate-y-1/2 bg-slate-500/60 dark:bg-white/25"></div>
 
                           <div
-                            className="absolute top-1/2 h-6 -translate-y-1/2 rounded-full"
-                            style={{ left: `${row.offset}%`, width: `${row.width}%`, backgroundColor: '#06b6d4' }}
-                            title={`${project.name}\nProgress: ${typeof row.progressPct === "number" ? row.progressPct + "%" : "N/A"}\nStart: ${format(row.startDate, "dd MMM yyyy")} - End: ${format(row.endDate, "dd MMM yyyy")}`}
+                            className={`absolute top-1/2 h-7 -translate-y-1/2 overflow-hidden rounded-full border border-slate-900/15 bg-slate-300/80 shadow-sm dark:border-white/10 dark:bg-white/15 ${getRiskRing(row.deadlineRisk)}`}
+                            style={{ left: `${row.offset}%`, width: `${row.width}%` }}
+                            title={`${project.name}
+Project Range: ${format(row.startDate, "dd MMM yyyy")} - ${format(row.endDate, "dd MMM yyyy")}
+Progress: ${typeof row.progressPct === "number" ? row.progressPct + "%" : "N/A"}`}
                           >
+                            <div className="absolute inset-0 bg-gradient-to-r from-slate-200/60 via-white/20 to-slate-400/50 dark:from-white/5 dark:via-white/10 dark:to-black/20" />
+                            {row.segments.map((segment, index) => (
+                              <div
+                                key={`${project.id}-${segment.phase}-${index}`}
+                                className="absolute top-0 h-full border-r border-white/60 last:border-r-0"
+                                style={{
+                                  left: `${Math.max(0, ((segment.offset - row.offset) / row.width) * 100)}%`,
+                                  width: `${Math.min(100, (segment.width / row.width) * 100)}%`,
+                                  backgroundColor: getPhaseBarColor(segment.phase),
+                                }}
+                                title={`${getPhaseLabel(segment.phase)}
+${format(segment.startDate, "dd MMM yyyy")} - ${format(segment.endDate, "dd MMM yyyy")}`}
+                              />
+                            ))}
                             {typeof row.progressPct === "number" && row.progressPct > 0 && row.progressPct < 100 && (
                               <div
-                                className="absolute right-0 top-0 h-full rounded-r-full"
-                                style={{ width: `${100 - row.progressPct}%`, backgroundColor: 'rgba(0,0,0,0.18)' }}
-                              ></div>
+                                className="absolute right-0 top-0 h-full bg-black/20 backdrop-grayscale"
+                                style={{ width: `${100 - row.progressPct}%` }}
+                              />
                             )}
-                            {typeof row.progressPct === "number" && (
-                              <span className="absolute inset-0 flex items-center px-3 truncate text-[10px] font-semibold text-slate-900 leading-6">
-                                {`${row.progressPct}%`}
-                              </span>
-                            )}
+                            <span className="absolute inset-0 flex items-center justify-between gap-2 px-3 text-[10px] font-extrabold leading-7 text-white drop-shadow-sm">
+                              <span className="truncate">{getPhaseLabel(getEffectivePhase(project))}</span>
+                              {typeof row.progressPct === "number" && <span>{`${row.progressPct}%`}</span>}
+                            </span>
                           </div>
                         </div>
                       </div>

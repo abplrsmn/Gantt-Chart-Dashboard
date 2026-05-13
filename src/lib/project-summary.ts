@@ -10,12 +10,20 @@ export interface ProjectManagementSummaryRow {
   phase_name: string | null;
   overall_status: string | null;
   clickup_task_id?: string | null;
+  project_start_date?: string | null;
+  project_end_date?: string | null;
   commence_date: string | null;
   end_contract_date: string | null;
   actual_phase_completion_date: string | null;
   current_site_progress: string | null;
   bast_1_date?: string | null;
   bast_2_date?: string | null;
+  phase_windows?: Array<{
+    phase_name: string | null;
+    phase_order: number | null;
+    start_date: string | null;
+    end_date: string | null;
+  }> | null;
   days_remaining?: number | null;
   days_overdue?: number | null;
   completion_delta_days?: number | null;
@@ -101,12 +109,15 @@ export async function getDailyProjectSummary(): Promise<SummaryBuckets> {
       mp.phase_name,
       ms.status_label as overall_status,
       pp.clickup_task_id,
+      p.start_date as project_start_date,
+      p.end_date as project_end_date,
       pp.commence_date,
       pp.end_contract_date,
       pp.actual_phase_completion_date,
       pp.current_site_progress,
       ho.bast_1_date,
-      ho.bast_2_date
+      ho.bast_2_date,
+      COALESCE(phase_windows.phase_windows, '[]'::json) as phase_windows
     FROM project_phases pp
     JOIN projects p ON p.id = pp.project_id
     LEFT JOIN master_units mu ON mu.id = p.unit_id
@@ -114,6 +125,33 @@ export async function getDailyProjectSummary(): Promise<SummaryBuckets> {
     LEFT JOIN master_statuses ms ON ms.id = p.overall_status_id
     LEFT JOIN project_phases ho ON ho.project_id = p.id
       AND ho.phase_id = (SELECT id FROM master_phases WHERE phase_name = 'Handover' LIMIT 1)
+    LEFT JOIN LATERAL (
+      SELECT json_agg(
+        json_build_object(
+          'phase_name', mp_all.phase_name,
+          'phase_order', mp_all.phase_order,
+          'start_date', CASE
+            WHEN mp_all.phase_name = 'Operational Brief' THEN pp_all.received_date
+            WHEN mp_all.phase_name = 'Design' THEN pp_all.start_design_date
+            WHEN mp_all.phase_name = 'Project Control' THEN pp_all.tender_start_date
+            WHEN mp_all.phase_name = 'Project Management' THEN pp_all.commence_date
+            WHEN mp_all.phase_name = 'Handover' THEN COALESCE(pp_all.bast_1_date, pp_all.bast_2_date)
+            ELSE pp_all.normalized_deadline_date
+          END,
+          'end_date', CASE
+            WHEN mp_all.phase_name = 'Operational Brief' THEN COALESCE(pp_all.normalized_deadline_date, pp_all.received_date)
+            WHEN mp_all.phase_name = 'Design' THEN COALESCE(pp_all.design_approval_date, pp_all.normalized_deadline_date)
+            WHEN mp_all.phase_name = 'Project Control' THEN COALESCE(pp_all.aps_spk_released_date, pp_all.normalized_deadline_date)
+            WHEN mp_all.phase_name = 'Project Management' THEN COALESCE(pp_all.end_contract_date, pp_all.actual_phase_completion_date, pp_all.normalized_deadline_date)
+            WHEN mp_all.phase_name = 'Handover' THEN COALESCE(pp_all.bast_2_date, pp_all.bast_1_date, pp_all.normalized_deadline_date)
+            ELSE pp_all.normalized_deadline_date
+          END
+        ) ORDER BY mp_all.phase_order ASC
+      ) as phase_windows
+      FROM project_phases pp_all
+      JOIN master_phases mp_all ON mp_all.id = pp_all.phase_id
+      WHERE pp_all.project_id = p.id
+    ) phase_windows ON true
     WHERE mp.phase_name = 'Project Management'
     ORDER BY mu.unit_code ASC NULLS LAST, p.project_name ASC;
   `;

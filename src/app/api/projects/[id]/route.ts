@@ -16,7 +16,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const { id } = await params;
   const client = await pool.connect();
   try {
-    const [projectRes, peopleRes, logsRes] = await Promise.all([
+    const [projectRes, peopleRes, logsRes, attachmentsRes] = await Promise.all([
       client.query(`
         SELECT
           p.id, p.project_code, p.project_name, p.overall_progress_pct,
@@ -94,6 +94,26 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
         ORDER BY created_at DESC
         LIMIT 50
       `, [id]),
+
+      client.query(`
+        SELECT
+          pa.id,
+          pa.file_name,
+          pa.file_type,
+          pa.mime_type,
+          pa.file_url,
+          pa.file_size_bytes,
+          pa.source_channel,
+          pa.source_message_id,
+          pa.uploaded_by_name,
+          pa.created_at,
+          mp.phase_name
+        FROM project_attachments pa
+        LEFT JOIN project_phases pp ON pp.id = pa.phase_id
+        LEFT JOIN master_phases mp ON mp.id = pp.phase_id
+        WHERE pa.project_id = $1
+        ORDER BY pa.created_at DESC, pa.id DESC
+      `, [id]),
     ]);
 
     if (projectRes.rows.length === 0) {
@@ -106,6 +126,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
         project: projectRes.rows[0],
         people: peopleRes.rows,
         logs: logsRes.rows,
+        attachments: attachmentsRes.rows,
       },
     });
   } catch (err: unknown) {
