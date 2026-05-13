@@ -119,16 +119,28 @@ function buildSegments(p: DBProject, timelineStart: Date, totalDays: number): Ph
     { key: "handover", start: toDate(p.handover_start),  end: toDate(p.handover_end),   progress: Number(p.handover_progress ?? 20) },
   ];
 
+  let previousVisualEnd: Date | null = null;
+
   return raw.flatMap(r => {
     if (r.start === null && r.end === null) return [];
     const s = r.start ?? projectStart;
     const e = r.end   ?? addDays(s, 14);
     if (e < s) return [];
-    // Snap visual position to week boundaries, but keep original dates for tooltip
-    const visualStart = startOfWeek(s, { weekStartsOn: 1 });
-    const visualEnd   = endOfWeek(e,   { weekStartsOn: 1 });
+
+    // Gantt lifecycle bars are linear by phase order.
+    // If a later phase is entered with dates that overlap the previous phase,
+    // keep the previous phase visible and place the later phase after it visually
+    // instead of letting the active phase cover/replace the earlier segment.
+    let visualStart = s;
+    let visualEnd = e;
+    if (previousVisualEnd && visualStart <= previousVisualEnd) {
+      visualStart = addDays(previousVisualEnd, 1);
+    }
+    if (visualEnd < visualStart) visualEnd = visualStart;
+    previousVisualEnd = visualEnd;
+
     const offsetDays = differenceInCalendarDays(visualStart, timelineStart);
-    const widthDays  = Math.max(7, differenceInCalendarDays(visualEnd, visualStart) + 1);
+    const widthDays  = Math.max(1, differenceInCalendarDays(visualEnd, visualStart) + 1);
     const offsetPct  = Math.max(0, (offsetDays / totalDays) * 100);
     const widthPct   = Math.max(0.3, (widthDays / totalDays) * 100);
     const ph = PHASES.find(ph => ph.key === r.key)!;
