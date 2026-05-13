@@ -113,11 +113,14 @@ function parseCapexNaturalLanguage(text: string) {
   const progressMatch = raw.match(/progress\s*(?:jadi|=|:)?\s*([^,\n]+)/i);
   const remarksMatch = raw.match(/(?:remarks?|status(?:nya)?|status log|catatan)\s*(?:jadi|=|:)?\s*([^\n]+)/i);
   const assignMatch = raw.match(/assign\s+(?:ke\s+)?@?([A-Za-z0-9._\- ]+)/i);
+  const phaseMatch = raw.match(/(?:phase|fase|milestone)\s*(?:=|:|nya|di)?\s*\b(PR|HoD|HOD|PC|PM|Operational Brief|Design|Project Control|Project Management|Handover)\b/i)
+    || raw.match(/^\s*\b(PR|HoD|HOD|PC|PM)\b\s*[-:|]/i);
   const projectMatch = raw.match(/(?:update|buat proyek baru|buat project baru|buat capex)\s+(?:project\s+)?(?:capex\s+)?(?:unit\s+)?(?:SPH|ALV|ASM|APL|AMD|ACC|AKB|AME|AJK|IKG|ABD|APK)?\s*([A-Za-z0-9'&()\-/. ]+?)(?:\s+progress\b|\s+remarks?\b|\s+status\b|$)/i);
 
   return {
     unit: unitMatch?.[1]?.toUpperCase() || '',
     project: projectMatch?.[1]?.trim() || '',
+    phase: phaseMatch?.[1]?.trim(),
     currentSiteProgress: progressMatch?.[1]?.trim(),
     remarks: remarksMatch?.[1]?.trim(),
     assignee: assignMatch?.[1]?.trim(),
@@ -219,6 +222,7 @@ export async function executeUnifiedOpsRoute(body: UnifiedInput) {
       spkReleased: firstNonEmptyString(body?.spkReleased, fields?.spk_released),
       actualCompletion: firstNonEmptyString(body?.actualCompletion, fields?.actual_completion),
       assignee: firstNonEmptyString(body?.assignee, body?.assign, body?.pic, fields?.pic, naturalCapex.assignee),
+      phase: firstNonEmptyString(body?.phase, body?.fase, body?.milestone, fields?.phase, fields?.fase, fields?.milestone, naturalCapex.phase),
     });
 
     const payload = {

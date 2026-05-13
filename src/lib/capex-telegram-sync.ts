@@ -32,6 +32,7 @@ type CapexSyncInput = {
   spkReleased?: string;
   actualCompletion?: string;
   assignee?: string;
+  phase?: string;
 };
 
 type ProjectAuditInput = {
@@ -152,6 +153,7 @@ function normalizeProgress(input: unknown): number | undefined {
 
 function computePhase(input: {
   progress?: number;
+  phase?: string;
   receivedDate?: string;
   startDesignDate?: string;
   tenderStart?: string;
@@ -159,12 +161,25 @@ function computePhase(input: {
   commenceDate?: string;
   actualCompletion?: string;
 }) {
+  const explicitPhase = normalizePhaseInput(input.phase);
+  if (explicitPhase) return explicitPhase;
   if ((input.progress ?? 0) >= 100 || input.actualCompletion) return 'Completed';
   if (input.commenceDate && (input.progress ?? 0) < 100) return 'Project Management';
   if (input.tenderStart || input.spkReleased) return 'Project Control';
   if (input.startDesignDate) return 'Design';
   if (input.receivedDate) return 'Operational Brief';
   return 'Operational Brief';
+}
+
+function normalizePhaseInput(input?: string) {
+  const normalized = normalizeText(input);
+  if (!normalized) return undefined;
+  if (['pr', 'brief', 'operational brief', 'operational'].includes(normalized)) return 'Operational Brief';
+  if (['hod', 'head of department', 'design'].includes(normalized)) return 'Design';
+  if (['pc', 'project control', 'control'].includes(normalized)) return 'Project Control';
+  if (['pm', 'project management', 'project management team'].includes(normalized)) return 'Project Management';
+  if (['handover', 'ho', 'bast'].includes(normalized)) return 'Handover';
+  return undefined;
 }
 
 function computeDeviationDays(endContract?: string, actualCompletion?: string) {
@@ -479,6 +494,7 @@ export async function syncCapexTelegramUpdate(input: CapexSyncInput) {
   const progress = normalizeProgress(input.currentSiteProgress);
   const phase = computePhase({
     progress,
+    phase: input.phase,
     receivedDate: input.receivedDate,
     startDesignDate: input.startDesignDate,
     tenderStart: input.tenderStart,

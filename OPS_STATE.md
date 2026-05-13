@@ -88,6 +88,7 @@ These rules are safe to use across shared/group sessions and should be treated a
 
 ### Ownership and roles
 - Each of the 5 milestone phases has its own PIC/account/role.
+- Phase abbreviation mapping for Telegram/project input: PR = Operational Brief, HoD = Design, PC = Project Control, PM = Project Management. Users may use the short form or full phase name.
 - In Project Details, do not show a single project-level PIC. The phase card Assigned By value should come from that phase's own PIC, because each phase may have a different responsible person.
 - Project Team / Telegram project updates should write to `project_change_logs` whenever the project can be resolved, so they appear in the Project Details Audit Log.
 - Phase ownership matters operationally: the responsible PIC is the authority for reviewing/updating data related to that phase.
