@@ -206,7 +206,7 @@ function PhaseCard({ ph, project, isCurrent, isPast, people }: {
     return String(raw);
   }
 
-  const phasePeople = people.filter(p => p.phase_id === ph.phaseId);
+  const phasePeople = people.filter(p => Number(p.phase_id) === ph.phaseId);
   const assignedBy  = phasePeople.filter(p => p.role_code === "pic");
 
   return (

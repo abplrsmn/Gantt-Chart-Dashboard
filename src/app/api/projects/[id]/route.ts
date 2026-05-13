@@ -75,13 +75,16 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 
       client.query(`
         SELECT pp.id, pp.raw_person_name, pp.raw_organization_name,
-               pp.is_primary, pp.notes, pp.phase_id,
+               pp.is_primary, pp.notes,
+               pp.phase_id AS phase_row_id,
+               pph.phase_id::int AS phase_id,
                pp.created_at, pp.updated_at,
                mr.role_code, mr.role_name,
                mp.full_name, mp.job_title, mp.department, mp.email
         FROM project_people pp
         LEFT JOIN master_roles mr  ON mr.id = pp.role_id
         LEFT JOIN master_people mp ON mp.id = pp.person_id
+        LEFT JOIN project_phases pph ON pph.id = pp.phase_id
         WHERE pp.project_id = $1
         ORDER BY mr.id, pp.is_primary DESC
       `, [id]),
