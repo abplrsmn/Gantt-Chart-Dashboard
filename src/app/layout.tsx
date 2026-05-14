@@ -10,8 +10,8 @@ const roboto = Roboto({
 });
 
 export const metadata: Metadata = {
-  title: "ClickUp Dashboard",
-  description: "ClickUp Workspace Dashboard",
+  title: "Project Dashboard",
+  description: "Project Management Dashboard",
 };
 
 export default function RootLayout({

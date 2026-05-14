@@ -85,13 +85,13 @@ export async function authenticateUser(email: string, password: string): Promise
   };
 }
 
-export async function createAuthCookie(user: AuthUser) {
+export async function createAuthCookie(user: AuthUser, options?: { secure?: boolean }) {
   const cookieStore = await cookies();
-  const isProduction = process.env.NODE_ENV === 'production';
+  const secure = Boolean(options?.secure);
   cookieStore.set(AUTH_COOKIE_NAME, encodeToken(user), {
     httpOnly: true,
     sameSite: 'lax',
-    secure: isProduction,
+    secure,
     path: '/',
     maxAge: AUTH_COOKIE_MAX_AGE,
   });
@@ -99,40 +99,40 @@ export async function createAuthCookie(user: AuthUser) {
   cookieStore.set('user_role', user.role, {
     httpOnly: false,
     sameSite: 'lax',
-    secure: isProduction,
+    secure,
     path: '/',
     maxAge: AUTH_COOKIE_MAX_AGE,
   });
   cookieStore.set('user_id', String(user.accId), {
     httpOnly: false,
     sameSite: 'lax',
-    secure: isProduction,
+    secure,
     path: '/',
     maxAge: AUTH_COOKIE_MAX_AGE,
   });
 }
 
-export async function clearAuthCookie() {
+export async function clearAuthCookie(options?: { secure?: boolean }) {
   const cookieStore = await cookies();
-  const isProduction = process.env.NODE_ENV === 'production';
+  const secure = Boolean(options?.secure);
   cookieStore.set(AUTH_COOKIE_NAME, '', {
     httpOnly: true,
     sameSite: 'lax',
-    secure: isProduction,
+    secure,
     path: '/',
     maxAge: 0,
   });
   cookieStore.set('user_role', '', {
     httpOnly: false,
     sameSite: 'lax',
-    secure: isProduction,
+    secure,
     path: '/',
     maxAge: 0,
   });
   cookieStore.set('user_id', '', {
     httpOnly: false,
     sameSite: 'lax',
-    secure: isProduction,
+    secure,
     path: '/',
     maxAge: 0,
   });

@@ -6,6 +6,19 @@ export const runtime = 'nodejs';
 
 const AUTH_COOKIE_NAME = 'auth_token';
 
+const PROTECTED_API_PREFIXES = [
+  '/api/ai-telemetry',
+  '/api/capex',
+  '/api/clickup',
+  '/api/gchat/notify',
+  '/api/google/calendar',
+  '/api/google/oauth/start',
+  '/api/meetings',
+  '/api/ops',
+  '/api/projects',
+  '/api/reminder-logs',
+];
+
 function verifyToken(token: string): { email?: string; role?: string; isAdmin?: boolean } | null {
   try {
     const secret = process.env.AUTH_SECRET;
@@ -16,10 +29,15 @@ function verifyToken(token: string): { email?: string; role?: string; isAdmin?: 
     const expected = crypto.createHmac('sha256', secret).update(b64).digest('hex');
     if (sig.length !== expected.length) return null;
     if (!crypto.timingSafeEqual(Buffer.from(sig, 'hex'), Buffer.from(expected, 'hex'))) return null;
-    return JSON.parse(Buffer.from(b64, 'base64url').toString('utf8'));
+    const parsed = JSON.parse(Buffer.from(b64, 'base64url').toString('utf8'));
+    return parsed && typeof parsed.email === 'string' ? parsed : null;
   } catch {
     return null;
   }
+}
+
+function isProtectedApiPath(pathname: string): boolean {
+  return PROTECTED_API_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
 }
 
 // Pages each role is ALLOWED to access (prefix match)
@@ -37,22 +55,30 @@ const ROLE_DEFAULT_PAGE: Record<string, string> = {
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  if (!pathname.startsWith('/dashboard')) {
+  const protectsDashboard = pathname.startsWith('/dashboard');
+  const protectsApi = isProtectedApiPath(pathname);
+
+  if (!protectsDashboard && !protectsApi) {
     return NextResponse.next();
   }
 
   // --- Auth check ---
-  const authCookie = request.cookies.get(AUTH_COOKIE_NAME);
-  if (!authCookie?.value) {
-    return NextResponse.redirect(new URL('/', request.url));
-  }
+  const token = request.cookies.get(AUTH_COOKIE_NAME)?.value;
+  const decoded = token ? verifyToken(token) : null;
 
-  const decoded = verifyToken(authCookie.value);
   if (!decoded?.email) {
+    if (protectsApi) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    }
     return NextResponse.redirect(new URL('/', request.url));
   }
 
-  // --- Role-based access check ---
+  // API auth only; route-level API handlers can add stricter role checks if needed.
+  if (protectsApi) {
+    return NextResponse.next();
+  }
+
+  // --- Role-based dashboard page access check ---
   const role = typeof decoded.role === 'string' ? decoded.role : (decoded.isAdmin ? 'admin' : 'pm');
   const allowedPaths = ROLE_ALLOWED_PATHS[role] ?? [];
 
@@ -70,5 +96,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*'],
+  matcher: ['/dashboard/:path*', '/api/:path*'],
 };

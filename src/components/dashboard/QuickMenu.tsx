@@ -34,14 +34,17 @@ export default function QuickMenu({ align = "right" }: { align?: "left" | "right
         onClick={() => setOpen(!open)}
         className="p-2 rounded-xl bg-white/50 dark:bg-white/10 border border-slate-200/60 dark:border-white/10 hover:bg-white/80 dark:hover:bg-white/20 transition-all shadow-sm text-slate-600 dark:text-gray-200"
         aria-label="Open quick menu"
+        aria-expanded={open}
       >
-        <Settings2 size={16} />
+        <span className={`block transition-transform duration-200 ease-out ${open ? "rotate-90 scale-105" : "rotate-0 scale-100"}`}>
+          <Settings2 size={16} />
+        </span>
       </button>
 
-      {open && (
-        <div
-          className={`absolute ${align === "right" ? "right-0" : "left-0"} mt-2 w-48 rounded-xl border border-slate-200 dark:border-white/10 p-1.5 z-[100] overflow-hidden bg-white dark:bg-zinc-950/97 shadow-2xl backdrop-blur-xl animate-in fade-in zoom-in duration-150`}
-        >
+      <div
+        className={`absolute ${align === "right" ? "right-0 origin-top-right" : "left-0 origin-top-left"} mt-2 w-48 rounded-xl border border-slate-200 dark:border-white/10 p-1.5 z-[100] overflow-hidden bg-white dark:bg-zinc-950/97 shadow-2xl backdrop-blur-xl transition-all duration-200 ease-out ${open ? "opacity-100 translate-y-0 scale-100 pointer-events-auto" : "opacity-0 -translate-y-1.5 scale-95 pointer-events-none"}`}
+        aria-hidden={!open}
+      >
           <button
             onClick={() => { setTheme(isDark ? "light" : "dark"); setOpen(false); }}
             className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium text-slate-700 dark:text-white/70 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5 transition-colors"
@@ -56,8 +59,7 @@ export default function QuickMenu({ align = "right" }: { align?: "left" | "right
             <LogOut size={14} />
             Log Out
           </button>
-        </div>
-      )}
+      </div>
     </div>
   );
 }

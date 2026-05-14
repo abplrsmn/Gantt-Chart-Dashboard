@@ -56,7 +56,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               </div>
               <div>
                 <h1 className="text-sm font-bold leading-tight bg-linear-to-r from-blue-600 to-purple-500 dark:from-blue-400 dark:to-purple-300 bg-clip-text text-transparent tracking-wider">
-                  COMMAND CENTER
+                  PROJECT DASHBOARD
                 </h1>
                 <div className="text-[10px] text-slate-400 dark:text-slate-500">Aryaduta's Dashboard Monitor</div>
               </div>
@@ -104,7 +104,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 <Activity size={15} />
               </div>
               <h1 className="text-sm font-bold bg-linear-to-r from-blue-600 to-purple-500 dark:from-blue-400 dark:to-purple-300 bg-clip-text text-transparent tracking-wider">
-                COMMAND CENTER
+                PROJECT DASHBOARD
               </h1>
             </div>
           </div>

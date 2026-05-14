@@ -211,23 +211,27 @@ function PhaseCard({ ph, project, isCurrent, isPast, people }: {
 
   return (
     <div
-      className="rounded-xl border overflow-hidden transition-all"
+      className="relative rounded-xl border overflow-hidden transition-all"
       style={{
-        borderColor: isCurrent ? `${ph.color}60` : isPast ? `${ph.color}28` : "rgba(255,255,255,0.06)",
-        boxShadow: isCurrent ? `0 2px 16px ${ph.color}18` : "none",
-        opacity: !isCurrent && !isPast ? 0.65 : 1,
+        borderColor: isCurrent ? ph.color : isPast ? `${ph.color}28` : "rgba(255,255,255,0.06)",
+        borderWidth: isCurrent ? 2 : 1,
+        boxShadow: isCurrent ? `0 0 0 3px ${ph.color}20, 0 14px 34px ${ph.color}24` : "none",
+        opacity: !isCurrent && !isPast ? 0.58 : 1,
       }}
     >
+      {isCurrent && (
+        <div className="absolute left-0 top-0 bottom-0 w-1.5" style={{ backgroundColor: ph.color }} />
+      )}
       <div
         className="flex items-center gap-3 px-3.5 py-3"
-        style={{ backgroundColor: isCurrent ? `${ph.color}18` : isPast ? `${ph.color}0a` : `${ph.color}06` }}
+        style={{ backgroundColor: isCurrent ? `${ph.color}24` : isPast ? `${ph.color}0a` : `${ph.color}06` }}
       >
-        <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: ph.color, opacity: isCurrent ? 1 : 0.5 }} />
+        <span className="w-2.5 h-2.5 rounded-full shrink-0 ring-4" style={{ backgroundColor: ph.color, opacity: isCurrent ? 1 : 0.5, boxShadow: isCurrent ? `0 0 16px ${ph.color}` : "none", ['--tw-ring-color' as string]: isCurrent ? `${ph.color}30` : "transparent" }} />
         <span className="flex-1 text-xs font-bold uppercase tracking-wider" style={{ color: isCurrent ? ph.color : `${ph.color}99` }}>
           {ph.label}
           {isCurrent && (
-            <span className="ml-2 text-[8px] font-bold px-1.5 py-0.5 rounded-full align-middle" style={{ backgroundColor: `${ph.color}28`, color: ph.color }}>
-              CURRENT
+            <span className="ml-2 text-[8px] font-extrabold px-2 py-0.5 rounded-full align-middle text-white shadow-sm" style={{ backgroundColor: ph.color }}>
+              CURRENT PHASE
             </span>
           )}
         </span>
@@ -523,14 +527,25 @@ export default function ProjectDetailPage() {
               return (
                 <Fragment key={ph.key}>
                   <div
-                    className="flex-1 flex flex-col items-center justify-center px-2 py-2.5 rounded-xl text-center transition-all"
+                    className="relative flex-1 flex flex-col items-center justify-center px-2 py-2.5 rounded-xl text-center transition-all"
                     style={{
-                      backgroundColor: isCurrent ? `${ph.color}22` : isPast ? `${ph.color}10` : "rgba(255,255,255,0.02)",
-                      border: `1.5px solid ${isCurrent ? `${ph.color}70` : isPast ? `${ph.color}35` : "rgba(255,255,255,0.06)"}`,
-                      opacity: !isCurrent && !isPast ? 0.5 : 1,
+                      backgroundColor: isCurrent ? `${ph.color}34` : isPast ? `${ph.color}10` : "rgba(255,255,255,0.02)",
+                      border: `2px solid ${isCurrent ? ph.color : isPast ? `${ph.color}35` : "rgba(255,255,255,0.06)"}`,
+                      boxShadow: isCurrent ? `0 0 0 3px ${ph.color}22, 0 10px 26px ${ph.color}24` : "none",
+                      transform: isCurrent ? "translateY(-1px)" : "none",
+                      opacity: !isCurrent && !isPast ? 0.42 : 1,
                     }}
                   >
-                    {isCurrent && <span className="w-1.5 h-1.5 rounded-full mb-1 animate-pulse" style={{ backgroundColor: ph.color }} />}
+                    {isCurrent && (
+                      <span
+                        className="w-2.5 h-2.5 rounded-full mb-1 animate-pulse ring-4"
+                        style={{
+                          backgroundColor: ph.color,
+                          boxShadow: `0 0 14px ${ph.color}`,
+                          ['--tw-ring-color' as string]: `${ph.color}26`,
+                        }}
+                      />
+                    )}
                     {isPast && <span className="text-[9px] mb-1 leading-none" style={{ color: ph.color }}>✓</span>}
                     {!isCurrent && !isPast && <span className="text-[9px] mb-1 leading-none text-slate-600">○</span>}
                     <span

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ShieldAlert } from "lucide-react";
+import { Activity } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -76,12 +76,12 @@ export default function LoginPage() {
 
         <div className="relative z-10 flex flex-col items-center">
           {/* Logo */}
-          <div className="w-16 h-16 bg-gradient-to-tr from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/30 mb-6 text-white">
-            <ShieldAlert size={32} />
+          <div className="w-16 h-16 bg-linear-to-tr from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/30 mb-6 text-white">
+            <Activity size={32} />
           </div>
 
-          <h1 className="text-2xl font-bold text-slate-800 mb-1.5 text-center">
-            Command Center
+          <h1 className="text-2xl font-bold bg-linear-to-r from-blue-600 to-purple-500 bg-clip-text text-transparent mb-1.5 text-center">
+            Project Dashboard
           </h1>
           <p className="text-slate-500 text-sm mb-8 text-center">
             Enter your credentials to access the workspace.
@@ -127,9 +127,9 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 mt-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 disabled:opacity-60 text-white rounded-xl font-semibold shadow-lg shadow-blue-500/25 transition-all active:scale-[0.98]"
+              className="w-full py-3 mt-2 bg-linear-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 disabled:opacity-60 text-white rounded-xl font-semibold shadow-lg shadow-blue-500/25 transition-all active:scale-[0.98]"
             >
-              {loading ? "Signing in…" : "Sign In"}
+              {loading ? "Logging in…" : "Log In"}
             </button>
           </form>
         </div>
