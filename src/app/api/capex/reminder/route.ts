@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { addDays, differenceInCalendarDays, isValid, parse, startOfDay } from 'date-fns';
-import { getCapexProjects } from '@/lib/capex';
+import { differenceInCalendarDays, startOfDay } from 'date-fns';
+import { getProjectGanttProjects } from '@/lib/project-gantt';
 import { sendOpenClawMessage } from '@/lib/openclaw';
 
 export const dynamic = 'force-dynamic';
@@ -14,33 +14,11 @@ type ReminderRequest = {
 
 const DEFAULT_DAYS_AHEAD = 7;
 
-function parseFlexibleDate(value?: string) {
-  if (!value) return null;
-  const formats = ['d MMM yyyy', 'd MMMM yyyy', 'd-MMM-yyyy', 'd-MMMM-yyyy'];
-
-  for (const fmt of formats) {
-    const parsed = parse(value, fmt, new Date());
-    if (isValid(parsed)) return parsed;
-  }
-
-  return null;
-}
-
-function classifyHealth(status: string, hasEndDate: boolean) {
-  const s = status.toLowerCase();
-  if (s.includes('pending')) return 'Needs Closure';
-  if (s.includes('done')) return 'Done';
-  if (s.includes('on schedule')) return 'On Track';
-  if (s.includes('commenced')) return 'Watch';
-  if (s.includes('ongoing') && !hasEndDate) return 'At Risk';
-  return 'Monitor';
-}
-
 function formatReminderMessage(input: {
   total: number;
   daysAhead: number;
   dueSoon: Array<{ name: string; unit: string; endLabel: string; daysLeft: number }>;
-  atRisk: Array<{ name: string; unit: string; status: string }>;
+  atRisk: Array<{ name: string; unit: string; risk: string }>;
 }) {
   const lines: string[] = [];
 
@@ -60,7 +38,7 @@ function formatReminderMessage(input: {
     lines.push('');
     lines.push('Need Attention');
     for (const item of input.atRisk) {
-      lines.push(`- ${item.unit} | ${item.name} | ${item.status}`);
+      lines.push(`- ${item.unit} | ${item.name} | ${item.risk}`);
     }
   }
 
@@ -81,25 +59,20 @@ export async function POST(request: Request) {
     const includeAtRisk = body.includeAtRisk !== false;
     const dryRun = Boolean(body.dryRun);
 
-    const projects = await getCapexProjects();
+    const projects = await getProjectGanttProjects();
     const today = startOfDay(new Date());
-    const limit = addDays(today, daysAhead);
 
     const dueSoon = projects
       .map((project) => {
-        const endDate = parseFlexibleDate(project.end);
-        if (!endDate) return null;
-
+        if (!project.end || project.phase === 'done' || project.phase === 'blocked') return null;
+        const endDate = new Date(project.end);
+        if (Number.isNaN(endDate.getTime())) return null;
         const daysLeft = differenceInCalendarDays(startOfDay(endDate), today);
         if (daysLeft < 0 || daysLeft > daysAhead) return null;
-
-        const health = classifyHealth(project.status, Boolean(project.end));
-        if (health === 'Done') return null;
-
         return {
           name: project.name,
           unit: project.unit,
-          endLabel: project.end || 'TBD',
+          endLabel: project.end,
           daysLeft,
         };
       })
@@ -109,15 +82,15 @@ export async function POST(request: Request) {
     const atRisk = includeAtRisk
       ? projects
           .map((project) => {
-            const health = classifyHealth(project.status, Boolean(project.end));
-            if (!['At Risk', 'Needs Closure', 'Watch'].includes(health)) return null;
+            if (project.deadlineRisk !== 'overdue' && project.deadlineRisk !== 'near') return null;
+            if (project.phase === 'done') return null;
             return {
               name: project.name,
               unit: project.unit,
-              status: project.status,
+              risk: project.deadlineRisk === 'overdue' ? 'Overdue' : 'Near Deadline',
             };
           })
-          .filter((item): item is { name: string; unit: string; status: string } => Boolean(item))
+          .filter((item): item is { name: string; unit: string; risk: string } => Boolean(item))
       : [];
 
     const message = formatReminderMessage({
@@ -131,16 +104,7 @@ export async function POST(request: Request) {
       return NextResponse.json({
         success: true,
         dryRun: true,
-        meta: {
-          total: projects.length,
-          dueSoon: dueSoon.length,
-          atRisk: atRisk.length,
-          daysAhead,
-          window: {
-            start: today.toISOString(),
-            end: limit.toISOString(),
-          },
-        },
+        meta: { total: projects.length, dueSoon: dueSoon.length, atRisk: atRisk.length, daysAhead },
         message,
       });
     }
@@ -154,12 +118,7 @@ export async function POST(request: Request) {
       success: true,
       dryRun: false,
       sent: true,
-      meta: {
-        total: projects.length,
-        dueSoon: dueSoon.length,
-        atRisk: atRisk.length,
-        daysAhead,
-      },
+      meta: { total: projects.length, dueSoon: dueSoon.length, atRisk: atRisk.length, daysAhead },
       response,
     });
   } catch (error: unknown) {

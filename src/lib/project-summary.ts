@@ -1,5 +1,4 @@
 import { getDbPool } from './db';
-import { CLICKUP_API_BASE_URL, fetchClickUp } from '@/lib/clickup-target';
 
 export interface ProjectManagementSummaryRow {
   phase_id: number;
@@ -9,7 +8,6 @@ export interface ProjectManagementSummaryRow {
   unit_code: string | null;
   phase_name: string | null;
   overall_status: string | null;
-  clickup_task_id?: string | null;
   project_start_date?: string | null;
   project_end_date?: string | null;
   commence_date: string | null;
@@ -43,58 +41,6 @@ export interface SummaryBuckets {
   overdue: ProjectManagementSummaryRow[];
 }
 
-function extractFieldFromDescription(description: string | undefined, label: string) {
-  if (!description) return undefined;
-  const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const regex = new RegExp(`${escaped}:\\s*(.+)`, 'i');
-  const match = description.match(regex);
-  return match?.[1]?.trim();
-}
-
-function normalizeDescriptionValue(value?: string | null) {
-  if (!value) return null;
-  const text = String(value).trim();
-  if (!text || text === '-' || text.toLowerCase() === 'null') return null;
-  return text;
-}
-
-function normalizeDateValue(value?: string | null) {
-  const text = normalizeDescriptionValue(value);
-  if (!text) return null;
-  return text;
-}
-
-async function enrichFromClickUpDescription(rows: ProjectManagementSummaryRow[]) {
-  const targets = rows.filter(
-    (row) =>
-      row.clickup_task_id &&
-      (!row.commence_date || !row.end_contract_date || !row.actual_phase_completion_date || !row.current_site_progress)
-  );
-
-  for (const row of targets) {
-    try {
-      const task = await fetchClickUp(`${CLICKUP_API_BASE_URL}/task/${row.clickup_task_id}`);
-      const description = typeof task?.description === 'string' ? task.description : undefined;
-      if (!description) continue;
-
-      if (!row.commence_date) {
-        row.commence_date = normalizeDateValue(extractFieldFromDescription(description, 'Commence Date'));
-      }
-      if (!row.end_contract_date) {
-        row.end_contract_date = normalizeDateValue(extractFieldFromDescription(description, 'End Contract'));
-      }
-      if (!row.actual_phase_completion_date) {
-        const actualValue = normalizeDateValue(extractFieldFromDescription(description, 'Actual Completion'));
-        row.actual_phase_completion_date = actualValue;
-      }
-      if (!row.current_site_progress) {
-        row.current_site_progress = normalizeDescriptionValue(extractFieldFromDescription(description, 'Current Site Progress'));
-      }
-    } catch (error) {
-      console.error(`Failed to enrich PM row from ClickUp for task ${row.clickup_task_id}:`, error);
-    }
-  }
-}
 
 export async function getDailyProjectSummary(): Promise<SummaryBuckets> {
   const pool = getDbPool();
@@ -108,7 +54,6 @@ export async function getDailyProjectSummary(): Promise<SummaryBuckets> {
       mu.unit_code,
       mp.phase_name,
       ms.status_label as overall_status,
-      pp.clickup_task_id,
       p.start_date as project_start_date,
       p.end_date as project_end_date,
       pp.commence_date,
@@ -158,7 +103,6 @@ export async function getDailyProjectSummary(): Promise<SummaryBuckets> {
 
   const result = await pool.query(query);
   const rows = result.rows as ProjectManagementSummaryRow[];
-  await enrichFromClickUpDescription(rows);
 
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());

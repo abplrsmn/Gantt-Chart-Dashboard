@@ -26,12 +26,14 @@
       "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\abrah\\\\Work_Projects\\\\clickup-dashboard\" -Recurse -Force)",
       "Bash(Select-Object FullName)",
       "Bash(cd \"c:\\\\Users\\\\abrah\\\\Work_Projects\\\\clickup-dashboard\" && rm src/components/AutoRefresh.tsx src/components/ModeToggle.tsx src/components/dashboard/CapexGanttMonitor.tsx src/components/dashboard/CapexTabs.tsx src/components/dashboard/CompletedTasks.tsx src/components/dashboard/DashboardClient.tsx src/components/dashboard/DeptPerformanceChart.tsx src/components/dashboard/PieChartComponent.tsx src/components/dashboard/StatusChart.tsx src/components/dashboard/TaskTable.tsx src/components/dashboard/ToastNotifier.tsx src/lib/clickup_members.ts src/lib/notificationSound.ts && echo \"Deleted OK\")",
-      "Bash(git stash *)"
+      "Bash(git stash *)",
+      "Bash(rm \"c:/Users/abrah/Work_Projects/clickup-dashboard/src/lib/clickup.ts\" \\\\ *)"
     ],
     "additionalDirectories": [
       "C:\\Users\\abrah\\clickup-dashboard\\src\\app\\api\\clickup",
       "\\dev",
-      "c:\\Users\\abrah\\Work_Projects\\clickup-dashboard\\src\\components"
+      "c:\\Users\\abrah\\Work_Projects\\clickup-dashboard\\src\\components",
+      "c:\\Users\\abrah\\Work_Projects\\clickup-dashboard\\src\\lib"
     ]
   }
 }
