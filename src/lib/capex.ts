@@ -23,6 +23,7 @@ const SUMMARY_PATH = path.join(process.cwd(), 'data', 'capex-summary.normalized.
 type ClickUpTaskEx = ClickUpTask & {
   description?: string;
   start_date?: string;
+  parent?: string | null;
   custom_fields?: Array<{ name?: unknown; value?: unknown }>;
 };
 
@@ -70,7 +71,6 @@ export type CapexMappingRow = {
   clickupTaskName?: string | null;
 };
 
-const LEGACY_CAPEX_SEED_ROWS = [] as const;
 
 type SummarySeedRow = {
   sourceRow?: number;
@@ -148,11 +148,12 @@ async function loadCapexSeedRows(): Promise<CapexSeedProjectRow[]> {
 
           const name = String(row.projectName || row.taskName || '').trim();
           if (!name) return null;
-        const numericProgress = typeof progressRaw === 'number'
-          ? progressRaw
-          : typeof progressRaw === 'string'
-            ? Number(progressRaw.replace('%', '').trim())
-            : undefined;
+          const progressRaw = row.currentSiteProgress;
+          const numericProgress = typeof progressRaw === 'number'
+            ? progressRaw
+            : typeof progressRaw === 'string'
+              ? Number(progressRaw.replace('%', '').trim())
+              : undefined;
 
         return {
           no: Number.isFinite(Number(row.sourceRow)) ? Number(row.sourceRow) : index + 1,
@@ -176,7 +177,7 @@ async function loadCapexSeedRows(): Promise<CapexSeedProjectRow[]> {
     // Fallback to static seed rows if summary file is unavailable.
   }
 
-  return LEGACY_CAPEX_SEED_ROWS.map((row) => ({ ...row }));
+  return [];
 }
 
 async function fetchClickUpJson(url: string) {

@@ -57,9 +57,6 @@ async function fetchClickUpJson(url: string) {
   return data;
 }
 
-function decorateTasks(tasks: ClickUpTask[]) {
-  return tasks;
-}
 
 async function fetchListTasks(listId: string): Promise<ClickUpTask[]> {
   let page = 0;
@@ -150,7 +147,7 @@ async function findFolderByTeamName(teamName: string): Promise<any | null> {
 export async function getTasks(): Promise<ClickUpTask[]> {
   try {
     const tasks = await fetchStructuredTasks();
-    return decorateTasks(tasks);
+    return tasks;
   } catch (error) {
     console.error('Failed to fetch tasks:', error);
     if (isAuthOrConfigError(error)) {
@@ -160,72 +157,6 @@ export async function getTasks(): Promise<ClickUpTask[]> {
   }
 }
 
-export async function getTeamMembers(teamName: string): Promise<any[]> {
-  if (!teamName) return [];
-
-  try {
-    const targetFolder = await findFolderByTeamName(teamName);
-
-    if (!targetFolder) return [];
-
-    const normalizedMembers = new Map<string, any>();
-
-    const addMember = (user: any, role = 'Member') => {
-      if (!user) return;
-
-      const id = user.id?.toString();
-      if (!id) return;
-
-      const name = user.username || user.email || 'Unknown User';
-      const generatedInitials = name
-        .split(' ')
-        .filter(Boolean)
-        .slice(0, 2)
-        .map((w: string) => w[0])
-        .join('')
-        .toUpperCase() || '?';
-
-      normalizedMembers.set(id, {
-        id,
-        name,
-        email: user.email || '',
-        initials: user.initials || generatedInitials,
-        role,
-        color: user.color || '#3B82F6'
-      });
-    };
-
-    try {
-      const folderData = await fetchClickUpJson(`${API_BASE_URL}/folder/${targetFolder.id}`);
-      const folderMembers = folderData.members || [];
-      for (const fm of folderMembers) addMember(fm.user || fm, 'Folder Access');
-    } catch {
-      // Continue with list members fallback.
-    }
-
-    const listsData = await fetchClickUpJson(`${API_BASE_URL}/folder/${targetFolder.id}/list`);
-    const lists = listsData.lists || [];
-    for (const list of lists) {
-      try {
-        const membersData = await fetchClickUpJson(`${API_BASE_URL}/list/${list.id}/member`);
-        const members = membersData.members || [];
-        for (const m of members) addMember(m, 'Member');
-      } catch {
-        // Ignore list without accessible member payload.
-      }
-    }
-
-    return Array.from(normalizedMembers.values()).sort((a, b) =>
-      a.name.localeCompare(b.name)
-    );
-  } catch (error) {
-    console.error('Failed to fetch team members:', error);
-    if (isAuthOrConfigError(error)) {
-      throw error;
-    }
-    return [];
-  }
-}
 
 export async function getTeamFolderTaskLists(teamName: string): Promise<{
   folder: { id: string; name: string } | null;
