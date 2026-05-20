@@ -47,7 +47,7 @@ type DBProject = {
 
 interface Props { projects: DBProject[]; hidePhaseDetails?: boolean; }
 
-type SCurvePoint = { month: string; target: number; actual: number | null; planned_weekly?: number; actual_weekly?: number; variance?: number; is_baseline?: boolean };
+type SCurvePoint = { month: string; target: number; actual: number | null; planned_weekly?: number; actual_weekly?: number; variance?: number; is_baseline?: boolean; period_start?: string | null; period_end?: string | null };
 
 function pushUniquePoint(points: SCurvePoint[], point: SCurvePoint) {
   const last = points[points.length - 1];
@@ -81,6 +81,43 @@ function fmtDate(d: string | null): string {
   if (!d) return "—";
   const p = new Date(d);
   return isNaN(p.getTime()) ? "—" : format(p, "dd MMM yyyy");
+}
+
+function getPointDate(point: SCurvePoint): Date | null {
+  return toDate(point.period_start ?? undefined);
+}
+
+function getMonthLabel(point: SCurvePoint): string {
+  const d = getPointDate(point);
+  return d ? format(d, "MMM yyyy") : "";
+}
+
+function buildMonthWeekHeader(points: SCurvePoint[]) {
+  const monthGroups: { label: string; colSpan: number }[] = [];
+  const weekLabels: string[] = [];
+  const monthCounts = new Map<string, number>();
+
+  for (const point of points) {
+    if (point.is_baseline) {
+      monthGroups.push({ label: "", colSpan: 1 });
+      weekLabels.push("");
+      continue;
+    }
+
+    const month = getMonthLabel(point) || "Schedule";
+    const nextWeek = (monthCounts.get(month) ?? 0) + 1;
+    monthCounts.set(month, nextWeek);
+    weekLabels.push(`W${nextWeek}`);
+
+    const last = monthGroups[monthGroups.length - 1];
+    if (last && last.label === month) {
+      last.colSpan += 1;
+    } else {
+      monthGroups.push({ label: month, colSpan: 1 });
+    }
+  }
+
+  return { monthGroups, weekLabels };
 }
 
 // ─── Tahap generation (deterministic per project) ────────────────────────────
@@ -368,7 +405,7 @@ export default function SCurveCharts({ projects, hidePhaseDetails }: Props) {
   const tahapGroups = dbTahapGroups ?? generatedTahapGroups;
 
   // Compute exact chart height to match the Excel-like S-curve table.
-  // h-9 = 36px header, h-6 = 24px group header, h-10 = 40px item row,
+  // h-12 = 48px month/week header, h-6 = 24px group header, h-10 = 40px item row,
   // summary rows = 4 × 24px (planned, planned cumulative, actual, actual cumulative).
   const chartHeight = useMemo(() => {
     let contentHeight = 0;
@@ -376,10 +413,11 @@ export default function SCurveCharts({ projects, hidePhaseDetails }: Props) {
       if (group.header) contentHeight += 24;
       contentHeight += group.items.length * 40;
     }
-    return 36 + contentHeight + 96;
+    return 48 + contentHeight + 96;
   }, [tahapGroups]);
 
   const todayLabel  = format(new Date(), "dd MMM yy");
+  const scurveHeader = useMemo(() => buildMonthWeekHeader(chartData), [chartData]);
   const targetColor = "#3b82f6";
   const actualColor = "#22c55e";
 
@@ -438,8 +476,8 @@ export default function SCurveCharts({ projects, hidePhaseDetails }: Props) {
             {/* LEFT: Keterangan table — acts as the Y-axis label panel */}
             {tahapGroups.length > 0 && (
               <div className="w-[300px] shrink-0 flex flex-col border-r border-slate-200/60 dark:border-white/10 bg-slate-50/30 dark:bg-black/20">
-                {/* Column headers — height matches chart top margin (36px) */}
-                <div className="h-9 shrink-0 border-b border-slate-200/60 dark:border-white/10 flex bg-slate-100/60 dark:bg-zinc-900/60">
+                {/* Column headers — height matches month/week header (48px) */}
+                <div className="h-12 shrink-0 border-b border-slate-200/60 dark:border-white/10 flex bg-slate-100/60 dark:bg-zinc-900/60">
                   <div className="flex-1 px-3 flex items-center text-[9px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">
                     Keterangan
                   </div>
@@ -498,12 +536,21 @@ export default function SCurveCharts({ projects, hidePhaseDetails }: Props) {
             <div className="flex-1 min-w-0 relative bg-white dark:bg-zinc-950/30 overflow-x-auto scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-zinc-700" style={{ minHeight: chartHeight }}>
               {scurveSource === "tasks" && chartData.length > 0 && (
                 <div className="absolute inset-0 z-0 pointer-events-none" style={{ minWidth: `${Math.max(720, chartData.length * 72)}px` }}>
-                  <div className="h-9 border-b border-slate-200/60 dark:border-white/10 grid" style={{ gridTemplateColumns: `repeat(${chartData.length}, minmax(72px, 1fr))` }}>
-                    {chartData.map(point => (
-                      <div key={point.month} className="flex items-center justify-center border-r border-slate-100/70 dark:border-white/5 text-[9px] font-bold text-slate-400 dark:text-white/35">
-                        {point.is_baseline ? "" : point.month}
-                      </div>
-                    ))}
+                  <div className="h-12 border-b border-slate-200/60 dark:border-white/10">
+                    <div className="h-6 grid border-b border-slate-200/50 dark:border-white/8" style={{ gridTemplateColumns: scurveHeader.monthGroups.map(g => `minmax(${g.colSpan * 72}px, ${g.colSpan}fr)`).join(" ") }}>
+                      {scurveHeader.monthGroups.map((group, idx) => (
+                        <div key={`${group.label}-${idx}`} className="flex items-center justify-center border-r border-slate-100/70 dark:border-white/5 text-[9px] font-extrabold uppercase tracking-wider text-slate-500 dark:text-white/50">
+                          {group.label}
+                        </div>
+                      ))}
+                    </div>
+                    <div className="h-6 grid" style={{ gridTemplateColumns: `repeat(${chartData.length}, minmax(72px, 1fr))` }}>
+                      {chartData.map((point, idx) => (
+                        <div key={point.month} className="flex items-center justify-center border-r border-slate-100/70 dark:border-white/5 text-[9px] font-bold text-slate-400 dark:text-white/35">
+                          {point.is_baseline ? "" : scurveHeader.weekLabels[idx]}
+                        </div>
+                      ))}
+                    </div>
                   </div>
                   <div className="divide-y divide-slate-200/40 dark:divide-white/5">
                     {tahapGroups.map((group, gi) => (
@@ -555,7 +602,7 @@ export default function SCurveCharts({ projects, hidePhaseDetails }: Props) {
                 <ComposedChart
                   data={chartData}
                   margin={{
-                    top: 36,
+                    top: 48,
                     right: 2,
                     bottom: scurveSource === "tasks" ? 96 : 36,
                     left: 0,
