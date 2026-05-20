@@ -30,7 +30,9 @@
       "Bash(rm \"c:/Users/abrah/Work_Projects/clickup-dashboard/src/lib/clickup.ts\" \\\\ *)",
       "Bash(latexmk -pdf -pdflatex=\"pdflatex -interaction=nonstopmode\" MAGANG.tex)",
       "Bash(pdflatex -interaction=nonstopmode MAGANG.tex)",
-      "Bash(bibtex MAGANG)"
+      "Bash(bibtex MAGANG)",
+      "Bash(npm run *)",
+      "Bash(npm install *)"
     ],
     "additionalDirectories": [
       "C:\\Users\\abrah\\clickup-dashboard\\src\\app\\api\\clickup",
