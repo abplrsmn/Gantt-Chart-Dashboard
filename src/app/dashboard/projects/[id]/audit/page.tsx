@@ -13,10 +13,15 @@ import {
 // ─── Types ───────────────────────────────────────────────────────────────────
 type ActionType =
   | "project_created"
+  | "project_updated"
   | "field_updated"
+  | "phase_updated"
+  | "phase_progressed"
+  | "progress_updated"
   | "phase_approved"
   | "deadline_delayed"
   | "deadline_accelerated"
+  | "attachment_added"
   | "create"
   | "update";
 
@@ -45,11 +50,39 @@ const ACTION_CONFIG: Record<
     border: "border-emerald-200 dark:border-emerald-500/30",
     Icon: FilePlus,
   },
-  field_updated: {
-    label: "Field Diupdate",
+  project_updated: {
+    label: "Project Updated",
     color: "#3b82f6",
     bg: "bg-blue-50 dark:bg-blue-500/10",
     border: "border-blue-200 dark:border-blue-500/30",
+    Icon: RefreshCw,
+  },
+  field_updated: {
+    label: "Field Updated",
+    color: "#3b82f6",
+    bg: "bg-blue-50 dark:bg-blue-500/10",
+    border: "border-blue-200 dark:border-blue-500/30",
+    Icon: Pencil,
+  },
+  phase_updated: {
+    label: "Phase Updated",
+    color: "#06b6d4",
+    bg: "bg-cyan-50 dark:bg-cyan-500/10",
+    border: "border-cyan-200 dark:border-cyan-500/30",
+    Icon: RefreshCw,
+  },
+  phase_progressed: {
+    label: "Phase Progressed",
+    color: "#14b8a6",
+    bg: "bg-teal-50 dark:bg-teal-500/10",
+    border: "border-teal-200 dark:border-teal-500/30",
+    Icon: CheckCircle2,
+  },
+  progress_updated: {
+    label: "Progress Updated",
+    color: "#14b8a6",
+    bg: "bg-teal-50 dark:bg-teal-500/10",
+    border: "border-teal-200 dark:border-teal-500/30",
     Icon: Pencil,
   },
   phase_approved: {
@@ -73,6 +106,13 @@ const ACTION_CONFIG: Record<
     border: "border-amber-200 dark:border-amber-500/30",
     Icon: Zap,
   },
+  attachment_added: {
+    label: "Attachment Added",
+    color: "#8b5cf6",
+    bg: "bg-violet-50 dark:bg-violet-500/10",
+    border: "border-violet-200 dark:border-violet-500/30",
+    Icon: FilePlus,
+  },
   create: {
     label: "Project Created",
     color: "#22c55e",
@@ -81,7 +121,7 @@ const ACTION_CONFIG: Record<
     Icon: FilePlus,
   },
   update: {
-    label: "Field Diupdate",
+    label: "Field Updated",
     color: "#3b82f6",
     bg: "bg-blue-50 dark:bg-blue-500/10",
     border: "border-blue-200 dark:border-blue-500/30",

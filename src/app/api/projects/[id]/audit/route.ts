@@ -83,14 +83,31 @@ export async function POST(req: Request, { params }: { params: Params }) {
   } = body as Record<string, string | undefined>;
 
   const VALID_ACTIONS = [
+    // Creation: only for a brand-new project record.
     "project_created",
+
+    // Updates: use these when an existing project/phase changes.
+    "project_updated",
     "field_updated",
-    "phase_approved",
+    "phase_updated",
+    "phase_progressed",
+    "progress_updated",
     "deadline_delayed",
     "deadline_accelerated",
+    "attachment_added",
+
+    // Backward-compatible aliases from earlier Telegram/group flows.
+    "create",
+    "update",
   ] as const;
 
-  if (!action_type || !VALID_ACTIONS.includes(action_type as (typeof VALID_ACTIONS)[number])) {
+  const normalizedActionType = action_type === "create"
+    ? "project_created"
+    : action_type === "update"
+      ? "field_updated"
+      : action_type;
+
+  if (!normalizedActionType || !VALID_ACTIONS.includes(normalizedActionType as (typeof VALID_ACTIONS)[number])) {
     return NextResponse.json(
       { success: false, error: `action_type must be one of: ${VALID_ACTIONS.join(", ")}` },
       { status: 400 }
@@ -108,7 +125,7 @@ export async function POST(req: Request, { params }: { params: Params }) {
        VALUES ($1,$2,$3,$4,$5,$6,$7,NOW())
        RETURNING *`,
       [id, field_name ?? null, old_value ?? null, new_value ?? null,
-       change_summary ?? null, changed_by_name, action_type]
+       change_summary ?? null, changed_by_name, normalizedActionType]
     );
     return NextResponse.json({ success: true, data: res.rows[0] }, { status: 201 });
   } catch (err: unknown) {
