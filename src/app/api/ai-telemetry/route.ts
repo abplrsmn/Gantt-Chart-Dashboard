@@ -6,32 +6,42 @@ export const dynamic = 'force-dynamic';
 
 const execFileAsync = promisify(execFile);
 
-// ─── Pricing (USD per 1M tokens, blended estimate) ────────────────────────────
-const MODEL_PRICING: Record<string, { per1M: number; label: string }> = {
-  'gpt-5.5':           { per1M: 37.50, label: 'GPT-5.5' },
-  'gpt-5.4-mini':      { per1M: 0.375, label: 'GPT-5.4 mini' },
-  'o3':                { per1M: 37.50, label: 'o3' },
-  'o4-mini':           { per1M: 1.10,  label: 'o4-mini' },
-  'gpt-4o':            { per1M: 6.25,  label: 'GPT-4o' },
-  'gpt-4o-mini':       { per1M: 0.375, label: 'GPT-4o mini' },
-  'gpt-4-turbo':       { per1M: 15.00, label: 'GPT-4 Turbo' },
-  'gpt-3.5-turbo':     { per1M: 1.00,  label: 'GPT-3.5 Turbo' },
-  'claude-3-5-sonnet': { per1M: 9.00,  label: 'Claude 3.5 Sonnet' },
-  'claude-3-5-haiku':  { per1M: 1.25,  label: 'Claude 3.5 Haiku' },
-  'claude-3-opus':     { per1M: 75.00, label: 'Claude 3 Opus' },
-  'deepseek-r1':       { per1M: 2.19,  label: 'DeepSeek R1' },
+// ─── Pricing (USD per 1M tokens; use input/output when available) ────────────
+type ModelPrice = { inputPer1M: number; outputPer1M: number; label: string };
+const MODEL_PRICING: Record<string, ModelPrice> = {
+  // GPT-5.5 pricing is kept as the existing blended estimate until the provider
+  // exposes exact input/output billing through telemetry.
+  'gpt-5.5':           { inputPer1M: 37.50, outputPer1M: 37.50, label: 'GPT-5.5' },
+  'gpt-5.4-mini':      { inputPer1M: 0.15,  outputPer1M: 0.60,  label: 'GPT-5.4 mini' },
+  'o3':                { inputPer1M: 10.00, outputPer1M: 40.00, label: 'o3' },
+  'o4-mini':           { inputPer1M: 1.10,  outputPer1M: 4.40,  label: 'o4-mini' },
+  'gpt-4o':            { inputPer1M: 2.50,  outputPer1M: 10.00, label: 'GPT-4o' },
+  'gpt-4o-mini':       { inputPer1M: 0.15,  outputPer1M: 0.60,  label: 'GPT-4o mini' },
+  'gpt-4-turbo':       { inputPer1M: 10.00, outputPer1M: 30.00, label: 'GPT-4 Turbo' },
+  'gpt-3.5-turbo':     { inputPer1M: 0.50,  outputPer1M: 1.50,  label: 'GPT-3.5 Turbo' },
+  'claude-3-5-sonnet': { inputPer1M: 3.00,  outputPer1M: 15.00, label: 'Claude 3.5 Sonnet' },
+  'claude-3-5-haiku':  { inputPer1M: 0.25,  outputPer1M: 1.25,  label: 'Claude 3.5 Haiku' },
+  'claude-3-opus':     { inputPer1M: 15.00, outputPer1M: 75.00, label: 'Claude 3 Opus' },
+  'deepseek-r1':       { inputPer1M: 0.55,  outputPer1M: 2.19,  label: 'DeepSeek R1' },
 };
 
-function pricingFor(model: string) {
+function pricingFor(model: string): ModelPrice {
   const lower = model.toLowerCase();
   for (const [key, val] of Object.entries(MODEL_PRICING)) {
     if (lower.includes(key)) return val;
   }
-  return { per1M: 5.00, label: model };
+  return { inputPer1M: 2.50, outputPer1M: 7.50, label: model };
+}
+
+function calcCostFromParts(inputTokens: number, outputTokens: number, model: string) {
+  const p = pricingFor(model);
+  return (inputTokens / 1_000_000) * p.inputPer1M + (outputTokens / 1_000_000) * p.outputPer1M;
 }
 
 function calcCost(tokens: number, model: string) {
-  return (tokens / 1_000_000) * pricingFor(model).per1M;
+  const p = pricingFor(model);
+  const blended = (p.inputPer1M + p.outputPer1M) / 2;
+  return (tokens / 1_000_000) * blended;
 }
 
 function fmtCost(usd: number) {
@@ -175,13 +185,19 @@ export async function GET() {
   const gatewayOk = health.ok === true;
 
   // ── Parse sessions ────────────────────────────────────────────────────────
-  const heartbeat = asRec(sessions.heartbeat);
+  // `openclaw sessions --json` returns a top-level `sessions: []` array.
+  // Older/status payloads may return `sessions.recent: []` instead.
+  const heartbeat = asRec(health);
   const hbAgents  = asArr<U>(heartbeat.agents);
   const tasks     = asRec(sessions.tasks);
-
-  // Build agent list from heartbeat + enrich with session data if available
-  const statusSessions = asRec((sessions as U).sessions);          // may be empty
-  const statusRecent   = asArr<U>(statusSessions.recent);
+  const rawSessions = (sessions as U).sessions;
+  const statusSessions = Array.isArray(rawSessions) ? {} : asRec(rawSessions);
+  const statusRecent = (Array.isArray(rawSessions)
+    ? asArr<U>(rawSessions)
+    : asArr<U>(statusSessions.recent))
+    // Hide legacy GPT-5.4 sessions from the live controls surface. They are
+    // historical session metadata, not models currently in use.
+    .filter(s => !asStr(s.model).toLowerCase().includes('gpt-5.4'));
 
   const agentMap = new Map<string, {
     id: string; name: string; status: string; model: string;
@@ -189,63 +205,70 @@ export async function GET() {
     costFmt: string; costUsd: number; lastSeen: string; updatedAt: number;
   }>();
 
-  // From recent sessions (if available)
+  // From recent sessions (if available). Key each row by the real session key,
+  // not only agentId, otherwise multiple chats collapse into one made-up row.
   for (const s of statusRecent) {
-    const agentId  = asStr(s.agentId, 'main');
-    const existing = agentMap.get(agentId);
+    const sessionKey = asStr(s.key, asStr(s.sessionId, asStr(s.agentId, 'session')));
+    const agentId = asStr(s.agentId, 'main');
+    const kind = asStr(s.kind, 'session');
     const updatedAt = asNum(s.updatedAt, 0);
-    if (!existing || updatedAt > existing.updatedAt) {
-      const tokenCount = Math.max(0, asNum(s.totalTokens, 0));
-      const model = asStr(s.model, asStr(asRec(statusSessions.defaults).model, 'unknown'));
-      const age = asNum(s.age, Infinity);
-      agentMap.set(agentId, {
-        id: agentId,
+    const tokenCount = Math.max(0, asNum(s.totalTokens, 0));
+    const inputTokens = Math.max(0, asNum(s.inputTokens, 0));
+    const outputTokens = Math.max(0, asNum(s.outputTokens, 0));
+    const model = asStr(s.model, asStr(asRec(statusSessions.defaults).model, 'unknown'));
+    const age = asNum(s.ageMs ?? s.age, Infinity);
+    const contextTokens = asNum(s.contextTokens ?? asRec(statusSessions.defaults).contextTokens, 0);
+    const percentUsed = contextTokens > 0 ? (tokenCount / contextTokens) * 100 : asNum(s.percentUsed, 0);
+
+    agentMap.set(sessionKey, {
+      id: sessionKey,
+      name: kind === 'group' ? 'Group Session' : kind === 'direct' ? 'Direct Session' : kind === 'cron' ? 'Cron Session' : `${agentId} Session`,
+      status: age < 300_000 ? 'Active' : 'Ready',
+      model,
+      tokens: fmtCount(tokenCount),
+      tokenCount,
+      limit: contextTokens > 0 ? fmtCount(contextTokens) : '—',
+      percent: Math.min(100, Math.max(0, Math.round(percentUsed))),
+      costFmt: fmtCost(inputTokens || outputTokens ? calcCostFromParts(inputTokens, outputTokens, model) : calcCost(tokenCount, model)),
+      costUsd: inputTokens || outputTokens ? calcCostFromParts(inputTokens, outputTokens, model) : calcCost(tokenCount, model),
+      lastSeen: fmtAge(age),
+      updatedAt,
+    });
+  }
+
+  // From heartbeat agents only if session data is unavailable.
+  const defaultModel = asStr(asRec(statusSessions.defaults).model, 'openai-codex/gpt-5.5');
+  if (agentMap.size === 0) {
+    for (const hb of hbAgents) {
+      const agentId = asStr(hb.agentId);
+      if (!agentId) continue;
+      const enabled = asRec(hb.heartbeat).enabled === true || hb.enabled === true;
+      agentMap.set(`heartbeat:${agentId}`, {
+        id: `heartbeat:${agentId}`,
         name: agentId === 'main' ? 'Main Agent' : agentId,
-        status: age < 300_000 ? 'Active' : 'Ready',
-        model,
-        tokens: fmtCount(tokenCount),
-        tokenCount,
-        limit: fmtCount(s.contextTokens ?? asRec(statusSessions.defaults).contextTokens ?? 0),
-        percent: Math.min(100, Math.max(0, Math.round(asNum(s.percentUsed, 0)))),
-        costFmt: fmtCost(calcCost(tokenCount, model)),
-        costUsd: calcCost(tokenCount, model),
-        lastSeen: fmtAge(age),
-        updatedAt,
+        status: enabled ? 'Ready' : 'Offline',
+        model: defaultModel,
+        tokens: '—', tokenCount: 0,
+        limit: '—', percent: 0,
+        costFmt: '$0.0000', costUsd: 0,
+        lastSeen: 'No session telemetry', updatedAt: 0,
       });
     }
   }
 
-  // From heartbeat agents (if no session data for them)
-  const defaultModel = asStr(asRec(statusSessions.defaults).model, 'openai-codex/gpt-5.5');
-  for (const hb of hbAgents) {
+  const agents = Array.from(agentMap.values()).map(({ updatedAt, tokenCount, ...a }) => a);
+  const configuredAgents = hbAgents.map((hb) => {
     const agentId = asStr(hb.agentId);
-    if (!agentId || agentMap.has(agentId)) continue;
-    agentMap.set(agentId, {
+    const heartbeat = asRec(hb.heartbeat);
+    return {
       id: agentId,
       name: agentId === 'main' ? 'Main Agent' : agentId,
-      status: hb.enabled === true ? 'Ready' : 'Offline',
-      model: defaultModel,
-      tokens: '0', tokenCount: 0,
-      limit: '—', percent: 0,
-      costFmt: '$0.0000', costUsd: 0,
-      lastSeen: 'Unknown', updatedAt: 0,
-    });
-  }
-
-  // If still empty, synthesize a single "gateway" agent from health data
-  if (agentMap.size === 0 && gatewayOk) {
-    agentMap.set('gateway', {
-      id: 'gateway', name: 'OpenClaw Gateway',
-      status: eventLoop.degraded === true ? 'Busy' : 'Active',
-      model: defaultModel,
-      tokens: '—', tokenCount: 0,
-      limit: '—', percent: 0,
-      costFmt: '$0.0000', costUsd: 0,
-      lastSeen: 'Just now', updatedAt: Date.now(),
-    });
-  }
-
-  const agents = Array.from(agentMap.values()).map(({ updatedAt, tokenCount, ...a }) => a);
+      isDefault: hb.isDefault === true,
+      heartbeatEnabled: heartbeat.enabled === true,
+      heartbeatEvery: asStr(heartbeat.every, ''),
+      model: asStr(heartbeat.model, defaultModel),
+    };
+  }).filter(a => a.id);
 
   // ── Totals ────────────────────────────────────────────────────────────────
   const totalTokensRaw = Array.from(agentMap.values()).reduce((s, a) => s + a.tokenCount, 0);
@@ -256,7 +279,9 @@ export async function GET() {
   for (const s of statusRecent) {
     const model = asStr(s.model, defaultModel);
     const tokens = Math.max(0, asNum(s.totalTokens, 0));
-    const cost = calcCost(tokens, model);
+    const inputTokens = Math.max(0, asNum(s.inputTokens, 0));
+    const outputTokens = Math.max(0, asNum(s.outputTokens, 0));
+    const cost = inputTokens || outputTokens ? calcCostFromParts(inputTokens, outputTokens, model) : calcCost(tokens, model);
     const { label } = pricingFor(model);
     if (!modelMap[model]) modelMap[model] = { tokens: 0, costUsd: 0, label };
     modelMap[model].tokens += tokens;
@@ -292,19 +317,23 @@ export async function GET() {
   const logs = statusRecent.slice(0, 30).map((s, i) => {
     const model  = asStr(s.model, defaultModel);
     const tokens = Math.max(0, asNum(s.totalTokens, 0));
+    const inputTokens = Math.max(0, asNum(s.inputTokens, 0));
+    const outputTokens = Math.max(0, asNum(s.outputTokens, 0));
+    const sessionKey = asStr(s.key, '?');
     return {
       id: i + 1,
       time: new Date(asNum(s.updatedAt, Date.now())).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-      agentId: asStr(s.agentId, 'main'),
-      agent:   asStr(s.agentId, 'main'),
-      action:  `${asStr(s.kind, 'session')} ${asStr(s.key, '?')} · ${pricingFor(model).label} · ${fmtCount(tokens)} tokens · ${fmtCost(calcCost(tokens, model))}`,
-      type:    asNum(s.age, Infinity) < 300_000 ? 'success' as const : 'info' as const,
+      agentId: sessionKey,
+      agent:   sessionKey,
+      action:  `${asStr(s.kind, 'session')} ${sessionKey} · ${pricingFor(model).label} · ${fmtCount(tokens)} tokens · ${fmtCost(inputTokens || outputTokens ? calcCostFromParts(inputTokens, outputTokens, model) : calcCost(tokens, model))}`,
+      type:    asNum(s.ageMs ?? s.age, Infinity) < 300_000 ? 'success' as const : 'info' as const,
     };
   });
 
   return NextResponse.json({
     success: true,
     agents,
+    configuredAgents,
     telemetry,
     logs,
     stale: false,
