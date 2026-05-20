@@ -97,13 +97,7 @@ function buildMonthWeekHeader(points: SCurvePoint[]) {
   const weekLabels: string[] = [];
   const monthCounts = new Map<string, number>();
 
-  for (const point of points) {
-    if (point.is_baseline) {
-      monthGroups.push({ label: "", colSpan: 1 });
-      weekLabels.push("");
-      continue;
-    }
-
+  for (const point of points.filter(p => !p.is_baseline)) {
     const month = getMonthLabel(point) || "Schedule";
     const nextWeek = (monthCounts.get(month) ?? 0) + 1;
     monthCounts.set(month, nextWeek);
@@ -417,6 +411,7 @@ export default function SCurveCharts({ projects, hidePhaseDetails }: Props) {
   }, [tahapGroups]);
 
   const todayLabel  = format(new Date(), "dd MMM yy");
+  const visibleChartData = useMemo(() => chartData.filter(point => !point.is_baseline), [chartData]);
   const scurveHeader = useMemo(() => buildMonthWeekHeader(chartData), [chartData]);
   const targetColor = "#3b82f6";
   const actualColor = "#22c55e";
@@ -535,7 +530,7 @@ export default function SCurveCharts({ projects, hidePhaseDetails }: Props) {
             {/* RIGHT: weekly S-curve grid + chart overlay */}
             <div className="flex-1 min-w-0 relative bg-white dark:bg-zinc-950/30 overflow-x-auto scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-zinc-700" style={{ minHeight: chartHeight }}>
               {scurveSource === "tasks" && chartData.length > 0 && (
-                <div className="absolute inset-0 z-0 pointer-events-none" style={{ minWidth: `${Math.max(720, chartData.length * 72)}px` }}>
+                <div className="absolute inset-0 z-0 pointer-events-none" style={{ minWidth: `${Math.max(720, visibleChartData.length * 72)}px` }}>
                   <div className="h-12 border-b border-slate-200/60 dark:border-white/10">
                     <div className="h-6 grid border-b border-slate-200/50 dark:border-white/8" style={{ gridTemplateColumns: scurveHeader.monthGroups.map(g => `minmax(${g.colSpan * 72}px, ${g.colSpan}fr)`).join(" ") }}>
                       {scurveHeader.monthGroups.map((group, idx) => (
@@ -544,10 +539,10 @@ export default function SCurveCharts({ projects, hidePhaseDetails }: Props) {
                         </div>
                       ))}
                     </div>
-                    <div className="h-6 grid" style={{ gridTemplateColumns: `repeat(${chartData.length}, minmax(72px, 1fr))` }}>
-                      {chartData.map((point, idx) => (
+                    <div className="h-6 grid" style={{ gridTemplateColumns: `repeat(${visibleChartData.length}, minmax(72px, 1fr))` }}>
+                      {visibleChartData.map((point, idx) => (
                         <div key={point.month} className="flex items-center justify-center border-r border-slate-100/70 dark:border-white/5 text-[9px] font-bold text-slate-400 dark:text-white/35">
-                          {point.is_baseline ? "" : scurveHeader.weekLabels[idx]}
+                          {scurveHeader.weekLabels[idx]}
                         </div>
                       ))}
                     </div>
@@ -557,9 +552,9 @@ export default function SCurveCharts({ projects, hidePhaseDetails }: Props) {
                       <div key={gi}>
                         {group.header && <div className="h-6" style={{ backgroundColor: `${group.color}18` }} />}
                         {group.items.map((item, ii) => (
-                          <div key={ii} className="h-10 grid" style={{ gridTemplateColumns: `repeat(${chartData.length}, minmax(72px, 1fr))` }}>
-                            {chartData.map((point, pi) => {
-                              const period = point.is_baseline ? undefined : item.periods?.find(x => x.label === point.month || x.period_order === pi);
+                          <div key={ii} className="h-10 grid" style={{ gridTemplateColumns: `repeat(${visibleChartData.length}, minmax(72px, 1fr))` }}>
+                            {visibleChartData.map((point, pi) => {
+                              const period = item.periods?.find(x => x.label === point.month || x.period_order === pi + 1);
                               return (
                                 <div key={point.month} className="border-r border-slate-100/70 dark:border-white/5 flex items-center justify-center">
                                   {period && period.planned > 0 ? (
@@ -586,10 +581,10 @@ export default function SCurveCharts({ projects, hidePhaseDetails }: Props) {
                       { key: "actual_weekly", color: "text-emerald-500", value: (p: SCurvePoint) => p.actual_weekly ?? 0 },
                       { key: "actual", color: "text-emerald-600 dark:text-emerald-400", value: (p: SCurvePoint) => p.actual ?? 0 },
                     ].map(row => (
-                      <div key={row.key} className="h-6 grid border-b last:border-b-0 border-slate-200/50 dark:border-white/8" style={{ gridTemplateColumns: `repeat(${chartData.length}, minmax(72px, 1fr))` }}>
-                        {chartData.map(point => (
+                      <div key={row.key} className="h-6 grid border-b last:border-b-0 border-slate-200/50 dark:border-white/8" style={{ gridTemplateColumns: `repeat(${visibleChartData.length}, minmax(72px, 1fr))` }}>
+                        {visibleChartData.map(point => (
                           <div key={`${row.key}-${point.month}`} className={`border-r border-slate-100/70 dark:border-white/5 flex items-center justify-center ${row.color}`}>
-                            {point.is_baseline ? "" : row.value(point).toFixed(2)}
+                            {row.value(point).toFixed(2)}
                           </div>
                         ))}
                       </div>
@@ -597,7 +592,7 @@ export default function SCurveCharts({ projects, hidePhaseDetails }: Props) {
                   </div>
                 </div>
               )}
-              <div className="relative z-10 h-full" style={{ minWidth: scurveSource === "tasks" ? `${Math.max(720, chartData.length * 72)}px` : undefined }}>
+              <div className="relative z-10 h-full" style={{ minWidth: scurveSource === "tasks" ? `${Math.max(720, visibleChartData.length * 72)}px` : undefined }}>
               <ResponsiveContainer width="100%" height={chartHeight}>
                 <ComposedChart
                   data={chartData}
