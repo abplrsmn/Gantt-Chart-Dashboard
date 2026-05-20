@@ -6,7 +6,7 @@ import { format } from "date-fns";
 import {
   ArrowLeft, ChevronRight,
   User, Users, Building2,
-  Activity, Clock, FileText, Paperclip
+  Activity, Clock, FileText, Paperclip, MapPin
 } from "lucide-react";
 import SCurveCharts from "@/components/dashboard/SCurveCharts";
 
@@ -389,7 +389,7 @@ export default function ProjectDetailPage() {
 
       {/* Team/stakeholder details are shown inside Project Description fields. */}
 
-      {/* ── Single combined card: Description → Phase Parameters ── */}
+      {/* ── Project Description ──────────────────────────────────────── */}
       <div className="glass-card overflow-hidden">
 
         {/* Project Description */}
@@ -429,14 +429,35 @@ export default function ProjectDetailPage() {
 
           {/* ── Right: Location, Attachments, Stakeholders ── */}
           <div className="p-4 space-y-4">
-            {/* Location */}
-            <div>
-              <p className="text-[10px] uppercase tracking-widest text-slate-400 mb-1 flex items-center gap-1.5">
-                <Building2 size={11} className="text-slate-400" />
-                Location
-              </p>
-              <div className="px-3 py-2 rounded-lg border border-dashed border-slate-200/70 dark:border-white/8 text-slate-400 dark:text-slate-600">
-                <span className="text-xs italic">Address not specified</span>
+            {/* Location + Address */}
+            <div className="space-y-2">
+              <div>
+                <p className="text-[10px] uppercase tracking-widest text-slate-400 mb-1 flex items-center gap-1.5">
+                  <Building2 size={11} className="text-slate-400" />
+                  Location
+                </p>
+                <div className="px-3 py-2 rounded-lg border border-slate-200/70 dark:border-white/8 bg-white/60 dark:bg-white/3">
+                  {project.unit_name || project.unit_code ? (
+                    <span className="text-xs font-semibold text-slate-700 dark:text-slate-200">
+                      {project.unit_name ?? project.unit_code}
+                      {project.unit_name && project.unit_code ? (
+                        <span className="ml-1 font-medium text-slate-400">({project.unit_code})</span>
+                      ) : null}
+                    </span>
+                  ) : (
+                    <span className="text-xs italic text-slate-400 dark:text-slate-600">Unit not specified</span>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <p className="text-[10px] uppercase tracking-widest text-slate-400 mb-1 flex items-center gap-1.5">
+                  <MapPin size={11} className="text-slate-400" />
+                  Address
+                </p>
+                <div className="px-3 py-2 rounded-lg border border-dashed border-slate-200/70 dark:border-white/8 text-slate-400 dark:text-slate-600">
+                  <span className="text-xs italic">Address not specified</span>
+                </div>
               </div>
             </div>
 
@@ -508,9 +529,10 @@ export default function ProjectDetailPage() {
 
         </div>
 
-        {/* ── Divider ── */}
-        <div className="border-t border-slate-200/60 dark:border-white/10" />
+      </div>
 
+      {/* ── Phase Parameters ─────────────────────────────────────────── */}
+      <div className="glass-card overflow-hidden">
         {/* Phase Parameters */}
         <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-200/50 dark:border-white/8">
           <Activity size={13} className="text-cyan-500 shrink-0" />

@@ -2,9 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
-  Activity, Bot, Cpu, Database, Server, Terminal, Zap,
-  RefreshCw, WifiOff, DollarSign, TrendingUp, Clock, Wifi,
+  Activity, Bot, Cpu, Database, Server, Terminal,
+  RefreshCw, WifiOff, DollarSign, Clock, Wifi,
 } from "lucide-react";
+import ThreeOffice from "@/components/dashboard/ThreeOffice";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type AgentData = {
@@ -17,6 +18,15 @@ type AgentData = {
   percent: number;
   costFmt: string;
   lastSeen: string;
+};
+
+type ConfigAgent = {
+  id: string;
+  name: string;
+  isDefault?: boolean;
+  heartbeatEnabled?: boolean;
+  heartbeatEvery?: string;
+  model?: string;
 };
 
 type ModelBreakdown = {
@@ -55,6 +65,7 @@ type TelemetryResponse = {
   success: boolean;
   error?: string;
   agents?: AgentData[];
+  configuredAgents?: ConfigAgent[];
   telemetry?: TelemetrySummary | null;
   logs?: LogEntry[];
   stale?: boolean;
@@ -104,9 +115,11 @@ function StatCard({
   );
 }
 
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 export default function ControlsPage() {
   const [agents,      setAgents]      = useState<AgentData[]>([]);
+  const [configuredAgents, setConfiguredAgents] = useState<ConfigAgent[]>([]);
   const [telemetry,   setTelemetry]   = useState<TelemetrySummary>(EMPTY_TELEMETRY);
   const [logs,        setLogs]        = useState<LogEntry[]>([]);
   const [loading,     setLoading]     = useState(true);
@@ -116,12 +129,13 @@ export default function ControlsPage() {
   const [stale,       setStale]       = useState(false);
   const [source,      setSource]      = useState("");
 
-  const fetchTelemetry = async () => {
+  const fetchTelemetry = async (showLoading = false) => {
     try {
-      setLoading(true);
+      if (showLoading) setLoading(true);
       const res  = await fetch('/api/ai-telemetry', { cache: 'no-store' });
       const data = (await res.json()) as TelemetryResponse;
       setAgents(data.agents ?? []);
+      setConfiguredAgents(data.configuredAgents ?? []);
       setTelemetry(data.telemetry ?? EMPTY_TELEMETRY);
       setLogs(data.logs ?? []);
       setLastUpdated(data.lastUpdated ?? null);
@@ -130,24 +144,25 @@ export default function ControlsPage() {
       setError(data.success ? '' : (data.error ?? 'Failed to fetch telemetry'));
     } catch (err: unknown) {
       setAgents([]);
+      setConfiguredAgents([]);
       setTelemetry(EMPTY_TELEMETRY);
       setLogs([]);
       setStale(true);
       setError(err instanceof Error ? err.message : 'Connection failed');
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchTelemetry();
-    const id = setInterval(fetchTelemetry, POLL_MS);
+    fetchTelemetry(true);
+    const id = setInterval(() => fetchTelemetry(false), POLL_MS);
     return () => clearInterval(id);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const activeAgents = useMemo(
-    () => agents.filter(a => !['offline', 'disconnected', 'down'].includes(a.status.toLowerCase())).length,
+  const activeSessions = useMemo(
+    () => agents.filter(a => ['active', 'processing', 'busy', 'running'].includes(a.status.toLowerCase())).length,
     [agents]
   );
 
@@ -193,7 +208,7 @@ export default function ControlsPage() {
             </div>
           )}
           <button
-            onClick={fetchTelemetry}
+            onClick={() => fetchTelemetry(true)}
             disabled={loading}
             className="flex items-center gap-1.5 px-3 py-1.5 glass-card text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-white transition-colors disabled:opacity-50"
           >
@@ -214,9 +229,9 @@ export default function ControlsPage() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <StatCard
           icon={Bot} iconColor="text-blue-500"
-          label="Active Agents"
-          value={String(activeAgents)}
-          sub={`${agents.length} detected`}
+          label="Active Sessions"
+          value={String(activeSessions)}
+          sub={`${agents.length} real sessions detected`}
         />
         <StatCard
           icon={Cpu} iconColor="text-purple-500"
@@ -235,39 +250,23 @@ export default function ControlsPage() {
           iconColor={isConnected ? 'text-orange-500' : 'text-red-400'}
           label="Gateway"
           value={telemetry.gatewayOk ? 'Online' : (isConnected ? 'Checking' : 'Offline')}
-          sub={telemetry.rateLimitStatus}
+          sub={telemetry.gateway}
         />
       </div>
 
-      {/* ── Cost + model breakdown ── */}
-      {telemetry.modelBreakdown.length > 0 && (
-        <div className="glass-card p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <TrendingUp size={14} className="text-emerald-500" />
-            <h3 className="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-widest">Cost Breakdown by Model</h3>
+      <div className="glass-card p-4 overflow-hidden">
+        <div className="flex items-center justify-between gap-3 mb-3">
+          <div className="flex items-center gap-2">
+            <Server size={14} className="text-cyan-500" />
+            <h3 className="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-widest">OpenClaw 3D Office</h3>
           </div>
-          <div className="space-y-2">
-            {telemetry.modelBreakdown.map(m => {
-              const maxCost = Math.max(...telemetry.modelBreakdown.map(x => x.costUsd), 0.0001);
-              const barPct = Math.max(2, (m.costUsd / maxCost) * 100);
-              return (
-                <div key={m.model} className="flex items-center gap-3">
-                  <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 w-36 truncate shrink-0">{m.label}</span>
-                  <div className="flex-1 bg-slate-100 dark:bg-white/8 rounded-full h-1.5 overflow-hidden">
-                    <div className="h-1.5 rounded-full bg-emerald-500 transition-all duration-700" style={{ width: `${barPct}%` }} />
-                  </div>
-                  <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 w-20 text-right shrink-0">{m.costFmt}</span>
-                  <span className="text-[10px] text-slate-400 w-16 text-right shrink-0">{m.tokens} tok</span>
-                </div>
-              );
-            })}
-          </div>
-          <div className="mt-3 pt-3 border-t border-slate-200/60 dark:border-white/8 flex justify-between items-center">
-            <span className="text-[11px] text-slate-400">Total estimated cost (current sessions)</span>
-            <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">{telemetry.totalCostFmt}</span>
+          <div className="flex flex-wrap justify-end gap-2 text-[10px] font-semibold">
+            <span className="px-2 py-1 rounded-full bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-300 border border-blue-200/70 dark:border-blue-400/20">{configuredAgents.length || agents.length} configured agents</span>
+            <span className="px-2 py-1 rounded-full bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-300 border border-amber-200/70 dark:border-amber-400/20">{activeSessions} active sessions</span>
           </div>
         </div>
-      )}
+        <ThreeOffice agents={agents} configuredAgents={configuredAgents} gatewayOk={telemetry.gatewayOk} />
+      </div>
 
       {/* ── Agents + Feed ── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -276,16 +275,16 @@ export default function ControlsPage() {
         <div className="glass-card p-4 lg:col-span-1 flex flex-col" style={{ minHeight: '420px', maxHeight: '520px' }}>
           <h3 className="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-widest mb-1 flex items-center gap-2">
             <Database size={13} className="text-blue-500" />
-            Agent Subsystems
+            Session Telemetry
           </h3>
-          <p className="text-[10px] text-slate-400 mb-3">Click an agent to filter the log.</p>
+          <p className="text-[10px] text-slate-400 mb-3">Real OpenClaw sessions only. Click a session to filter the log.</p>
 
           <div className="space-y-3 overflow-y-auto flex-1 pr-1">
             {agents.length === 0 ? (
               <div className="flex justify-center py-12">
                 {loading
                   ? <RefreshCw size={20} className="text-blue-500 animate-spin" />
-                  : <p className="text-xs text-slate-400">No agents reported.</p>
+                  : <p className="text-xs text-slate-400">No session telemetry reported.</p>
                 }
               </div>
             ) : agents.map(agent => {
@@ -389,8 +388,8 @@ export default function ControlsPage() {
                   {selectedAgent
                     ? `No log entries for ${selectedAgentName}.`
                     : agents.length === 0
-                    ? 'No agent data available. Gateway may be offline.'
-                    : 'Select an agent to filter, or waiting for session data...'}
+                    ? 'No session data available. Gateway may be offline.'
+                    : 'Select a session to filter, or waiting for telemetry data...'}
                 </p>
               </div>
             ) : (
@@ -414,28 +413,6 @@ export default function ControlsPage() {
         </div>
       </div>
 
-      {/* ── Uptime info ── */}
-      <div className="glass-card px-4 py-3 flex items-center gap-3 flex-wrap">
-        <Zap size={13} className="text-cyan-500 shrink-0" />
-        <div className="flex flex-wrap gap-x-6 gap-y-1 text-[11px]">
-          <span className="text-slate-400">Gateway: <span className="font-semibold text-slate-600 dark:text-slate-300">{telemetry.gateway}</span></span>
-          <span className="text-slate-400">Status: <span className="font-semibold text-slate-600 dark:text-slate-300">{telemetry.uptime}</span></span>
-          <span className="text-slate-400">Channels: <span className="font-semibold text-slate-600 dark:text-slate-300">{telemetry.rateLimitStatus}</span></span>
-          {telemetry.tasks && (
-            <span className="text-slate-400">
-              Tasks: <span className="font-semibold text-slate-600 dark:text-slate-300">{telemetry.tasks.active} active</span>
-              {telemetry.tasks.failures > 0 && (
-                <span className="ml-1 text-red-400 font-semibold">· {telemetry.tasks.failures} failed</span>
-              )}
-            </span>
-          )}
-          {telemetry.eventLoopDegraded && (
-            <span className="text-amber-500 font-semibold flex items-center gap-1">
-              <Activity size={9} /> Event loop degraded (high CPU)
-            </span>
-          )}
-        </div>
-      </div>
 
     </div>
   );
