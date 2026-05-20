@@ -43,13 +43,13 @@ function isProtectedApiPath(pathname: string): boolean {
 // Pages each role is ALLOWED to access (prefix match)
 const ROLE_ALLOWED_PATHS: Record<string, string[]> = {
   admin: ['/dashboard'], // admin can access everything under /dashboard
-  pm: ['/dashboard/capex-gantt', '/dashboard/projects'], // pm can access Gantt and Projects
+  pm: ['/dashboard/projects'], // pm can access Gantt and Projects
 };
 
 // Default landing page per role after login
 const ROLE_DEFAULT_PAGE: Record<string, string> = {
   admin: '/dashboard',
-  pm: '/dashboard/capex-gantt',
+  pm: '/dashboard/projects/gantt',
 };
 
 export function middleware(request: NextRequest) {
@@ -88,7 +88,7 @@ export function middleware(request: NextRequest) {
 
   if (!isAllowed) {
     // Redirect to their default landing page
-    const fallback = ROLE_DEFAULT_PAGE[role] ?? '/dashboard/capex-gantt';
+    const fallback = ROLE_DEFAULT_PAGE[role] ?? '/dashboard/projects/gantt';
     return NextResponse.redirect(new URL(fallback, request.url));
   }
 

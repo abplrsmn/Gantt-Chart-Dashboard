@@ -1,9 +1,5 @@
-import ProjectGanttDB from "../../../components/dashboard/ProjectGanttDB";
+import { redirect } from "next/navigation";
 
 export default function CapexGanttPage() {
-  return (
-    <div className="space-y-4 pb-6 animate-page-enter">
-      <ProjectGanttDB />
-    </div>
-  );
+  redirect("/dashboard/projects/gantt");
 }

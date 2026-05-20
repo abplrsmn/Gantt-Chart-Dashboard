@@ -27,7 +27,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   const navItems = [
     { icon: <Home size={16} />, label: "Home", path: "/dashboard" },
-    { icon: <CalendarRange size={16} />, label: "Projects", path: "/dashboard/capex-gantt" },
+    { icon: <CalendarRange size={16} />, label: "Projects", path: "/dashboard/projects/gantt" },
     { icon: <Users size={16} />, label: "Team", path: "/dashboard/team" },
     { icon: <AlertTriangle size={16} />, label: "Alerts", path: "/dashboard/alerts" },
     { icon: <Server size={16} />, label: "Controls", path: "/dashboard/controls" },
