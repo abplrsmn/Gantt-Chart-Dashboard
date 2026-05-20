@@ -47,6 +47,9 @@ type DBProject = {
   project_code: string;
   project_name: string;
   overall_progress_pct: string | null;
+  scurve_target_progress: string | null;
+  scurve_actual_progress: string | null;
+  scurve_progress_variance: string | null;
   start_date: string | null;
   end_date: string | null;
   current_phase_name: string | null;
@@ -647,6 +650,18 @@ export default function ProjectGanttDB() {
                       </p>
                       <div className="mt-0.5 flex items-center justify-between gap-2">
                         <span className="text-[9px] text-slate-400 truncate block">{p.current_phase_name ?? "–"}</span>
+                        {p.scurve_target_progress !== null && (
+                          <span
+                            className={`text-[8px] font-bold px-1.5 py-0.5 rounded-full border shrink-0 ${
+                              Number(p.scurve_progress_variance ?? 0) < 0
+                                ? "text-rose-600 dark:text-rose-300 bg-rose-500/10 border-rose-500/20"
+                                : "text-emerald-600 dark:text-emerald-300 bg-emerald-500/10 border-emerald-500/20"
+                            }`}
+                            title={`S-Curve Target ${Number(p.scurve_target_progress ?? 0).toFixed(2)}% / Actual ${Number(p.scurve_actual_progress ?? 0).toFixed(2)}%`}
+                          >
+                            T {Number(p.scurve_target_progress ?? 0).toFixed(0)} / A {Number(p.scurve_actual_progress ?? 0).toFixed(0)}
+                          </span>
+                        )}
                         <span
                           className={`text-[8px] font-bold px-1.5 py-0.5 rounded-full border shrink-0 ${
                             phaseCompleteness.missing > 0
@@ -788,6 +803,9 @@ export default function ProjectGanttDB() {
               <div className="grid grid-cols-2 gap-2 text-[10px] text-slate-400 dark:text-white/55 mb-2">
                 <p>Range: <span className="font-semibold text-slate-600 dark:text-white/75">{format(seg.start, "dd MMM yy")} → {format(seg.end, "dd MMM yy")}</span></p>
                 <p className="text-right">Progress: <span className="font-semibold text-slate-600 dark:text-white/75">{Number(pr.overall_progress_pct ?? 0)}%</span></p>
+                {pr.scurve_target_progress !== null && (
+                  <p>S-Curve: <span className="font-semibold text-slate-600 dark:text-white/75">T {Number(pr.scurve_target_progress ?? 0).toFixed(2)}% / A {Number(pr.scurve_actual_progress ?? 0).toFixed(2)}%</span></p>
+                )}
                 <p>Status: <span className="font-semibold text-slate-600 dark:text-white/75">{pr.status_label ?? "—"}</span></p>
                 <p className={`text-right font-semibold ${completeness.missing > 0 ? "text-amber-500" : "text-emerald-500"}`}>
                   {completeness.scheduled}/{completeness.total} phases scheduled

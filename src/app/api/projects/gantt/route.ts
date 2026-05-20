@@ -21,11 +21,40 @@ export async function GET() {
     await client.query("SET jit = off");
 
     const { rows } = await client.query(`
+      WITH scurve_periods AS (
+        SELECT
+          pt.project_id,
+          pp.period_order,
+          pp.period_start,
+          SUM(SUM(LEAST(GREATEST(pp.planned_weight, 0), COALESCE(pt.weight_pct, pp.planned_weight))))
+            OVER (PARTITION BY pt.project_id ORDER BY pp.period_order, pp.period_start) AS target_progress,
+          SUM(SUM(LEAST(GREATEST(pp.actual_weight, 0), COALESCE(pt.weight_pct, pp.actual_weight))))
+            OVER (PARTITION BY pt.project_id ORDER BY pp.period_order, pp.period_start) AS actual_progress
+        FROM project_task_progress_periods pp
+        JOIN project_tasks pt ON pt.id = pp.project_task_id
+        GROUP BY pt.project_id, pp.period_order, pp.period_start
+      ),
+      scurve_latest AS (
+        SELECT DISTINCT ON (project_id)
+          project_id,
+          LEAST(100, target_progress)::numeric AS target_progress,
+          LEAST(100, actual_progress)::numeric AS actual_progress,
+          (LEAST(100, actual_progress) - LEAST(100, target_progress))::numeric AS progress_variance
+        FROM scurve_periods
+        ORDER BY
+          project_id,
+          CASE WHEN period_start <= CURRENT_DATE THEN 0 ELSE 1 END,
+          CASE WHEN period_start <= CURRENT_DATE THEN period_start END DESC,
+          CASE WHEN period_start > CURRENT_DATE THEN period_start END ASC
+      )
       SELECT
         p.id,
         p.project_code,
         p.project_name,
         p.overall_progress_pct,
+        sl.target_progress AS scurve_target_progress,
+        sl.actual_progress AS scurve_actual_progress,
+        sl.progress_variance AS scurve_progress_variance,
         p.start_date,
         p.end_date,
         mp_phase.phase_name   AS current_phase_name,
@@ -108,6 +137,7 @@ export async function GET() {
       LEFT JOIN master_priorities mpr        ON mpr.id = p.priority_id
       LEFT JOIN master_units mu              ON mu.id = p.unit_id
       LEFT JOIN master_project_categories mc ON mc.id = p.category_id
+      LEFT JOIN scurve_latest sl            ON sl.project_id = p.id
 
       -- Join each phase row
       LEFT JOIN project_phases ob  ON ob.project_id = p.id AND ob.phase_id = 1

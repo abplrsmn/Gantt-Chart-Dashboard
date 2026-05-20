@@ -47,7 +47,7 @@ type DBProject = {
 
 interface Props { projects: DBProject[]; hidePhaseDetails?: boolean; }
 
-type SCurvePoint = { month: string; target: number; actual: number | null };
+type SCurvePoint = { month: string; target: number; actual: number | null; planned_weekly?: number; actual_weekly?: number; variance?: number };
 
 function pushUniquePoint(points: SCurvePoint[], point: SCurvePoint) {
   const last = points[points.length - 1];
@@ -67,7 +67,7 @@ interface SubTask {
   progress: number;
 }
 
-type TahapItem = { name: string; bobot: number };
+type TahapItem = { name: string; bobot: number; progress?: number };
 type TahapGroup = { header: string | null; color: string | null; items: TahapItem[] };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -306,17 +306,18 @@ export default function SCurveCharts({ projects, hidePhaseDetails }: Props) {
     return null;
   }, [projects, selectedProjectId]);
 
-  const tahapGroups = useMemo(() => {
+  const generatedTahapGroups = useMemo(() => {
     if (!selectedProject) return [];
     return generateTahap(selectedProject.id);
   }, [selectedProject]);
 
-  // ── Fetch S-curve data from DB (periods first, phase fallback) ──────────────
+  // ── Fetch S-curve data from DB (task/periods first, phase fallback) ─────────
   const [chartData, setChartData] = useState<SCurvePoint[]>([]);
-  const [scurveSource, setScurveSource] = useState<"periods" | "phases" | null>(null);
+  const [dbTahapGroups, setDbTahapGroups] = useState<TahapGroup[] | null>(null);
+  const [scurveSource, setScurveSource] = useState<"tasks" | "periods" | "phases" | null>(null);
 
   useEffect(() => {
-    if (!selectedProject) { setChartData([]); return; }
+    if (!selectedProject) { setChartData([]); setDbTahapGroups(null); return; }
     let cancelled = false;
 
     fetch(`/api/projects/${selectedProject.id}/scurve`)
@@ -325,27 +326,46 @@ export default function SCurveCharts({ projects, hidePhaseDetails }: Props) {
         if (cancelled) return;
         if (!json.success) return;
 
-        if (json.source === "periods") {
-          // Real granular period data from project_task_progress_periods
+        if (json.source === "tasks" || json.source === "periods") {
+          // Real granular S-curve: task weights + planned/actual period contributions.
           setChartData(json.data);
-          setScurveSource("periods");
+          setScurveSource(json.source);
+          if (Array.isArray(json.tasks)) {
+            const colors = ["#64748b", "#3b82f6", "#f59e0b", "#14b8a6", "#22c55e", "#8b5cf6"];
+            const grouped = new Map<string, TahapItem[]>();
+            for (const task of json.tasks) {
+              const phase = task.phase || "Work Items";
+              const arr = grouped.get(phase) ?? [];
+              arr.push({ name: task.title, bobot: Number(task.weight ?? 0), progress: Number(task.progress ?? 0) });
+              grouped.set(phase, arr);
+            }
+            setDbTahapGroups(Array.from(grouped.entries()).map(([phase, items], idx) => ({
+              header: phase,
+              color: colors[idx % colors.length],
+              items,
+            })));
+          }
         } else {
           // Fallback: build from phase-level DB data
-          const pts = buildSingleProjectData(selectedProject, tahapGroups);
+          const pts = buildSingleProjectData(selectedProject, generatedTahapGroups);
           setChartData(pts.points);
+          setDbTahapGroups(null);
           setScurveSource("phases");
         }
       })
       .catch(() => {
         if (cancelled) return;
         // Network error: still build from phase data client-side
-        const pts = buildSingleProjectData(selectedProject, tahapGroups);
+        const pts = buildSingleProjectData(selectedProject, generatedTahapGroups);
         setChartData(pts.points);
+        setDbTahapGroups(null);
         setScurveSource("phases");
       });
 
     return () => { cancelled = true; };
-  }, [selectedProject, tahapGroups]);
+  }, [selectedProject, generatedTahapGroups]);
+
+  const tahapGroups = dbTahapGroups ?? generatedTahapGroups;
 
   // Compute exact chart height to match table height so Y=0% aligns with "Pembersihan Lokasi"
   // h-9 = 36px (header), h-6 = 24px (group header), h-8 = 32px (item row), h-9 = 36px (total row)
@@ -377,7 +397,7 @@ export default function SCurveCharts({ projects, hidePhaseDetails }: Props) {
             Project Performance Analysis
           </h3>
           <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5 font-medium uppercase tracking-wider">
-            Task Timeline & S-Curve Overlay
+            Task Timeline & S-Curve Overlay {scurveSource === "tasks" ? "• Calculated from task weights" : "• Phase fallback"}
           </p>
         </div>
 
@@ -448,7 +468,7 @@ export default function SCurveCharts({ projects, hidePhaseDetails }: Props) {
                             {item.name}
                           </div>
                           <div className="w-16 shrink-0 border-l border-slate-200/60 dark:border-white/10 flex items-center justify-center font-mono text-[10px] text-slate-500 dark:text-slate-400">
-                            {item.bobot.toFixed(2)}
+                            {item.bobot.toFixed(2)}{item.progress !== undefined ? ` / ${item.progress.toFixed(0)}%` : ""}
                           </div>
                         </div>
                       ))}
@@ -462,7 +482,7 @@ export default function SCurveCharts({ projects, hidePhaseDetails }: Props) {
                     Total
                   </div>
                   <div className="w-16 shrink-0 border-l border-slate-200/60 dark:border-white/10 flex items-center justify-center text-cyan-600 dark:text-cyan-400">
-                    100.00
+                    {tahapGroups.reduce((sum, group) => sum + group.items.reduce((s, item) => s + item.bobot, 0), 0).toFixed(2)}
                   </div>
                 </div>
               </div>

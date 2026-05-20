@@ -22,44 +22,112 @@ export async function GET(
 
   const client = await pool.connect();
   try {
-    // ── 1. Try granular period data (project_task_progress_periods) ─────────
+    await client.query("SET jit = off");
+
+    // ── 1. Task/period based S-curve ───────────────────────────────────────
+    // Formula:
+    // - target period = SUM(planned task weight contribution in that period)
+    // - actual period = SUM(actual task weight contribution in that period)
+    // - cumulative target/actual are running totals across project periods.
+    // Each task has weight_pct; period planned/actual values represent weighted
+    // contribution points, so totals should end near 100 when the WBS is complete.
     const periodRows = await client.query<{
       period_order: number;
       period_label: string;
       period_start: string;
       period_end: string;
       planned_weight: string;
-      actual_weight: string | null;
+      actual_weight: string;
     }>(`
+      WITH project_periods AS (
+        SELECT
+          pp.period_order,
+          pp.period_label,
+          pp.period_start,
+          pp.period_end,
+          SUM(LEAST(GREATEST(pp.planned_weight, 0), COALESCE(pt.weight_pct, pp.planned_weight)))::numeric AS planned_weight,
+          SUM(LEAST(GREATEST(pp.actual_weight, 0), COALESCE(pt.weight_pct, pp.actual_weight)))::numeric  AS actual_weight
+        FROM project_task_progress_periods pp
+        JOIN project_tasks pt ON pt.id = pp.project_task_id
+        WHERE pt.project_id = $1
+        GROUP BY pp.period_order, pp.period_label, pp.period_start, pp.period_end
+      )
       SELECT
-        pp.period_order,
-        pp.period_label,
-        pp.period_start::text,
-        pp.period_end::text,
-        SUM(pp.planned_weight)::numeric AS planned_weight,
-        SUM(pp.actual_weight)::numeric  AS actual_weight
-      FROM project_task_progress_periods pp
-      JOIN project_tasks pt ON pt.id = pp.project_task_id
-      WHERE pt.project_id = $1
-      GROUP BY pp.period_order, pp.period_label, pp.period_start, pp.period_end
-      ORDER BY pp.period_order
+        period_order,
+        COALESCE(period_label, 'P' || period_order::text) AS period_label,
+        period_start::text,
+        period_end::text,
+        planned_weight,
+        actual_weight
+      FROM project_periods
+      ORDER BY period_order, period_start
     `, [projectId]);
 
     if (periodRows.rows.length > 0) {
-      // Build cumulative S-curve from real period data
+      const taskRows = await client.query<{
+        id: string;
+        title: string;
+        weight_pct: string;
+        progress_pct: string;
+        phase_name: string | null;
+        item_type: string | null;
+        item_order: number;
+      }>(`
+        SELECT
+          pt.id::text,
+          pt.title,
+          COALESCE(pt.weight_pct, 0)::numeric AS weight_pct,
+          COALESCE(pt.progress_pct, 0)::numeric AS progress_pct,
+          mp.phase_name,
+          pt.item_type,
+          pt.item_order
+        FROM project_tasks pt
+        LEFT JOIN project_phases pp ON pp.id = pt.phase_id
+        LEFT JOIN master_phases mp ON mp.id = pp.phase_id
+        WHERE pt.project_id = $1
+        ORDER BY COALESCE(pp.phase_id, 999), pt.item_order, pt.id
+      `, [projectId]);
+
       let cumPlanned = 0;
       let cumActual  = 0;
       const points = periodRows.rows.map(r => {
-        cumPlanned += Number(r.planned_weight ?? 0);
-        const actual = r.actual_weight !== null ? Number(r.actual_weight) : null;
-        if (actual !== null) cumActual += actual;
+        const planned = Number(r.planned_weight ?? 0);
+        const actual = Number(r.actual_weight ?? 0);
+        cumPlanned += planned;
+        cumActual += actual;
         return {
           month:  r.period_label,
-          target: Number(cumPlanned.toFixed(2)),
-          actual: actual !== null ? Number(cumActual.toFixed(2)) : null,
+          period_start: r.period_start,
+          period_end: r.period_end,
+          planned_weekly: Number(planned.toFixed(2)),
+          actual_weekly: Number(actual.toFixed(2)),
+          target: Number(Math.min(100, cumPlanned).toFixed(2)),
+          actual: Number(Math.min(100, cumActual).toFixed(2)),
+          variance: Number((cumActual - cumPlanned).toFixed(2)),
         };
       });
-      return NextResponse.json({ success: true, source: "periods", data: points });
+
+      const latest = [...points].reverse().find(p => p.actual !== null) ?? points[points.length - 1];
+      return NextResponse.json({
+        success: true,
+        source: "tasks",
+        formula: "target=sum(planned_weight); actual=sum(actual_weight); cumulative=running total by period; task weights define 100% WBS baseline",
+        summary: {
+          target_progress: latest?.target ?? 0,
+          actual_progress: latest?.actual ?? 0,
+          variance: latest ? Number(((latest.actual ?? 0) - latest.target).toFixed(2)) : 0,
+          total_task_weight: Number(taskRows.rows.reduce((s, r) => s + Number(r.weight_pct ?? 0), 0).toFixed(2)),
+        },
+        tasks: taskRows.rows.map(t => ({
+          id: t.id,
+          title: t.title,
+          weight: Number(t.weight_pct ?? 0),
+          progress: Number(t.progress_pct ?? 0),
+          phase: t.phase_name ?? t.item_type ?? "Work Items",
+          item_order: t.item_order,
+        })),
+        data: points,
+      });
     }
 
     // ── 2. Fallback: phase-level progress from project_phases ────────────────
