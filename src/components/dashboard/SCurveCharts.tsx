@@ -47,7 +47,7 @@ type DBProject = {
 
 interface Props { projects: DBProject[]; hidePhaseDetails?: boolean; }
 
-type SCurvePoint = { month: string; target: number; actual: number | null; planned_weekly?: number; actual_weekly?: number; variance?: number };
+type SCurvePoint = { month: string; target: number; actual: number | null; planned_weekly?: number; actual_weekly?: number; variance?: number; is_baseline?: boolean };
 
 function pushUniquePoint(points: SCurvePoint[], point: SCurvePoint) {
   const last = points[points.length - 1];
@@ -501,7 +501,7 @@ export default function SCurveCharts({ projects, hidePhaseDetails }: Props) {
                   <div className="h-9 border-b border-slate-200/60 dark:border-white/10 grid" style={{ gridTemplateColumns: `repeat(${chartData.length}, minmax(72px, 1fr))` }}>
                     {chartData.map(point => (
                       <div key={point.month} className="flex items-center justify-center border-r border-slate-100/70 dark:border-white/5 text-[9px] font-bold text-slate-400 dark:text-white/35">
-                        {point.month}
+                        {point.is_baseline ? "" : point.month}
                       </div>
                     ))}
                   </div>
@@ -512,7 +512,7 @@ export default function SCurveCharts({ projects, hidePhaseDetails }: Props) {
                         {group.items.map((item, ii) => (
                           <div key={ii} className="h-10 grid" style={{ gridTemplateColumns: `repeat(${chartData.length}, minmax(72px, 1fr))` }}>
                             {chartData.map((point, pi) => {
-                              const period = item.periods?.find(x => x.label === point.month || x.period_order === pi + 1);
+                              const period = point.is_baseline ? undefined : item.periods?.find(x => x.label === point.month || x.period_order === pi);
                               return (
                                 <div key={point.month} className="border-r border-slate-100/70 dark:border-white/5 flex items-center justify-center">
                                   {period && period.planned > 0 ? (
@@ -542,7 +542,7 @@ export default function SCurveCharts({ projects, hidePhaseDetails }: Props) {
                       <div key={row.key} className="h-6 grid border-b last:border-b-0 border-slate-200/50 dark:border-white/8" style={{ gridTemplateColumns: `repeat(${chartData.length}, minmax(72px, 1fr))` }}>
                         {chartData.map(point => (
                           <div key={`${row.key}-${point.month}`} className={`border-r border-slate-100/70 dark:border-white/5 flex items-center justify-center ${row.color}`}>
-                            {row.value(point).toFixed(2)}
+                            {point.is_baseline ? "" : row.value(point).toFixed(2)}
                           </div>
                         ))}
                       </div>
@@ -583,14 +583,16 @@ export default function SCurveCharts({ projects, hidePhaseDetails }: Props) {
                     hide
                   />
                   <Tooltip content={<ChartTooltip />} />
-                  <ReferenceLine
-                    yAxisId="pct"
-                    x={todayLabel}
-                    stroke="#f59e0b"
-                    strokeDasharray="4 4"
-                    strokeWidth={1.5}
-                    label={{ value: "Today", position: "top", fill: "#f59e0b", fontSize: 9 }}
-                  />
+                  {chartData.some(p => p.month === todayLabel) && (
+                    <ReferenceLine
+                      yAxisId="pct"
+                      x={todayLabel}
+                      stroke="#f59e0b"
+                      strokeDasharray="4 4"
+                      strokeWidth={1.5}
+                      label={{ value: "Today", position: "top", fill: "#f59e0b", fontSize: 9 }}
+                    />
+                  )}
                   <Area yAxisId="pct" type="monotone" dataKey="target" fill="url(#scTargetGrad)" stroke="none" />
                   <Area yAxisId="pct" type="monotone" dataKey="actual" fill="url(#scActualGrad)" stroke="none" />
                   <Line yAxisId="pct" type="monotone" dataKey="target" stroke={targetColor} strokeWidth={2.5} dot={false} strokeDasharray="6 3" name="Planned" />

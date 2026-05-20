@@ -126,22 +126,36 @@ export async function GET(
 
       let cumPlanned = 0;
       let cumActual  = 0;
-      const points = periodRows.rows.map(r => {
-        const planned = Number(r.planned_weight ?? 0);
-        const actual = Number(r.actual_weight ?? 0);
-        cumPlanned += planned;
-        cumActual += actual;
-        return {
-          month:  r.period_label,
-          period_start: r.period_start,
-          period_end: r.period_end,
-          planned_weekly: Number(planned.toFixed(2)),
-          actual_weekly: Number(actual.toFixed(2)),
-          target: Number(Math.min(100, cumPlanned).toFixed(2)),
-          actual: Number(Math.min(100, cumActual).toFixed(2)),
-          variance: Number((cumActual - cumPlanned).toFixed(2)),
-        };
-      });
+      const points = [
+        {
+          month: "Start",
+          period_start: periodRows.rows[0]?.period_start ?? null,
+          period_end: periodRows.rows[0]?.period_start ?? null,
+          planned_weekly: 0,
+          actual_weekly: 0,
+          target: 0,
+          actual: 0,
+          variance: 0,
+          is_baseline: true,
+        },
+        ...periodRows.rows.map(r => {
+          const planned = Number(r.planned_weight ?? 0);
+          const actual = Number(r.actual_weight ?? 0);
+          cumPlanned += planned;
+          cumActual += actual;
+          return {
+            month:  r.period_label,
+            period_start: r.period_start,
+            period_end: r.period_end,
+            planned_weekly: Number(planned.toFixed(2)),
+            actual_weekly: Number(actual.toFixed(2)),
+            target: Number(Math.min(100, cumPlanned).toFixed(2)),
+            actual: Number(Math.min(100, cumActual).toFixed(2)),
+            variance: Number((cumActual - cumPlanned).toFixed(2)),
+            is_baseline: false,
+          };
+        }),
+      ];
 
       const latest = [...points].reverse().find(p => p.actual !== null) ?? points[points.length - 1];
       return NextResponse.json({
