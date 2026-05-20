@@ -67,7 +67,7 @@ interface SubTask {
   progress: number;
 }
 
-type TahapItem = { name: string; bobot: number; progress?: number };
+type TahapItem = { name: string; bobot: number; progress?: number; periods?: { period_order: number; label: string; planned: number; actual: number; actual_pct: number }[] };
 type TahapGroup = { header: string | null; color: string | null; items: TahapItem[] };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -336,7 +336,7 @@ export default function SCurveCharts({ projects, hidePhaseDetails }: Props) {
             for (const task of json.tasks) {
               const phase = task.phase || "Work Items";
               const arr = grouped.get(phase) ?? [];
-              arr.push({ name: task.title, bobot: Number(task.weight ?? 0), progress: Number(task.progress ?? 0) });
+              arr.push({ name: task.title, bobot: Number(task.weight ?? 0), progress: Number(task.progress ?? 0), periods: task.periods ?? [] });
               grouped.set(phase, arr);
             }
             setDbTahapGroups(Array.from(grouped.entries()).map(([phase, items], idx) => ({
@@ -468,7 +468,7 @@ export default function SCurveCharts({ projects, hidePhaseDetails }: Props) {
                             {item.name}
                           </div>
                           <div className="w-16 shrink-0 border-l border-slate-200/60 dark:border-white/10 flex items-center justify-center font-mono text-[10px] text-slate-500 dark:text-slate-400">
-                            {item.bobot.toFixed(2)}{item.progress !== undefined ? ` / ${item.progress.toFixed(0)}%` : ""}
+                            {item.bobot.toFixed(2)}
                           </div>
                         </div>
                       ))}
@@ -488,8 +488,51 @@ export default function SCurveCharts({ projects, hidePhaseDetails }: Props) {
               </div>
             )}
 
-            {/* RIGHT: S-Curve chart */}
-            <div className="flex-1 min-w-0 bg-white dark:bg-zinc-950/30" style={{ minHeight: chartHeight }}>
+            {/* RIGHT: weekly S-curve grid + chart overlay */}
+            <div className="flex-1 min-w-0 relative bg-white dark:bg-zinc-950/30 overflow-x-auto" style={{ minHeight: chartHeight }}>
+              {scurveSource === "tasks" && chartData.length > 0 && (
+                <div className="absolute inset-0 z-0 pointer-events-none" style={{ minWidth: `${Math.max(520, chartData.length * 58)}px` }}>
+                  <div className="h-9 border-b border-slate-200/60 dark:border-white/10 grid" style={{ gridTemplateColumns: `repeat(${chartData.length}, minmax(58px, 1fr))` }}>
+                    {chartData.map(point => (
+                      <div key={point.month} className="flex items-center justify-center border-r border-slate-100/70 dark:border-white/5 text-[9px] font-bold text-slate-400 dark:text-white/35">
+                        {point.month}
+                      </div>
+                    ))}
+                  </div>
+                  <div className="divide-y divide-slate-200/40 dark:divide-white/5">
+                    {tahapGroups.map((group, gi) => (
+                      <div key={gi}>
+                        {group.header && <div className="h-6" style={{ backgroundColor: `${group.color}18` }} />}
+                        {group.items.map((item, ii) => (
+                          <div key={ii} className="h-8 grid" style={{ gridTemplateColumns: `repeat(${chartData.length}, minmax(58px, 1fr))` }}>
+                            {chartData.map((point, pi) => {
+                              const period = item.periods?.find(x => x.label === point.month || x.period_order === pi + 1);
+                              return (
+                                <div key={point.month} className="border-r border-slate-100/70 dark:border-white/5 flex items-center justify-center">
+                                  {period && (period.planned > 0 || period.actual > 0) ? (
+                                    <span className="rounded px-1 py-0.5 bg-white/70 dark:bg-black/35 font-mono text-[9px] leading-none text-slate-600 dark:text-white/70 shadow-sm">
+                                      {period.planned.toFixed(2)} / {period.actual_pct}%
+                                    </span>
+                                  ) : null}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                  <div className="h-9 border-t border-slate-200/60 dark:border-white/10 grid bg-slate-50/50 dark:bg-black/20" style={{ gridTemplateColumns: `repeat(${chartData.length}, minmax(58px, 1fr))` }}>
+                    {chartData.map(point => (
+                      <div key={point.month} className="border-r border-slate-100/70 dark:border-white/5 flex flex-col items-center justify-center font-mono text-[8px] leading-tight">
+                        <span className="text-blue-500">T {point.target.toFixed(0)}%</span>
+                        <span className="text-emerald-500">A {(point.actual ?? 0).toFixed(0)}%</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <div className="relative z-10 h-full" style={{ minWidth: scurveSource === "tasks" ? `${Math.max(520, chartData.length * 58)}px` : undefined }}>
               <ResponsiveContainer width="100%" height={chartHeight}>
                 <ComposedChart
                   data={chartData}
@@ -539,6 +582,7 @@ export default function SCurveCharts({ projects, hidePhaseDetails }: Props) {
                   <Line yAxisId="pct" type="monotone" dataKey="actual" stroke={actualColor} strokeWidth={3.5} dot={false} connectNulls name="Actual" />
                 </ComposedChart>
               </ResponsiveContainer>
+              </div>
             </div>
           </div>
 

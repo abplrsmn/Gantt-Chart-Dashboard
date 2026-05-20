@@ -88,6 +88,42 @@ export async function GET(
         ORDER BY COALESCE(pp.phase_id, 999), pt.item_order, pt.id
       `, [projectId]);
 
+      const taskPeriodRows = await client.query<{
+        project_task_id: string;
+        period_order: number;
+        period_label: string;
+        planned_weight: string;
+        actual_weight: string;
+      }>(`
+        SELECT
+          pp.project_task_id::text,
+          pp.period_order,
+          COALESCE(pp.period_label, 'P' || pp.period_order::text) AS period_label,
+          LEAST(GREATEST(pp.planned_weight, 0), COALESCE(pt.weight_pct, pp.planned_weight))::numeric AS planned_weight,
+          LEAST(GREATEST(pp.actual_weight, 0), COALESCE(pt.weight_pct, pp.actual_weight))::numeric AS actual_weight
+        FROM project_task_progress_periods pp
+        JOIN project_tasks pt ON pt.id = pp.project_task_id
+        WHERE pt.project_id = $1
+        ORDER BY pt.item_order, pp.period_order, pp.period_start
+      `, [projectId]);
+
+      const periodsByTask = new Map<string, { period_order: number; label: string; planned: number; actual: number; actual_pct: number }[]>();
+      for (const r of taskPeriodRows.rows) {
+        const task = taskRows.rows.find(t => t.id === r.project_task_id);
+        const weight = Number(task?.weight_pct ?? 0);
+        const actual = Number(r.actual_weight ?? 0);
+        const planned = Number(r.planned_weight ?? 0);
+        const arr = periodsByTask.get(r.project_task_id) ?? [];
+        arr.push({
+          period_order: r.period_order,
+          label: r.period_label,
+          planned: Number(planned.toFixed(2)),
+          actual: Number(actual.toFixed(2)),
+          actual_pct: weight > 0 ? Number(((actual / weight) * 100).toFixed(0)) : 0,
+        });
+        periodsByTask.set(r.project_task_id, arr);
+      }
+
       let cumPlanned = 0;
       let cumActual  = 0;
       const points = periodRows.rows.map(r => {
@@ -125,6 +161,7 @@ export async function GET(
           progress: Number(t.progress_pct ?? 0),
           phase: t.phase_name ?? t.item_type ?? "Work Items",
           item_order: t.item_order,
+          periods: periodsByTask.get(t.id) ?? [],
         })),
         data: points,
       });
