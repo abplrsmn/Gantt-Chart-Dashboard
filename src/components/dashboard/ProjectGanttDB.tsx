@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { differenceInCalendarDays, format, addDays, isValid, startOfWeek, endOfWeek, addWeeks, subMonths, startOfMonth, endOfMonth } from "date-fns";
+import { differenceInCalendarDays, format, addDays, isValid, startOfWeek, endOfWeek, addWeeks, startOfMonth, endOfMonth } from "date-fns";
 import { Search, ArrowRight } from "lucide-react";
 import DateRangePicker from "./DateRangePicker";
 import AnimatedDropdown from "./AnimatedDropdown";
@@ -58,21 +58,26 @@ type DBProject = {
   brief_received: string | null;
   brief_deadline: string | null;
   brief_progress: string | null;
+  brief_pic: string | null;
   design_start: string | null;
   design_end: string | null;
   design_progress: string | null;
+  design_pic: string | null;
   control_start: string | null;
   control_end: string | null;
   control_progress: string | null;
+  control_pic: string | null;
   phase_contract_amount: string | null;
   pm_start: string | null;
   pm_end: string | null;
   pm_progress: string | null;
+  pm_pic: string | null;
   deviation_days: number | null;
   current_site_progress: string | null;
   handover_start: string | null;
   handover_end: string | null;
   handover_progress: string | null;
+  handover_pic: string | null;
   actual_phase_completion_date: string | null;
   working_drawing_status: string | null;
   unit_name: string | null;
@@ -101,6 +106,7 @@ type PhaseDateInfo = {
   start: Date | null;
   end: Date | null;
   progress: number;
+  pic?: string | null;
 };
 
 type WeekCol = { start: Date; end: Date; weekNum: number; monthLabel: string; isFirstOfMonth: boolean };
@@ -173,12 +179,12 @@ function buildProjectRangeBar(p: DBProject, timelineStart: Date, totalDays: numb
 }
 
 function getProjectPhaseDates(p: DBProject): PhaseDateInfo[] {
-  const dates: Record<PhaseKey, { start: Date | null; end: Date | null; progress: number }> = {
-    brief:    { start: toDate(p.brief_received), end: toDate(p.brief_deadline), progress: Number(p.brief_progress ?? 0) },
-    design:   { start: toDate(p.design_start),   end: toDate(p.design_end),     progress: Number(p.design_progress ?? 0) },
-    control:  { start: toDate(p.control_start),  end: toDate(p.control_end),    progress: Number(p.control_progress ?? 0) },
-    pm:       { start: toDate(p.pm_start),       end: toDate(p.pm_end),         progress: Number(p.pm_progress ?? 0) },
-    handover: { start: toDate(p.handover_start), end: toDate(p.handover_end),   progress: Number(p.handover_progress ?? 0) },
+  const dates: Record<PhaseKey, { start: Date | null; end: Date | null; progress: number; pic?: string | null }> = {
+    brief:    { start: toDate(p.brief_received), end: toDate(p.brief_deadline), progress: Number(p.brief_progress ?? 0), pic: p.brief_pic },
+    design:   { start: toDate(p.design_start),   end: toDate(p.design_end),     progress: Number(p.design_progress ?? 0), pic: p.design_pic },
+    control:  { start: toDate(p.control_start),  end: toDate(p.control_end),    progress: Number(p.control_progress ?? 0), pic: p.control_pic },
+    pm:       { start: toDate(p.pm_start),       end: toDate(p.pm_end),         progress: Number(p.pm_progress ?? 0), pic: p.pm_pic },
+    handover: { start: toDate(p.handover_start), end: toDate(p.handover_end),   progress: Number(p.handover_progress ?? 0), pic: p.handover_pic },
   };
   return PHASES.map(ph => ({ ...ph, ...dates[ph.key] }));
 }
@@ -194,6 +200,21 @@ function isPhaseActive(phKey: PhaseKey, phaseCode: string | null): boolean {
   return PHASE_CODE_MAP[phaseCode] === phKey;
 }
 
+function projectOverlapsRange(p: DBProject, rangeStart: Date | null, rangeEnd: Date | null, timelineStart: Date, totalDays: number): boolean {
+  if (!rangeStart || !rangeEnd || !isValid(rangeStart) || !isValid(rangeEnd)) return true;
+  const projectStart = toDate(p.start_date);
+  const projectEnd = toDate(p.end_date);
+  if (projectStart && projectEnd && projectStart <= rangeEnd && projectEnd >= rangeStart) return true;
+  return buildSegments(p, timelineStart, totalDays).some(seg => seg.start <= rangeEnd && seg.end >= rangeStart);
+}
+
+function getPhaseCompleteness(phases: PhaseDateInfo[]) {
+  const scheduled = phases.filter(ph => ph.start && ph.end).length;
+  const partial = phases.filter(ph => (ph.start || ph.end) && !(ph.start && ph.end)).length;
+  const missing = phases.length - scheduled - partial;
+  return { scheduled, partial, missing, total: phases.length };
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 export default function ProjectGanttDB() {
   const router = useRouter();
@@ -205,14 +226,16 @@ export default function ProjectGanttDB() {
   const [userRole, setUserRole]             = useState<string>("");
   const [priorityFilter, setPriorityFilter] = useState("ALL");
   const [phaseFilter, setPhaseFilter]       = useState("ALL");
+  const [scheduleFilter, setScheduleFilter] = useState("ALL");
   const [dateRange, setDateRange] = useState<{ start: string; end: string }>(() => {
     try {
       const saved = typeof window !== "undefined" ? localStorage.getItem(dateRangeKey()) : null;
       if (saved) return JSON.parse(saved);
     } catch { /* ignore */ }
-    const last = subMonths(new Date(), 1);
-    return { start: format(startOfMonth(last), "yyyy-MM-dd"), end: format(endOfMonth(last), "yyyy-MM-dd") };
+    const current = new Date();
+    return { start: format(startOfMonth(current), "yyyy-MM-dd"), end: format(endOfMonth(current), "yyyy-MM-dd") };
   });
+  const [rangeMode, setRangeMode] = useState<"highlight" | "filter">("highlight");
 
   const handleDateRangeChange = (range: { start: string; end: string }) => {
     setDateRange(range);
@@ -255,17 +278,6 @@ export default function ProjectGanttDB() {
   const rangeStart = useMemo(() => dateRange.start ? new Date(dateRange.start) : null, [dateRange.start]);
   const rangeEnd   = useMemo(() => dateRange.end   ? new Date(dateRange.end)   : null, [dateRange.end]);
 
-  const filteredProjects = useMemo(() => {
-    return projects.filter(p => {
-      const matchSearch = [p.project_name, p.project_code, p.status_label, p.current_phase_name]
-        .join(" ").toLowerCase().includes(search.toLowerCase());
-      const matchPriority = priorityFilter === "ALL" || p.priority_code      === priorityFilter;
-      const matchPhase    = phaseFilter    === "ALL" || p.current_phase_code === phaseFilter;
-      const matchUnit     = !unitFilter || p.unit_code === unitFilter;
-      // We no longer filter by date range here as per user request
-      return matchSearch && matchPriority && matchPhase && matchUnit;
-    });
-  }, [projects, search, priorityFilter, phaseFilter, unitFilter]);
 
   // Timeline: always spans full year(s) based on project dates — date range never crops the ruler.
   const timeline = useMemo(() => {
@@ -310,6 +322,22 @@ export default function ProjectGanttDB() {
     Math.max(1, differenceInCalendarDays(timeline.end, timeline.start) + 1),
     [timeline]
   );
+
+  const filteredProjects = useMemo(() => {
+    return projects.filter(p => {
+      const matchSearch = [p.project_name, p.project_code, p.status_label, p.current_phase_name, p.unit_code, p.unit_name]
+        .join(" ").toLowerCase().includes(search.toLowerCase());
+      const matchPriority = priorityFilter === "ALL" || p.priority_code      === priorityFilter;
+      const matchPhase    = phaseFilter    === "ALL" || p.current_phase_code === phaseFilter;
+      const matchUnit     = !unitFilter || p.unit_code === unitFilter;
+      const matchRange    = rangeMode === "highlight" || projectOverlapsRange(p, rangeStart, rangeEnd, timeline.start, totalDays);
+      const completeness  = getPhaseCompleteness(getProjectPhaseDates(p));
+      const matchSchedule = scheduleFilter === "ALL"
+        || (scheduleFilter === "MISSING" && completeness.missing > 0)
+        || (scheduleFilter === "COMPLETE" && completeness.scheduled === completeness.total);
+      return matchSearch && matchPriority && matchPhase && matchUnit && matchRange && matchSchedule;
+    });
+  }, [projects, search, priorityFilter, phaseFilter, unitFilter, scheduleFilter, rangeMode, rangeStart, rangeEnd, timeline, totalDays]);
 
   // Build week columns
   const weekCols = useMemo<WeekCol[]>(() => {
@@ -421,6 +449,15 @@ export default function ProjectGanttDB() {
         </div>
         <DateRangePicker value={dateRange} onChange={handleDateRangeChange} />
         <AnimatedDropdown
+          value={rangeMode}
+          onChange={(value) => setRangeMode(value as "highlight" | "filter")}
+          options={[
+            { value: "highlight", label: "Highlight Range" },
+            { value: "filter", label: "Filter by Range" },
+          ]}
+          minWidth={150}
+        />
+        <AnimatedDropdown
           value={phaseFilter}
           onChange={setPhaseFilter}
           options={[
@@ -432,6 +469,16 @@ export default function ProjectGanttDB() {
             { value: "handover",             label: "Handover" },
           ]}
           minWidth={160}
+        />
+        <AnimatedDropdown
+          value={scheduleFilter}
+          onChange={setScheduleFilter}
+          options={[
+            { value: "ALL", label: "All Schedules" },
+            { value: "MISSING", label: "Missing Phase Dates" },
+            { value: "COMPLETE", label: "Complete Phase Dates" },
+          ]}
+          minWidth={170}
         />
         <AnimatedDropdown
           value={priorityFilter}
@@ -553,6 +600,7 @@ export default function ProjectGanttDB() {
             ) : filteredProjects.map(p => {
               const segments = buildSegments(p, timeline.start, totalDays);
               const phaseDates = getProjectPhaseDates(p);
+              const phaseCompleteness = getPhaseCompleteness(phaseDates);
               const projectRangeBar = buildProjectRangeBar(p, timeline.start, totalDays);
               const overallProgress = Number(p.overall_progress_pct ?? 0);
               const pCfg = PRIORITY_CONFIG[p.priority_code ?? ""] ?? { label: p.priority_name ?? "–", color: "#94a3b8", dot: "bg-slate-400" };
@@ -597,7 +645,19 @@ export default function ProjectGanttDB() {
                       <p className="text-[11px] font-semibold text-slate-800 dark:text-white leading-snug line-clamp-2">
                         {p.unit_code ? `${p.unit_code} - ${p.project_name.split(" - ").slice(1).join(" - ") || p.project_name}` : p.project_name}
                       </p>
-                      <span className="text-[9px] text-slate-400 truncate mt-0.5 block">{p.current_phase_name ?? "–"}</span>
+                      <div className="mt-0.5 flex items-center justify-between gap-2">
+                        <span className="text-[9px] text-slate-400 truncate block">{p.current_phase_name ?? "–"}</span>
+                        <span
+                          className={`text-[8px] font-bold px-1.5 py-0.5 rounded-full border shrink-0 ${
+                            phaseCompleteness.missing > 0
+                              ? "text-amber-600 dark:text-amber-300 bg-amber-500/10 border-amber-500/20"
+                              : "text-emerald-600 dark:text-emerald-300 bg-emerald-500/10 border-emerald-500/20"
+                          }`}
+                          title={`${phaseCompleteness.scheduled}/${phaseCompleteness.total} phases scheduled`}
+                        >
+                          {phaseCompleteness.scheduled}/{phaseCompleteness.total}
+                        </span>
+                      </div>
                     </div>
 
                     {/* Right: Gantt timeline (fixed pixel width per week) */}
@@ -695,7 +755,7 @@ export default function ProjectGanttDB() {
       {tooltip && (() => {
         const { seg, project: pr, phases, x, y } = tooltip;
         const TIP_W  = 320;
-        const TIP_H  = 235; // approximate tooltip height
+        const TIP_H  = 285; // approximate tooltip height
         const viewportW = typeof window !== "undefined" ? window.innerWidth : 1000;
         const viewportH = typeof window !== "undefined" ? window.innerHeight : 700;
         const margin = 12;
@@ -708,6 +768,7 @@ export default function ProjectGanttDB() {
         const displayName = pr.unit_code
           ? `${pr.unit_code} – ${pr.project_name.split(" - ").slice(1).join(" - ") || pr.project_name}`
           : pr.project_name;
+        const completeness = getPhaseCompleteness(phases);
         return (
           <div className="fixed z-999 pointer-events-none" style={{ left, top, width: TIP_W }}>
             <div
@@ -724,9 +785,14 @@ export default function ProjectGanttDB() {
                 <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: seg.color }}>Project Lifecycle</span>
               </div>
               <p className="text-[11px] font-semibold text-slate-800 dark:text-white leading-snug mb-1.5 line-clamp-2">{displayName}</p>
-              <p className="text-[10px] text-slate-400 dark:text-white/55 mb-2">
-                Project range: <span className="font-semibold text-slate-600 dark:text-white/75">{format(seg.start, "dd MMM yy")} → {format(seg.end, "dd MMM yy")}</span>
-              </p>
+              <div className="grid grid-cols-2 gap-2 text-[10px] text-slate-400 dark:text-white/55 mb-2">
+                <p>Range: <span className="font-semibold text-slate-600 dark:text-white/75">{format(seg.start, "dd MMM yy")} → {format(seg.end, "dd MMM yy")}</span></p>
+                <p className="text-right">Progress: <span className="font-semibold text-slate-600 dark:text-white/75">{Number(pr.overall_progress_pct ?? 0)}%</span></p>
+                <p>Status: <span className="font-semibold text-slate-600 dark:text-white/75">{pr.status_label ?? "—"}</span></p>
+                <p className={`text-right font-semibold ${completeness.missing > 0 ? "text-amber-500" : "text-emerald-500"}`}>
+                  {completeness.scheduled}/{completeness.total} phases scheduled
+                </p>
+              </div>
               <div className="space-y-1.5 border-t border-slate-200/70 dark:border-white/8 pt-2">
                 {phases.map(ph => {
                   const active = isPhaseActive(ph.key, pr.current_phase_code);
@@ -738,6 +804,9 @@ export default function ProjectGanttDB() {
                       </span>
                       <span className="flex-1 text-right font-mono text-slate-500 dark:text-white/55">
                         {fmtRange(ph.start, ph.end)}
+                        <span className="block font-sans text-[9px] text-slate-400 dark:text-white/40 truncate">
+                          {ph.pic ? `PIC: ${ph.pic}` : `Progress: ${ph.progress || 0}%`}
+                        </span>
                       </span>
                     </div>
                   );

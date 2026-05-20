@@ -40,27 +40,62 @@ export async function GET() {
         ob.normalized_deadline_date   AS brief_deadline,
         ob.received_date              AS brief_received,
         ob.progress_pct               AS brief_progress,
+        (
+          SELECT string_agg(DISTINCT COALESCE(NULLIF(pp.raw_person_name, ''), NULLIF(pp.raw_organization_name, '')), ', ')
+          FROM project_people pp
+          WHERE pp.project_id = p.id
+            AND (pp.phase_id = ob.id OR pp.phase_id = ob.phase_id)
+            AND COALESCE(NULLIF(pp.raw_person_name, ''), NULLIF(pp.raw_organization_name, '')) IS NOT NULL
+        ) AS brief_pic,
 
         ds.start_design_date          AS design_start,
         ds.design_approval_date       AS design_end,
         ds.progress_pct               AS design_progress,
         ds.working_drawing_status,
+        (
+          SELECT string_agg(DISTINCT COALESCE(NULLIF(pp.raw_person_name, ''), NULLIF(pp.raw_organization_name, '')), ', ')
+          FROM project_people pp
+          WHERE pp.project_id = p.id
+            AND (pp.phase_id = ds.id OR pp.phase_id = ds.phase_id)
+            AND COALESCE(NULLIF(pp.raw_person_name, ''), NULLIF(pp.raw_organization_name, '')) IS NOT NULL
+        ) AS design_pic,
 
         pc.tender_start_date          AS control_start,
         pc.aps_spk_released_date      AS control_end,
         pc.progress_pct               AS control_progress,
         pc.phase_contract_amount,
+        (
+          SELECT string_agg(DISTINCT COALESCE(NULLIF(pp.raw_person_name, ''), NULLIF(pp.raw_organization_name, '')), ', ')
+          FROM project_people pp
+          WHERE pp.project_id = p.id
+            AND (pp.phase_id = pc.id OR pp.phase_id = pc.phase_id)
+            AND COALESCE(NULLIF(pp.raw_person_name, ''), NULLIF(pp.raw_organization_name, '')) IS NOT NULL
+        ) AS control_pic,
 
         pm.commence_date              AS pm_start,
         pm.end_contract_date          AS pm_end,
         pm.progress_pct               AS pm_progress,
         pm.deviation_days,
         pm.current_site_progress,
+        (
+          SELECT string_agg(DISTINCT COALESCE(NULLIF(pp.raw_person_name, ''), NULLIF(pp.raw_organization_name, '')), ', ')
+          FROM project_people pp
+          WHERE pp.project_id = p.id
+            AND (pp.phase_id = pm.id OR pp.phase_id = pm.phase_id)
+            AND COALESCE(NULLIF(pp.raw_person_name, ''), NULLIF(pp.raw_organization_name, '')) IS NOT NULL
+        ) AS pm_pic,
 
         hv.bast_1_date                AS handover_start,
         hv.bast_2_date                AS handover_end,
         hv.progress_pct               AS handover_progress,
-        hv.actual_phase_completion_date
+        hv.actual_phase_completion_date,
+        (
+          SELECT string_agg(DISTINCT COALESCE(NULLIF(pp.raw_person_name, ''), NULLIF(pp.raw_organization_name, '')), ', ')
+          FROM project_people pp
+          WHERE pp.project_id = p.id
+            AND (pp.phase_id = hv.id OR pp.phase_id = hv.phase_id)
+            AND COALESCE(NULLIF(pp.raw_person_name, ''), NULLIF(pp.raw_organization_name, '')) IS NOT NULL
+        ) AS handover_pic
 
       FROM projects p
       LEFT JOIN master_phases mp_phase       ON mp_phase.id = p.current_phase_id
