@@ -368,15 +368,15 @@ export default function SCurveCharts({ projects, hidePhaseDetails }: Props) {
   const tahapGroups = dbTahapGroups ?? generatedTahapGroups;
 
   // Compute exact chart height to match the Excel-like S-curve table.
-  // h-9 = 36px header, h-6 = 24px group header, h-8 = 32px item row,
-  // summary rows = 4 × 20px (planned, planned cumulative, actual, actual cumulative).
+  // h-9 = 36px header, h-6 = 24px group header, h-10 = 40px item row,
+  // summary rows = 4 × 24px (planned, planned cumulative, actual, actual cumulative).
   const chartHeight = useMemo(() => {
     let contentHeight = 0;
     for (const group of tahapGroups) {
       if (group.header) contentHeight += 24;
-      contentHeight += group.items.length * 32;
+      contentHeight += group.items.length * 40;
     }
-    return 36 + contentHeight + 80;
+    return 36 + contentHeight + 96;
   }, [tahapGroups]);
 
   const todayLabel  = format(new Date(), "dd MMM yy");
@@ -437,7 +437,7 @@ export default function SCurveCharts({ projects, hidePhaseDetails }: Props) {
 
             {/* LEFT: Keterangan table — acts as the Y-axis label panel */}
             {tahapGroups.length > 0 && (
-              <div className="w-[220px] shrink-0 flex flex-col border-r border-slate-200/60 dark:border-white/10 bg-slate-50/30 dark:bg-black/20">
+              <div className="w-[300px] shrink-0 flex flex-col border-r border-slate-200/60 dark:border-white/10 bg-slate-50/30 dark:bg-black/20">
                 {/* Column headers — height matches chart top margin (36px) */}
                 <div className="h-9 shrink-0 border-b border-slate-200/60 dark:border-white/10 flex bg-slate-100/60 dark:bg-zinc-900/60">
                   <div className="flex-1 px-3 flex items-center text-[9px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">
@@ -463,10 +463,10 @@ export default function SCurveCharts({ projects, hidePhaseDetails }: Props) {
                         </div>
                       )}
                       {group.items.map((item, ii) => (
-                        <div key={ii} className="h-8 flex text-[11px] hover:bg-slate-100/40 dark:hover:bg-white/4 transition-colors">
-                          <div className={`flex-1 flex items-center truncate text-slate-700 dark:text-slate-200 ${group.header ? "px-3 pl-5" : "px-3"}`}
+                        <div key={ii} className="h-10 flex text-[11px] hover:bg-slate-100/40 dark:hover:bg-white/4 transition-colors">
+                          <div className={`flex-1 flex items-center text-slate-700 dark:text-slate-200 leading-tight break-words min-w-0 ${group.header ? "px-3 pl-5" : "px-3"}`}
                             title={item.name}>
-                            {item.name}
+                            <span className="line-clamp-2">{item.name}</span>
                           </div>
                           <div className="w-16 shrink-0 border-l border-slate-200/60 dark:border-white/10 flex items-center justify-center font-mono text-[10px] text-slate-500 dark:text-slate-400">
                             {item.bobot.toFixed(2)}
@@ -485,7 +485,7 @@ export default function SCurveCharts({ projects, hidePhaseDetails }: Props) {
                     ["Bobot Realisasi", ""],
                     ["Bobot Realisasi Kumulatif", ""],
                   ].map(([label, value]) => (
-                    <div key={label} className="h-5 flex border-b last:border-b-0 border-slate-200/50 dark:border-white/8">
+                    <div key={label} className="h-6 flex border-b last:border-b-0 border-slate-200/50 dark:border-white/8">
                       <div className="flex-1 px-3 flex items-center text-slate-700 dark:text-white/80 truncate">{label}</div>
                       <div className="w-16 shrink-0 border-l border-slate-200/60 dark:border-white/10 flex items-center justify-center text-cyan-600 dark:text-cyan-400">{value}</div>
                     </div>
@@ -495,10 +495,10 @@ export default function SCurveCharts({ projects, hidePhaseDetails }: Props) {
             )}
 
             {/* RIGHT: weekly S-curve grid + chart overlay */}
-            <div className="flex-1 min-w-0 relative bg-white dark:bg-zinc-950/30 overflow-x-auto" style={{ minHeight: chartHeight }}>
+            <div className="flex-1 min-w-0 relative bg-white dark:bg-zinc-950/30 overflow-x-auto scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-zinc-700" style={{ minHeight: chartHeight }}>
               {scurveSource === "tasks" && chartData.length > 0 && (
-                <div className="absolute inset-0 z-0 pointer-events-none" style={{ minWidth: `${Math.max(520, chartData.length * 58)}px` }}>
-                  <div className="h-9 border-b border-slate-200/60 dark:border-white/10 grid" style={{ gridTemplateColumns: `repeat(${chartData.length}, minmax(58px, 1fr))` }}>
+                <div className="absolute inset-0 z-0 pointer-events-none" style={{ minWidth: `${Math.max(720, chartData.length * 72)}px` }}>
+                  <div className="h-9 border-b border-slate-200/60 dark:border-white/10 grid" style={{ gridTemplateColumns: `repeat(${chartData.length}, minmax(72px, 1fr))` }}>
                     {chartData.map(point => (
                       <div key={point.month} className="flex items-center justify-center border-r border-slate-100/70 dark:border-white/5 text-[9px] font-bold text-slate-400 dark:text-white/35">
                         {point.month}
@@ -510,14 +510,14 @@ export default function SCurveCharts({ projects, hidePhaseDetails }: Props) {
                       <div key={gi}>
                         {group.header && <div className="h-6" style={{ backgroundColor: `${group.color}18` }} />}
                         {group.items.map((item, ii) => (
-                          <div key={ii} className="h-8 grid" style={{ gridTemplateColumns: `repeat(${chartData.length}, minmax(58px, 1fr))` }}>
+                          <div key={ii} className="h-10 grid" style={{ gridTemplateColumns: `repeat(${chartData.length}, minmax(72px, 1fr))` }}>
                             {chartData.map((point, pi) => {
                               const period = item.periods?.find(x => x.label === point.month || x.period_order === pi + 1);
                               return (
                                 <div key={point.month} className="border-r border-slate-100/70 dark:border-white/5 flex items-center justify-center">
                                   {period && period.planned > 0 ? (
                                     <span
-                                      className="rounded px-1 py-0.5 font-mono text-[9px] leading-none text-white shadow-sm"
+                                      className="rounded px-1 py-0.5 font-mono text-[10px] leading-none text-white shadow-sm"
                                       style={{ backgroundColor: group.color ?? "#64748b" }}
                                       title={`Planned weight: ${period.planned.toFixed(2)}${period.actual > 0 ? ` • Actual weight: ${period.actual.toFixed(2)}` : ""}`}
                                     >
@@ -532,14 +532,14 @@ export default function SCurveCharts({ projects, hidePhaseDetails }: Props) {
                       </div>
                     ))}
                   </div>
-                  <div className="border-t border-slate-200/60 dark:border-white/10 bg-slate-50/50 dark:bg-black/20 font-mono text-[8px] leading-tight">
+                  <div className="border-t border-slate-200/60 dark:border-white/10 bg-slate-50/50 dark:bg-black/20 font-mono text-[10px] leading-tight">
                     {[
                       { key: "planned_weekly", color: "text-slate-600 dark:text-white/70", value: (p: SCurvePoint) => p.planned_weekly ?? 0 },
                       { key: "target", color: "text-blue-500", value: (p: SCurvePoint) => p.target },
                       { key: "actual_weekly", color: "text-emerald-500", value: (p: SCurvePoint) => p.actual_weekly ?? 0 },
                       { key: "actual", color: "text-emerald-600 dark:text-emerald-400", value: (p: SCurvePoint) => p.actual ?? 0 },
                     ].map(row => (
-                      <div key={row.key} className="h-5 grid border-b last:border-b-0 border-slate-200/50 dark:border-white/8" style={{ gridTemplateColumns: `repeat(${chartData.length}, minmax(58px, 1fr))` }}>
+                      <div key={row.key} className="h-6 grid border-b last:border-b-0 border-slate-200/50 dark:border-white/8" style={{ gridTemplateColumns: `repeat(${chartData.length}, minmax(72px, 1fr))` }}>
                         {chartData.map(point => (
                           <div key={`${row.key}-${point.month}`} className={`border-r border-slate-100/70 dark:border-white/5 flex items-center justify-center ${row.color}`}>
                             {row.value(point).toFixed(2)}
@@ -550,14 +550,14 @@ export default function SCurveCharts({ projects, hidePhaseDetails }: Props) {
                   </div>
                 </div>
               )}
-              <div className="relative z-10 h-full" style={{ minWidth: scurveSource === "tasks" ? `${Math.max(520, chartData.length * 58)}px` : undefined }}>
+              <div className="relative z-10 h-full" style={{ minWidth: scurveSource === "tasks" ? `${Math.max(720, chartData.length * 72)}px` : undefined }}>
               <ResponsiveContainer width="100%" height={chartHeight}>
                 <ComposedChart
                   data={chartData}
                   margin={{
                     top: 36,
                     right: 2,
-                    bottom: scurveSource === "tasks" ? 80 : 36,
+                    bottom: scurveSource === "tasks" ? 96 : 36,
                     left: 0,
                   }}
                 >
