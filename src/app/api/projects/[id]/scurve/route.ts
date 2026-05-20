@@ -24,6 +24,23 @@ export async function GET(
   try {
     await client.query("SET jit = off");
 
+    const phaseCheck = await client.query<{ current_phase_code: string | null }>(`
+      SELECT mp.phase_code AS current_phase_code
+      FROM projects p
+      LEFT JOIN master_phases mp ON mp.id = p.current_phase_id
+      WHERE p.id = $1
+    `, [projectId]);
+
+    if (phaseCheck.rows[0]?.current_phase_code !== "project_management") {
+      return NextResponse.json({
+        success: true,
+        source: "not_project_management",
+        summary: { target_progress: 0, actual_progress: 0, variance: 0, total_task_weight: 0 },
+        tasks: [],
+        data: [],
+      });
+    }
+
     // ── 1. Task/period based S-curve ───────────────────────────────────────
     // Formula:
     // - target period = SUM(planned task weight contribution in that period)
@@ -39,28 +56,26 @@ export async function GET(
       planned_weight: string;
       actual_weight: string;
     }>(`
-      WITH project_periods AS (
+      WITH weekly_periods AS (
         SELECT
-          pp.period_order,
-          pp.period_label,
-          pp.period_start,
-          pp.period_end,
+          date_trunc('week', pp.period_start)::date AS week_start,
+          (date_trunc('week', pp.period_start)::date + 6) AS week_end,
           SUM(LEAST(GREATEST(pp.planned_weight, 0), COALESCE(pt.weight_pct, pp.planned_weight)))::numeric AS planned_weight,
           SUM(LEAST(GREATEST(pp.actual_weight, 0), COALESCE(pt.weight_pct, pp.actual_weight)))::numeric  AS actual_weight
         FROM project_task_progress_periods pp
         JOIN project_tasks pt ON pt.id = pp.project_task_id
         WHERE pt.project_id = $1
-        GROUP BY pp.period_order, pp.period_label, pp.period_start, pp.period_end
+        GROUP BY date_trunc('week', pp.period_start)::date
       )
       SELECT
-        period_order,
-        COALESCE(period_label, 'P' || period_order::text) AS period_label,
-        period_start::text,
-        period_end::text,
+        row_number() OVER (ORDER BY week_start)::int AS period_order,
+        'W' || row_number() OVER (ORDER BY week_start)::text AS period_label,
+        week_start::text AS period_start,
+        week_end::text AS period_end,
         planned_weight,
         actual_weight
-      FROM project_periods
-      ORDER BY period_order, period_start
+      FROM weekly_periods
+      ORDER BY week_start
     `, [projectId]);
 
     if (periodRows.rows.length > 0) {
@@ -78,7 +93,10 @@ export async function GET(
           pt.title,
           COALESCE(pt.weight_pct, 0)::numeric AS weight_pct,
           COALESCE(pt.progress_pct, 0)::numeric AS progress_pct,
-          mp.phase_name,
+          CASE
+            WHEN pt.item_type IS NOT NULL AND pt.item_type <> 's_curve' THEN pt.item_type
+            ELSE mp.phase_name
+          END AS phase_name,
           pt.item_type,
           pt.item_order
         FROM project_tasks pt
@@ -95,16 +113,30 @@ export async function GET(
         planned_weight: string;
         actual_weight: string;
       }>(`
+        WITH task_weeks AS (
+          SELECT
+            pp.project_task_id::text,
+            date_trunc('week', pp.period_start)::date AS week_start,
+            SUM(LEAST(GREATEST(pp.planned_weight, 0), COALESCE(pt.weight_pct, pp.planned_weight)))::numeric AS planned_weight,
+            SUM(LEAST(GREATEST(pp.actual_weight, 0), COALESCE(pt.weight_pct, pp.actual_weight)))::numeric AS actual_weight
+          FROM project_task_progress_periods pp
+          JOIN project_tasks pt ON pt.id = pp.project_task_id
+          WHERE pt.project_id = $1
+          GROUP BY pp.project_task_id, date_trunc('week', pp.period_start)::date
+        ), ordered_weeks AS (
+          SELECT week_start, row_number() OVER (ORDER BY week_start)::int AS period_order
+          FROM (SELECT DISTINCT week_start FROM task_weeks) w
+        )
         SELECT
-          pp.project_task_id::text,
-          pp.period_order,
-          COALESCE(pp.period_label, 'P' || pp.period_order::text) AS period_label,
-          LEAST(GREATEST(pp.planned_weight, 0), COALESCE(pt.weight_pct, pp.planned_weight))::numeric AS planned_weight,
-          LEAST(GREATEST(pp.actual_weight, 0), COALESCE(pt.weight_pct, pp.actual_weight))::numeric AS actual_weight
-        FROM project_task_progress_periods pp
-        JOIN project_tasks pt ON pt.id = pp.project_task_id
-        WHERE pt.project_id = $1
-        ORDER BY pt.item_order, pp.period_order, pp.period_start
+          tw.project_task_id,
+          ow.period_order,
+          'W' || ow.period_order::text AS period_label,
+          tw.planned_weight,
+          tw.actual_weight
+        FROM task_weeks tw
+        JOIN ordered_weeks ow ON ow.week_start = tw.week_start
+        JOIN project_tasks pt ON pt.id::text = tw.project_task_id
+        ORDER BY pt.item_order, ow.period_order
       `, [projectId]);
 
       const periodsByTask = new Map<string, { period_order: number; label: string; planned: number; actual: number; actual_pct: number }[]>();

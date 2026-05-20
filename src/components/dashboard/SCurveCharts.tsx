@@ -43,6 +43,7 @@ type DBProject = {
   unit_name: string | null;
   unit_code: string | null;
   overall_progress_pct: string | null;
+  current_phase_code?: string | null;
 };
 
 interface Props { projects: DBProject[]; hidePhaseDetails?: boolean; }
@@ -419,6 +420,7 @@ export default function SCurveCharts({ projects, hidePhaseDetails }: Props) {
   if (projects.length === 0) return null;
 
   const needsSelection = projects.length > 1 && (!selectedUnit || !selectedProjectId);
+  const isProjectManagementPhase = selectedProject?.current_phase_code === "project_management";
 
   return (
     <div className="rounded-2xl border border-slate-200/60 dark:border-white/8 bg-white/60 dark:bg-zinc-900/50 backdrop-blur-sm p-4 mt-4 overflow-hidden">
@@ -462,6 +464,12 @@ export default function SCurveCharts({ projects, hidePhaseDetails }: Props) {
           <Activity size={32} className="mb-3 opacity-20" />
           <p className="text-sm font-medium">Please select a Unit and Project</p>
           <p className="text-xs mt-1">S-Curve analysis will appear here</p>
+        </div>
+      ) : !isProjectManagementPhase ? (
+        <div className="flex flex-col items-center justify-center py-14 text-slate-400 dark:text-slate-500 border border-dashed border-slate-200 dark:border-white/10 rounded-xl bg-slate-50/50 dark:bg-black/10">
+          <Activity size={28} className="mb-3 opacity-20" />
+          <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">S-Curve appears in Project Management phase</p>
+          <p className="text-xs mt-1">This project is currently in {selectedProject?.current_phase_code?.replace(/_/g, " ") || "another phase"}.</p>
         </div>
       ) : (
         <>

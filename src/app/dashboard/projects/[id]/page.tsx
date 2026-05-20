@@ -341,6 +341,7 @@ export default function ProjectDetailPage() {
       unit_name: project.unit_name,
       unit_code: project.unit_code,
       overall_progress_pct: project.overall_progress_pct,
+      current_phase_code: project.current_phase_code,
     };
   }, [project]);
 
