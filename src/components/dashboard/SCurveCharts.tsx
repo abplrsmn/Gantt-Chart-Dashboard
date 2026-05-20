@@ -381,7 +381,7 @@ export default function SCurveCharts({ projects, hidePhaseDetails }: Props) {
 
   const todayLabel  = format(new Date(), "dd MMM yy");
   const targetColor = "#3b82f6";
-  const actualColor = "#ef4444";
+  const actualColor = "#22c55e";
 
   if (projects.length === 0) return null;
 
@@ -536,8 +536,8 @@ export default function SCurveCharts({ projects, hidePhaseDetails }: Props) {
                     {[
                       { key: "planned_weekly", color: "text-slate-600 dark:text-white/70", value: (p: SCurvePoint) => p.planned_weekly ?? 0 },
                       { key: "target", color: "text-blue-500", value: (p: SCurvePoint) => p.target },
-                      { key: "actual_weekly", color: "text-rose-500", value: (p: SCurvePoint) => p.actual_weekly ?? 0 },
-                      { key: "actual", color: "text-red-500", value: (p: SCurvePoint) => p.actual ?? 0 },
+                      { key: "actual_weekly", color: "text-emerald-500", value: (p: SCurvePoint) => p.actual_weekly ?? 0 },
+                      { key: "actual", color: "text-emerald-600 dark:text-emerald-400", value: (p: SCurvePoint) => p.actual ?? 0 },
                     ].map(row => (
                       <div key={row.key} className="h-5 grid border-b last:border-b-0 border-slate-200/50 dark:border-white/8" style={{ gridTemplateColumns: `repeat(${chartData.length}, minmax(58px, 1fr))` }}>
                         {chartData.map(point => (
@@ -574,10 +574,7 @@ export default function SCurveCharts({ projects, hidePhaseDetails }: Props) {
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.25)" vertical={false} />
                   <XAxis
                     dataKey="month"
-                    tick={{ fontSize: 9, fill: "#64748b" }}
-                    axisLine={false}
-                    tickLine={false}
-                    interval="preserveStartEnd"
+                    hide
                   />
                   <YAxis
                     yAxisId="pct"
@@ -668,7 +665,7 @@ export default function SCurveCharts({ projects, hidePhaseDetails }: Props) {
                 <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Planned Target</span>
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-6 h-0.5 rounded-full bg-red-500" />
+                <div className="w-6 h-0.5 rounded-full bg-emerald-500" />
                 <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Actual Progress</span>
               </div>
             </div>
