@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Search } from "lucide-react";
-import AnimatedDropdown from "./AnimatedDropdown";
 import ProjectSummaryMatrix from "./ProjectSummaryMatrix";
 
 type ProjectRow = {
@@ -25,9 +24,6 @@ export default function ProjectSummaryMatrixPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
-  const [unitFilter, setUnitFilter] = useState("");
-  const [phaseFilter, setPhaseFilter] = useState("ALL");
-
   useEffect(() => {
     fetch("/api/projects/gantt", { cache: "no-store" })
       .then(r => r.json())
@@ -36,19 +32,12 @@ export default function ProjectSummaryMatrixPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  const unitOptions = useMemo(() => {
-    const units = Array.from(new Set(projects.map(p => p.unit_code).filter(Boolean))).sort() as string[];
-    return [{ value: "", label: "All Units" }, ...units.map(u => ({ value: u, label: u }))];
-  }, [projects]);
 
   const filteredProjects = useMemo(() => projects.filter(p => {
     const haystack = [p.project_name, p.project_code, p.unit_code, p.unit_name, p.current_phase_name, p.status_label]
       .join(" ").toLowerCase();
-    const matchSearch = haystack.includes(search.toLowerCase());
-    const matchUnit = !unitFilter || p.unit_code === unitFilter;
-    const matchPhase = phaseFilter === "ALL" || p.current_phase_code === phaseFilter;
-    return matchSearch && matchUnit && matchPhase;
-  }), [projects, search, unitFilter, phaseFilter]);
+    return haystack.includes(search.toLowerCase());
+  }), [projects, search]);
 
   if (loading) return (
     <div className="flex items-center justify-center h-48 text-slate-500 dark:text-slate-400 text-sm gap-2">
@@ -77,20 +66,6 @@ export default function ProjectSummaryMatrixPage() {
             className="w-full rounded-xl border border-slate-200/70 dark:border-white/10 bg-white/70 dark:bg-zinc-900/60 pl-8 pr-3 py-2 text-[12px] outline-none text-slate-800 dark:text-white"
           />
         </label>
-        <AnimatedDropdown value={unitFilter} onChange={setUnitFilter} options={unitOptions} minWidth={130} />
-        <AnimatedDropdown
-          value={phaseFilter}
-          onChange={setPhaseFilter}
-          options={[
-            { value: "ALL", label: "All Phases" },
-            { value: "operational_brief", label: "Operational Brief" },
-            { value: "design", label: "Design" },
-            { value: "project_control", label: "Project Control" },
-            { value: "project_management", label: "Project Management" },
-            { value: "handover", label: "Handover" },
-          ]}
-          minWidth={160}
-        />
       </div>
 
       <ProjectSummaryMatrix projects={filteredProjects} />
