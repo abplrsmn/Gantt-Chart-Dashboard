@@ -15,6 +15,11 @@ const pool = new Pool({
 export async function GET() {
   const client = await pool.connect();
   try {
+    // This Gantt query joins several small lookup/phase tables. PostgreSQL's JIT
+    // can dominate runtime for this kind of dashboard read (seconds vs ms),
+    // so keep it off for the pooled session before running the query.
+    await client.query("SET jit = off");
+
     const { rows } = await client.query(`
       SELECT
         p.id,
