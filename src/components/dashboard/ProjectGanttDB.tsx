@@ -264,7 +264,6 @@ export default function ProjectGanttDB() {
   const [userRole, setUserRole]             = useState<string>("");
   const [priorityFilter, setPriorityFilter] = useState("ALL");
   const [phaseFilter, setPhaseFilter]       = useState("ALL");
-  const [scheduleFilter, setScheduleFilter] = useState("ALL");
   const [dateRange, setDateRange] = useState<{ start: string; end: string }>(() => {
     try {
       const saved = typeof window !== "undefined" ? localStorage.getItem(dateRangeKey()) : null;
@@ -368,13 +367,9 @@ export default function ProjectGanttDB() {
       const matchPhase    = phaseFilter    === "ALL" || p.current_phase_code === phaseFilter;
       const matchUnit     = !unitFilter || p.unit_code === unitFilter;
       const matchRange    = true;
-      const completeness  = getPhaseCompleteness(getProjectPhaseDates(p));
-      const matchSchedule = scheduleFilter === "ALL"
-        || (scheduleFilter === "MISSING" && completeness.missing > 0)
-        || (scheduleFilter === "COMPLETE" && completeness.scheduled === completeness.total);
-      return matchSearch && matchPriority && matchPhase && matchUnit && matchRange && matchSchedule;
+      return matchSearch && matchPriority && matchPhase && matchUnit && matchRange;
     });
-  }, [projects, search, priorityFilter, phaseFilter, unitFilter, scheduleFilter, rangeStart, rangeEnd, timeline, totalDays]);
+  }, [projects, search, priorityFilter, phaseFilter, unitFilter, rangeStart, rangeEnd, timeline, totalDays]);
 
   // Build week columns
   const weekCols = useMemo<WeekCol[]>(() => {
@@ -504,16 +499,6 @@ export default function ProjectGanttDB() {
             { value: "handover",             label: "Handover" },
           ]}
           minWidth={160}
-        />
-        <AnimatedDropdown
-          value={scheduleFilter}
-          onChange={setScheduleFilter}
-          options={[
-            { value: "ALL", label: "All Schedules" },
-            { value: "MISSING", label: "Missing Phase Dates" },
-            { value: "COMPLETE", label: "Complete Phase Dates" },
-          ]}
-          minWidth={170}
         />
         <AnimatedDropdown
           value={priorityFilter}
