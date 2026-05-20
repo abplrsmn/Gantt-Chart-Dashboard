@@ -367,20 +367,21 @@ export default function SCurveCharts({ projects, hidePhaseDetails }: Props) {
 
   const tahapGroups = dbTahapGroups ?? generatedTahapGroups;
 
-  // Compute exact chart height to match table height so Y=0% aligns with "Pembersihan Lokasi"
-  // h-9 = 36px (header), h-6 = 24px (group header), h-8 = 32px (item row), h-9 = 36px (total row)
+  // Compute exact chart height to match the Excel-like S-curve table.
+  // h-9 = 36px header, h-6 = 24px group header, h-8 = 32px item row,
+  // summary rows = 4 × 20px (planned, planned cumulative, actual, actual cumulative).
   const chartHeight = useMemo(() => {
     let contentHeight = 0;
     for (const group of tahapGroups) {
-      if (group.header) contentHeight += 24;   // h-6 group label
-      contentHeight += group.items.length * 32; // h-8 per item
+      if (group.header) contentHeight += 24;
+      contentHeight += group.items.length * 32;
     }
-    return 36 + contentHeight + 36; // header-row + content + total-row
+    return 36 + contentHeight + 80;
   }, [tahapGroups]);
 
   const todayLabel  = format(new Date(), "dd MMM yy");
   const targetColor = "#3b82f6";
-  const actualColor = "#22c55e";
+  const actualColor = "#ef4444";
 
   if (projects.length === 0) return null;
 
@@ -476,14 +477,19 @@ export default function SCurveCharts({ projects, hidePhaseDetails }: Props) {
                   ))}
                 </div>
 
-                {/* Total row — height matches chart bottom margin (36px) */}
-                <div className="h-9 shrink-0 flex text-[10px] font-bold border-t border-slate-200/60 dark:border-white/10 bg-slate-200/30 dark:bg-zinc-800/40">
-                  <div className="flex-1 px-3 flex items-center text-slate-800 dark:text-white uppercase tracking-wider">
-                    Total
-                  </div>
-                  <div className="w-16 shrink-0 border-l border-slate-200/60 dark:border-white/10 flex items-center justify-center text-cyan-600 dark:text-cyan-400">
-                    {tahapGroups.reduce((sum, group) => sum + group.items.reduce((s, item) => s + item.bobot, 0), 0).toFixed(2)}
-                  </div>
+                {/* Summary rows — matches Excel S-curve bottom rows */}
+                <div className="shrink-0 border-t border-slate-200/60 dark:border-white/10 bg-slate-200/30 dark:bg-zinc-800/40 text-[9px] font-bold">
+                  {[
+                    ["Bobot Rencana", ""],
+                    ["Bobot Rencana Kumulatif", ""],
+                    ["Bobot Realisasi", ""],
+                    ["Bobot Realisasi Kumulatif", ""],
+                  ].map(([label, value]) => (
+                    <div key={label} className="h-5 flex border-b last:border-b-0 border-slate-200/50 dark:border-white/8">
+                      <div className="flex-1 px-3 flex items-center text-slate-700 dark:text-white/80 truncate">{label}</div>
+                      <div className="w-16 shrink-0 border-l border-slate-200/60 dark:border-white/10 flex items-center justify-center text-cyan-600 dark:text-cyan-400">{value}</div>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}
@@ -509,9 +515,13 @@ export default function SCurveCharts({ projects, hidePhaseDetails }: Props) {
                               const period = item.periods?.find(x => x.label === point.month || x.period_order === pi + 1);
                               return (
                                 <div key={point.month} className="border-r border-slate-100/70 dark:border-white/5 flex items-center justify-center">
-                                  {period && (period.planned > 0 || period.actual > 0) ? (
-                                    <span className="rounded px-1 py-0.5 bg-white/70 dark:bg-black/35 font-mono text-[9px] leading-none text-slate-600 dark:text-white/70 shadow-sm">
-                                      {period.planned.toFixed(2)} / {period.actual_pct}%
+                                  {period && period.planned > 0 ? (
+                                    <span
+                                      className="rounded px-1 py-0.5 font-mono text-[9px] leading-none text-white shadow-sm"
+                                      style={{ backgroundColor: group.color ?? "#64748b" }}
+                                      title={`Planned weight: ${period.planned.toFixed(2)}${period.actual > 0 ? ` • Actual weight: ${period.actual.toFixed(2)}` : ""}`}
+                                    >
+                                      {period.planned.toFixed(2)}
                                     </span>
                                   ) : null}
                                 </div>
@@ -522,11 +532,19 @@ export default function SCurveCharts({ projects, hidePhaseDetails }: Props) {
                       </div>
                     ))}
                   </div>
-                  <div className="h-9 border-t border-slate-200/60 dark:border-white/10 grid bg-slate-50/50 dark:bg-black/20" style={{ gridTemplateColumns: `repeat(${chartData.length}, minmax(58px, 1fr))` }}>
-                    {chartData.map(point => (
-                      <div key={point.month} className="border-r border-slate-100/70 dark:border-white/5 flex flex-col items-center justify-center font-mono text-[8px] leading-tight">
-                        <span className="text-blue-500">T {point.target.toFixed(0)}%</span>
-                        <span className="text-emerald-500">A {(point.actual ?? 0).toFixed(0)}%</span>
+                  <div className="border-t border-slate-200/60 dark:border-white/10 bg-slate-50/50 dark:bg-black/20 font-mono text-[8px] leading-tight">
+                    {[
+                      { key: "planned_weekly", color: "text-slate-600 dark:text-white/70", value: (p: SCurvePoint) => p.planned_weekly ?? 0 },
+                      { key: "target", color: "text-blue-500", value: (p: SCurvePoint) => p.target },
+                      { key: "actual_weekly", color: "text-rose-500", value: (p: SCurvePoint) => p.actual_weekly ?? 0 },
+                      { key: "actual", color: "text-red-500", value: (p: SCurvePoint) => p.actual ?? 0 },
+                    ].map(row => (
+                      <div key={row.key} className="h-5 grid border-b last:border-b-0 border-slate-200/50 dark:border-white/8" style={{ gridTemplateColumns: `repeat(${chartData.length}, minmax(58px, 1fr))` }}>
+                        {chartData.map(point => (
+                          <div key={`${row.key}-${point.month}`} className={`border-r border-slate-100/70 dark:border-white/5 flex items-center justify-center ${row.color}`}>
+                            {row.value(point).toFixed(2)}
+                          </div>
+                        ))}
                       </div>
                     ))}
                   </div>
@@ -537,9 +555,9 @@ export default function SCurveCharts({ projects, hidePhaseDetails }: Props) {
                 <ComposedChart
                   data={chartData}
                   margin={{
-                    top: 70,    /* = table header h-9 (36px) */
+                    top: 36,
                     right: 2,
-                    bottom: 2, /* = total row (36px) + compensation for first-point Y offset (32px) */
+                    bottom: scurveSource === "tasks" ? 80 : 36,
                     left: 0,
                   }}
                 >
@@ -650,7 +668,7 @@ export default function SCurveCharts({ projects, hidePhaseDetails }: Props) {
                 <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Planned Target</span>
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-6 h-0.5 rounded-full bg-emerald-500" />
+                <div className="w-6 h-0.5 rounded-full bg-red-500" />
                 <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Actual Progress</span>
               </div>
             </div>
