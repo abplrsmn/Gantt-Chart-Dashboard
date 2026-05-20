@@ -41,11 +41,10 @@ export async function GET() {
           LEAST(100, actual_progress)::numeric AS actual_progress,
           (LEAST(100, actual_progress) - LEAST(100, target_progress))::numeric AS progress_variance
         FROM scurve_periods
-        ORDER BY
-          project_id,
-          CASE WHEN period_start <= CURRENT_DATE THEN 0 ELSE 1 END,
-          CASE WHEN period_start <= CURRENT_DATE THEN period_start END DESC,
-          CASE WHEN period_start > CURRENT_DATE THEN period_start END ASC
+        -- Keep this aligned with /api/projects/[id]/scurve summary: use the final
+        -- cumulative task-period values, not today's first/nearest period. The
+        -- S-curve chart itself still shows every period point.
+        ORDER BY project_id, period_order DESC, period_start DESC
       )
       SELECT
         p.id,
