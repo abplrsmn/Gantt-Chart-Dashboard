@@ -88,7 +88,7 @@ export default function ProjectSummaryMatrix({
   })();
 
   return (
-    <div className="rounded-2xl border border-slate-200/60 dark:border-white/8 bg-white/70 dark:bg-zinc-900/55 backdrop-blur-sm overflow-hidden">
+    <div className="rounded-2xl border border-slate-200/60 dark:border-white/8 bg-white dark:bg-zinc-900 overflow-hidden">
       <div className="px-4 py-3 border-b border-slate-200/60 dark:border-white/8 flex items-center justify-between gap-3">
         <div>
           <h3 className="text-sm font-extrabold text-slate-800 dark:text-white uppercase tracking-wide">{title}</h3>
@@ -126,14 +126,14 @@ export default function ProjectSummaryMatrix({
                 <td colSpan={23} className="px-4 py-8 text-center text-slate-400 dark:text-slate-500">No projects match your filter.</td>
               </tr>
             ) : summaryGroups.map(group => group.rows.map((project, idx) => (
-              <tr key={project.id} className="odd:bg-white/70 even:bg-slate-50/70 dark:odd:bg-zinc-950/20 dark:even:bg-zinc-900/30 hover:bg-cyan-50/70 dark:hover:bg-cyan-950/20 transition-colors">
+              <tr key={project.id} className="group odd:bg-white even:bg-slate-50 dark:odd:bg-zinc-950 dark:even:bg-zinc-900 hover:bg-cyan-50 dark:hover:bg-cyan-950 transition-colors">
                 {idx === 0 && (
                   <td rowSpan={group.rows.length} className="sticky left-0 z-30 w-20 min-w-20 border-r border-b border-slate-200 dark:border-white/10 bg-white dark:bg-zinc-950 px-2 py-2 font-extrabold text-slate-700 dark:text-white align-top">
                     {group.unit}
                   </td>
                 )}
-                <td className="sticky left-20 z-20 w-12 min-w-12 border-r border-b border-slate-200 dark:border-white/10 bg-inherit px-2 py-2 text-center font-mono text-slate-500">{project.project_code || project.id}</td>
-                <td className="sticky left-32 z-20 w-72 min-w-72 border-r border-b border-slate-200 dark:border-white/10 bg-inherit px-2 py-2 font-semibold text-slate-800 dark:text-white leading-snug shadow-[8px_0_12px_-12px_rgba(15,23,42,0.45)]">{projectDisplayName(project)}</td>
+                <td className="sticky left-20 z-20 w-12 min-w-12 border-r border-b border-slate-200 dark:border-white/10 bg-white group-odd:bg-white group-even:bg-slate-50 dark:bg-zinc-950 dark:group-even:bg-zinc-900 px-2 py-2 text-center font-mono text-slate-500">{project.project_code || project.id}</td>
+                <td className="sticky left-32 z-20 w-72 min-w-72 border-r border-b border-slate-200 dark:border-white/10 bg-white group-odd:bg-white group-even:bg-slate-50 dark:bg-zinc-950 dark:group-even:bg-zinc-900 px-2 py-2 font-semibold text-slate-800 dark:text-white leading-snug shadow-[8px_0_12px_-12px_rgba(15,23,42,0.45)]">{projectDisplayName(project)}</td>
                 <td className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2 whitespace-pre-wrap">{fmtSummaryText(project.operational_brief)}</td>
                 <td className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2 font-mono whitespace-nowrap">{fmtSummaryDate(project.brief_received)}</td>
                 <td className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2 font-mono text-right whitespace-nowrap">{fmtSummaryMoney(project.budget_capex)}</td>
