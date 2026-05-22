@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { differenceInCalendarDays, format, addDays, isValid, startOfWeek, endOfWeek, addWeeks, startOfMonth, endOfMonth } from "date-fns";
-import { Search, ArrowRight } from "lucide-react";
+import { Search, ArrowRight, MousePointer2, Move, Trash2 } from "lucide-react";
 import DateRangePicker from "./DateRangePicker";
 import AnimatedDropdown from "./AnimatedDropdown";
 import QuickMenu from "./QuickMenu";
@@ -40,6 +41,14 @@ const PRIORITY_CONFIG: Record<string, { label: string; color: string; dot: strin
   HIGH:     { label: "High",     color: "#f97316", dot: "bg-orange-500" },
   MID:      { label: "Mid",      color: "#eab308", dot: "bg-yellow-500" },
   LOW:      { label: "Low",      color: "#22c55e", dot: "bg-green-500" },
+};
+
+const PHASE_DRAG_FIELDS: Record<PhaseKey, { start: string; end: string }> = {
+  brief:    { start: "brief_received", end: "brief_deadline" },
+  design:   { start: "design_start",   end: "design_end" },
+  control:  { start: "control_start",  end: "control_end" },
+  pm:       { start: "pm_start",       end: "pm_end" },
+  handover: { start: "handover_start", end: "handover_end" },
 };
 
 type DBProject = {
@@ -119,6 +128,23 @@ type PhaseDateInfo = {
 };
 
 type WeekCol = { start: Date; end: Date; weekNum: number; monthLabel: string; isFirstOfMonth: boolean };
+
+type DragMode = "move" | "resize-left" | "resize-right";
+type ActiveDrag = {
+  projectId: string;
+  phaseKey: PhaseKey;
+  mode: DragMode;
+  startMouseX: number;
+  origStart: Date;
+  origEnd: Date;
+  currentStart: Date;
+  currentEnd: Date;
+  barEl: HTMLElement;
+  timelineStart: Date;
+  totalDays: number;
+  totalWidth: number;
+  pixelsPerDay: number;
+};
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function toDate(val: string | null | undefined): Date | null {
@@ -286,6 +312,12 @@ export default function ProjectGanttDB() {
   const headerRef = useRef<HTMLDivElement>(null);
   const bodyRef   = useRef<HTMLDivElement>(null);
 
+  const dragRef   = useRef<ActiveDrag | null>(null);
+  const [dragging, setDragging] = useState(false);
+  const [toolMode, setToolMode] = useState<"select" | "drag" | "delete">("select");
+  const [deleteConfirm, setDeleteConfirm] = useState<{ projectId: string; seg: PhaseSegment } | null>(null);
+  const [modalExiting, setModalExiting]   = useState(false);
+
   const onBodyScroll = () => {
     if (headerRef.current && bodyRef.current) {
       headerRef.current.scrollLeft = bodyRef.current.scrollLeft;
@@ -300,6 +332,84 @@ export default function ProjectGanttDB() {
       .catch(e => setError(e.message))
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    if (!dragging) return;
+
+    function onMouseMove(e: MouseEvent) {
+      const drag = dragRef.current;
+      if (!drag) return;
+
+      const deltaPx   = e.clientX - drag.startMouseX;
+      const deltaDays = Math.round(deltaPx / drag.pixelsPerDay);
+
+      let newStart = drag.origStart;
+      let newEnd   = drag.origEnd;
+
+      if (drag.mode === "move") {
+        newStart = addDays(drag.origStart, deltaDays);
+        newEnd   = addDays(drag.origEnd,   deltaDays);
+      } else if (drag.mode === "resize-left") {
+        newStart = addDays(drag.origStart, deltaDays);
+        if (differenceInCalendarDays(drag.origEnd, newStart) < 1) newStart = addDays(drag.origEnd, -1);
+        newEnd = drag.origEnd;
+      } else {
+        newStart = drag.origStart;
+        newEnd   = addDays(drag.origEnd, deltaDays);
+        if (differenceInCalendarDays(newEnd, drag.origStart) < 1) newEnd = addDays(drag.origStart, 1);
+      }
+
+      drag.currentStart = newStart;
+      drag.currentEnd   = newEnd;
+
+      const offsetDays = differenceInCalendarDays(newStart, drag.timelineStart);
+      const widthDays  = Math.max(1, differenceInCalendarDays(newEnd, newStart) + 1);
+      drag.barEl.style.left  = `${(offsetDays / drag.totalDays) * drag.totalWidth}px`;
+      drag.barEl.style.width = `${Math.max(6, (widthDays / drag.totalDays) * drag.totalWidth)}px`;
+    }
+
+    async function onMouseUp() {
+      const drag = dragRef.current;
+      document.body.style.cursor     = "";
+      document.body.style.userSelect = "";
+      setDragging(false);
+      dragRef.current = null;
+      if (!drag) return;
+
+      const startStr = format(drag.currentStart, "yyyy-MM-dd");
+      const endStr   = format(drag.currentEnd,   "yyyy-MM-dd");
+      const fields   = PHASE_DRAG_FIELDS[drag.phaseKey];
+
+      setProjects(prev => prev.map(p => p.id !== drag.projectId ? p : {
+        ...p,
+        [fields.start]: startStr,
+        [fields.end]:   endStr,
+      }));
+
+      const phaseName = PHASES.find(ph => ph.key === drag.phaseKey)?.label ?? drag.phaseKey;
+      const dragSummary = `Dragged ${phaseName} phase: ${format(drag.origStart, "dd MMM yyyy")} → ${format(drag.origEnd, "dd MMM yyyy")} rescheduled to ${startStr} → ${endStr}`;
+      await Promise.all([
+        fetch(`/api/projects/${drag.projectId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ field: fields.start, value: startStr, change_summary: dragSummary, action_type: "field_updated" }),
+        }),
+        fetch(`/api/projects/${drag.projectId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ field: fields.end, value: endStr, change_summary: dragSummary, action_type: "field_updated" }),
+        }),
+      ]);
+    }
+
+    document.addEventListener("mousemove", onMouseMove);
+    document.addEventListener("mouseup",   onMouseUp);
+    return () => {
+      document.removeEventListener("mousemove", onMouseMove);
+      document.removeEventListener("mouseup",   onMouseUp);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dragging]);
 
   const unitOptions = useMemo(() => {
     const units = Array.from(new Set(projects.map(p => p.unit_code).filter(Boolean))).sort() as string[];
@@ -433,8 +543,39 @@ export default function ProjectGanttDB() {
   }, [filteredProjects, rangeStart, rangeEnd, timeline, totalDays]);
 
 
-  const WEEK_W = 36; // px per week column
-  const totalWidth = weekCols.length * WEEK_W; // total gantt width in px
+  const WEEK_W     = 56; // px per week column
+  const totalWidth = weekCols.length * WEEK_W;
+  const pixelsPerDay = totalWidth / Math.max(1, totalDays);
+
+  function startDrag(
+    e: React.MouseEvent,
+    project: DBProject,
+    seg: PhaseSegment,
+    mode: DragMode,
+  ) {
+    e.preventDefault();
+    e.stopPropagation();
+    const barEl = e.currentTarget.closest<HTMLElement>("[data-drag-bar]");
+    if (!barEl) return;
+    dragRef.current = {
+      projectId: project.id,
+      phaseKey:  seg.key,
+      mode,
+      startMouseX:   e.clientX,
+      origStart:     seg.start,
+      origEnd:       seg.end,
+      currentStart:  seg.start,
+      currentEnd:    seg.end,
+      barEl,
+      timelineStart: timeline.start,
+      totalDays,
+      totalWidth,
+      pixelsPerDay,
+    };
+    setDragging(true);
+    document.body.style.cursor     = mode === "move" ? "grabbing" : "ew-resize";
+    document.body.style.userSelect = "none";
+  }
 
   if (loading) return (
     <div className="flex items-center justify-center h-48 text-slate-500 dark:text-slate-400 text-sm gap-2">
@@ -447,7 +588,7 @@ export default function ProjectGanttDB() {
   );
 
   return (
-    <div className="space-y-3 relative overflow-x-hidden" ref={containerRef}>
+    <div className="space-y-3 relative" style={{ overflowX: "clip" }} ref={containerRef}>
       {/* Controls: search + ongoing badge + details | datepicker | phase | priority | unit */}
       <div className="flex flex-wrap gap-2 items-center">
         {/* Search + ongoing count + details button */}
@@ -521,14 +662,40 @@ export default function ProjectGanttDB() {
         {userRole === "pm" && <QuickMenu align="right" />}
       </div>
 
-      {/* Legend */}
-      <div className="flex flex-wrap gap-x-4 gap-y-1 items-center">
-        {PHASES.map(ph => (
-          <div key={ph.key} className="flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400">
-            <span className="w-3 h-2.5 rounded-sm inline-block" style={{ backgroundColor: ph.color }} />
-            {ph.label}
-          </div>
-        ))}
+      {/* Legend + tool mode selector on the same row */}
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex flex-wrap gap-x-4 gap-y-1 items-center">
+          {PHASES.map(ph => (
+            <div key={ph.key} className="flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400">
+              <span className="w-3 h-2.5 rounded-sm inline-block" style={{ backgroundColor: ph.color }} />
+              {ph.label}
+            </div>
+          ))}
+        </div>
+
+        {/* Tool mode selector */}
+        <div className="flex items-center gap-1 p-1 rounded-xl bg-slate-100/80 dark:bg-white/6 border border-slate-200/60 dark:border-white/8 shrink-0">
+          {([
+            { mode: "select", Icon: MousePointer2, title: "Select — click bar to open project" },
+            { mode: "drag",   Icon: Move,          title: "Drag — move or resize phase bars" },
+            { mode: "delete", Icon: Trash2,        title: "Delete — click bar to clear phase dates" },
+          ] as const).map(({ mode, Icon, title }) => (
+            <button
+              key={mode}
+              title={title}
+              onClick={() => setToolMode(mode)}
+              className={`p-2 rounded-lg transition-all ${
+                toolMode === mode
+                  ? mode === "delete"
+                    ? "bg-rose-500 text-white shadow-sm"
+                    : "bg-white dark:bg-zinc-800 text-cyan-600 dark:text-cyan-400 shadow-sm"
+                  : "text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300"
+              }`}
+            >
+              <Icon size={14} />
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Gantt */}
@@ -672,7 +839,7 @@ export default function ProjectGanttDB() {
                     </div>
 
                     {/* Right: Gantt timeline (fixed pixel width per week) */}
-                    <div className="relative overflow-hidden" style={{ width: `${totalWidth}px`, height: "56px" }}>
+                    <div className="relative overflow-hidden" style={{ width: `${totalWidth}px`, height: "76px" }}>
                       {/* Week grid lines */}
                       {weekCols.map((_wc, i) => {
                         const isLastOfMonth = i < weekCols.length - 1 && weekCols[i + 1].isFirstOfMonth;
@@ -685,72 +852,85 @@ export default function ProjectGanttDB() {
                         );
                       })}
 
-                      {/* Empty project range bar first: visual field/container for all phase segments */}
-                      {projectRangeBar && (() => {
-                        const left = (projectRangeBar.offsetPct / 100) * totalWidth;
-                        const width = Math.max(4, (projectRangeBar.widthPct / 100) * totalWidth);
-                        const isHovered = tooltip?.project.id === p.id;
+                      {/* Project range bar — visual track only, click navigates to detail */}
+                      {projectRangeBar && (
+                        <div
+                          className={`absolute rounded-full border border-slate-300/60 bg-slate-200/50 dark:border-white/8 dark:bg-white/8 transition-colors ${toolMode === "select" ? "cursor-pointer hover:bg-slate-300/60 dark:hover:bg-white/12" : "cursor-default"}`}
+                          style={{
+                            left:   `${(projectRangeBar.offsetPct / 100) * totalWidth}px`,
+                            width:  `${Math.max(4, (projectRangeBar.widthPct / 100) * totalWidth)}px`,
+                            top:    "24px",
+                            height: "28px",
+                            zIndex: 2,
+                          }}
+                          onClick={() => { if (toolMode === "select") router.push(`/dashboard/projects/${p.id}`); }}
+                        />
+                      )}
+
+                      {/* Phase bars — individually draggable */}
+                      {segments.map(seg => {
+                        const active = isPhaseActive(seg.key, p.current_phase_code);
+                        const left  = (seg.offsetPct / 100) * totalWidth;
+                        const width = Math.max(8, (seg.widthPct / 100) * totalWidth);
+                        const isDragging = dragging && dragRef.current?.projectId === p.id && dragRef.current?.phaseKey === seg.key;
                         return (
                           <div
-                            className="absolute rounded-full border border-slate-300/80 bg-slate-200/80 dark:border-white/10 dark:bg-white/12 shadow-inner cursor-pointer overflow-hidden transition-all duration-150 hover:ring-2 hover:ring-cyan-400/50"
+                            key={seg.key}
+                            data-drag-bar="true"
+                            className="absolute rounded-md select-none"
                             style={{
-                              left: `${left}px`,
-                              width: `${width}px`,
-                              top: "14px",
-                              height: "24px",
-                              zIndex: 3,
-                              filter: isHovered ? "brightness(1.12) drop-shadow(0 4px 8px rgba(0,0,0,0.3))" : "none",
-                              transform: isHovered ? "scaleY(1.12)" : "scaleY(1)",
+                              left:   `${left}px`,
+                              width:  `${width}px`,
+                              top:    "24px",
+                              height: "28px",
+                              backgroundColor: seg.color,
+                              opacity:   isDragging ? 0.75 : active ? 1 : 0.62,
+                              zIndex:    6,
+                              cursor:    toolMode === "select" ? "pointer" : toolMode === "delete" ? "not-allowed" : "grab",
+                              boxShadow: active
+                                ? `0 0 0 2px ${seg.color}55, 0 2px 8px ${seg.color}40`
+                                : "0 1px 4px rgba(0,0,0,0.18)",
                             }}
-                            role="button"
-                            tabIndex={0}
-                            onClick={() => router.push(`/dashboard/projects/${p.id}`)}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter" || e.key === " ") router.push(`/dashboard/projects/${p.id}`);
+                            onMouseDown={e => { if (toolMode === "drag") startDrag(e, p, seg, "move"); }}
+                            onClick={() => {
+                              if (toolMode === "select") {
+                                router.push(`/dashboard/projects/${p.id}`);
+                              } else if (toolMode === "delete") {
+                                setDeleteConfirm({ projectId: p.id, seg });
+                              }
                             }}
                             onMouseMove={e => {
-                              setTooltip({
-                                seg: {
-                                  key: "project-range",
-                                  label: "Project Date Range",
-                                  color: "#94a3b8",
-                                  start: projectRangeBar.start,
-                                  end: projectRangeBar.end,
-                                },
-                                project: p,
-                                phases: phaseDates,
-                                x: e.clientX,
-                                y: e.clientY,
-                              });
+                              if (dragRef.current) return;
+                              setTooltip({ seg, project: p, phases: phaseDates, x: e.clientX, y: e.clientY });
                             }}
-                            onMouseLeave={() => setTooltip(null)}
+                            onMouseLeave={() => { if (!dragRef.current) setTooltip(null); }}
                           >
-                            {segments.map(seg => {
-                              const active = isPhaseActive(seg.key, p.current_phase_code);
-                              const segLeft = ((seg.offsetPct - projectRangeBar.offsetPct) / 100) * totalWidth;
-                              const segWidth = Math.max(2, (seg.widthPct / 100) * totalWidth);
-                              const clippedLeft = Math.max(0, segLeft);
-                              const clippedWidth = Math.max(0, Math.min(segWidth, width - clippedLeft));
-                              if (clippedWidth <= 0) return null;
-                              return (
-                                <div
-                                  key={seg.key}
-                                  className="absolute top-0 bottom-0"
-                                  style={{
-                                    left: `${clippedLeft}px`,
-                                    width: `${clippedWidth}px`,
-                                    backgroundColor: seg.color,
-                                    opacity: active ? 1 : 0.52,
-                                    boxShadow: active ? `inset 0 0 0 2px ${seg.color}, inset 0 0 0 3px rgba(255,255,255,0.28)` : "none",
-                                  }}
-                                >
-                                  <div className="absolute left-0 top-0 h-full" style={{ width: `${seg.progress}%`, backgroundColor: "rgba(255,255,255,0.18)" }} />
-                                </div>
-                              );
-                            })}
+                            {/* Progress fill */}
+                            <div
+                              className="absolute left-0 top-0 bottom-0 rounded-l-md pointer-events-none"
+                              style={{ width: `${seg.progress}%`, backgroundColor: "rgba(255,255,255,0.22)" }}
+                            />
+                            {/* Phase label */}
+                            {width > 44 && (
+                              <span className="absolute inset-0 flex items-center justify-center text-[8px] font-bold text-white/90 truncate px-2 pointer-events-none">
+                                {seg.label.split(" ")[0]}
+                              </span>
+                            )}
+                            {/* Left resize handle */}
+                            <div
+                              className="absolute left-0 top-0 bottom-0 w-2.5 rounded-l-md z-10 hover:bg-black/10"
+                              style={{ cursor: toolMode === "drag" ? "ew-resize" : "inherit" }}
+                              onMouseDown={e => { if (toolMode === "drag") { e.stopPropagation(); startDrag(e, p, seg, "resize-left"); } }}
+                            />
+                            {/* Right resize handle */}
+                            <div
+                              className="absolute right-0 top-0 bottom-0 w-2.5 rounded-r-md z-10 hover:bg-black/10"
+                              style={{ cursor: toolMode === "drag" ? "ew-resize" : "inherit" }}
+                              onMouseDown={e => { if (toolMode === "drag") { e.stopPropagation(); startDrag(e, p, seg, "resize-right"); } }}
+                            />
                           </div>
                         );
-                      })()}
+                      })}
                     </div>
                   </div>
 
@@ -804,7 +984,7 @@ export default function ProjectGanttDB() {
                   return (
                     <div key={ph.key} className="flex items-center gap-2 text-[10px]">
                       <span className="w-2 h-2 rounded-sm shrink-0" style={{ backgroundColor: ph.color, opacity: ph.start || ph.end ? 1 : 0.35 }} />
-                      <span className="w-[104px] truncate font-semibold text-slate-600 dark:text-white/70">
+                      <span className="w-26 truncate font-semibold text-slate-600 dark:text-white/70">
                         {ph.label}{active ? " • current" : ""}
                       </span>
                       <span className="flex-1 text-right font-mono text-slate-500 dark:text-white/55">
@@ -823,6 +1003,66 @@ export default function ProjectGanttDB() {
           </div>
         );
       })()}
+
+      {/* ── Delete confirmation modal (portalled to body to escape overflow:clip) ── */}
+      {deleteConfirm && typeof document !== "undefined" && createPortal((() => {
+        const { projectId, seg } = deleteConfirm;
+        const phaseName = PHASES.find(ph => ph.key === seg.key)?.label ?? seg.key;
+        const phaseColor = PHASES.find(ph => ph.key === seg.key)?.color;
+
+        function cancel() {
+          setModalExiting(true);
+          setTimeout(() => { setDeleteConfirm(null); setModalExiting(false); }, 200);
+        }
+
+        function confirmDelete() {
+          const fields     = PHASE_DRAG_FIELDS[seg.key];
+          const delSummary = `Cleared ${phaseName} phase dates`;
+          setProjects(prev => prev.map(p => p.id !== projectId ? p : {
+            ...p, [fields.start]: null, [fields.end]: null,
+          }));
+          Promise.all([
+            fetch(`/api/projects/${projectId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ field: fields.start, value: null, change_summary: delSummary, action_type: "field_updated" }) }),
+            fetch(`/api/projects/${projectId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ field: fields.end,   value: null, change_summary: delSummary, action_type: "field_updated" }) }),
+          ]);
+          setDeleteConfirm(null);
+        }
+
+        return (
+          <div className="fixed inset-0 z-9999 flex items-center justify-center">
+            <div className={`absolute inset-0 bg-black/50 backdrop-blur-md ${modalExiting ? "animate-backdrop-exit" : "animate-backdrop-enter"}`} onClick={cancel} />
+            <div className={`relative z-10 w-80 rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200/60 dark:border-white/10 shadow-2xl p-5 space-y-4 ${modalExiting ? "animate-modal-exit" : "animate-modal-enter"}`}>
+              <div className="flex items-start gap-3">
+                <div className="shrink-0 w-9 h-9 rounded-xl bg-rose-500/10 flex items-center justify-center">
+                  <Trash2 size={16} className="text-rose-500" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-slate-800 dark:text-white">Clear phase dates?</p>
+                  <p className="text-[12px] text-slate-500 dark:text-slate-400 mt-0.5">
+                    This will remove all dates for the{" "}
+                    <span className="font-semibold" style={{ color: phaseColor }}>{phaseName}</span>{" "}
+                    phase. The action will be recorded in the audit log.
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-2 justify-end">
+                <button
+                  onClick={cancel}
+                  className="px-4 py-1.5 rounded-lg text-[12px] font-semibold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-white/8 hover:bg-slate-200 dark:hover:bg-white/12 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmDelete}
+                  className="px-4 py-1.5 rounded-lg text-[12px] font-semibold text-white bg-rose-500 hover:bg-rose-600 transition-colors"
+                >
+                  Yes, clear it
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })(), document.body)}
 
     </div>
   );

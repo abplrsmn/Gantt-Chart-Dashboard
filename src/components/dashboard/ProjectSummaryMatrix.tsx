@@ -124,12 +124,19 @@ function InlineCell({
     const raw = draft.trim() === "" ? null : draft.trim();
     setSaving(true);
     try {
-      await fetch(`/api/projects/${projectId}`, {
+      const res = await fetch(`/api/projects/${projectId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ field, value: raw }),
       });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || json.success === false) {
+        console.error(`[InlineCell] PATCH failed for field "${field}":`, json.error ?? res.status);
+        return;
+      }
       onSaved(field, raw);
+    } catch (e) {
+      console.error(`[InlineCell] PATCH error for field "${field}":`, e);
     } finally {
       setSaving(false);
     }

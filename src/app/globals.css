@@ -188,4 +188,34 @@ h1, h2, h3, h4, h5, h6 {
 }
 .animate-page-enter {
   animation: page-enter 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes modal-enter {
+  0%   { opacity: 0; transform: scale(0.92) translateY(10px); }
+  100% { opacity: 1; transform: scale(1)    translateY(0);     }
+}
+@keyframes backdrop-enter {
+  0%   { opacity: 0; }
+  100% { opacity: 1; }
+}
+.animate-modal-enter {
+  animation: modal-enter 380ms cubic-bezier(0.2, 0.9, 0.2, 1) both;
+}
+.animate-backdrop-enter {
+  animation: backdrop-enter 220ms ease both;
+}
+
+@keyframes modal-exit {
+  0%   { opacity: 1; transform: scale(1)    translateY(0);     }
+  100% { opacity: 0; transform: scale(0.92) translateY(10px);  }
+}
+@keyframes backdrop-exit {
+  0%   { opacity: 1; }
+  100% { opacity: 0; }
+}
+.animate-modal-exit {
+  animation: modal-exit 200ms cubic-bezier(0.4, 0, 1, 1) both;
+}
+.animate-backdrop-exit {
+  animation: backdrop-exit 200ms ease both;
 }

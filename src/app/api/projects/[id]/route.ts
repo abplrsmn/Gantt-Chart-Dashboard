@@ -19,7 +19,7 @@ const FIELD_MAP: Record<string, FieldMap> = {
   project_name:                 { table: "projects",       column: "project_name" },
   start_date:                   { table: "projects",       column: "start_date" },
   end_date:                     { table: "projects",       column: "end_date" },
-  budget_capex:                 { table: "projects",       column: "budget_capex" },
+  budget_capex:                 { table: "project_phases", column: "budget_capex",                      phaseId: 1 },
   contract_amount:              { table: "projects",       column: "contract_amount" },
   summary_brief:                { table: "projects",       column: "summary_brief" },
   blocker_note:                 { table: "projects",       column: "blocker_note" },
@@ -51,7 +51,7 @@ const FIELD_MAP: Record<string, FieldMap> = {
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const body = await req.json() as { field: string; value: string | null };
+  const body = await req.json() as { field: string; value: string | null; change_summary?: string; action_type?: string };
   const map = FIELD_MAP[body.field];
   if (!map) return NextResponse.json({ success: false, error: "Unknown field" }, { status: 400 });
 
@@ -90,18 +90,13 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     }
 
     // Insert audit log
+    const summary     = body.change_summary ?? `Updated ${body.field}`;
+    const actionType  = body.action_type    ?? "field_updated";
     await client.query(
       `INSERT INTO project_change_logs
-         (project_id, field_name, old_value, new_value, change_summary, changed_by_name, action_type)
-       VALUES ($1, $2, $3, $4, $5, $6, 'update')`,
-      [
-        id,
-        body.field,
-        oldValue,
-        body.value ?? null,
-        `Updated ${body.field}`,
-        changedByName,
-      ]
+         (project_id, entity_type, field_name, old_value, new_value, change_summary, changed_by_name, action_type, created_at)
+       VALUES ($1, 'project', $2, $3, $4, $5, $6, $7, NOW())`,
+      [id, body.field, oldValue, body.value ?? null, summary, changedByName, actionType]
     );
 
     return NextResponse.json({ success: true });
