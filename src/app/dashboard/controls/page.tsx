@@ -241,9 +241,9 @@ export default function ControlsPage() {
         />
         <StatCard
           icon={DollarSign} iconColor="text-emerald-500"
-          label="Est. Cost"
+          label="Est. Usage Value"
           value={telemetry.totalCostFmt}
-          sub="based on model pricing"
+          sub="rough estimate, not billing"
         />
         <StatCard
           icon={isConnected ? Activity : WifiOff}

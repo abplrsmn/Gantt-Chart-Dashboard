@@ -229,8 +229,13 @@ export async function GET() {
       tokenCount,
       limit: contextTokens > 0 ? fmtCount(contextTokens) : '—',
       percent: Math.min(100, Math.max(0, Math.round(percentUsed))),
-      costFmt: fmtCost(inputTokens || outputTokens ? calcCostFromParts(inputTokens, outputTokens, model) : calcCost(tokenCount, model)),
-      costUsd: inputTokens || outputTokens ? calcCostFromParts(inputTokens, outputTokens, model) : calcCost(tokenCount, model),
+      // Keep estimated cost aligned with the displayed session token count.
+      // Some OpenClaw telemetry exposes lifetime provider input/output counters that
+      // can be much larger than this session's retained context tokens, which made
+      // the dashboard look like a real billing invoice. This is only a rough usage
+      // value for the visible session telemetry, not provider billing.
+      costFmt: fmtCost(calcCost(tokenCount, model)),
+      costUsd: calcCost(tokenCount, model),
       lastSeen: fmtAge(age),
       updatedAt,
     });
@@ -279,9 +284,7 @@ export async function GET() {
   for (const s of statusRecent) {
     const model = asStr(s.model, defaultModel);
     const tokens = Math.max(0, asNum(s.totalTokens, 0));
-    const inputTokens = Math.max(0, asNum(s.inputTokens, 0));
-    const outputTokens = Math.max(0, asNum(s.outputTokens, 0));
-    const cost = inputTokens || outputTokens ? calcCostFromParts(inputTokens, outputTokens, model) : calcCost(tokens, model);
+    const cost = calcCost(tokens, model);
     const { label } = pricingFor(model);
     if (!modelMap[model]) modelMap[model] = { tokens: 0, costUsd: 0, label };
     modelMap[model].tokens += tokens;
@@ -317,15 +320,13 @@ export async function GET() {
   const logs = statusRecent.slice(0, 30).map((s, i) => {
     const model  = asStr(s.model, defaultModel);
     const tokens = Math.max(0, asNum(s.totalTokens, 0));
-    const inputTokens = Math.max(0, asNum(s.inputTokens, 0));
-    const outputTokens = Math.max(0, asNum(s.outputTokens, 0));
     const sessionKey = asStr(s.key, '?');
     return {
       id: i + 1,
       time: new Date(asNum(s.updatedAt, Date.now())).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
       agentId: sessionKey,
       agent:   sessionKey,
-      action:  `${asStr(s.kind, 'session')} ${sessionKey} · ${pricingFor(model).label} · ${fmtCount(tokens)} tokens · ${fmtCost(inputTokens || outputTokens ? calcCostFromParts(inputTokens, outputTokens, model) : calcCost(tokens, model))}`,
+      action:  `${asStr(s.kind, 'session')} ${sessionKey} · ${pricingFor(model).label} · ${fmtCount(tokens)} tokens · ${fmtCost(calcCost(tokens, model))} est. usage`,
       type:    asNum(s.ageMs ?? s.age, Infinity) < 300_000 ? 'success' as const : 'info' as const,
     };
   });
