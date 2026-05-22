@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState, Fragment } from "react";
+import { useEffect, useMemo, useRef, useState, Fragment } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { format } from "date-fns";
 import {
   ArrowLeft, ChevronRight,
   User, Users, Building2,
-  Activity, Clock, FileText, Paperclip, MapPin
+  Activity, Clock, FileText, Paperclip, MapPin, Pencil
 } from "lucide-react";
 import SCurveCharts from "@/components/dashboard/SCurveCharts";
 
@@ -105,6 +105,146 @@ function fmtCurrency(v: string | null): string {
   return `Rp ${n.toLocaleString("id-ID")}`;
 }
 
+function toInputValue(fmt: FieldDef["format"], raw: string | null): string {
+  if (!raw) return "";
+  if (fmt === "date") {
+    const d = new Date(raw);
+    return isNaN(d.getTime()) ? "" : d.toISOString().slice(0, 10);
+  }
+  return String(raw);
+}
+
+// ─── InlineField ──────────────────────────────────────────────────────────────
+function InlineField({
+  label, value, format: fmt, fullWidth, onSave,
+}: {
+  label: string;
+  value: string | null;
+  format: FieldDef["format"];
+  fullWidth?: boolean;
+  onSave: (raw: string | null) => Promise<void>;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState("");
+  const [saving, setSaving] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const taRef = useRef<HTMLTextAreaElement>(null);
+
+  function startEdit() {
+    setDraft(toInputValue(fmt, value));
+    setEditing(true);
+    setTimeout(() => (fullWidth ? taRef.current?.focus() : inputRef.current?.focus()), 0);
+  }
+
+  async function commit() {
+    setEditing(false);
+    const raw = draft.trim() === "" ? null : draft.trim();
+    setSaving(true);
+    try { await onSave(raw); } finally { setSaving(false); }
+  }
+
+  const displayVal =
+    !value ? "—"
+    : fmt === "date" ? fmtDate(value)
+    : fmt === "currency" ? fmtCurrency(value)
+    : String(value);
+
+  const wrapCls = fullWidth ? "col-span-2" : "";
+  const labelEl = <p className="text-[9px] uppercase tracking-widest text-slate-400 mb-0.5">{label}</p>;
+  const inputCls = "w-full bg-white dark:bg-zinc-800 border border-cyan-400 rounded px-2 py-0.5 text-xs text-slate-700 dark:text-slate-200 outline-none ring-2 ring-cyan-400/30";
+
+  if (editing) {
+    return (
+      <div className={wrapCls}>
+        {labelEl}
+        {fullWidth ? (
+          <textarea
+            ref={taRef}
+            value={draft}
+            rows={3}
+            onChange={e => setDraft(e.target.value)}
+            onBlur={commit}
+            onKeyDown={e => { if (e.key === "Escape") setEditing(false); if ((e.metaKey || e.ctrlKey) && e.key === "Enter") commit(); }}
+            className={inputCls + " resize-none"}
+          />
+        ) : (
+          <input
+            ref={inputRef}
+            type={fmt === "date" ? "date" : "text"}
+            value={draft}
+            onChange={e => setDraft(e.target.value)}
+            onBlur={commit}
+            onKeyDown={e => { if (e.key === "Escape") setEditing(false); if (e.key === "Enter") commit(); }}
+            className={inputCls}
+          />
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className={`group cursor-pointer ${wrapCls}`} onClick={startEdit}>
+      {labelEl}
+      <div className="flex items-center gap-1">
+        <p className={`font-semibold ${fullWidth ? "text-[11px] leading-relaxed" : "text-xs"} ${displayVal === "—" ? "text-slate-500 dark:text-slate-600 italic" : "text-slate-700 dark:text-slate-200"} group-hover:text-cyan-500 dark:group-hover:text-cyan-400 transition-colors ${saving ? "opacity-50" : ""}`}>
+          {displayVal}
+        </p>
+        <Pencil size={9} className="text-slate-400 opacity-0 group-hover:opacity-60 transition-opacity shrink-0" />
+      </div>
+    </div>
+  );
+}
+
+// ─── InlineText (for standalone editable labels like project name) ─────────────
+function InlineText({
+  value, onSave, className, multiline,
+}: {
+  value: string | null;
+  onSave: (raw: string | null) => Promise<void>;
+  className?: string;
+  multiline?: boolean;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+  const taRef = useRef<HTMLTextAreaElement>(null);
+
+  function startEdit() {
+    setDraft(value ?? "");
+    setEditing(true);
+    setTimeout(() => (multiline ? taRef.current?.focus() : inputRef.current?.focus()), 0);
+  }
+
+  async function commit() {
+    setEditing(false);
+    await onSave(draft.trim() || null);
+  }
+
+  const inputCls = "bg-white dark:bg-zinc-800 border border-cyan-400 rounded px-2 py-0.5 outline-none ring-2 ring-cyan-400/30 w-full " + (className ?? "");
+
+  if (editing) {
+    return multiline ? (
+      <textarea ref={taRef} value={draft} rows={3} onChange={e => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={e => { if (e.key === "Escape") setEditing(false); if ((e.metaKey || e.ctrlKey) && e.key === "Enter") commit(); }}
+        className={inputCls + " resize-none text-sm"} />
+    ) : (
+      <input ref={inputRef} value={draft} onChange={e => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={e => { if (e.key === "Escape") setEditing(false); if (e.key === "Enter") commit(); }}
+        className={inputCls} />
+    );
+  }
+
+  return (
+    <span className={`group inline-flex items-center gap-1.5 cursor-pointer`} onClick={startEdit}>
+      <span className={`${className} group-hover:text-cyan-500 dark:group-hover:text-cyan-400 transition-colors`}>
+        {value || <span className="italic text-slate-400">—</span>}
+      </span>
+      <Pencil size={10} className="text-slate-400 opacity-0 group-hover:opacity-60 transition-opacity shrink-0" />
+    </span>
+  );
+}
 
 type FieldDef = {
   label: string;
@@ -189,23 +329,14 @@ const PHASE_DEFS: PhaseDef[] = [
   },
 ];
 
-
-
-function PhaseCard({ ph, project, isCurrent, isPast, people }: {
+function PhaseCard({ ph, project, isCurrent, isPast, people, onSave }: {
   ph: PhaseDef;
   project: ProjectDetail;
   isCurrent: boolean;
   isPast: boolean;
   people: PersonRow[];
+  onSave: (key: keyof ProjectDetail, value: string | null) => Promise<void>;
 }) {
-  function renderValue(f: FieldDef): string {
-    const raw = project[f.key];
-    if (raw === null || raw === undefined || raw === "") return "—";
-    if (f.format === "date") return fmtDate(raw as string | null);
-    if (f.format === "currency") return fmtCurrency(raw as string | null);
-    return String(raw);
-  }
-
   const phasePeople = people.filter(p => Number(p.phase_id) === ph.phaseId);
   const assignedBy  = phasePeople.filter(p => p.role_code === "pic");
 
@@ -238,21 +369,18 @@ function PhaseCard({ ph, project, isCurrent, isPast, people }: {
       </div>
 
       <div className="px-4 py-3 bg-white/40 dark:bg-zinc-900/30 space-y-3">
-        {/* Main params + Assigned By */}
         <div className="grid grid-cols-2 gap-x-6 gap-y-3">
-          {ph.fields.filter(f => f.label !== "Notes").map(f => {
-            const val = renderValue(f);
-            return (
-              <div key={f.key as string} className={f.fullWidth ? "col-span-2" : ""}>
-                <p className="text-[9px] uppercase tracking-widest text-slate-400 mb-0.5">{f.label}</p>
-                <p className={`font-semibold ${f.fullWidth ? "text-[11px] leading-relaxed" : "text-xs"} ${val === "—" ? "text-slate-500 dark:text-slate-600 italic" : "text-slate-700 dark:text-slate-200"}`}>
-                  {val}
-                </p>
-              </div>
-            );
-          })}
+          {ph.fields.filter(f => f.label !== "Notes").map(f => (
+            <InlineField
+              key={f.key as string}
+              label={f.label}
+              value={project[f.key] as string | null}
+              format={f.format}
+              fullWidth={f.fullWidth}
+              onSave={v => onSave(f.key, v)}
+            />
+          ))}
 
-          {/* Assigned By — phase PIC / owner for this phase */}
           <div className="col-span-2">
             <p className="text-[9px] uppercase tracking-widest text-slate-400 mb-1">Assigned By</p>
             {assignedBy.length > 0 ? (
@@ -270,18 +398,17 @@ function PhaseCard({ ph, project, isCurrent, isPast, people }: {
           </div>
         </div>
 
-        {/* Notes — separated */}
-        {ph.fields.filter(f => f.label === "Notes").map(f => {
-          const val = renderValue(f);
-          return (
-            <div key={f.key as string} className="pt-2 border-t border-slate-200/40 dark:border-white/6">
-              <p className="text-[9px] uppercase tracking-widest text-slate-400 mb-0.5">Notes</p>
-              <p className={`text-[11px] leading-relaxed font-semibold ${val === "—" ? "text-slate-500 dark:text-slate-600 italic" : "text-slate-700 dark:text-slate-200"}`}>
-                {val}
-              </p>
-            </div>
-          );
-        })}
+        {ph.fields.filter(f => f.label === "Notes").map(f => (
+          <div key={f.key as string} className="pt-2 border-t border-slate-200/40 dark:border-white/6">
+            <InlineField
+              label="Notes"
+              value={project[f.key] as string | null}
+              format={f.format}
+              fullWidth
+              onSave={v => onSave(f.key, v)}
+            />
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -315,7 +442,15 @@ export default function ProjectDetailPage() {
       .finally(() => setLoading(false));
   }, [id]);
 
-  // Build project in SCurveCharts-compatible shape
+  async function patchField(key: keyof ProjectDetail, value: string | null) {
+    setProject(prev => prev ? { ...prev, [key]: value } : prev);
+    await fetch(`/api/projects/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ field: key, value }),
+    });
+  }
+
   const scProject = useMemo(() => {
     if (!project) return null;
     return {
@@ -344,7 +479,6 @@ export default function ProjectDetailPage() {
       current_phase_code: project.current_phase_code,
     };
   }, [project]);
-
 
   if (loading) {
     return (
@@ -375,7 +509,7 @@ export default function ProjectDetailPage() {
           className="flex items-center gap-1.5 text-sm font-semibold text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors shrink-0"
         >
           <ArrowLeft size={15} />
-          Go Back
+          Back
         </button>
         <button
           onClick={() => router.push(`/dashboard/projects/${id}/audit`)}
@@ -386,25 +520,23 @@ export default function ProjectDetailPage() {
         </button>
       </div>
 
-      {/* Summary is shown inside phase notes/cards; keep top area focused on project metadata. */}
-
-      {/* Team/stakeholder details are shown inside Project Description fields. */}
-
       {/* ── Project Description ──────────────────────────────────────── */}
       <div className="glass-card overflow-hidden">
-
-        {/* Project Description */}
         <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-200/50 dark:border-white/8">
           <FileText size={13} className="text-cyan-500 shrink-0" />
           <h3 className="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-widest">Project Description</h3>
         </div>
         <div className="grid grid-cols-2 divide-x divide-slate-200/50 dark:divide-white/8">
 
-          {/* ── Left: Project Name, ID, Priority ── */}
+          {/* ── Left ── */}
           <div className="p-4 space-y-4">
             <div>
               <p className="text-[10px] uppercase tracking-widest text-slate-400 mb-1">Project Name</p>
-              <p className="text-base font-bold text-slate-700 dark:text-slate-200 leading-snug">{project.project_name}</p>
+              <InlineText
+                value={project.project_name}
+                onSave={v => patchField("project_name", v)}
+                className="text-base font-bold text-slate-700 dark:text-slate-200 leading-snug"
+              />
             </div>
             <div>
               <p className="text-[10px] uppercase tracking-widest text-slate-400 mb-1">Project ID</p>
@@ -426,11 +558,19 @@ export default function ProjectDetailPage() {
                 <span className="text-sm italic text-slate-400 dark:text-slate-600">—</span>
               )}
             </div>
+            <div>
+              <p className="text-[10px] uppercase tracking-widest text-slate-400 mb-1">Summary</p>
+              <InlineText
+                value={project.summary_brief}
+                onSave={v => patchField("summary_brief", v)}
+                className="text-xs text-slate-600 dark:text-slate-300"
+                multiline
+              />
+            </div>
           </div>
 
-          {/* ── Right: Location, Attachments, Stakeholders ── */}
+          {/* ── Right ── */}
           <div className="p-4 space-y-4">
-            {/* Location + Address */}
             <div className="space-y-2">
               <div>
                 <p className="text-[10px] uppercase tracking-widest text-slate-400 mb-1 flex items-center gap-1.5">
@@ -450,7 +590,6 @@ export default function ProjectDetailPage() {
                   )}
                 </div>
               </div>
-
               <div>
                 <p className="text-[10px] uppercase tracking-widest text-slate-400 mb-1 flex items-center gap-1.5">
                   <MapPin size={11} className="text-slate-400" />
@@ -529,12 +668,10 @@ export default function ProjectDetailPage() {
           </div>
 
         </div>
-
       </div>
 
       {/* ── Phase Parameters ─────────────────────────────────────────── */}
       <div className="glass-card overflow-hidden">
-        {/* Phase Parameters */}
         <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-200/50 dark:border-white/8">
           <Activity size={13} className="text-cyan-500 shrink-0" />
           <h3 className="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-widest">Phase Parameters</h3>
@@ -602,11 +739,11 @@ export default function ProjectDetailPage() {
                 isCurrent={project.current_phase_code === ph.phaseCode}
                 isPast={phIdx < currentIdx}
                 people={people}
+                onSave={patchField}
               />
             );
           })}
         </div>
-
       </div>
 
       {/* ── S-Curve ────────────────────────────────────────────────────── */}

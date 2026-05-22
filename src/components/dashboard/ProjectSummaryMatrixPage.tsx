@@ -50,14 +50,14 @@ export default function ProjectSummaryMatrixPage() {
 
   return (
     <div className="space-y-4 pb-6 animate-page-enter">
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="relative flex items-center justify-center mb-6 min-h-[36px]">
         <button
           onClick={() => router.push("/dashboard/projects/gantt")}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[12px] font-bold bg-white/70 dark:bg-zinc-900/60 border border-slate-200/70 dark:border-white/10 text-slate-700 dark:text-white hover:bg-slate-50 dark:hover:bg-white/5"
+          className="absolute left-0 flex items-center gap-1.5 text-sm font-semibold text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors shrink-0"
         >
-          <ArrowLeft size={13} /> Back to Gantt
+          <ArrowLeft size={15} /> Back
         </button>
-        <label className="relative flex-1 min-w-60">
+        <label className="relative w-full max-w-[600px]">
           <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             value={search}
