@@ -153,10 +153,10 @@ function createLabel(text: string) {
   return sprite;
 }
 
-function createPixelFloorPattern(parent: THREE.Group) {
+function createPixelFloorPattern(parent: THREE.Group, halfX = 8, halfZ = 5.5) {
   const colors = [0xd8c7a8, 0xcdb894, 0xe2d2b7, 0xbfa782];
-  for (let x = -6; x <= 6; x += 1) {
-    for (let z = -4; z <= 4; z += 1) {
+  for (let x = -halfX; x <= halfX; x += 1) {
+    for (let z = -halfZ; z <= halfZ; z += 1) {
       const tile = new THREE.Mesh(
         new THREE.BoxGeometry(0.92, 0.025, 0.92),
         makeMat(colors[Math.abs(x + z) % colors.length], 0.9),
@@ -194,6 +194,14 @@ function createStatusLabel(text: string, color = "#e2e8f0") {
 
 type SavedOfficeLayout = Record<string, { x: number; z: number }>;
 const OFFICE_LAYOUT_KEY = "project-dashboard:three-office-layout:v1";
+const OFFICE_CAMERA_KEY = "project-dashboard:three-office-camera:v1";
+const OFFICE_HALF_X = 8.4;
+const OFFICE_HALF_Z = 5.6;
+
+type SavedOfficeCamera = {
+  position: [number, number, number];
+  target: [number, number, number];
+};
 
 function readOfficeLayout(): SavedOfficeLayout {
   try {
@@ -214,18 +222,52 @@ function writeOfficeLayout(layout: SavedOfficeLayout) {
   }
 }
 
+function readOfficeCamera(): SavedOfficeCamera | null {
+  try {
+    const raw = window.localStorage.getItem(OFFICE_CAMERA_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as SavedOfficeCamera;
+    if (!Array.isArray(parsed.position) || !Array.isArray(parsed.target)) return null;
+    if (parsed.position.length !== 3 || parsed.target.length !== 3) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function writeOfficeCamera(camera: THREE.PerspectiveCamera, controls: OrbitControls) {
+  try {
+    const payload: SavedOfficeCamera = {
+      position: [
+        Number(camera.position.x.toFixed(3)),
+        Number(camera.position.y.toFixed(3)),
+        Number(camera.position.z.toFixed(3)),
+      ],
+      target: [
+        Number(controls.target.x.toFixed(3)),
+        Number(controls.target.y.toFixed(3)),
+        Number(controls.target.z.toFixed(3)),
+      ],
+    };
+    window.localStorage.setItem(OFFICE_CAMERA_KEY, JSON.stringify(payload));
+  } catch {
+    // Ignore storage errors.
+  }
+}
+
 function applySavedPosition(group: THREE.Group, layout: SavedOfficeLayout, key: string) {
   const saved = layout[key];
   group.userData.layoutKey = key;
   if (saved && Number.isFinite(saved.x) && Number.isFinite(saved.z)) {
-    group.position.x = THREE.MathUtils.clamp(saved.x, -6.0, 6.0);
-    group.position.z = THREE.MathUtils.clamp(saved.z, -3.65, 3.75);
+    group.position.x = THREE.MathUtils.clamp(saved.x, -OFFICE_HALF_X + 0.5, OFFICE_HALF_X - 0.5);
+    group.position.z = THREE.MathUtils.clamp(saved.z, -OFFICE_HALF_Z + 0.5, OFFICE_HALF_Z - 0.5);
   }
 }
 
 
 export default function ThreeOffice({ agents, configuredAgents, gatewayOk }: Props) {
   const mountRef = useRef<HTMLDivElement | null>(null);
+  const cameraStateRef = useRef<SavedOfficeCamera | null>(null);
 
   useEffect(() => {
     const mount = mountRef.current;
@@ -235,10 +277,10 @@ export default function ThreeOffice({ agents, configuredAgents, gatewayOk }: Pro
     const height = mount.clientHeight || 440;
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0xf3f0e8);
-    scene.fog = new THREE.Fog(0xf3f0e8, 14, 28);
+    scene.fog = new THREE.Fog(0xf3f0e8, 18, 36);
 
     const camera = new THREE.PerspectiveCamera(38, width / height, 0.1, 100);
-    camera.position.set(5.2, 7.2, 8.2);
+    camera.position.set(7.2, 8.8, 11.4);
     camera.lookAt(0, 0.25, 0);
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
@@ -252,11 +294,23 @@ export default function ThreeOffice({ agents, configuredAgents, gatewayOk }: Pro
     controls.enableDamping = true;
     controls.dampingFactor = 0.08;
     controls.enablePan = false;
-    controls.minDistance = 6.2;
-    controls.maxDistance = 15;
+    controls.minDistance = 7.5;
+    controls.maxDistance = 20;
     controls.minPolarAngle = Math.PI / 5;
     controls.maxPolarAngle = Math.PI / 2.25;
     controls.target.set(0, 0.25, 0);
+    const savedCamera = cameraStateRef.current ?? readOfficeCamera();
+    if (savedCamera) {
+      camera.position.fromArray(savedCamera.position);
+      controls.target.fromArray(savedCamera.target);
+    }
+    controls.addEventListener("change", () => {
+      cameraStateRef.current = {
+        position: [camera.position.x, camera.position.y, camera.position.z],
+        target: [controls.target.x, controls.target.y, controls.target.z],
+      };
+      writeOfficeCamera(camera, controls);
+    });
 
     const raycaster = new THREE.Raycaster();
     const pointer = new THREE.Vector2();
@@ -309,27 +363,27 @@ export default function ThreeOffice({ agents, configuredAgents, gatewayOk }: Pro
     const office = new THREE.Group();
     scene.add(office);
 
-    const plant = addClawAsset(office, "/claw3d-assets/models/furniture/pottedPlant.glb", [6.05, 0.05, 3.55], 1.35, [0, -Math.PI / 4, 0]);
+    const plant = addClawAsset(office, "/claw3d-assets/models/furniture/pottedPlant.glb", [7.65, 0.05, 4.75], 1.35, [0, -Math.PI / 4, 0]);
     plant.userData.kind = "plant";
     applySavedPosition(plant, savedLayout, "plant:corner");
     draggableObjects.push(plant);
 
-    const floor = new THREE.Mesh(new THREE.BoxGeometry(13.2, 0.22, 8.6), makeMat(0xc9b99f));
+    const floor = new THREE.Mesh(new THREE.BoxGeometry(17.2, 0.22, 11.4), makeMat(0xc9b99f));
     floor.position.y = -0.12;
     floor.receiveShadow = true;
     office.add(floor);
 
-    createPixelFloorPattern(office);
-    const grid = new THREE.GridHelper(13.2, 26, 0xd7c4a5, 0xb79d7b);
+    createPixelFloorPattern(office, 8, 5.5);
+    const grid = new THREE.GridHelper(17.2, 34, 0xd7c4a5, 0xb79d7b);
     grid.position.y = 0.045;
     office.add(grid);
 
-    const backWall = new THREE.Mesh(new THREE.BoxGeometry(13.2, 3, 0.22), makeMat(0xe8ddc9));
-    backWall.position.set(0, 1.38, -4.4);
+    const backWall = new THREE.Mesh(new THREE.BoxGeometry(17.2, 3, 0.22), makeMat(0xe8ddc9));
+    backWall.position.set(0, 1.38, -5.8);
     backWall.receiveShadow = true;
     office.add(backWall);
-    const leftWall = new THREE.Mesh(new THREE.BoxGeometry(0.22, 3, 8.6), makeMat(0xd9c9ad));
-    leftWall.position.set(-6.7, 1.38, 0);
+    const leftWall = new THREE.Mesh(new THREE.BoxGeometry(0.22, 3, 11.4), makeMat(0xd9c9ad));
+    leftWall.position.set(-8.7, 1.38, 0);
     leftWall.receiveShadow = true;
     office.add(leftWall);
 
@@ -337,7 +391,7 @@ export default function ThreeOffice({ agents, configuredAgents, gatewayOk }: Pro
     addBox(gateway, [1.25, 1.65, 1.25], [0, 0.95, 0], 0x020617, "gatewayCore");
     addBox(gateway, [0.8, 0.1, 0.08], [0, 1.35, 0.66], gatewayOk ? 0x34d399 : 0xef4444, "gatewayLed1");
     addBox(gateway, [0.56, 0.1, 0.08], [0, 1.1, 0.66], 0x22d3ee, "gatewayLed2");
-    const gatewayPosition = new THREE.Vector3(5.25, 0, 2.45);
+    const gatewayPosition = new THREE.Vector3(7.2, 0, 3.65);
     gateway.position.copy(gatewayPosition);
     applySavedPosition(gateway, savedLayout, "gateway:main");
     cyan.position.set(gateway.position.x, 2.2, gateway.position.z);
@@ -360,11 +414,12 @@ export default function ThreeOffice({ agents, configuredAgents, gatewayOk }: Pro
     ).slice(0, 8);
 
     const positions: Array<[number, number, number]> = [
-      [-4.65, 0, -2.35], [-1.55, 0, -2.55], [1.55, 0, -2.55], [4.65, 0, -2.35],
-      [-4.65, 0, 2.55], [-1.55, 0, 2.75], [1.55, 0, 2.75], [4.65, 0, 2.55],
+      [-6.2, 0, -3.35], [-2.1, 0, -3.55], [2.1, 0, -3.55], [6.2, 0, -3.35],
+      [-6.2, 0, 3.45], [-2.1, 0, 3.7], [2.1, 0, 3.7], [6.2, 0, 3.45],
     ];
     const accents = [0x3b82f6, 0x8b5cf6, 0x06b6d4, 0x10b981, 0xf59e0b, 0xd946ef, 0x6366f1, 0xf43f5e];
     const animated: THREE.Group[] = [];
+    const walkers: THREE.Group[] = [];
     const activeBeams: THREE.Mesh[] = [];
 
     roster.forEach((agent, index) => {
@@ -382,6 +437,16 @@ export default function ThreeOffice({ agents, configuredAgents, gatewayOk }: Pro
       addClawAsset(desk, "/claw3d-assets/models/furniture/computerScreen.glb", [-0.32, 0.9, -0.34], 0.55, [0, Math.PI, 0]);
       office.add(desk);
       animated.push(desk);
+
+      // Small roaming avatar so the office feels alive even when telemetry refreshes.
+      // It is separate from the draggable desk so user layout edits stay stable.
+      const walker = createPixelAvatar(accents[index % accents.length], agent.active);
+      walker.scale.setScalar(0.52);
+      walker.position.set(-6.5 + index * 1.8, 0.18, index % 2 === 0 ? -0.75 : 0.85);
+      walker.userData.walkSeed = index * 0.9;
+      walker.userData.walkRadius = 1.1 + (index % 3) * 0.35;
+      office.add(walker);
+      walkers.push(walker);
 
       const label = createLabel(agent.name);
       label.position.set(0, 2.95, 0);
@@ -443,9 +508,17 @@ export default function ThreeOffice({ agents, configuredAgents, gatewayOk }: Pro
       if (!draggingObject) return;
       setPointerFromEvent(event);
       if (!raycaster.ray.intersectPlane(dragPlane, dragHit)) return;
-      draggingObject.position.x = THREE.MathUtils.clamp(dragHit.x + dragOffset.x, -6.0, 6.0);
-      draggingObject.position.z = THREE.MathUtils.clamp(dragHit.z + dragOffset.z, -3.65, 3.75);
+      draggingObject.position.x = THREE.MathUtils.clamp(dragHit.x + dragOffset.x, -OFFICE_HALF_X + 0.5, OFFICE_HALF_X - 0.5);
+      draggingObject.position.z = THREE.MathUtils.clamp(dragHit.z + dragOffset.z, -OFFICE_HALF_Z + 0.5, OFFICE_HALF_Z - 0.5);
       draggingObject.position.y = (draggingObject.userData.homeY ?? 0) + 0.18;
+      const key = draggingObject.userData.layoutKey as string | undefined;
+      if (key) {
+        savedLayout[key] = {
+          x: Number(draggingObject.position.x.toFixed(3)),
+          z: Number(draggingObject.position.z.toFixed(3)),
+        };
+        writeOfficeLayout(savedLayout);
+      }
       if (draggingObject === gateway) {
         cyan.position.set(gateway.position.x, 2.2, gateway.position.z);
       }
@@ -524,6 +597,29 @@ export default function ThreeOffice({ agents, configuredAgents, gatewayOk }: Pro
         }
       });
 
+      walkers.forEach((walker, i) => {
+        const seed = walker.userData.walkSeed as number;
+        const radius = walker.userData.walkRadius as number;
+        const x = Math.sin(t * 0.32 + seed) * (radius + 2.0) + (i % 4 - 1.5) * 1.15;
+        const z = Math.cos(t * 0.38 + seed) * radius + (i < 4 ? -0.35 : 0.45);
+        const next = new THREE.Vector3(
+          THREE.MathUtils.clamp(x, -OFFICE_HALF_X + 1.0, OFFICE_HALF_X - 1.0),
+          0.18 + Math.abs(Math.sin(t * 5 + i)) * 0.04,
+          THREE.MathUtils.clamp(z, -OFFICE_HALF_Z + 1.0, OFFICE_HALF_Z - 1.0),
+        );
+        const prev = walker.position.clone();
+        walker.position.lerp(next, 0.04);
+        const dx = walker.position.x - prev.x;
+        const dz = walker.position.z - prev.z;
+        if (Math.abs(dx) + Math.abs(dz) > 0.0005) {
+          walker.rotation.y = Math.atan2(dx, dz);
+        }
+        const leftLeg = walker.getObjectByName("leftLeg");
+        const rightLeg = walker.getObjectByName("rightLeg");
+        if (leftLeg) leftLeg.rotation.x = Math.sin(t * 7 + i) * 0.55;
+        if (rightLeg) rightLeg.rotation.x = -Math.sin(t * 7 + i) * 0.55;
+      });
+
       activeBeams.forEach((beam, i) => {
         const mat = beam.material as THREE.MeshBasicMaterial;
         mat.opacity = 0.28 + Math.abs(Math.sin(t * 2.8 + i)) * 0.42;
@@ -544,6 +640,11 @@ export default function ThreeOffice({ agents, configuredAgents, gatewayOk }: Pro
 
     return () => {
       cancelAnimationFrame(frame);
+      cameraStateRef.current = {
+        position: [camera.position.x, camera.position.y, camera.position.z],
+        target: [controls.target.x, controls.target.y, controls.target.z],
+      };
+      writeOfficeCamera(camera, controls);
       window.removeEventListener("resize", resize);
       renderer.domElement.removeEventListener("pointermove", onPointerMove);
       renderer.domElement.removeEventListener("pointerdown", onPointerDown);
