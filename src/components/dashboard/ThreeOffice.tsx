@@ -661,7 +661,11 @@ export default function ThreeOffice({ agents, configuredAgents, gatewayOk }: Pro
       controls.dispose();
       renderer.dispose();
     };
-  }, [agents, configuredAgents, gatewayOk]);
+  // Keep the WebGL scene mounted across telemetry polling. Recreating the scene on
+  // every agents/configuredAgents refresh resets OrbitControls, interrupts object
+  // dragging, and makes the office jump back while the user is navigating it.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return <div ref={mountRef} className="h-[640px] w-full rounded-2xl overflow-hidden bg-[#f3f0e8]" />;
 }
