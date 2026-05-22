@@ -183,6 +183,53 @@ function createStatusLabel(text: string, color = "#e2e8f0") {
   return sprite;
 }
 
+function createPantry() {
+  const pantry = new THREE.Group();
+  addBox(pantry, [2.35, 0.14, 0.62], [0, 1.55, 0], 0x8b5e34, "topShelf");
+  addBox(pantry, [2.35, 0.14, 0.62], [0, 1.1, 0], 0xa87845, "midShelf");
+  addBox(pantry, [0.08, 1.2, 0.62], [-1.18, 1.0, 0], 0x6f4828, "shelfLeft");
+  addBox(pantry, [0.08, 1.2, 0.62], [1.18, 1.0, 0], 0x6f4828, "shelfRight");
+
+  addBox(pantry, [0.72, 1.58, 0.62], [-1.55, 0.82, 0.08], 0xe5e7eb, "fridge");
+  addBox(pantry, [0.08, 0.54, 0.045], [-1.22, 0.98, 0.41], 0x64748b, "fridgeHandle");
+  addBox(pantry, [0.44, 0.1, 0.045], [-1.55, 1.38, 0.41], 0x93c5fd, "fridgeLight");
+
+  addBox(pantry, [0.78, 0.5, 0.46], [0.15, 0.42, 0.2], 0x1f2937, "coffeeMaker");
+  addBox(pantry, [0.45, 0.08, 0.055], [0.15, 0.58, 0.45], 0x22d3ee, "coffeeDisplay");
+  addBox(pantry, [0.28, 0.12, 0.28], [0.15, 0.14, 0.24], 0x7c2d12, "coffeePot");
+
+  [-0.7, -0.35, 0.62, 0.95].forEach((x, i) => {
+    addBox(pantry, [0.18, 0.2, 0.18], [x, 0.88, 0.26], i % 2 ? 0xfef3c7 : 0xbae6fd, `mug${i}`);
+    addBox(pantry, [0.08, 0.12, 0.04], [x + 0.13, 0.88, 0.33], 0xe2e8f0, `mugHandle${i}`);
+  });
+
+  addBox(pantry, [2.55, 0.32, 0.72], [0.05, 0.18, 0.08], 0x9a6b3f, "counter");
+  pantry.userData.kind = "pantry";
+  return pantry;
+}
+
+function setAvatarSittingPose(avatar: THREE.Group) {
+  const leftLeg = avatar.getObjectByName("leftLeg");
+  const rightLeg = avatar.getObjectByName("rightLeg");
+  const leftArm = avatar.getObjectByName("leftArm");
+  const rightArm = avatar.getObjectByName("rightArm");
+  if (leftLeg) leftLeg.rotation.x = -0.95;
+  if (rightLeg) rightLeg.rotation.x = -0.95;
+  if (leftArm) leftArm.rotation.x = -0.35;
+  if (rightArm) rightArm.rotation.x = -0.35;
+}
+
+function setAvatarStandingPose(avatar: THREE.Group, t: number, i: number) {
+  const leftLeg = avatar.getObjectByName("leftLeg");
+  const rightLeg = avatar.getObjectByName("rightLeg");
+  const leftArm = avatar.getObjectByName("leftArm");
+  const rightArm = avatar.getObjectByName("rightArm");
+  if (leftLeg) leftLeg.rotation.x = Math.sin(t * 7 + i) * 0.55;
+  if (rightLeg) rightLeg.rotation.x = -Math.sin(t * 7 + i) * 0.55;
+  if (leftArm) leftArm.rotation.x = Math.sin(t * 7 + i) * 0.28;
+  if (rightArm) rightArm.rotation.x = -Math.sin(t * 7 + i) * 0.28;
+}
+
 
 type SavedOfficeLayout = Record<string, { x: number; z: number }>;
 const OFFICE_LAYOUT_KEY = "project-dashboard:three-office-layout:v1";
@@ -385,11 +432,26 @@ export default function ThreeOffice({ agents, configuredAgents, gatewayOk }: Pro
     addBox(cabinet, [0.5, 0.08, 0.04], [-0.3, 0.72, 0.19], 0xe5d3b3, "cabinetHandle1");
     addBox(cabinet, [0.5, 0.08, 0.04], [0.3, 0.42, 0.19], 0xe5d3b3, "cabinetHandle2");
     cabinet.position.set(-7.45, 0, -4.75);
+    cabinet.userData.kind = "cabinet";
+    cabinet.userData.homeY = 0;
+    applySavedPosition(cabinet, savedLayout, "furniture:cabinet-main");
     office.add(cabinet);
+    draggableObjects.push(cabinet);
 
     const sideCabinet = cabinet.clone(true);
     sideCabinet.position.set(-7.45, 0, -3.35);
+    sideCabinet.userData.kind = "cabinet";
+    sideCabinet.userData.homeY = 0;
+    applySavedPosition(sideCabinet, savedLayout, "furniture:cabinet-side");
     office.add(sideCabinet);
+    draggableObjects.push(sideCabinet);
+
+    const pantry = createPantry();
+    pantry.position.set(4.1, 0, -4.8);
+    pantry.userData.homeY = 0;
+    applySavedPosition(pantry, savedLayout, "furniture:pantry");
+    office.add(pantry);
+    draggableObjects.push(pantry);
 
     const gateway = new THREE.Group();
     addBox(gateway, [1.25, 1.65, 1.25], [0, 0.95, 0], 0x020617, "gatewayCore");
@@ -423,6 +485,7 @@ export default function ThreeOffice({ agents, configuredAgents, gatewayOk }: Pro
     ];
     const accents = [0x3b82f6, 0x8b5cf6, 0x06b6d4, 0x10b981, 0xf59e0b, 0xd946ef, 0x6366f1, 0xf43f5e];
     const walkers: THREE.Group[] = [];
+    const agentDesks: THREE.Group[] = [];
     const activeBeams: THREE.Mesh[] = [];
 
     roster.forEach((agent, index) => {
@@ -437,15 +500,22 @@ export default function ThreeOffice({ agents, configuredAgents, gatewayOk }: Pro
       desk.userData.kind = "agentDesk";
       draggableObjects.push(desk);
       office.add(desk);
+      agentDesks.push(desk);
 
-      // Roaming avatar is the only agent visual. Labels/status follow the walker.
+      // Agent active => sits at their chair to work. Idle => stands/walks around.
       const walker = createPixelAvatar(accents[index % accents.length], agent.active);
       walker.scale.setScalar(0.74);
-      walker.position.set(-6.5 + index * 1.8, 0.18, index % 2 === 0 ? -0.75 : 0.85);
+      const chairWorld = desk.localToWorld(new THREE.Vector3(0.5, 0.18, 0.88));
+      office.worldToLocal(chairWorld);
+      const idleStart = new THREE.Vector3(-6.5 + index * 1.8, 0.18, index % 2 === 0 ? -0.75 : 0.85);
+      walker.position.copy(agent.active ? chairWorld : idleStart);
+      walker.rotation.y = agent.active ? desk.rotation.y + Math.PI : 0;
+      if (agent.active) setAvatarSittingPose(walker);
       walker.userData.walkSeed = index * 0.9;
       walker.userData.walkRadius = 1.1 + (index % 3) * 0.35;
       walker.userData.agentName = agent.name;
       walker.userData.active = agent.active;
+      walker.userData.desk = desk;
       office.add(walker);
       walkers.push(walker);
 
@@ -585,6 +655,17 @@ export default function ThreeOffice({ agents, configuredAgents, gatewayOk }: Pro
       controls.update();
 
       walkers.forEach((walker, i) => {
+        const active = Boolean(walker.userData.active);
+        const desk = walker.userData.desk as THREE.Group | undefined;
+        if (active && desk) {
+          const chairWorld = desk.localToWorld(new THREE.Vector3(0.5, 0.18, 0.88));
+          office.worldToLocal(chairWorld);
+          walker.position.lerp(chairWorld, 0.12);
+          walker.rotation.y = desk.rotation.y + Math.PI;
+          setAvatarSittingPose(walker);
+          return;
+        }
+
         const seed = walker.userData.walkSeed as number;
         const radius = walker.userData.walkRadius as number;
         const x = Math.sin(t * 0.32 + seed) * (radius + 2.0) + (i % 4 - 1.5) * 1.15;
@@ -601,10 +682,7 @@ export default function ThreeOffice({ agents, configuredAgents, gatewayOk }: Pro
         if (Math.abs(dx) + Math.abs(dz) > 0.0005) {
           walker.rotation.y = Math.atan2(dx, dz);
         }
-        const leftLeg = walker.getObjectByName("leftLeg");
-        const rightLeg = walker.getObjectByName("rightLeg");
-        if (leftLeg) leftLeg.rotation.x = Math.sin(t * 7 + i) * 0.55;
-        if (rightLeg) rightLeg.rotation.x = -Math.sin(t * 7 + i) * 0.55;
+        setAvatarStandingPose(walker, t, i);
       });
 
       activeBeams.forEach((beam, i) => {
