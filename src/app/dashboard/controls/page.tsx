@@ -176,6 +176,12 @@ export default function ControlsPage() {
     return logs.filter(l => l.agentId === selectedAgent || l.agent.toLowerCase().includes(selectedAgent.toLowerCase()));
   }, [logs, selectedAgent]);
 
+  // ThreeOffice intentionally mounts once so telemetry polling doesn't reset the
+  // user's camera/object interaction. Delay that first mount until telemetry has
+  // delivered at least one roster, otherwise the scene is born empty and stays
+  // empty by design.
+  const officeRosterReady = configuredAgents.length > 0 || agents.length > 0 || !loading;
+
   const freshnessText = lastUpdated
     ? new Date(lastUpdated).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
     : 'Never';
@@ -265,7 +271,13 @@ export default function ControlsPage() {
             <span className="px-2 py-1 rounded-full bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-300 border border-amber-200/70 dark:border-amber-400/20">{activeSessions} active sessions</span>
           </div>
         </div>
-        <ThreeOffice agents={agents} configuredAgents={configuredAgents} gatewayOk={telemetry.gatewayOk} />
+        {officeRosterReady ? (
+          <ThreeOffice agents={agents} configuredAgents={configuredAgents} gatewayOk={telemetry.gatewayOk} />
+        ) : (
+          <div className="h-[640px] w-full rounded-2xl overflow-hidden bg-[#f3f0e8] flex items-center justify-center text-xs font-semibold text-slate-400">
+            Loading 3D office roster...
+          </div>
+        )}
       </div>
 
       {/* ── Agents + Feed ── */}
