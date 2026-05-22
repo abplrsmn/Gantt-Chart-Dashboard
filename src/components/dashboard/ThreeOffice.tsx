@@ -118,16 +118,8 @@ function createDesk(accent: number, active: boolean) {
   addBox(desk, [0.12, 0.38, 0.12], [0.25, 0.14, 0.78], 0x374151);
   addBox(desk, [0.12, 0.38, 0.12], [0.75, 0.14, 0.78], 0x374151);
 
-  const avatar = createPixelAvatar(accent, active);
-  avatar.position.set(0.5, 0.18, 0.88);
-  avatar.rotation.y = Math.PI;
-  avatar.scale.set(0.9, 0.9, 0.9);
-  const leftLeg = avatar.getObjectByName("leftLeg");
-  const rightLeg = avatar.getObjectByName("rightLeg");
-  if (leftLeg) leftLeg.rotation.x = -0.95;
-  if (rightLeg) rightLeg.rotation.x = -0.95;
-  desk.add(avatar);
-  desk.userData.avatar = avatar;
+  // No seated avatar here. The roaming avatar is the single source of truth for
+  // each agent, so the office does not show duplicate standing + sitting people.
   desk.userData.active = active;
 
   return desk;
@@ -387,6 +379,18 @@ export default function ThreeOffice({ agents, configuredAgents, gatewayOk }: Pro
     leftWall.receiveShadow = true;
     office.add(leftWall);
 
+    // Low office storage scaled to the walking avatars.
+    const cabinet = new THREE.Group();
+    addBox(cabinet, [1.25, 1.0, 0.34], [0, 0.5, 0], 0x8b7355, "cabinetBody");
+    addBox(cabinet, [0.5, 0.08, 0.04], [-0.3, 0.72, 0.19], 0xe5d3b3, "cabinetHandle1");
+    addBox(cabinet, [0.5, 0.08, 0.04], [0.3, 0.42, 0.19], 0xe5d3b3, "cabinetHandle2");
+    cabinet.position.set(-7.45, 0, -4.75);
+    office.add(cabinet);
+
+    const sideCabinet = cabinet.clone(true);
+    sideCabinet.position.set(-7.45, 0, -3.35);
+    office.add(sideCabinet);
+
     const gateway = new THREE.Group();
     addBox(gateway, [1.25, 1.65, 1.25], [0, 0.95, 0], 0x020617, "gatewayCore");
     addBox(gateway, [0.8, 0.1, 0.08], [0, 1.35, 0.66], gatewayOk ? 0x34d399 : 0xef4444, "gatewayLed1");
@@ -418,47 +422,44 @@ export default function ThreeOffice({ agents, configuredAgents, gatewayOk }: Pro
       [-6.2, 0, 3.45], [-2.1, 0, 3.7], [2.1, 0, 3.7], [6.2, 0, 3.45],
     ];
     const accents = [0x3b82f6, 0x8b5cf6, 0x06b6d4, 0x10b981, 0xf59e0b, 0xd946ef, 0x6366f1, 0xf43f5e];
-    const animated: THREE.Group[] = [];
     const walkers: THREE.Group[] = [];
     const activeBeams: THREE.Mesh[] = [];
 
     roster.forEach((agent, index) => {
       const desk = createDesk(accents[index % accents.length], agent.active);
       desk.position.set(...positions[index]);
-      applySavedPosition(desk, savedLayout, `agent:${agent.id}`);
+      applySavedPosition(desk, savedLayout, `desk:${agent.id}`);
       desk.rotation.y = index < 4 ? 0 : Math.PI;
+      desk.scale.setScalar(0.68);
       desk.userData.agentName = agent.name;
       desk.userData.active = agent.active;
       desk.userData.homeY = desk.position.y;
       desk.userData.kind = "agentDesk";
       draggableObjects.push(desk);
-      addClawAsset(desk, "/claw3d-assets/models/furniture/desk.glb", [0, 0.5, -0.08], 0.78, [0, Math.PI, 0]);
-      addClawAsset(desk, "/claw3d-assets/models/furniture/chairDesk.glb", [0.58, 0.18, 0.9], 0.55, [0, Math.PI, 0]);
-      addClawAsset(desk, "/claw3d-assets/models/furniture/computerScreen.glb", [-0.32, 0.9, -0.34], 0.55, [0, Math.PI, 0]);
       office.add(desk);
-      animated.push(desk);
 
-      // Small roaming avatar so the office feels alive even when telemetry refreshes.
-      // It is separate from the draggable desk so user layout edits stay stable.
+      // Roaming avatar is the only agent visual. Labels/status follow the walker.
       const walker = createPixelAvatar(accents[index % accents.length], agent.active);
-      walker.scale.setScalar(0.52);
+      walker.scale.setScalar(0.74);
       walker.position.set(-6.5 + index * 1.8, 0.18, index % 2 === 0 ? -0.75 : 0.85);
       walker.userData.walkSeed = index * 0.9;
       walker.userData.walkRadius = 1.1 + (index % 3) * 0.35;
+      walker.userData.agentName = agent.name;
+      walker.userData.active = agent.active;
       office.add(walker);
       walkers.push(walker);
 
       const label = createLabel(agent.name);
-      label.position.set(0, 2.95, 0);
-      desk.add(label);
+      label.position.set(0, 2.25, 0);
+      walker.add(label);
 
       const statusLabel = createStatusLabel(agent.active ? "WORKING" : "STANDBY", agent.active ? "#fbbf24" : "#93c5fd");
-      statusLabel.position.set(0, 2.52, 0);
-      desk.add(statusLabel);
+      statusLabel.position.set(0, 1.95, 0);
+      walker.add(statusLabel);
 
       if (agent.active) {
-        const start = desk.position.clone().setY(1.45);
-        const end = gatewayPosition.clone().setY(1.45);
+        const start = walker.position.clone().setY(1.25);
+        const end = gatewayPosition.clone().setY(1.25);
         const mid = start.clone().lerp(end, 0.5);
         const length = start.distanceTo(end);
         const beam = new THREE.Mesh(
@@ -468,7 +469,7 @@ export default function ThreeOffice({ agents, configuredAgents, gatewayOk }: Pro
         beam.position.copy(mid);
         beam.lookAt(end);
         beam.name = "activeBeam";
-        beam.userData.source = desk;
+        beam.userData.source = walker;
         beam.userData.target = gateway;
         beam.userData.baseLength = length;
         office.add(beam);
@@ -582,20 +583,6 @@ export default function ThreeOffice({ agents, configuredAgents, gatewayOk }: Pro
       gateway.rotation.y = t * 0.32;
       cyan.intensity = 1.7 + Math.sin(t * 2.2) * 0.55;
       controls.update();
-
-      animated.forEach((desk, i) => {
-        const avatar = desk.userData.avatar as THREE.Group | undefined;
-        if (avatar) {
-          avatar.position.y = 0.45 + Math.sin(t * 2.6 + i) * 0.045;
-          const leftArm = avatar.getObjectByName("leftArm");
-          const rightArm = avatar.getObjectByName("rightArm");
-          if (leftArm) leftArm.rotation.x = Math.sin(t * 7 + i) * 0.35;
-          if (rightArm) rightArm.rotation.x = Math.cos(t * 7 + i) * 0.35;
-          const aura = avatar.getObjectByName("aura");
-          if (aura) aura.rotation.z = t * 1.7;
-          
-        }
-      });
 
       walkers.forEach((walker, i) => {
         const seed = walker.userData.walkSeed as number;
