@@ -766,7 +766,7 @@ export default function ProjectGanttDB() {
       {tooltip && (() => {
         const { seg, project: pr, phases, x, y } = tooltip;
         const TIP_W  = 320;
-        const TIP_H  = 285; // approximate tooltip height
+        const TIP_H  = 245; // approximate tooltip height
         const viewportW = typeof window !== "undefined" ? window.innerWidth : 1000;
         const viewportH = typeof window !== "undefined" ? window.innerHeight : 700;
         const margin = 12;
@@ -779,7 +779,6 @@ export default function ProjectGanttDB() {
         const displayName = pr.unit_code
           ? `${pr.unit_code} – ${pr.project_name.split(" - ").slice(1).join(" - ") || pr.project_name}`
           : pr.project_name;
-        const completeness = getPhaseCompleteness(phases);
         return (
           <div className="fixed z-999 pointer-events-none" style={{ left, top, width: TIP_W }}>
             <div
@@ -796,16 +795,8 @@ export default function ProjectGanttDB() {
                 <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: seg.color }}>Project Lifecycle</span>
               </div>
               <p className="text-[11px] font-semibold text-slate-800 dark:text-white leading-snug mb-1.5 line-clamp-2">{displayName}</p>
-              <div className="grid grid-cols-2 gap-2 text-[10px] text-slate-400 dark:text-white/55 mb-2">
+              <div className="text-[10px] text-slate-400 dark:text-white/55 mb-2">
                 <p>Range: <span className="font-semibold text-slate-600 dark:text-white/75">{format(seg.start, "dd MMM yy")} → {format(seg.end, "dd MMM yy")}</span></p>
-                <p className="text-right">Progress: <span className="font-semibold text-slate-600 dark:text-white/75">{Number(pr.overall_progress_pct ?? 0)}%</span></p>
-                {pr.scurve_target_progress !== null && (
-                  <p>S-Curve: <span className="font-semibold text-slate-600 dark:text-white/75">T {Number(pr.scurve_target_progress ?? 0).toFixed(2)}% / A {Number(pr.scurve_actual_progress ?? 0).toFixed(2)}%</span></p>
-                )}
-                <p>Status: <span className="font-semibold text-slate-600 dark:text-white/75">{pr.status_label ?? "—"}</span></p>
-                <p className={`text-right font-semibold ${completeness.missing > 0 ? "text-amber-500" : "text-emerald-500"}`}>
-                  {completeness.scheduled}/{completeness.total} phases scheduled
-                </p>
               </div>
               <div className="space-y-1.5 border-t border-slate-200/70 dark:border-white/8 pt-2">
                 {phases.map(ph => {
@@ -818,9 +809,11 @@ export default function ProjectGanttDB() {
                       </span>
                       <span className="flex-1 text-right font-mono text-slate-500 dark:text-white/55">
                         {fmtRange(ph.start, ph.end)}
-                        <span className="block font-sans text-[9px] text-slate-400 dark:text-white/40 truncate">
-                          {ph.pic ? `PIC: ${ph.pic}` : `Progress: ${ph.progress || 0}%`}
-                        </span>
+                        {ph.pic && (
+                          <span className="block font-sans text-[9px] text-slate-400 dark:text-white/40 truncate">
+                            PIC: {ph.pic}
+                          </span>
+                        )}
                       </span>
                     </div>
                   );
