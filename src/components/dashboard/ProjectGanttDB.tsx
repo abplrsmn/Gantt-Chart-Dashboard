@@ -579,7 +579,7 @@ export default function ProjectGanttDB() {
 
   if (loading) return (
     <div className="flex items-center justify-center h-48 text-slate-500 dark:text-slate-400 text-sm gap-2">
-      <div className="w-4 h-4 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin" />
+      <div className="w-4 h-4 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: "var(--brand-sienna)", borderTopColor: "transparent" }} />
       Loading...
     </div>
   );
@@ -602,7 +602,7 @@ export default function ProjectGanttDB() {
               className="w-full rounded-xl border border-slate-200/70 dark:border-white/10 bg-white/70 dark:bg-zinc-900/60 pl-8 pr-3 py-2 text-[12px] outline-none text-slate-800 dark:text-white"
             />
           </label>
-          <span className="shrink-0 text-[11px] font-bold text-cyan-600 dark:text-cyan-400 bg-cyan-500/10 border border-cyan-500/20 px-2.5 py-1.5 rounded-lg whitespace-nowrap">
+          <span className="shrink-0 text-[11px] font-bold px-2.5 py-1.5 rounded-lg whitespace-nowrap" style={{ color: "var(--brand-mahogany)", background: "rgba(59,35,21,0.08)", border: "1px solid rgba(59,35,21,0.15)" }}>
             {rangeSummary ? rangeSummary.totalActiveProjects : 0} ongoing
           </span>
           <button
@@ -614,7 +614,7 @@ export default function ProjectGanttDB() {
             }}
             className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all whitespace-nowrap ${
               rangeSummary
-                ? "bg-cyan-500 hover:bg-cyan-400 text-white shadow-sm shadow-cyan-500/20 cursor-pointer"
+                ? "text-white shadow-sm cursor-pointer glass-btn-primary"
                 : "bg-slate-200 dark:bg-zinc-700 text-slate-400 dark:text-zinc-500 cursor-not-allowed"
             }`}
           >
@@ -624,7 +624,7 @@ export default function ProjectGanttDB() {
         <DateRangePicker value={dateRange} onChange={handleDateRangeChange} />
         <button
           onClick={() => router.push("/dashboard/projects/summary-matrix")}
-          className="shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-[11px] font-bold transition-all whitespace-nowrap bg-emerald-500 hover:bg-emerald-400 text-white shadow-sm shadow-emerald-500/20"
+          className="shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-[11px] font-bold transition-all whitespace-nowrap text-white glass-btn-primary"
         >
           Summary <ArrowRight size={11} />
         </button>
@@ -688,7 +688,7 @@ export default function ProjectGanttDB() {
                 toolMode === mode
                   ? mode === "delete"
                     ? "bg-rose-500 text-white shadow-sm"
-                    : "bg-white dark:bg-zinc-800 text-cyan-600 dark:text-cyan-400 shadow-sm"
+                    : "bg-white dark:bg-zinc-800 shadow-sm" + " text-brand-mahogany"
                   : "text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300"
               }`}
             >
@@ -769,7 +769,8 @@ export default function ProjectGanttDB() {
               {/* Date range overlay block */}
               {rangeRulers && (
                 <div
-                  className="absolute top-0 bottom-0 z-0 pointer-events-none border-t-[3px] border-cyan-400 bg-cyan-400/10"
+                  className="absolute top-0 bottom-0 z-0 pointer-events-none border-t-[3px]"
+                  style={{ borderColor: "var(--brand-sand)", background: "rgba(196,149,106,0.08)" }}
                   style={{
                     left: `${(rangeRulers.startPct / 100) * totalWidth}px`,
                     width: `${((rangeRulers.endPct - rangeRulers.startPct) / 100) * totalWidth}px`,
@@ -905,11 +906,6 @@ export default function ProjectGanttDB() {
                             }}
                             onMouseLeave={() => { if (!dragRef.current) setTooltip(null); }}
                           >
-                            {/* Progress fill */}
-                            <div
-                              className="absolute left-0 top-0 bottom-0 rounded-l-md pointer-events-none"
-                              style={{ width: `${seg.progress}%`, backgroundColor: "rgba(255,255,255,0.22)" }}
-                            />
                             {/* Phase label */}
                             {width > 44 && (
                               <span className="absolute inset-0 flex items-center justify-center text-[8px] font-bold text-white/90 truncate px-2 pointer-events-none">

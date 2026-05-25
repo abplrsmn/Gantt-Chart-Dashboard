@@ -58,8 +58,9 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const user = await getAuthUserFromCookie();
   const changedByName = user?.fullName ?? user?.email ?? "Unknown";
 
-  const client = await pool.connect();
+  let client;
   try {
+    client = await pool.connect();
     // Fetch old value before update
     let oldValue: string | null = null;
     if (map.table === "projects") {
@@ -104,14 +105,15 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     const msg = err instanceof Error ? err.message : String(err);
     return NextResponse.json({ success: false, error: msg }, { status: 500 });
   } finally {
-    client.release();
+    client?.release();
   }
 }
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const client = await pool.connect();
+  let client;
   try {
+    client = await pool.connect();
     const [projectRes, peopleRes, logsRes, attachmentsRes] = await Promise.all([
       client.query(`
         SELECT
@@ -232,6 +234,6 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     const msg = err instanceof Error ? err.message : String(err);
     return NextResponse.json({ success: false, error: msg }, { status: 500 });
   } finally {
-    client.release();
+    client?.release();
   }
 }

@@ -32,7 +32,22 @@
       "Bash(pdflatex -interaction=nonstopmode MAGANG.tex)",
       "Bash(bibtex MAGANG)",
       "Bash(npm run *)",
-      "Bash(npm install *)"
+      "Bash(npm install *)",
+      "Bash(unzip -l Design-system.zip)",
+      "Bash(unzip -p Design-system.zip README.md)",
+      "Bash(unzip -p Design-system.zip 01-colors.md)",
+      "Bash(unzip -p Design-system.zip 04-css-classes.md)",
+      "Bash(unzip -p Design-system.zip 05-components.md)",
+      "Bash(unzip -p Design-system.zip 06-patterns.md)",
+      "Bash(cat tailwind.config.ts)",
+      "Bash(cat tailwind.config.js)",
+      "Bash(cat postcss.config.*)",
+      "Bash(ls *.config.*)",
+      "Bash(unzip -p Design-system.zip 08-states.md)",
+      "Bash(unzip -p Design-system.zip 09-animations.md)",
+      "Bash(cd \"c:\\\\Users\\\\abrah\\\\Work_Projects\\\\Project-Dashboard\" && find /c/Users/abrah -maxdepth 4 -iname \"*aryaduta*\" 2>/dev/null | head -20)",
+      "Read(//c/Users/abrah/**)",
+      "Bash(node -e \"require\\('sharp'\\)\")"
     ],
     "additionalDirectories": [
       "C:\\Users\\abrah\\clickup-dashboard\\src\\app\\api\\clickup",

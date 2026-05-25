@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { Home, Users, Activity, AlertTriangle, Menu, ChevronRight, Server, CalendarRange } from "lucide-react";
+import { Home, Users, AlertTriangle, Menu, ChevronRight, Server, CalendarRange } from "lucide-react";
 import { useTheme } from "@/components/ThemeProvider";
 import QuickMenu from "@/components/dashboard/QuickMenu";
 
@@ -51,14 +51,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
             {/* Logo */}
             <div className="flex items-center gap-2.5 shrink-0 absolute left-1/2 -translate-x-1/2 md:static md:translate-x-0">
-              <div className="w-8 h-8 bg-linear-to-tr from-blue-500 to-purple-600 rounded-lg flex items-center justify-center text-white shadow shrink-0">
-                <Activity size={15} />
+              <div className="w-10 h-10 rounded-xl overflow-hidden shrink-0 flex items-center justify-center">
+                <img src="/aryaduta_logo.png" alt="Aryaduta" className="w-full h-full object-contain" />
               </div>
               <div>
-                <h1 className="text-sm font-bold leading-tight bg-linear-to-r from-blue-600 to-purple-500 dark:from-blue-400 dark:to-purple-300 bg-clip-text text-transparent tracking-wider">
-                  PROJECT DASHBOARD
+                <h1 className="text-sm font-bold leading-tight tracking-wider text-slate-800 dark:text-slate-100">
+                  ARYADUTA DASHBOARD
                 </h1>
-                <div className="text-[10px] text-slate-400 dark:text-slate-500">Aryaduta's Dashboard Monitor</div>
               </div>
             </div>
 
@@ -100,10 +99,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         >
           <div className="px-4 py-4 flex items-center border-b border-slate-200/40 dark:border-white/5">
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 bg-linear-to-tr from-blue-500 to-purple-600 rounded-lg flex items-center justify-center text-white shadow shrink-0">
-                <Activity size={15} />
+              <div className="w-10 h-10 rounded-xl overflow-hidden shrink-0 flex items-center justify-center">
+                <img src="/aryaduta_logo.png" alt="Aryaduta" className="w-full h-full object-contain" />
               </div>
-              <h1 className="text-sm font-bold bg-linear-to-r from-blue-600 to-purple-500 dark:from-blue-400 dark:to-purple-300 bg-clip-text text-transparent tracking-wider">
+              <h1 className="text-sm font-bold tracking-wider text-slate-800 dark:text-slate-100">
                 PROJECT DASHBOARD
               </h1>
             </div>
@@ -146,7 +145,7 @@ function TopNavItem({ icon, label, active, onClick }: {
       onClick={onClick}
       className={`relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 ${
         active
-          ? "bg-blue-500/15 dark:bg-blue-400/20 text-blue-600 dark:text-blue-400 shadow-sm ring-1 ring-blue-500/20 dark:ring-blue-400/20"
+          ? "glass-nav-active shadow-sm"
           : "text-slate-500 dark:text-slate-400 hover:bg-white/50 dark:hover:bg-white/10 hover:text-slate-700 dark:hover:text-slate-200"
       }`}
     >
@@ -164,7 +163,7 @@ function DrawerNavItem({ icon, label, active, onClick }: {
       onClick={onClick}
       className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl relative transition-all duration-200 ${
         active
-          ? "bg-blue-500/15 dark:bg-blue-400/20 text-blue-600 dark:text-blue-400 shadow-sm ring-1 ring-blue-500/20 dark:ring-blue-400/20"
+          ? "glass-nav-active shadow-sm"
           : "text-slate-500 dark:text-slate-400 hover:bg-white/40 dark:hover:bg-white/10 hover:text-slate-700 dark:hover:text-slate-200"
       }`}
     >

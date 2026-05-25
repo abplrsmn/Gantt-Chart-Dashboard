@@ -16,8 +16,9 @@ export async function GET(req: Request, { params }: { params: Params }) {
   const offset  = (page - 1) * limit;
 
   const pool = getDbPool();
-  const client = await pool.connect();
+  let client;
   try {
+    client = await pool.connect();
     const conditions: string[] = ["project_id = $1"];
     const values: unknown[]    = [id];
 
@@ -55,7 +56,7 @@ export async function GET(req: Request, { params }: { params: Params }) {
     const msg = err instanceof Error ? err.message : String(err);
     return NextResponse.json({ success: false, error: msg }, { status: 500 });
   } finally {
-    client.release();
+    client?.release();
   }
 }
 
@@ -117,8 +118,9 @@ export async function POST(req: Request, { params }: { params: Params }) {
   const changed_by_name = bodyName ?? user?.fullName ?? user?.email ?? "System";
 
   const pool = getDbPool();
-  const client = await pool.connect();
+  let client;
   try {
+    client = await pool.connect();
     const res = await client.query(
       `INSERT INTO project_change_logs
          (project_id, field_name, old_value, new_value, change_summary, changed_by_name, action_type, created_at)
@@ -132,6 +134,6 @@ export async function POST(req: Request, { params }: { params: Params }) {
     const msg = err instanceof Error ? err.message : String(err);
     return NextResponse.json({ success: false, error: msg }, { status: 500 });
   } finally {
-    client.release();
+    client?.release();
   }
 }

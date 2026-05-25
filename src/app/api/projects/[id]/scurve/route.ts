@@ -20,8 +20,9 @@ export async function GET(
   const projectId = Number(id);
   if (!projectId) return NextResponse.json({ success: false, error: "Invalid project id" }, { status: 400 });
 
-  const client = await pool.connect();
+  let client;
   try {
+    client = await pool.connect();
     await client.query("SET jit = off");
 
     const phaseCheck = await client.query<{ current_phase_code: string | null }>(`
@@ -263,6 +264,6 @@ export async function GET(
     const msg = err instanceof Error ? err.message : String(err);
     return NextResponse.json({ success: false, error: msg }, { status: 500 });
   } finally {
-    client.release();
+    client?.release();
   }
 }

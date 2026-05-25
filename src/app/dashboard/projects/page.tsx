@@ -130,7 +130,7 @@ export default function ProjectsPage() {
             <button
               onClick={handleViewDetails}
               disabled={loading || matchedProjects.length === 0}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-bold transition-all shadow-md shadow-cyan-500/20 hover:shadow-cyan-400/30"
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-bold transition-all glass-btn-primary"
             >
               Details
               <ArrowRight size={15} />
@@ -149,10 +149,10 @@ export default function ProjectsPage() {
       {!hasRange && !loading && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {[
-            { label: "Total Projects", value: projects.length, color: "text-cyan-500" },
-            { label: "Active", value: projects.filter(p => (Number(p.overall_progress_pct) ?? 0) < 95).length, color: "text-blue-500" },
-            { label: "Units", value: new Set(projects.map(p => p.unit_code).filter(Boolean)).size, color: "text-purple-500" },
-            { label: "Completed", value: projects.filter(p => (Number(p.overall_progress_pct) ?? 0) >= 95).length, color: "text-green-500" },
+            { label: "Total Projects", value: projects.length, color: "text-brand-espresso" },
+            { label: "Active", value: projects.filter(p => (Number(p.overall_progress_pct) ?? 0) < 95).length, color: "text-brand-mahogany" },
+            { label: "Units", value: new Set(projects.map(p => p.unit_code).filter(Boolean)).size, color: "text-brand-sienna" },
+            { label: "Completed", value: projects.filter(p => (Number(p.overall_progress_pct) ?? 0) >= 95).length, color: "text-growth-green" },
           ].map(s => (
             <div key={s.label} className="glass-card p-4">
               <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>

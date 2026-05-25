@@ -1,17 +1,17 @@
 import type { Metadata } from "next";
-import { Roboto } from "next/font/google";
+import { Inter } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/ThemeProvider";
 
-const roboto = Roboto({
-  weight: ["300", "400", "500", "700"],
+const inter = Inter({
+  weight: ["400", "500", "600", "700", "800", "900"],
   subsets: ["latin"],
-  variable: "--font-roboto",
+  variable: "--font-inter",
 });
 
 export const metadata: Metadata = {
-  title: "Project Dashboard",
-  description: "Project Management Dashboard",
+  title: "Aryaduta Dashboard",
+  description: "Aryaduta Group Project Management Dashboard",
 };
 
 export default function RootLayout({
@@ -30,7 +30,7 @@ export default function RootLayout({
         />
       </head>
       <body
-        className={`${roboto.variable} antialiased bg-gray-50 dark:bg-slate-900 text-gray-900 dark:text-gray-100 transition-colors duration-500`}
+        className={`${inter.variable} antialiased bg-slab-bg dark:bg-slate-900 text-slate-900 dark:text-gray-100 transition-colors duration-500`}
       >
         <ThemeProvider>
           {children}

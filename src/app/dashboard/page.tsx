@@ -171,7 +171,7 @@ export default function DashboardHome() {
             <span className="text-3xl font-bold text-slate-800 dark:text-white">
               {loading ? "..." : activeProjects.length}
             </span>
-            <div className="p-2 bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-lg">
+            <div className="p-2 rounded-lg" style={{ background: "rgba(59,35,21,0.08)", color: "var(--brand-mahogany)" }}>
               <TrendingUp size={18} />
             </div>
           </div>
@@ -193,7 +193,7 @@ export default function DashboardHome() {
         <div className="glass-card flex-1 min-w-0 p-5 flex flex-col justify-between overflow-hidden relative min-h-27">
           <div className="flex justify-between items-start mb-2">
             <span className="text-3xl font-bold text-slate-800 dark:text-white">0</span>
-            <div className="p-2 bg-purple-500/10 text-purple-600 dark:text-purple-400 rounded-lg">
+            <div className="p-2 rounded-lg" style={{ background: "rgba(155,107,71,0.10)", color: "var(--brand-sienna)" }}>
               <Users size={18} />
             </div>
           </div>
@@ -205,7 +205,7 @@ export default function DashboardHome() {
             <span className="text-3xl font-bold text-slate-800 dark:text-white">
               {loading ? "..." : uniqueUnits.length}
             </span>
-            <div className="p-2 bg-cyan-500/15 text-cyan-700 dark:text-cyan-300 rounded-lg">
+            <div className="p-2 rounded-lg" style={{ background: "rgba(196,149,106,0.15)", color: "var(--brand-sand)" }}>
               <Building2 size={18} />
             </div>
           </div>
@@ -215,7 +215,7 @@ export default function DashboardHome() {
         <div className="glass-card flex-1 min-w-0 p-5 flex flex-col justify-between overflow-hidden relative min-h-27">
           <div className="flex justify-between items-start mb-2">
             <span className="text-3xl font-bold text-slate-800 dark:text-white">0</span>
-            <div className="p-2 bg-fuchsia-500/10 text-fuchsia-600 dark:text-fuchsia-400 rounded-lg">
+            <div className="p-2 rounded-lg" style={{ background: "rgba(59,35,21,0.08)", color: "var(--brand-espresso)" }}>
               <Network size={18} />
             </div>
           </div>
@@ -227,7 +227,7 @@ export default function DashboardHome() {
       <div className="glass-card p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 overflow-hidden relative">
         <div className="absolute -top-6 -right-6 w-24 h-24 bg-blue-500/5 dark:bg-blue-500/10 rounded-full blur-2xl pointer-events-none" />
         <div className="flex items-center gap-3 relative z-10">
-          <div className="p-2 bg-linear-to-br from-amber-400/20 to-blue-500/20 text-amber-500 dark:text-amber-400 rounded-xl border border-amber-500/20">
+          <div className="p-2 rounded-xl border" style={{ background: "rgba(196,149,106,0.15)", color: "var(--brand-sand)", borderColor: "rgba(196,149,106,0.30)" }}>
             <Star size={18} />
           </div>
           <div>
@@ -246,8 +246,8 @@ export default function DashboardHome() {
         {/* Overall Performance */}
         <section className="glass-card p-5 xl:col-span-1">
           <div className="flex items-center gap-2.5 mb-4">
-            <div className="w-1 h-4 bg-linear-to-b from-blue-500 to-indigo-600 rounded-full shrink-0" />
-            <PieChart size={14} className="text-blue-500" />
+            <div className="w-1 h-4 rounded-full shrink-0" style={{ background: "var(--brand-espresso)" }} />
+            <PieChart size={14} style={{ color: "var(--brand-mahogany)" }} />
             <h3 className="text-base font-bold text-slate-700 dark:text-gray-200">Overall Performance</h3>
           </div>
           <div className="flex justify-center items-center h-64">
@@ -260,9 +260,9 @@ export default function DashboardHome() {
                       {
                         label: "Avg Progress (%)",
                         data: overallPerformanceData.values,
-                        borderColor: "#4f46e5",
-                        backgroundColor: "rgba(79,70,229,0.14)",
-                        pointBackgroundColor: "#4f46e5",
+                        borderColor: "#6B3A2A",
+                        backgroundColor: "rgba(107,58,42,0.12)",
+                        pointBackgroundColor: "#6B3A2A",
                         pointBorderColor: "#ffffff",
                         pointRadius: 4,
                         pointHoverRadius: 5,
@@ -311,7 +311,7 @@ export default function DashboardHome() {
         {/* Completed Projects */}
         <section className="glass-card p-5 flex flex-col xl:col-span-1">
           <div className="flex items-center gap-2.5 mb-3 shrink-0">
-            <div className="w-1 h-4 bg-linear-to-b from-green-500 to-emerald-600 rounded-full shrink-0" />
+            <div className="w-1 h-4 rounded-full shrink-0 bg-growth-green" />
             <CheckCircle2 size={14} className="text-green-500" />
             <h3 className="text-base font-bold text-slate-700 dark:text-gray-200">Completed Projects</h3>
           </div>
@@ -346,8 +346,8 @@ export default function DashboardHome() {
         {/* Latest Reminder */}
         <section className="glass-card p-5 flex flex-col xl:col-span-1">
           <div className="flex items-center gap-2.5 mb-3 shrink-0">
-            <div className="w-1 h-4 bg-linear-to-b from-violet-500 to-fuchsia-600 rounded-full shrink-0" />
-            <AlertCircle size={14} className="text-violet-500" />
+            <div className="w-1 h-4 rounded-full shrink-0" style={{ background: "var(--brand-sienna)" }} />
+            <AlertCircle size={14} style={{ color: "var(--brand-sienna)" }} />
             <h3 className="text-base font-bold text-slate-700 dark:text-gray-200">Latest Reminder Summary</h3>
           </div>
           <div className="flex-1 min-h-90 rounded-2xl border border-slate-200/60 dark:border-white/10 bg-white/30 dark:bg-zinc-900/20 p-4 overflow-hidden">
@@ -359,12 +359,12 @@ export default function DashboardHome() {
               <div className="flex h-full flex-col">
                 <div className="flex flex-wrap items-center gap-2 mb-3">
                   {latestReminder.role_name && (
-                    <span className="rounded-full bg-violet-500/10 px-2.5 py-1 text-[11px] font-semibold text-violet-700 dark:text-violet-300">
+                    <span className="rounded-full px-2.5 py-1 text-[11px] font-semibold" style={{ background: "rgba(59,35,21,0.08)", color: "var(--brand-mahogany)" }}>
                       {latestReminder.role_name}
                     </span>
                   )}
                   {latestReminder.unit_code && (
-                    <span className="rounded-full bg-cyan-500/10 px-2.5 py-1 text-[11px] font-semibold text-cyan-700 dark:text-cyan-300">
+                    <span className="rounded-full px-2.5 py-1 text-[11px] font-semibold" style={{ background: "rgba(196,149,106,0.15)", color: "var(--brand-sienna)" }}>
                       {latestReminder.unit_code}
                     </span>
                   )}
@@ -398,8 +398,8 @@ export default function DashboardHome() {
       {/* Active Projects list */}
       <section className="glass-card p-5">
         <div className="flex items-center gap-2.5 mb-3">
-          <div className="w-1 h-4 bg-linear-to-b from-indigo-500 to-blue-600 rounded-full shrink-0" />
-          <LayoutList size={14} className="text-indigo-500" />
+          <div className="w-1 h-4 rounded-full shrink-0" style={{ background: "var(--brand-espresso)" }} />
+          <LayoutList size={14} style={{ color: "var(--brand-espresso)" }} />
           <h3 className="text-base font-bold text-slate-700 dark:text-gray-200">Active Projects</h3>
         </div>
         <div className="space-y-2 max-h-105 overflow-y-auto overflow-x-hidden pr-1 scrollbar-border min-w-0">
@@ -412,7 +412,7 @@ export default function DashboardHome() {
                 className="flex items-center justify-between p-4 rounded-xl bg-white/30 dark:bg-zinc-800/30 border border-transparent hover:border-slate-200/50 dark:hover:border-white/10 hover:bg-white/50 dark:hover:bg-zinc-800/50 transition-all"
               >
                 <div className="flex items-center gap-3 overflow-hidden flex-1">
-                  <div className="w-8 h-8 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+                  <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0" style={{ background: "rgba(59,35,21,0.08)", color: "var(--brand-mahogany)" }}>
                     <TrendingUp size={14} />
                   </div>
                   <div className="truncate pr-4">

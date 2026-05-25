@@ -278,6 +278,8 @@ export default function AuditLogPage() {
         setLogs(json.data);
         setMeta(json.meta);
       }
+    } catch {
+      // Network error or non-JSON response; logs stay empty
     } finally {
       setLoading(false);
     }
