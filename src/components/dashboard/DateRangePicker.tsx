@@ -206,18 +206,20 @@ export default function DateRangePicker({ value, onChange }: Props) {
                 className={`
                   h-8 flex items-center justify-center select-none
                   ${disabled ? "opacity-10" : "cursor-pointer"}
-                  ${inR && !isS && !isE ? "bg-cyan-500/12" : ""}
+                  ${inR && !isS && !isE ? "bg-brand-sienna/12" : ""}
                   ${isS && isE ? "" : isS ? "rounded-l-full" : isE ? "rounded-r-full" : ""}
                 `}
               >
                 <span className={`
                   w-7 h-7 flex items-center justify-center rounded-full text-[11px] font-medium transition-colors
-                  ${isS || isE   ? "bg-cyan-500 text-white font-bold shadow-md shadow-cyan-500/40"
-                  : inR          ? "text-cyan-600 dark:text-cyan-300"
-                  : isTod        ? "ring-1 ring-cyan-500/70 dark:ring-cyan-400/70 text-cyan-500 dark:text-cyan-400"
+                  ${isS || isE   ? "bg-brand-sienna text-white font-bold"
+                  : inR          ? "text-brand-sienna dark:text-brand-sand"
+                  : isTod        ? "ring-1 ring-brand-sienna/70 text-brand-sienna"
                   : inMon        ? "text-slate-600 dark:text-white/65 hover:bg-slate-100 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white"
                   :                "text-slate-300 dark:text-white/20"}
-                `}>
+                `}
+                  style={isS || isE ? { boxShadow: "0 4px 8px rgba(155,107,71,0.40)" } : undefined}
+                >
                   {format(day, "d")}
                 </span>
               </div>
@@ -236,7 +238,7 @@ export default function DateRangePicker({ value, onChange }: Props) {
             onClick={() => { onPick(dfSetMonth(m, idx)); onClose(); }}
             className={`py-2 rounded-lg text-[11px] font-semibold transition-colors ${
               m.getMonth() === idx
-                ? "bg-cyan-500 text-white"
+                ? "bg-brand-sienna text-white"
                 : "text-slate-500 dark:text-white/60 hover:bg-slate-100 dark:hover:bg-white/8 hover:text-slate-800 dark:hover:text-white"
             }`}
           >{name}</button>
@@ -253,7 +255,7 @@ export default function DateRangePicker({ value, onChange }: Props) {
             onClick={() => { onPick(dfSetYear(m, yr)); onClose(); }}
             className={`py-2 rounded-lg text-[11px] font-semibold transition-colors ${
               m.getFullYear() === yr
-                ? "bg-cyan-500 text-white"
+                ? "bg-brand-sienna text-white"
                 : "text-slate-500 dark:text-white/60 hover:bg-slate-100 dark:hover:bg-white/8 hover:text-slate-800 dark:hover:text-white"
             }`}
           >{yr}</button>
@@ -274,13 +276,13 @@ export default function DateRangePicker({ value, onChange }: Props) {
         <button onClick={() => setMode(mode === "month" ? "calendar" : "month")}
           className={`text-[12px] font-bold px-2 py-0.5 rounded-lg transition-colors ${
             mode === "month"
-              ? "bg-cyan-500/20 text-cyan-500 dark:text-cyan-400"
+              ? "bg-brand-sienna/20 text-brand-sienna"
               : "text-slate-700 dark:text-white/80 hover:bg-slate-100 dark:hover:bg-white/8 hover:text-slate-900 dark:hover:text-white"
           }`}>{format(m, "MMM")}</button>
         <button onClick={() => setMode(mode === "year" ? "calendar" : "year")}
           className={`text-[12px] font-bold px-2 py-0.5 rounded-lg transition-colors ${
             mode === "year"
-              ? "bg-cyan-500/20 text-cyan-500 dark:text-cyan-400"
+              ? "bg-brand-sienna/20 text-brand-sienna"
               : "text-slate-700 dark:text-white/80 hover:bg-slate-100 dark:hover:bg-white/8 hover:text-slate-900 dark:hover:text-white"
           }`}>{format(m, "yyyy")}</button>
       </div>
@@ -299,11 +301,11 @@ export default function DateRangePicker({ value, onChange }: Props) {
         onClick={handleOpen}
         className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-sm transition-all whitespace-nowrap ${
           open
-            ? "border-cyan-500/60 bg-cyan-500/10 text-cyan-400"
-            : "border-slate-200/70 dark:border-white/10 bg-white/70 dark:bg-zinc-900/60 text-slate-600 dark:text-slate-300 hover:border-cyan-400/50"
+            ? "border-brand-sienna/60 bg-brand-sienna/10 text-brand-sienna"
+            : "border-slate-200/70 dark:border-white/10 bg-white/70 dark:bg-zinc-900/60 text-slate-600 dark:text-slate-300 hover:border-slate-300 dark:hover:border-white/20 hover:bg-white dark:hover:bg-zinc-900/80"
         }`}
       >
-        <CalendarRange size={14} className={open ? "text-cyan-400" : "text-slate-400"} />
+        <CalendarRange size={14} className={open ? "text-brand-sienna" : "text-slate-400"} />
         <span className="text-[12px] font-medium">{labelText}</span>
         {(committedStart || committedEnd) && (
           <span
@@ -342,7 +344,7 @@ export default function DateRangePicker({ value, onChange }: Props) {
                 step === "end"
                   ? "border-slate-100 dark:border-white/5 bg-slate-50/50 dark:bg-white/2 opacity-50 cursor-not-allowed"
                   : step === "start"
-                    ? "border-cyan-500/60 bg-cyan-500/8 ring-1 ring-cyan-500/20 cursor-pointer"
+                    ? "border-brand-sienna/60 bg-brand-sienna/8 ring-1 ring-brand-sienna/20 cursor-pointer"
                     : "border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/4 hover:border-slate-300 dark:hover:border-white/20 cursor-pointer"
               }`}
             >
@@ -363,7 +365,7 @@ export default function DateRangePicker({ value, onChange }: Props) {
                 !draftStart
                   ? "border-slate-100 dark:border-white/5 bg-slate-50/50 dark:bg-white/2 opacity-40 cursor-not-allowed"
                   : step === "end"
-                    ? "border-cyan-500/60 bg-cyan-500/8 ring-1 ring-cyan-500/20 cursor-pointer"
+                    ? "border-brand-sienna/60 bg-brand-sienna/8 ring-1 ring-brand-sienna/20 cursor-pointer"
                     : "border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/4 hover:border-slate-300 dark:hover:border-white/20 cursor-pointer"
               }`}
             >
@@ -380,15 +382,15 @@ export default function DateRangePicker({ value, onChange }: Props) {
         {/* ── Quick presets ── */}
         <div className="px-4 py-2 border-b border-slate-200 dark:border-white/6 flex items-center gap-1">
           <button onClick={handleToday}
-            className="text-[11px] font-semibold text-slate-500 dark:text-white/50 hover:text-cyan-500 dark:hover:text-cyan-400 hover:bg-cyan-500/10 px-2.5 py-1.5 rounded-lg transition-colors">
+            className="text-[11px] font-semibold text-slate-500 dark:text-white/50 hover:text-brand-sienna hover:bg-brand-sienna/10 px-2.5 py-1.5 rounded-lg transition-colors">
             Today
           </button>
           <button onClick={handleThisWeek}
-            className="text-[11px] font-semibold text-slate-500 dark:text-white/50 hover:text-cyan-500 dark:hover:text-cyan-400 hover:bg-cyan-500/10 px-2.5 py-1.5 rounded-lg transition-colors">
+            className="text-[11px] font-semibold text-slate-500 dark:text-white/50 hover:text-brand-sienna hover:bg-brand-sienna/10 px-2.5 py-1.5 rounded-lg transition-colors">
             This Week
           </button>
           <button onClick={handleThisMonth}
-            className="text-[11px] font-semibold text-slate-500 dark:text-white/50 hover:text-cyan-500 dark:hover:text-cyan-400 hover:bg-cyan-500/10 px-2.5 py-1.5 rounded-lg transition-colors">
+            className="text-[11px] font-semibold text-slate-500 dark:text-white/50 hover:text-brand-sienna hover:bg-brand-sienna/10 px-2.5 py-1.5 rounded-lg transition-colors">
             This Month
           </button>
         </div>
@@ -444,8 +446,8 @@ export default function DateRangePicker({ value, onChange }: Props) {
               onClick={handleApply}
               disabled={!draftStart || !draftEnd}
               className={`px-4 py-1.5 rounded-lg text-[11px] font-bold transition-all disabled:opacity-30 disabled:cursor-not-allowed
-                bg-cyan-500 text-white hover:bg-cyan-400 shadow-sm shadow-cyan-500/30
-                ${isDirty ? "ring-2 ring-cyan-400/40" : ""}
+                bg-brand-sienna text-white hover:bg-brand-mahogany shadow-sm
+                ${isDirty ? "ring-2 ring-brand-sienna/40" : ""}
               `}
             >
               Apply

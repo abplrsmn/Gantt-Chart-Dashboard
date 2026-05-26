@@ -47,7 +47,9 @@
       "Bash(unzip -p Design-system.zip 09-animations.md)",
       "Bash(cd \"c:\\\\Users\\\\abrah\\\\Work_Projects\\\\Project-Dashboard\" && find /c/Users/abrah -maxdepth 4 -iname \"*aryaduta*\" 2>/dev/null | head -20)",
       "Read(//c/Users/abrah/**)",
-      "Bash(node -e \"require\\('sharp'\\)\")"
+      "Bash(node -e \"require\\('sharp'\\)\")",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\abrah\\\\Work_Projects\\\\Project-Dashboard\\\\src\" -Recurse -Directory)",
+      "Bash(Select-Object -ExpandProperty FullName)"
     ],
     "additionalDirectories": [
       "C:\\Users\\abrah\\clickup-dashboard\\src\\app\\api\\clickup",
