@@ -4,10 +4,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { differenceInCalendarDays, format, addDays, isValid, startOfWeek, endOfWeek, addWeeks, startOfMonth, endOfMonth } from "date-fns";
-import { Search, ArrowRight, MousePointer2, Move, Trash2 } from "lucide-react";
+import { Search, ArrowRight, MousePointer2, Move, Trash2, Plus } from "lucide-react";
 import DateRangePicker from "./DateRangePicker";
 import AnimatedDropdown from "./AnimatedDropdown";
 import QuickMenu from "./QuickMenu";
+import AddProjectModal from "./AddProjectModal";
 
 function getRoleFromCookie(): string {
   if (typeof document === "undefined") return "admin";
@@ -283,9 +284,10 @@ function getPhaseCompleteness(phases: PhaseDateInfo[]) {
 export default function ProjectGanttDB() {
   const router = useRouter();
   const containerRef = useRef<HTMLDivElement>(null);
-  const [projects, setProjects] = useState<DBProject[]>([]);
-  const [loading, setLoading]   = useState(true);
-  const [error, setError]       = useState<string | null>(null);
+  const [projects, setProjects]       = useState<DBProject[]>([]);
+  const [loading, setLoading]         = useState(true);
+  const [error, setError]             = useState<string | null>(null);
+  const [showAddModal, setShowAddModal] = useState(false);
   const [search, setSearch]     = useState("");
   const [userRole, setUserRole]             = useState<string>("");
   const [priorityFilter, setPriorityFilter] = useState("ALL");
@@ -303,7 +305,6 @@ export default function ProjectGanttDB() {
     setDateRange(range);
     try { localStorage.setItem(dateRangeKey(), JSON.stringify(range)); } catch { /* ignore */ }
   };
-  const [unitFilter, setUnitFilter]         = useState<string>("");
   const [tooltip, setTooltip] = useState<{
     seg: BarTooltipSegment; project: DBProject; phases: PhaseDateInfo[]; x: number; y: number;
   } | null>(null);
@@ -324,13 +325,18 @@ export default function ProjectGanttDB() {
     }
   };
 
-  useEffect(() => {
-    setUserRole(getRoleFromCookie());
+  function loadProjects() {
     fetch("/api/projects/gantt", { cache: "no-store" })
       .then(r => r.json())
       .then(json => { if (json.success) setProjects(json.data); else setError(json.error ?? "error"); })
       .catch(e => setError(e.message))
       .finally(() => setLoading(false));
+  }
+
+  useEffect(() => {
+    setUserRole(getRoleFromCookie());
+    loadProjects();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -411,13 +417,6 @@ export default function ProjectGanttDB() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dragging]);
 
-  const unitOptions = useMemo(() => {
-    const units = Array.from(new Set(projects.map(p => p.unit_code).filter(Boolean))).sort() as string[];
-    return [
-      { value: "", label: "All Units" },
-      ...units.map(u => ({ value: u, label: u })),
-    ];
-  }, [projects]);
 
 
   // Date range bounds
@@ -475,11 +474,10 @@ export default function ProjectGanttDB() {
         .join(" ").toLowerCase().includes(search.toLowerCase());
       const matchPriority = priorityFilter === "ALL" || p.priority_code      === priorityFilter;
       const matchPhase    = phaseFilter    === "ALL" || p.current_phase_code === phaseFilter;
-      const matchUnit     = !unitFilter || p.unit_code === unitFilter;
       const matchRange    = true;
-      return matchSearch && matchPriority && matchPhase && matchUnit && matchRange;
+      return matchSearch && matchPriority && matchPhase && matchRange;
     });
-  }, [projects, search, priorityFilter, phaseFilter, unitFilter, rangeStart, rangeEnd, timeline, totalDays]);
+  }, [projects, search, priorityFilter, phaseFilter, rangeStart, rangeEnd, timeline, totalDays]);
 
   // Build week columns
   const weekCols = useMemo<WeekCol[]>(() => {
@@ -653,12 +651,13 @@ export default function ProjectGanttDB() {
           ]}
           minWidth={148}
         />
-        <AnimatedDropdown
-          value={unitFilter}
-          onChange={setUnitFilter}
-          options={unitOptions}
-          minWidth={130}
-        />
+        <button
+          onClick={() => setShowAddModal(true)}
+          className="shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-[11px] font-bold transition-all whitespace-nowrap border text-white glass-btn-primary"
+        >
+          <Plus size={13} />
+          Add Project
+        </button>
         {userRole === "pm" && <QuickMenu align="right" />}
       </div>
 
@@ -1059,6 +1058,13 @@ export default function ProjectGanttDB() {
           </div>
         );
       })(), document.body)}
+
+      {showAddModal && (
+        <AddProjectModal
+          onClose={() => setShowAddModal(false)}
+          onSuccess={() => { setLoading(true); loadProjects(); }}
+        />
+      )}
 
     </div>
   );
