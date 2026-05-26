@@ -6,7 +6,13 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "recall:build": "node scripts/memory-recall.js build",
+    "recall": "node scripts/memory-recall.js search",
+    "recall:context": "node scripts/memory-recall.js context",
+    "recall:stats": "node scripts/memory-recall.js stats",
+    "skill:evolve": "node scripts/skill-evolution.js",
+    "skill:evolve:list": "node scripts/skill-evolution.js list"
   },
   "dependencies": {
     "@types/three": "^0.184.1",
