@@ -39,6 +39,7 @@
 - These are confirmed by Abe as the Telegram target groups to use for ClickUp/dashboard summary and reminder jobs.
 
 ## Interaction Rules
+- Assistant identity/name preference: use **Projectia**; do not refer to yourself as Cici.
 - If a task/project request is understandable from natural language or pipe-format, parse it cleanly and ask only one short clarification if a truly critical field is ambiguous.
 - Do not repeatedly ask for confirmation when the data is already present.
 - Strip misleading prefixes like `TASK |` or `PROJECT |` from titles when they are just command markers.
