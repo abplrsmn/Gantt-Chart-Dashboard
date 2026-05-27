@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { X, Plus, Loader2 } from "lucide-react";
+import { X, Plus } from "lucide-react";
 
 type Option = { id: number; code?: string; name: string; color?: string };
 type Options = {
@@ -44,10 +44,9 @@ export default function AddProjectModal({
   onClose:   () => void;
   onSuccess: () => void;
 }) {
-  const [options,    setOptions]    = useState<Options | null>(null);
-  const [form,       setForm]       = useState<FormState>(EMPTY);
-  const [submitting, setSubmitting] = useState(false);
-  const [error,      setError]      = useState<string | null>(null);
+  const [options, setOptions] = useState<Options | null>(null);
+  const [form,    setForm]    = useState<FormState>(EMPTY);
+  const [error,   setError]   = useState<string | null>(null);
   const nameRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -85,33 +84,30 @@ export default function AddProjectModal({
       nameRef.current?.focus();
       return;
     }
-    setSubmitting(true);
-    setError(null);
-    try {
-      const res = await fetch("/api/projects", {
-        method:  "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          project_name:     form.project_name.trim(),
-          unit_name:        form.unit_name.trim()  || null,
-          priority_id:      form.priority_id       ? Number(form.priority_id)     : null,
-          current_phase_id: form.current_phase_id  ? Number(form.current_phase_id): null,
-          phase_start:      form.phase_start       || null,
-          phase_end:        form.phase_end         || null,
-          start_date:       form.start_date        || null,
-          end_date:         form.end_date          || null,
-          summary_brief:    form.summary_brief.trim() || null,
-        }),
-      });
-      const data = await res.json();
-      if (!data.success) { setError(data.error ?? "Failed to create project."); return; }
-      onSuccess();
-      onClose();
-    } catch {
-      setError("Network error. Please try again.");
-    } finally {
-      setSubmitting(false);
+    if (!form.start_date || !form.end_date) {
+      setError("Project start and end dates are required.");
+      return;
     }
+    // Close immediately — API fires in background, onSuccess refreshes Gantt
+    onClose();
+    fetch("/api/projects", {
+      method:  "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        project_name:     form.project_name.trim(),
+        unit_name:        form.unit_name.trim()  || null,
+        priority_id:      form.priority_id       ? Number(form.priority_id)     : null,
+        current_phase_id: form.current_phase_id  ? Number(form.current_phase_id): null,
+        phase_start:      form.phase_start       || null,
+        phase_end:        form.phase_end         || null,
+        start_date:       form.start_date        || null,
+        end_date:         form.end_date          || null,
+        summary_brief:    form.summary_brief.trim() || null,
+      }),
+    })
+      .then(r => r.json())
+      .then(data => { if (data.success) onSuccess(); })
+      .catch(() => {});
   }
 
   const lbl    = "text-[10px] uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1 block";
@@ -181,6 +177,23 @@ export default function AddProjectModal({
               </div>
             </div>
 
+            {/* Overall project timeline — required */}
+            <div>
+              <p className={lbl}>
+                Project Timeline <span className="text-rose-400 normal-case tracking-normal">*</span>
+              </p>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[10px] text-slate-400 mb-1 block">Start Date</label>
+                  <input type="date" value={form.start_date} onChange={e => set("start_date", e.target.value)} className={input} />
+                </div>
+                <div>
+                  <label className="text-[10px] text-slate-400 mb-1 block">End Date</label>
+                  <input type="date" value={form.end_date} onChange={e => set("end_date", e.target.value)} className={input} />
+                </div>
+              </div>
+            </div>
+
             {/* Current Phase */}
             <div>
               <label className={lbl}>Current Phase</label>
@@ -213,23 +226,6 @@ export default function AddProjectModal({
               </div>
             )}
 
-            {/* Overall project timeline */}
-            <div>
-              <p className={lbl}>
-                Project Timeline <span className="normal-case tracking-normal text-slate-300">(optional)</span>
-              </p>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-[10px] text-slate-400 mb-1 block">Start Date</label>
-                  <input type="date" value={form.start_date} onChange={e => set("start_date", e.target.value)} className={input} />
-                </div>
-                <div>
-                  <label className="text-[10px] text-slate-400 mb-1 block">End Date</label>
-                  <input type="date" value={form.end_date} onChange={e => set("end_date", e.target.value)} className={input} />
-                </div>
-              </div>
-            </div>
-
             {/* Summary */}
             <div>
               <label className={lbl}>Summary <span className="normal-case tracking-normal text-slate-300">(optional)</span></label>
@@ -251,10 +247,10 @@ export default function AddProjectModal({
               className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/8 hover:text-slate-700 dark:hover:text-slate-200 transition-colors">
               Cancel
             </button>
-            <button type="submit" disabled={submitting}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed glass-btn-primary">
-              {submitting ? <Loader2 size={12} className="animate-spin" /> : <Plus size={12} />}
-              {submitting ? "Adding…" : "Add Project"}
+            <button type="submit"
+              className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-white transition-all glass-btn-primary">
+              <Plus size={12} />
+              Add Project
             </button>
           </div>
         </form>

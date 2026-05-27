@@ -95,24 +95,22 @@ export async function POST(req: Request) {
       [projectId]
     );
 
-    // Write phase-specific dates if provided
-    if (current_phase_id && (phase_start || phase_end)) {
+    // Write phase-specific dates if a phase is selected.
+    // Falls back to overall start_date/end_date when phase dates are not provided.
+    if (current_phase_id) {
       const phaseRes = await client.query(
         `SELECT phase_code FROM master_phases WHERE id = $1`,
         [Number(current_phase_id)]
       );
       const phaseCode = phaseRes.rows[0]?.phase_code as string | undefined;
       const cols = phaseCode ? PHASE_DATE_COLS[phaseCode] : null;
-      if (cols) {
+      const resolvedStart = phase_start ? String(phase_start) : (start_date ? String(start_date) : null);
+      const resolvedEnd   = phase_end   ? String(phase_end)   : (end_date   ? String(end_date)   : null);
+      if (cols && (resolvedStart || resolvedEnd)) {
         await client.query(
           `UPDATE project_phases SET ${cols.start} = $1, ${cols.end} = $2
            WHERE project_id = $3 AND phase_id = $4`,
-          [
-            phase_start ? String(phase_start) : null,
-            phase_end   ? String(phase_end)   : null,
-            projectId,
-            Number(current_phase_id),
-          ]
+          [resolvedStart, resolvedEnd, projectId, Number(current_phase_id)]
         );
       }
     }

@@ -1,17 +1,8 @@
 import { NextResponse } from "next/server";
-import { Pool } from "pg";
+import { getDbPool } from "@/lib/db";
 import { getAuthUserFromCookie } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
-
-const pool = new Pool({
-  host: process.env.DB_HOST,
-  port: Number(process.env.DB_PORT ?? 5433),
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME,
-  ssl: false,
-});
 
 type FieldMap = { table: "projects" | "project_phases"; column: string; phaseId?: number };
 
@@ -58,6 +49,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const user = await getAuthUserFromCookie();
   const changedByName = user?.fullName ?? user?.email ?? "Unknown";
 
+  const pool = getDbPool();
   let client;
   try {
     client = await pool.connect();
@@ -109,8 +101,45 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   }
 }
 
+export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const user = await getAuthUserFromCookie();
+  const changedByName = user?.fullName ?? user?.email ?? "Unknown";
+
+  const pool = getDbPool();
+  let client;
+  try {
+    client = await pool.connect();
+    const check = await client.query(`SELECT project_name FROM projects WHERE id = $1`, [id]);
+    if (check.rows.length === 0) {
+      return NextResponse.json({ success: false, error: "Project not found" }, { status: 404 });
+    }
+    const projectName = check.rows[0].project_name as string;
+
+    await client.query(`DELETE FROM projects WHERE id = $1`, [id]);
+
+    // Best-effort audit log insert (table may cascade-delete, ignore if gone)
+    try {
+      await client.query(
+        `INSERT INTO project_change_logs
+           (project_id, entity_type, field_name, old_value, new_value, change_summary, changed_by_name, action_type, created_at)
+         VALUES ($1, 'project', NULL, $2, NULL, $3, $4, 'project_deleted', NOW())`,
+        [id, projectName, `Project "${projectName}" deleted`, changedByName]
+      );
+    } catch { /* ignore if cascade already removed the rows */ }
+
+    return NextResponse.json({ success: true });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return NextResponse.json({ success: false, error: msg }, { status: 500 });
+  } finally {
+    client?.release();
+  }
+}
+
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  const pool = getDbPool();
   let client;
   try {
     client = await pool.connect();

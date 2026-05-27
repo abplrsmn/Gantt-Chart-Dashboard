@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, Fragment } from "react";
+import { createPortal } from "react-dom";
 import { useRouter, useParams } from "next/navigation";
 import { format, eachWeekOfInterval, addDays, parseISO, isValid } from "date-fns";
 import {
   ArrowLeft, ChevronRight,
   User, Users, Building2,
   Activity, Clock, FileText, Paperclip, MapPin, Pencil,
-  Camera, ImageIcon
+  Camera, ImageIcon, Trash2, Loader2
 } from "lucide-react";
 import SCurveCharts from "@/components/dashboard/SCurveCharts";
 
@@ -630,6 +631,9 @@ export default function ProjectDetailPage() {
   const [attachments, setAttachments] = useState<AttachmentRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState<string | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -655,6 +659,21 @@ export default function ProjectDetailPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ field: key, value }),
     });
+  }
+
+  async function handleDelete() {
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      const res = await fetch(`/api/projects/${id}`, { method: "DELETE" });
+      const data = await res.json();
+      if (!data.success) { setDeleteError(data.error ?? "Failed to delete project."); return; }
+      router.push("/dashboard/projects/gantt");
+    } catch {
+      setDeleteError("Network error. Please try again.");
+    } finally {
+      setDeleting(false);
+    }
   }
 
   const scProject = useMemo(() => {
@@ -717,14 +736,67 @@ export default function ProjectDetailPage() {
           <ArrowLeft size={15} />
           Back
         </button>
-        <button
-          onClick={() => router.push(`/dashboard/projects/${id}/audit`)}
-          className="ml-auto shrink-0 flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/60 dark:bg-zinc-900/50 text-slate-500 dark:text-slate-400 hover:border-slate-300 dark:hover:border-white/20 hover:bg-white dark:hover:bg-zinc-900/80 transition-all text-xs font-semibold"
-        >
-          <Clock size={13} />
-          View Audit Log
-        </button>
+        <div className="ml-auto flex items-center gap-2">
+          <button
+            onClick={() => router.push(`/dashboard/projects/${id}/audit`)}
+            className="shrink-0 flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/60 dark:bg-zinc-900/50 text-slate-500 dark:text-slate-400 hover:border-slate-300 dark:hover:border-white/20 hover:bg-white dark:hover:bg-zinc-900/80 transition-all text-xs font-semibold"
+          >
+            <Clock size={13} />
+            View Audit Log
+          </button>
+          <button
+            onClick={() => { setDeleteError(null); setShowDeleteConfirm(true); }}
+            className="shrink-0 flex items-center gap-2 px-4 py-2 rounded-xl border border-rose-200/70 dark:border-rose-500/20 bg-rose-50/80 dark:bg-rose-500/8 text-rose-500 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-500/15 hover:border-rose-300 dark:hover:border-rose-500/40 transition-all text-xs font-semibold"
+          >
+            <Trash2 size={13} />
+            Delete
+          </button>
+        </div>
       </div>
+
+      {/* ── Delete confirmation modal ───────────────────────────────────── */}
+      {showDeleteConfirm && typeof document !== "undefined" && createPortal(
+        <div
+          className="fixed inset-0 z-9999 flex items-center justify-center p-4"
+          style={{ backgroundColor: "rgba(0,0,0,0.5)", backdropFilter: "blur(6px)" }}
+          onMouseDown={e => { if (e.target === e.currentTarget && !deleting) setShowDeleteConfirm(false); }}
+        >
+          <div className="w-full max-w-sm rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200/60 dark:border-white/10 shadow-2xl p-6 space-y-4">
+            <div className="flex items-start gap-3">
+              <div className="shrink-0 w-10 h-10 rounded-xl bg-rose-500/10 flex items-center justify-center">
+                <Trash2 size={18} className="text-rose-500" />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-slate-800 dark:text-white">Delete project?</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
+                  <span className="font-semibold text-slate-700 dark:text-slate-200">{project.project_name}</span> will be permanently deleted along with all its phases, tasks, attachments, and change logs. This cannot be undone.
+                </p>
+              </div>
+            </div>
+            {deleteError && (
+              <p className="text-xs text-rose-500 font-medium bg-rose-50 dark:bg-rose-500/10 px-3 py-2 rounded-lg">{deleteError}</p>
+            )}
+            <div className="flex items-center justify-end gap-2 pt-1">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                disabled={deleting}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/8 hover:text-slate-700 dark:hover:text-slate-200 transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-white bg-rose-500 hover:bg-rose-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {deleting ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
+                {deleting ? "Deleting…" : "Yes, delete it"}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
 
       {/* ── Project Description ──────────────────────────────────────── */}
       <div className="glass-card overflow-hidden">

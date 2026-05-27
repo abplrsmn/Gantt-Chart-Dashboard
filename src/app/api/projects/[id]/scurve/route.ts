@@ -1,16 +1,7 @@
 import { NextResponse } from "next/server";
-import { Pool } from "pg";
+import { getDbPool } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
-
-const pool = new Pool({
-  host: process.env.DB_HOST,
-  port: Number(process.env.DB_PORT ?? 5433),
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME,
-  ssl: false,
-});
 
 export async function GET(
   _req: Request,
@@ -20,6 +11,7 @@ export async function GET(
   const projectId = Number(id);
   if (!projectId) return NextResponse.json({ success: false, error: "Invalid project id" }, { status: 400 });
 
+  const pool = getDbPool();
   let client;
   try {
     client = await pool.connect();
