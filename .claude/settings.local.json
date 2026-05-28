@@ -49,13 +49,17 @@
       "Read(//c/Users/abrah/**)",
       "Bash(node -e \"require\\('sharp'\\)\")",
       "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\abrah\\\\Work_Projects\\\\Project-Dashboard\\\\src\" -Recurse -Directory)",
-      "Bash(Select-Object -ExpandProperty FullName)"
+      "Bash(Select-Object -ExpandProperty FullName)",
+      "Bash(cp \"c:\\\\Users\\\\abrah\\\\Work_Projects\\\\Project-Dashboard\\\\magang\\\\assets\\\\pics\\\\logo_perusahaan.jpg\" \"c:\\\\Users\\\\abrah\\\\Work_Projects\\\\Project-Dashboard\\\\public\\\\logo_perusahaan.jpg\")",
+      "Bash(pdflatex --version)",
+      "Bash(pdflatex -interaction=nonstopmode main.tex)"
     ],
     "additionalDirectories": [
       "C:\\Users\\abrah\\clickup-dashboard\\src\\app\\api\\clickup",
       "\\dev",
       "c:\\Users\\abrah\\Work_Projects\\clickup-dashboard\\src\\components",
-      "c:\\Users\\abrah\\Work_Projects\\clickup-dashboard\\src\\lib"
+      "c:\\Users\\abrah\\Work_Projects\\clickup-dashboard\\src\\lib",
+      "c:\\Users\\abrah\\Work_Projects\\Project-Dashboard\\magang\\assets\\pics"
     ]
   }
 }

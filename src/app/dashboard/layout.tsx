@@ -52,7 +52,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             {/* Logo */}
             <div className="flex items-center gap-2.5 shrink-0 absolute left-1/2 -translate-x-1/2 md:static md:translate-x-0">
               <div className="w-10 h-10 rounded-xl overflow-hidden shrink-0 flex items-center justify-center">
-                <img src="/aryaduta_logo.png" alt="Aryaduta" className="w-full h-full object-contain" />
+                <img src="/logo_perusahaan.jpg" alt="Aryaduta" className="w-full h-full object-contain" />
               </div>
               <div>
                 <h1 className="text-sm font-bold leading-tight tracking-wider text-slate-800 dark:text-slate-100">
@@ -100,7 +100,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <div className="px-4 py-4 flex items-center border-b border-slate-200/40 dark:border-white/5">
             <div className="flex items-center gap-2.5">
               <div className="w-10 h-10 rounded-xl overflow-hidden shrink-0 flex items-center justify-center">
-                <img src="/aryaduta_logo.png" alt="Aryaduta" className="w-full h-full object-contain" />
+                <img src="/logo_perusahaan.jpg" alt="Aryaduta" className="w-full h-full object-contain" />
               </div>
               <h1 className="text-sm font-bold tracking-wider text-slate-800 dark:text-slate-100">
                 PROJECT DASHBOARD
