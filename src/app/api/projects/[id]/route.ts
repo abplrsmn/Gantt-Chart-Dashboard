@@ -8,6 +8,8 @@ type FieldMap = { table: "projects" | "project_phases"; column: string; phaseId?
 
 const FIELD_MAP: Record<string, FieldMap> = {
   project_name:                 { table: "projects",       column: "project_name" },
+  address:                      { table: "projects",       column: "address" },
+  current_phase_id:             { table: "projects",       column: "current_phase_id" },
   start_date:                   { table: "projects",       column: "start_date" },
   end_date:                     { table: "projects",       column: "end_date" },
   budget_capex:                 { table: "project_phases", column: "budget_capex",                      phaseId: 1 },
@@ -148,7 +150,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
         SELECT
           p.id, p.project_code, p.project_name, p.overall_progress_pct,
           p.start_date, p.end_date, p.budget_capex, p.contract_amount,
-          p.summary_brief, p.blocker_note, p.next_action_note,
+          p.summary_brief, p.address, p.blocker_note, p.next_action_note,
           mp_phase.phase_name   AS current_phase_name,
           mp_phase.phase_code   AS current_phase_code,
           ms.status_label, ms.color AS status_color,

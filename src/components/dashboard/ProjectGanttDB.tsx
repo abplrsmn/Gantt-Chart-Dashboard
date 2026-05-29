@@ -317,6 +317,7 @@ export default function ProjectGanttDB() {
   const [dragging, setDragging] = useState(false);
   const [toolMode, setToolMode] = useState<"select" | "drag" | "delete">("select");
   const [deleteConfirm, setDeleteConfirm] = useState<{ projectId: string; seg: PhaseSegment } | null>(null);
+  const [dragConfirm, setDragConfirm]     = useState<{ projectId: string; phaseKey: PhaseKey; origStart: Date; origEnd: Date; newStart: Date; newEnd: Date } | null>(null);
   const [modalExiting, setModalExiting]   = useState(false);
 
   const onBodyScroll = () => {
@@ -374,7 +375,7 @@ export default function ProjectGanttDB() {
       drag.barEl.style.width = `${Math.max(6, (widthDays / drag.totalDays) * drag.totalWidth)}px`;
     }
 
-    async function onMouseUp() {
+    function onMouseUp() {
       const drag = dragRef.current;
       document.body.style.cursor     = "";
       document.body.style.userSelect = "";
@@ -382,30 +383,19 @@ export default function ProjectGanttDB() {
       dragRef.current = null;
       if (!drag) return;
 
-      const startStr = format(drag.currentStart, "yyyy-MM-dd");
-      const endStr   = format(drag.currentEnd,   "yyyy-MM-dd");
-      const fields   = PHASE_DRAG_FIELDS[drag.phaseKey];
+      // Only show confirm if dates actually changed
+      const moved = drag.currentStart.getTime() !== drag.origStart.getTime() ||
+                    drag.currentEnd.getTime()   !== drag.origEnd.getTime();
+      if (!moved) return;
 
-      setProjects(prev => prev.map(p => p.id !== drag.projectId ? p : {
-        ...p,
-        [fields.start]: startStr,
-        [fields.end]:   endStr,
-      }));
-
-      const phaseName = PHASES.find(ph => ph.key === drag.phaseKey)?.label ?? drag.phaseKey;
-      const dragSummary = `Dragged ${phaseName} phase: ${format(drag.origStart, "dd MMM yyyy")} → ${format(drag.origEnd, "dd MMM yyyy")} rescheduled to ${startStr} → ${endStr}`;
-      await Promise.all([
-        fetch(`/api/projects/${drag.projectId}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ field: fields.start, value: startStr, change_summary: dragSummary, action_type: "field_updated" }),
-        }),
-        fetch(`/api/projects/${drag.projectId}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ field: fields.end, value: endStr, change_summary: dragSummary, action_type: "field_updated" }),
-        }),
-      ]);
+      setDragConfirm({
+        projectId: drag.projectId,
+        phaseKey:  drag.phaseKey,
+        origStart: drag.origStart,
+        origEnd:   drag.origEnd,
+        newStart:  drag.currentStart,
+        newEnd:    drag.currentEnd,
+      });
     }
 
     document.addEventListener("mousemove", onMouseMove);
@@ -600,7 +590,13 @@ export default function ProjectGanttDB() {
               className="w-full rounded-xl border border-slate-200/70 dark:border-white/10 bg-white/70 dark:bg-zinc-900/60 pl-8 pr-3 py-2 text-[12px] outline-none text-slate-800 dark:text-white"
             />
           </label>
-          <span className="shrink-0 text-[11px] font-bold px-2.5 py-1.5 rounded-lg whitespace-nowrap" style={{ color: "var(--brand-mahogany)", background: "rgba(59,35,21,0.08)", border: "1px solid rgba(59,35,21,0.15)" }}>
+          <span
+            className="shrink-0 text-[11px] font-bold px-2.5 py-1.5 rounded-lg whitespace-nowrap transition-colors"
+            style={rangeSummary && rangeSummary.totalActiveProjects > 0
+              ? { color: "#92400e", background: "rgba(251,191,36,0.18)", border: "1px solid rgba(251,191,36,0.45)" }
+              : { color: "var(--brand-mahogany)", background: "rgba(59,35,21,0.08)", border: "1px solid rgba(59,35,21,0.15)" }
+            }
+          >
             {rangeSummary ? rangeSummary.totalActiveProjects : 0} ongoing
           </span>
           <button
@@ -769,10 +765,11 @@ export default function ProjectGanttDB() {
               {rangeRulers && (
                 <div
                   className="absolute top-0 bottom-0 z-0 pointer-events-none border-t-[3px]"
-                  style={{ borderColor: "var(--brand-sand)", background: "rgba(196,149,106,0.08)" }}
                   style={{
-                    left: `${(rangeRulers.startPct / 100) * totalWidth}px`,
-                    width: `${((rangeRulers.endPct - rangeRulers.startPct) / 100) * totalWidth}px`,
+                    left:        `${(rangeRulers.startPct / 100) * totalWidth}px`,
+                    width:       `${((rangeRulers.endPct - rangeRulers.startPct) / 100) * totalWidth}px`,
+                    borderColor: "var(--brand-sand)",
+                    background:  "rgba(196,149,106,0.12)",
                   }}
                 />
               )}
@@ -797,11 +794,21 @@ export default function ProjectGanttDB() {
               const isActiveToday = segments.some(s => today >= s.start && today <= s.end);
               const activeTodayPhase = segments.find(s => today >= s.start && today <= s.end);
 
+              // Does this project overlap the selected date range?
+              const projStart = toDate(p.start_date);
+              const projEnd   = toDate(p.end_date);
+              const isInRange = !!(rangeStart && rangeEnd && (
+                segments.some(s => s.start <= rangeEnd && s.end >= rangeStart) ||
+                (projStart && projEnd && projStart <= rangeEnd && projEnd >= rangeStart)
+              ));
+
               return (
                 <div
                   key={p.id}
                   className={`border-b border-slate-100/80 dark:border-white/4 last:border-0 ${
-                    isActiveToday ? "bg-cyan-50/30 dark:bg-cyan-900/10" : ""
+                    isActiveToday ? "bg-cyan-50/30 dark:bg-cyan-900/10"
+                    : isInRange   ? "bg-amber-50/40 dark:bg-amber-900/10"
+                    : ""
                   }`}
                 >
                   {/* Row */}
@@ -811,9 +818,9 @@ export default function ProjectGanttDB() {
                     {/* Left: project info — sticky on horizontal scroll */}
                     <div
                       className={`sticky left-0 z-10 shrink-0 w-60 px-3 py-2.5 border-r border-slate-200/40 dark:border-white/5 ${
-                        isActiveToday
-                          ? "bg-cyan-50/90 dark:bg-cyan-900/40"
-                          : "bg-white/95 dark:bg-zinc-900/95"
+                        isActiveToday ? "bg-cyan-50/90 dark:bg-cyan-900/40"
+                        : isInRange   ? "bg-amber-50/80 dark:bg-amber-900/30"
+                        : "bg-white/95 dark:bg-zinc-900/95"
                       }`}
                       style={isActiveToday ? { borderLeft: `3px solid ${activeTodayPhase?.color ?? "#06b6d4"}` } : {}}
                     >
@@ -1052,6 +1059,81 @@ export default function ProjectGanttDB() {
                   className="px-4 py-1.5 rounded-lg text-[12px] font-semibold text-white bg-rose-500 hover:bg-rose-600 transition-colors"
                 >
                   Yes, clear it
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })(), document.body)}
+
+      {/* ── Drag confirmation modal ── */}
+      {dragConfirm && typeof document !== "undefined" && createPortal((() => {
+        const { projectId, phaseKey, origStart, origEnd, newStart, newEnd } = dragConfirm;
+        const phaseName  = PHASES.find(ph => ph.key === phaseKey)?.label ?? phaseKey;
+        const phaseColor = PHASES.find(ph => ph.key === phaseKey)?.color;
+        const proj = projects.find(p => p.id === projectId);
+
+        async function confirmDrag() {
+          const startStr = format(newStart, "yyyy-MM-dd");
+          const endStr   = format(newEnd,   "yyyy-MM-dd");
+          const fields   = PHASE_DRAG_FIELDS[phaseKey];
+          const summary  = `Rescheduled ${phaseName}: ${format(origStart, "dd MMM")} – ${format(origEnd, "dd MMM")} → ${format(newStart, "dd MMM")} – ${format(newEnd, "dd MMM yyyy")}`;
+
+          setProjects(prev => prev.map(p => p.id !== projectId ? p : {
+            ...p, [fields.start]: startStr, [fields.end]: endStr,
+          }));
+          setDragConfirm(null);
+
+          await Promise.all([
+            fetch(`/api/projects/${projectId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ field: fields.start, value: startStr, change_summary: summary, action_type: "field_updated" }) }),
+            fetch(`/api/projects/${projectId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ field: fields.end,   value: endStr,   change_summary: summary, action_type: "field_updated" }) }),
+          ]);
+        }
+
+        function cancelDrag() {
+          // restore original bar position in state
+          const fields = PHASE_DRAG_FIELDS[phaseKey];
+          setProjects(prev => prev.map(p => p.id !== projectId ? p : {
+            ...p,
+            [fields.start]: format(origStart, "yyyy-MM-dd"),
+            [fields.end]:   format(origEnd,   "yyyy-MM-dd"),
+          }));
+          setDragConfirm(null);
+        }
+
+        return (
+          <div className="fixed inset-0 z-9999 flex items-center justify-center p-4" style={{ backgroundColor: "rgba(0,0,0,0.45)", backdropFilter: "blur(6px)" }}>
+            <div className="w-full max-w-sm rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200/60 dark:border-white/10 shadow-2xl p-5 space-y-4">
+              <div className="flex items-start gap-3">
+                <div className="shrink-0 w-9 h-9 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${phaseColor}20` }}>
+                  <Move size={16} style={{ color: phaseColor }} />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-slate-800 dark:text-white">Confirm reschedule?</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                    <span className="font-semibold" style={{ color: phaseColor }}>{phaseName}</span>
+                    {proj && <span className="text-slate-400"> — {proj.project_name}</span>}
+                  </p>
+                  <div className="mt-2 space-y-1 text-[11px]">
+                    <div className="flex items-center gap-2 text-slate-400 line-through">
+                      <span>{format(origStart, "dd MMM yyyy")}</span>
+                      <span>→</span>
+                      <span>{format(origEnd, "dd MMM yyyy")}</span>
+                    </div>
+                    <div className="flex items-center gap-2 font-semibold text-slate-700 dark:text-slate-200">
+                      <span>{format(newStart, "dd MMM yyyy")}</span>
+                      <span>→</span>
+                      <span>{format(newEnd, "dd MMM yyyy")}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center justify-end gap-2">
+                <button onClick={cancelDrag} className="px-4 py-1.5 rounded-lg text-[12px] font-semibold text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/8 transition-colors">
+                  Cancel
+                </button>
+                <button onClick={confirmDrag} className="px-4 py-1.5 rounded-lg text-[12px] font-semibold text-white transition-colors" style={{ backgroundColor: phaseColor }}>
+                  Confirm
                 </button>
               </div>
             </div>

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { X, Plus } from "lucide-react";
+import { X, Plus, Trash2 } from "lucide-react";
 
 type Option = { id: number; code?: string; name: string; color?: string };
 type Options = {
@@ -10,7 +10,6 @@ type Options = {
   priorities: Option[];
 };
 
-// Phase-specific date field labels keyed by phase_code
 const PHASE_DATE_LABELS: Record<string, { start: string; end: string }> = {
   operational_brief:  { start: "Brief Received",  end: "Brief Deadline"   },
   design:             { start: "Start Design",     end: "Design Approval"  },
@@ -19,13 +18,13 @@ const PHASE_DATE_LABELS: Record<string, { start: string; end: string }> = {
   handover:           { start: "BAST 1",           end: "BAST 2"           },
 };
 
+type PhaseEntry = { phase_id: string; start: string; end: string };
+
 type FormState = {
   project_name:     string;
   unit_name:        string;
   priority_id:      string;
   current_phase_id: string;
-  phase_start:      string;
-  phase_end:        string;
   start_date:       string;
   end_date:         string;
   summary_brief:    string;
@@ -33,8 +32,7 @@ type FormState = {
 
 const EMPTY: FormState = {
   project_name: "", unit_name: "", priority_id: "",
-  current_phase_id: "", phase_start: "", phase_end: "",
-  start_date: "", end_date: "", summary_brief: "",
+  current_phase_id: "", start_date: "", end_date: "", summary_brief: "",
 };
 
 export default function AddProjectModal({
@@ -44,9 +42,11 @@ export default function AddProjectModal({
   onClose:   () => void;
   onSuccess: () => void;
 }) {
-  const [options, setOptions] = useState<Options | null>(null);
-  const [form,    setForm]    = useState<FormState>(EMPTY);
-  const [error,   setError]   = useState<string | null>(null);
+  const [options,     setOptions]     = useState<Options | null>(null);
+  const [form,        setForm]        = useState<FormState>(EMPTY);
+  const [phaseDates,  setPhaseDates]  = useState<PhaseEntry[]>([]);
+  const [addingPhase, setAddingPhase] = useState(false);
+  const [error,       setError]       = useState<string | null>(null);
   const nameRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -64,18 +64,27 @@ export default function AddProjectModal({
   }, [onClose]);
 
   function set(key: keyof FormState, value: string) {
-    // Reset phase dates when phase changes
-    if (key === "current_phase_id") {
-      setForm(f => ({ ...f, current_phase_id: value, phase_start: "", phase_end: "" }));
-      setError(null);
-      return;
-    }
     setForm(f => ({ ...f, [key]: value }));
     setError(null);
   }
 
-  const selectedPhase     = options?.phases.find(p => String(p.id) === form.current_phase_id);
-  const phaseDateLabels   = selectedPhase?.code ? PHASE_DATE_LABELS[selectedPhase.code] : null;
+  function addPhaseEntry() {
+    setAddingPhase(true);
+    setPhaseDates(prev => [...prev, { phase_id: "", start: "", end: "" }]);
+    setAddingPhase(false);
+  }
+
+  function updatePhaseEntry(idx: number, field: keyof PhaseEntry, value: string) {
+    setPhaseDates(prev => prev.map((e, i) => i === idx ? { ...e, [field]: value } : e));
+  }
+
+  function removePhaseEntry(idx: number) {
+    setPhaseDates(prev => prev.filter((_, i) => i !== idx));
+  }
+
+  // Phases not yet added
+  const usedPhaseIds = new Set(phaseDates.map(e => e.phase_id));
+  const availablePhases = options?.phases.filter(p => !usedPhaseIds.has(String(p.id))) ?? [];
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -88,21 +97,31 @@ export default function AddProjectModal({
       setError("Project start and end dates are required.");
       return;
     }
-    // Close immediately — API fires in background, onSuccess refreshes Gantt
+
+    // Use first phase entry as current_phase if no current_phase_id picked
+    const effectiveCurrentPhase = form.current_phase_id ||
+      (phaseDates[0]?.phase_id ?? "");
+
+    // For backward compat: if only one phase entry, send as phase_start/phase_end
+    const firstEntry = phaseDates.find(e => e.phase_id === effectiveCurrentPhase) ?? phaseDates[0];
+
     onClose();
     fetch("/api/projects", {
       method:  "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         project_name:     form.project_name.trim(),
-        unit_name:        form.unit_name.trim()  || null,
-        priority_id:      form.priority_id       ? Number(form.priority_id)     : null,
-        current_phase_id: form.current_phase_id  ? Number(form.current_phase_id): null,
-        phase_start:      form.phase_start       || null,
-        phase_end:        form.phase_end         || null,
-        start_date:       form.start_date        || null,
-        end_date:         form.end_date          || null,
-        summary_brief:    form.summary_brief.trim() || null,
+        unit_name:        form.unit_name.trim()       || null,
+        priority_id:      form.priority_id             ? Number(form.priority_id)      : null,
+        current_phase_id: effectiveCurrentPhase        ? Number(effectiveCurrentPhase) : null,
+        phase_start:      firstEntry?.start            || null,
+        phase_end:        firstEntry?.end              || null,
+        start_date:       form.start_date              || null,
+        end_date:         form.end_date                || null,
+        summary_brief:    form.summary_brief.trim()    || null,
+        extra_phases:     phaseDates
+          .filter(e => e.phase_id && e.phase_id !== String(effectiveCurrentPhase) && (e.start || e.end))
+          .map(e => ({ phase_id: Number(e.phase_id), start: e.start || null, end: e.end || null })),
       }),
     })
       .then(r => r.json())
@@ -137,7 +156,7 @@ export default function AddProjectModal({
         </div>
 
         <form onSubmit={handleSubmit}>
-          <div className="px-5 py-4 space-y-4 max-h-[62vh] overflow-y-auto">
+          <div className="px-5 py-4 space-y-4 max-h-[66vh] overflow-y-auto">
 
             {/* Project Name */}
             <div>
@@ -177,7 +196,7 @@ export default function AddProjectModal({
               </div>
             </div>
 
-            {/* Overall project timeline — required */}
+            {/* Project Timeline — required */}
             <div>
               <p className={lbl}>
                 Project Timeline <span className="text-rose-400 normal-case tracking-normal">*</span>
@@ -198,33 +217,73 @@ export default function AddProjectModal({
             <div>
               <label className={lbl}>Current Phase</label>
               <select value={form.current_phase_id} onChange={e => set("current_phase_id", e.target.value)} className={select}>
-                <option value="">— Select phase</option>
+                <option value="">— Select current phase</option>
                 {options?.phases.map(p => (
                   <option key={p.id} value={p.id}>{p.name}</option>
                 ))}
               </select>
             </div>
 
-            {/* Phase-specific dates — shown only when a phase is selected */}
-            {phaseDateLabels && (
-              <div className="rounded-xl border border-slate-200/70 dark:border-white/8 overflow-hidden">
-                <div className="px-3 py-2 bg-slate-50 dark:bg-white/3 border-b border-slate-200/60 dark:border-white/6">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
-                    {selectedPhase?.name} Dates
-                  </p>
-                </div>
-                <div className="grid grid-cols-2 gap-3 p-3">
-                  <div>
-                    <label className="text-[10px] text-slate-400 mb-1 block">{phaseDateLabels.start}</label>
-                    <input type="date" value={form.phase_start} onChange={e => set("phase_start", e.target.value)} className={input} />
-                  </div>
-                  <div>
-                    <label className="text-[10px] text-slate-400 mb-1 block">{phaseDateLabels.end}</label>
-                    <input type="date" value={form.phase_end} onChange={e => set("phase_end", e.target.value)} className={input} />
-                  </div>
-                </div>
+            {/* Phase Dates — multiple */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <p className={lbl + " mb-0"}>Phase Dates <span className="normal-case tracking-normal text-slate-300">(optional)</span></p>
+                {availablePhases.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={addPhaseEntry}
+                    disabled={addingPhase}
+                    className="flex items-center gap-1 text-[10px] font-semibold text-brand-sienna hover:text-brand-mahogany transition-colors"
+                  >
+                    <Plus size={10} />
+                    Add Phase
+                  </button>
+                )}
               </div>
-            )}
+
+              {phaseDates.length === 0 ? (
+                <p className="text-[11px] italic text-slate-300 dark:text-slate-600">No phase dates added yet.</p>
+              ) : (
+                <div className="space-y-2">
+                  {phaseDates.map((entry, idx) => {
+                    const phase = options?.phases.find(p => String(p.id) === entry.phase_id);
+                    const labels = phase?.code ? PHASE_DATE_LABELS[phase.code] : null;
+                    const phaseOptions = options?.phases.filter(p =>
+                      !usedPhaseIds.has(String(p.id)) || String(p.id) === entry.phase_id
+                    ) ?? [];
+                    return (
+                      <div key={idx} className="rounded-xl border border-slate-200/70 dark:border-white/8 overflow-hidden">
+                        <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 dark:bg-white/3 border-b border-slate-200/60 dark:border-white/6">
+                          <select
+                            value={entry.phase_id}
+                            onChange={e => updatePhaseEntry(idx, "phase_id", e.target.value)}
+                            className="flex-1 text-[11px] font-semibold bg-transparent outline-none text-slate-600 dark:text-slate-300 cursor-pointer"
+                          >
+                            <option value="">— Select phase</option>
+                            {phaseOptions.map(p => (
+                              <option key={p.id} value={p.id}>{p.name}</option>
+                            ))}
+                          </select>
+                          <button type="button" onClick={() => removePhaseEntry(idx)} className="text-slate-300 hover:text-rose-400 transition-colors">
+                            <Trash2 size={12} />
+                          </button>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3 p-3">
+                          <div>
+                            <label className="text-[10px] text-slate-400 mb-1 block">{labels?.start ?? "Start"}</label>
+                            <input type="date" value={entry.start} onChange={e => updatePhaseEntry(idx, "start", e.target.value)} className={input} />
+                          </div>
+                          <div>
+                            <label className="text-[10px] text-slate-400 mb-1 block">{labels?.end ?? "End"}</label>
+                            <input type="date" value={entry.end} onChange={e => updatePhaseEntry(idx, "end", e.target.value)} className={input} />
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
 
             {/* Summary */}
             <div>

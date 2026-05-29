@@ -40,7 +40,8 @@ export async function POST(req: Request) {
     start_date,
     end_date,
     summary_brief,
-  } = body as Record<string, string | number | null | undefined>;
+    extra_phases,
+  } = body as Record<string, string | number | null | undefined | { phase_id: number; start: string | null; end: string | null }[]>;
 
   if (!project_name || String(project_name).trim() === "") {
     return NextResponse.json({ success: false, error: "Project name is required" }, { status: 400 });
@@ -112,6 +113,22 @@ export async function POST(req: Request) {
            WHERE project_id = $3 AND phase_id = $4`,
           [resolvedStart, resolvedEnd, projectId, Number(current_phase_id)]
         );
+      }
+    }
+
+    // Write dates for any extra phases provided
+    if (Array.isArray(extra_phases) && extra_phases.length > 0) {
+      for (const ep of extra_phases) {
+        if (!ep.phase_id) continue;
+        const epRes = await client.query(`SELECT phase_code FROM master_phases WHERE id = $1`, [ep.phase_id]);
+        const epCode = epRes.rows[0]?.phase_code as string | undefined;
+        const epCols = epCode ? PHASE_DATE_COLS[epCode] : null;
+        if (epCols && (ep.start || ep.end)) {
+          await client.query(
+            `UPDATE project_phases SET ${epCols.start} = $1, ${epCols.end} = $2 WHERE project_id = $3 AND phase_id = $4`,
+            [ep.start ?? null, ep.end ?? null, projectId, ep.phase_id]
+          );
+        }
       }
     }
 

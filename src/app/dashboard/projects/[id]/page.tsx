@@ -8,7 +8,7 @@ import {
   ArrowLeft, ChevronRight,
   User, Users, Building2,
   Activity, Clock, FileText, Paperclip, MapPin, Pencil,
-  Camera, ImageIcon, Trash2, Loader2
+  Camera, ImageIcon, Trash2, Loader2, X, Plus, Upload
 } from "lucide-react";
 import SCurveCharts from "@/components/dashboard/SCurveCharts";
 
@@ -23,6 +23,7 @@ type ProjectDetail = {
   budget_capex: string | null;
   contract_amount: string | null;
   summary_brief: string | null;
+  address: string | null;
   blocker_note: string | null;
   next_action_note: string | null;
   current_phase_name: string | null;
@@ -634,6 +635,10 @@ export default function ProjectDetailPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [newStakeholder, setNewStakeholder] = useState("");
+  const [addingStakeholder, setAddingStakeholder] = useState(false);
+  const [uploadingFile, setUploadingFile] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -674,6 +679,57 @@ export default function ProjectDetailPage() {
     } finally {
       setDeleting(false);
     }
+  }
+
+  async function addStakeholder() {
+    if (!newStakeholder.trim()) return;
+    setAddingStakeholder(true);
+    try {
+      const res = await fetch(`/api/projects/${id}/people`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ raw_person_name: newStakeholder.trim(), role_code: "stakeholder" }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setPeople(prev => [...prev, { id: data.data.id, raw_person_name: data.data.raw_person_name, raw_organization_name: null, is_primary: false, notes: null, phase_id: null, role_code: "stakeholder", role_name: "Stakeholder", full_name: null, job_title: null, department: null, email: null }]);
+        setNewStakeholder("");
+      }
+    } finally {
+      setAddingStakeholder(false);
+    }
+  }
+
+  async function removeStakeholder(personRowId: string) {
+    setPeople(prev => prev.filter(p => p.id !== personRowId));
+    await fetch(`/api/projects/${id}/people`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ personRowId }),
+    });
+  }
+
+  async function uploadAttachment(file: File) {
+    setUploadingFile(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res  = await fetch(`/api/projects/${id}/attachments`, { method: "POST", body: fd });
+      const data = await res.json();
+      if (data.success) setAttachments(prev => [data.data, ...prev]);
+    } finally {
+      setUploadingFile(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
+
+  async function removeAttachment(attachmentId: string) {
+    setAttachments(prev => prev.filter(a => a.id !== attachmentId));
+    await fetch(`/api/projects/${id}/attachments`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ attachmentId }),
+    });
   }
 
   const scProject = useMemo(() => {
@@ -873,9 +929,13 @@ export default function ProjectDetailPage() {
                   <MapPin size={11} className="text-slate-400" />
                   Address
                 </p>
-                <div className="px-3 py-2 rounded-lg border border-dashed border-slate-200/70 dark:border-white/8 text-slate-400 dark:text-slate-600">
-                  <span className="text-xs italic">Address not specified</span>
-                </div>
+                <textarea
+                  rows={2}
+                  defaultValue={project.address ?? ""}
+                  onBlur={e => { const v = e.target.value.trim() || null; if (v !== (project.address ?? null)) patchField("address", v); }}
+                  placeholder="Add address..."
+                  className="w-full resize-none text-xs px-2.5 py-1.5 rounded-lg border border-dashed border-slate-200/70 dark:border-white/8 bg-transparent text-slate-700 dark:text-slate-300 placeholder:text-slate-300 dark:placeholder:text-slate-600 outline-none focus:border-brand-sienna/50 focus:ring-1 focus:ring-brand-sienna/20 transition-all"
+                />
               </div>
             </div>
 
@@ -885,18 +945,12 @@ export default function ProjectDetailPage() {
                 <Paperclip size={11} className="text-slate-400" />
                 Attachments
               </p>
-              {attachments.length > 0 ? (
-                <div className="space-y-1.5">
-                  {attachments.map(att => {
-                    const isImage = (att.mime_type ?? "").startsWith("image/");
-                    return (
-                      <a
-                        key={att.id}
-                        href={att.file_url ?? "#"}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="flex items-center gap-3 rounded-lg border border-slate-200/70 dark:border-white/8 bg-white/60 dark:bg-white/3 px-3 py-2 hover:border-cyan-300/70 dark:hover:border-cyan-400/40 transition-colors"
-                      >
+              <div className="space-y-1.5">
+                {attachments.length > 0 && attachments.map(att => {
+                  const isImage = (att.mime_type ?? "").startsWith("image/");
+                  return (
+                    <div key={att.id} className="group flex items-center gap-3 rounded-lg border border-slate-200/70 dark:border-white/8 bg-white/60 dark:bg-white/3 px-3 py-2 hover:border-slate-300/70 transition-colors">
+                      <a href={att.file_url ?? "#"} target="_blank" rel="noreferrer" className="flex items-center gap-3 flex-1 min-w-0">
                         {isImage && att.file_url ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img src={att.file_url} alt={att.file_name} className="h-8 w-8 rounded object-cover border border-slate-200/70 dark:border-white/10 shrink-0" />
@@ -912,14 +966,31 @@ export default function ProjectDetailPage() {
                           </p>
                         </div>
                       </a>
-                    );
-                  })}
+                      <button onClick={() => removeAttachment(att.id)} className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-300 hover:text-rose-400 shrink-0">
+                        <X size={13} />
+                      </button>
+                    </div>
+                  );
+                })}
+
+                {/* Upload button */}
+                <div
+                  onClick={() => !uploadingFile && fileInputRef.current?.click()}
+                  className="flex items-center gap-2 px-2.5 py-2 rounded-lg border border-dashed border-slate-200/70 dark:border-white/8 text-slate-400 dark:text-slate-600 hover:border-brand-sienna/40 hover:text-brand-sienna/70 transition-all cursor-pointer"
+                >
+                  {uploadingFile
+                    ? <Loader2 size={12} className="animate-spin shrink-0" />
+                    : <Upload size={12} className="shrink-0" />
+                  }
+                  <span className="text-[11px]">{uploadingFile ? "Uploading…" : attachments.length === 0 ? "Attach a file" : "Add another file"}</span>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    className="hidden"
+                    onChange={e => { const f = e.target.files?.[0]; if (f) uploadAttachment(f); }}
+                  />
                 </div>
-              ) : (
-                <div className="px-3 py-2 rounded-lg border border-dashed border-slate-200/70 dark:border-white/8 text-slate-400 dark:text-slate-600">
-                  <span className="text-xs italic">No attachments</span>
-                </div>
-              )}
+              </div>
             </div>
 
             {/* Stakeholders */}
@@ -928,20 +999,41 @@ export default function ProjectDetailPage() {
                 <Users size={11} className="text-slate-400" />
                 Stakeholders
               </p>
-              {people.some(p => p.role_code === "stakeholder") ? (
-                <div className="flex flex-wrap gap-1.5">
-                  {people.filter(p => p.role_code === "stakeholder").map(s => (
-                    <span key={s.id} className="inline-flex items-center gap-1 text-xs font-medium text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-white/6 px-2 py-1 rounded-md">
-                      <Building2 size={10} className="text-slate-400 shrink-0" />
-                      {s.full_name ?? s.raw_person_name ?? s.raw_organization_name ?? "—"}
-                    </span>
-                  ))}
+              <div className="space-y-2">
+                {people.some(p => p.role_code === "stakeholder") ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    {people.filter(p => p.role_code === "stakeholder").map(s => (
+                      <span key={s.id} className="group inline-flex items-center gap-1 text-xs font-medium text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-white/6 px-2 py-1 rounded-md">
+                        <Building2 size={10} className="text-slate-400 shrink-0" />
+                        {s.full_name ?? s.raw_person_name ?? s.raw_organization_name ?? "—"}
+                        <button onClick={() => removeStakeholder(s.id)} className="ml-0.5 opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-rose-500">
+                          <X size={10} />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-[10px] italic text-slate-400 dark:text-slate-600">No stakeholders yet</p>
+                )}
+                {/* Add stakeholder inline */}
+                <div className="flex items-center gap-1.5">
+                  <input
+                    type="text"
+                    value={newStakeholder}
+                    onChange={e => setNewStakeholder(e.target.value)}
+                    onKeyDown={e => { if (e.key === "Enter") addStakeholder(); }}
+                    placeholder="Add stakeholder..."
+                    className="flex-1 text-xs px-2.5 py-1.5 rounded-lg border border-dashed border-slate-200/70 dark:border-white/8 bg-transparent text-slate-700 dark:text-slate-300 placeholder:text-slate-300 dark:placeholder:text-slate-600 outline-none focus:border-brand-sienna/50 focus:ring-1 focus:ring-brand-sienna/20 transition-all"
+                  />
+                  <button
+                    onClick={addStakeholder}
+                    disabled={addingStakeholder || !newStakeholder.trim()}
+                    className="p-1.5 rounded-lg bg-slate-100 dark:bg-white/8 text-slate-500 hover:bg-slate-200 dark:hover:bg-white/12 disabled:opacity-40 transition-colors"
+                  >
+                    {addingStakeholder ? <Loader2 size={11} className="animate-spin" /> : <Plus size={11} />}
+                  </button>
                 </div>
-              ) : (
-                <div className="px-3 py-2 rounded-lg border border-dashed border-slate-200/70 dark:border-white/8 text-slate-400 dark:text-slate-600">
-                  <span className="text-xs italic">No stakeholders</span>
-                </div>
-              )}
+              </div>
             </div>
           </div>
 
@@ -953,6 +1045,28 @@ export default function ProjectDetailPage() {
         <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-200/50 dark:border-white/8">
           <Activity size={13} className="text-cyan-500 shrink-0" />
           <h3 className="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-widest">Phase Parameters</h3>
+          {(() => {
+            const currentIdx = PHASE_DEFS.findIndex(p => p.phaseCode === project.current_phase_code);
+            const nextPhase  = currentIdx >= 0 && currentIdx < PHASE_DEFS.length - 1 ? PHASE_DEFS[currentIdx + 1] : null;
+            if (!nextPhase) return null;
+            return (
+              <button
+                onClick={async () => {
+                  setProject(prev => prev ? { ...prev, current_phase_code: nextPhase.phaseCode, current_phase_name: nextPhase.label } : prev);
+                  await fetch(`/api/projects/${id}`, {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ field: "current_phase_id", value: String(nextPhase.phaseId), change_summary: `Proceed to ${nextPhase.label}`, action_type: "phase_advanced" }),
+                  });
+                }}
+                className="ml-auto shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold text-white transition-all"
+                style={{ backgroundColor: nextPhase.color }}
+              >
+                Proceed to {nextPhase.label}
+                <ChevronRight size={12} />
+              </button>
+            );
+          })()}
         </div>
 
         {/* Phase flow stepper */}
