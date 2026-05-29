@@ -25,6 +25,8 @@ type FormState = {
   unit_name:        string;
   priority_id:      string;
   current_phase_id: string;
+  phase_start:      string;
+  phase_end:        string;
   start_date:       string;
   end_date:         string;
   summary_brief:    string;
@@ -32,7 +34,8 @@ type FormState = {
 
 const EMPTY: FormState = {
   project_name: "", unit_name: "", priority_id: "",
-  current_phase_id: "", start_date: "", end_date: "", summary_brief: "",
+  current_phase_id: "", phase_start: "", phase_end: "",
+  start_date: "", end_date: "", summary_brief: "",
 };
 
 export default function AddProjectModal({
@@ -64,9 +67,17 @@ export default function AddProjectModal({
   }, [onClose]);
 
   function set(key: keyof FormState, value: string) {
+    if (key === "current_phase_id") {
+      setForm(f => ({ ...f, current_phase_id: value, phase_start: "", phase_end: "" }));
+      setError(null);
+      return;
+    }
     setForm(f => ({ ...f, [key]: value }));
     setError(null);
   }
+
+  const selectedPhase   = options?.phases.find(p => String(p.id) === form.current_phase_id);
+  const phaseDateLabels = selectedPhase?.code ? PHASE_DATE_LABELS[selectedPhase.code] : null;
 
   function addPhaseEntry() {
     setAddingPhase(true);
@@ -102,8 +113,11 @@ export default function AddProjectModal({
     const effectiveCurrentPhase = form.current_phase_id ||
       (phaseDates[0]?.phase_id ?? "");
 
-    // For backward compat: if only one phase entry, send as phase_start/phase_end
-    const firstEntry = phaseDates.find(e => e.phase_id === effectiveCurrentPhase) ?? phaseDates[0];
+    // Current phase dates: prefer form.phase_start/end (from the inline date inputs),
+    // fall back to a matching entry in phaseDates
+    const matchingEntry = phaseDates.find(e => e.phase_id === effectiveCurrentPhase);
+    const resolvedStart = form.phase_start || matchingEntry?.start || null;
+    const resolvedEnd   = form.phase_end   || matchingEntry?.end   || null;
 
     onClose();
     fetch("/api/projects", {
@@ -114,8 +128,8 @@ export default function AddProjectModal({
         unit_name:        form.unit_name.trim()       || null,
         priority_id:      form.priority_id             ? Number(form.priority_id)      : null,
         current_phase_id: effectiveCurrentPhase        ? Number(effectiveCurrentPhase) : null,
-        phase_start:      firstEntry?.start            || null,
-        phase_end:        firstEntry?.end              || null,
+        phase_start:      resolvedStart,
+        phase_end:        resolvedEnd,
         start_date:       form.start_date              || null,
         end_date:         form.end_date                || null,
         summary_brief:    form.summary_brief.trim()    || null,
@@ -210,7 +224,7 @@ export default function AddProjectModal({
               </div>
             </div>
 
-            {/* Current Phase */}
+            {/* Current Phase + its dates */}
             <div>
               <label className={lbl}>Current Phase</label>
               <select value={form.current_phase_id} onChange={e => set("current_phase_id", e.target.value)} className={select}>
@@ -219,6 +233,18 @@ export default function AddProjectModal({
                   <option key={p.id} value={p.id}>{p.name}</option>
                 ))}
               </select>
+              {phaseDateLabels && (
+                <div className="grid grid-cols-2 gap-3 mt-3">
+                  <div>
+                    <label className="text-[10px] text-slate-400 mb-1 block">{phaseDateLabels.start}</label>
+                    <input type="date" value={form.phase_start} onChange={e => set("phase_start", e.target.value)} className={input} />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-slate-400 mb-1 block">{phaseDateLabels.end}</label>
+                    <input type="date" value={form.phase_end} onChange={e => set("phase_end", e.target.value)} className={input} />
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Phase Dates — multiple */}
@@ -250,19 +276,19 @@ export default function AddProjectModal({
                     ) ?? [];
                     return (
                       <div key={idx} className="rounded-xl border border-slate-200/70 dark:border-white/8 overflow-hidden">
-                        <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 dark:bg-white/3 border-b border-slate-200/60 dark:border-white/6">
+                        <div className="flex items-center gap-2 px-3 py-2.5 bg-slate-50 dark:bg-white/3 border-b border-slate-200/60 dark:border-white/6">
                           <select
                             value={entry.phase_id}
                             onChange={e => updatePhaseEntry(idx, "phase_id", e.target.value)}
-                            className="flex-1 text-[11px] font-semibold bg-transparent outline-none text-slate-600 dark:text-slate-300 cursor-pointer"
+                            className="flex-1 text-[12px] font-semibold bg-transparent outline-none text-slate-600 dark:text-slate-300 cursor-pointer"
                           >
                             <option value="">— Select phase</option>
                             {phaseOptions.map(p => (
                               <option key={p.id} value={p.id}>{p.name}</option>
                             ))}
                           </select>
-                          <button type="button" onClick={() => removePhaseEntry(idx)} className="text-slate-300 hover:text-rose-400 transition-colors">
-                            <Trash2 size={12} />
+                          <button type="button" onClick={() => removePhaseEntry(idx)} className="p-1 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors">
+                            <Trash2 size={14} />
                           </button>
                         </div>
                         <div className="grid grid-cols-2 gap-3 p-3">
