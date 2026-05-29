@@ -9,6 +9,7 @@ type FieldMap = { table: "projects" | "project_phases"; column: string; phaseId?
 const FIELD_MAP: Record<string, FieldMap> = {
   project_name:                 { table: "projects",       column: "project_name" },
   address:                      { table: "projects",       column: "address" },
+  overall_status_id:            { table: "projects",       column: "overall_status_id" },
   current_phase_id:             { table: "projects",       column: "current_phase_id" },
   start_date:                   { table: "projects",       column: "start_date" },
   end_date:                     { table: "projects",       column: "end_date" },

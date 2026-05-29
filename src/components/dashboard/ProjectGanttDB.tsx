@@ -65,6 +65,7 @@ type DBProject = {
   current_phase_name: string | null;
   current_phase_code: string | null;
   status_label: string | null;
+  status_color: string | null;
   priority_name: string | null;
   priority_code: string | null;
   priority_color: string | null;
@@ -839,9 +840,16 @@ export default function ProjectGanttDB() {
                       <p className="text-[11px] font-semibold text-slate-800 dark:text-white leading-snug line-clamp-2">
                         {p.unit_code ? `${p.unit_code} - ${p.project_name.split(" - ").slice(1).join(" - ") || p.project_name}` : p.project_name}
                       </p>
-                      <div className="mt-0.5 flex items-center justify-between gap-2">
-                        <span className="text-[9px] text-slate-400 truncate block">{p.current_phase_name ?? "–"}</span>
-
+                      <div className="mt-0.5 flex items-center gap-2">
+                        <span className="text-[9px] text-slate-400 truncate flex-1">{p.current_phase_name ?? "–"}</span>
+                        {p.status_label && (
+                          <span
+                            className="shrink-0 text-[8px] font-bold px-1.5 py-0.5 rounded-full"
+                            style={{ backgroundColor: `${p.status_color ?? "#94a3b8"}20`, color: p.status_color ?? "#94a3b8" }}
+                          >
+                            {p.status_label}
+                          </span>
+                        )}
                       </div>
                     </div>
 

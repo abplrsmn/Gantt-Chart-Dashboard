@@ -8,6 +8,17 @@ export async function GET() {
   let client;
   try {
     client = await pool.connect();
+    // Seed default statuses if none exist
+    const statusCount = await client.query(`SELECT COUNT(*) FROM master_statuses`);
+    if (Number(statusCount.rows[0].count) === 0) {
+      await client.query(`
+        INSERT INTO master_statuses (status_label, color) VALUES
+          ('Active',     '#22c55e'),
+          ('Not Active', '#94a3b8'),
+          ('Done',       '#3b82f6')
+      `);
+    }
+
     const [units, categories, phases, priorities, statuses] = await Promise.all([
       client.query(`SELECT id, unit_code AS code, unit_name AS name FROM master_units ORDER BY unit_name`),
       client.query(`SELECT id, category_code AS code, category_name AS name FROM master_project_categories ORDER BY category_name`),

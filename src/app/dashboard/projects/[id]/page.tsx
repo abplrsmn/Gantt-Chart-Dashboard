@@ -441,6 +441,11 @@ export default function ProjectDetailPage() {
   const [addingStakeholder, setAddingStakeholder] = useState(false);
   const [uploadingFile, setUploadingFile] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [statuses, setStatuses] = useState<{ id: number; name: string; color: string }[]>([]);
+
+  useEffect(() => {
+    fetch("/api/master/options").then(r => r.json()).then(d => { if (d.success) setStatuses(d.statuses ?? []); }).catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (!id) return;
@@ -687,19 +692,52 @@ export default function ProjectDetailPage() {
                 {project.project_code}
               </p>
             </div>
-            <div>
-              <p className="text-[10px] uppercase tracking-widest text-slate-400 mb-1">Priority</p>
-              {project.priority_name ? (
-                <span
-                  className="inline-flex items-center gap-1.5 text-xs font-semibold px-2 py-0.5 rounded-md"
-                  style={{ backgroundColor: `${project.priority_color}20`, color: project.priority_color ?? undefined }}
-                >
-                  <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: project.priority_color ?? undefined }} />
-                  {project.priority_name}
-                </span>
-              ) : (
-                <span className="text-sm italic text-slate-400 dark:text-slate-600">—</span>
-              )}
+            <div className="flex items-start gap-4 flex-wrap">
+              <div>
+                <p className="text-[10px] uppercase tracking-widest text-slate-400 mb-1">Priority</p>
+                {project.priority_name ? (
+                  <span
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold px-2 py-0.5 rounded-md"
+                    style={{ backgroundColor: `${project.priority_color}20`, color: project.priority_color ?? undefined }}
+                  >
+                    <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: project.priority_color ?? undefined }} />
+                    {project.priority_name}
+                  </span>
+                ) : (
+                  <span className="text-xs italic text-slate-400 dark:text-slate-600">—</span>
+                )}
+              </div>
+              <div>
+                <p className="text-[10px] uppercase tracking-widest text-slate-400 mb-1">Status</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {statuses.length > 0 ? statuses.map(s => {
+                    const active = project.status_label === s.name;
+                    return (
+                      <button
+                        key={s.id}
+                        onClick={async () => {
+                          setProject(prev => prev ? { ...prev, status_label: s.name, status_color: s.color } : prev);
+                          await fetch(`/api/projects/${id}`, {
+                            method: "PATCH",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ field: "overall_status_id", value: String(s.id), change_summary: `Status → ${s.name}`, action_type: "field_updated" }),
+                          });
+                        }}
+                        className="inline-flex items-center gap-1.5 text-xs font-semibold px-2 py-0.5 rounded-md transition-all"
+                        style={active
+                          ? { backgroundColor: `${s.color}22`, color: s.color, border: `1.5px solid ${s.color}60` }
+                          : { backgroundColor: "rgba(0,0,0,0.03)", color: "#94a3b8", border: "1.5px solid rgba(0,0,0,0.06)" }
+                        }
+                      >
+                        <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: active ? s.color : "#cbd5e1" }} />
+                        {s.name}
+                      </button>
+                    );
+                  }) : (
+                    <span className="text-xs italic text-slate-400 dark:text-slate-600">—</span>
+                  )}
+                </div>
+              </div>
             </div>
             <div>
               <p className="text-[10px] uppercase tracking-widest text-slate-400 mb-1">Summary</p>
