@@ -145,9 +145,6 @@ export default function AddProjectModal({
       >
         {/* Header */}
         <div className="flex items-center gap-3 px-5 py-4 border-b border-slate-200/60 dark:border-white/8">
-          <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: "var(--brand-espresso)" }}>
-            <Plus size={14} className="text-white" />
-          </div>
           <h2 className="text-sm font-bold text-slate-800 dark:text-slate-100 flex-1">Add New Project</h2>
           <button type="button" onClick={onClose}
             className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/8 transition-colors">
