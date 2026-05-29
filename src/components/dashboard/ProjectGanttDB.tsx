@@ -1102,8 +1102,8 @@ export default function ProjectGanttDB() {
         }
 
         return (
-          <div className="fixed inset-0 z-9999 flex items-center justify-center p-4" style={{ backgroundColor: "rgba(0,0,0,0.45)", backdropFilter: "blur(6px)" }}>
-            <div className="w-full max-w-sm rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200/60 dark:border-white/10 shadow-2xl p-5 space-y-4">
+          <div className="fixed inset-0 z-9999 flex items-center justify-center p-4 animate-backdrop-enter" style={{ backgroundColor: "rgba(0,0,0,0.45)", backdropFilter: "blur(6px)" }}>
+            <div className="w-full max-w-sm rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200/60 dark:border-white/10 shadow-2xl p-5 space-y-4 animate-modal-enter">
               <div className="flex items-start gap-3">
                 <div className="shrink-0 w-9 h-9 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${phaseColor}20` }}>
                   <Move size={16} style={{ color: phaseColor }} />

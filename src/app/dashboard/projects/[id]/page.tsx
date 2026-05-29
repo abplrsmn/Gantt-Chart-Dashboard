@@ -429,8 +429,14 @@ export default function ProjectDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [exitingConfirm,    setExitingConfirm]    = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  function closeDeleteConfirm() {
+    setExitingConfirm(true);
+    setTimeout(() => { setExitingConfirm(false); setShowDeleteConfirm(false); }, 200);
+  }
   const [newStakeholder, setNewStakeholder] = useState("");
   const [addingStakeholder, setAddingStakeholder] = useState(false);
   const [uploadingFile, setUploadingFile] = useState(false);
@@ -616,11 +622,11 @@ export default function ProjectDetailPage() {
       {/* ── Delete confirmation modal ───────────────────────────────────── */}
       {showDeleteConfirm && typeof document !== "undefined" && createPortal(
         <div
-          className="fixed inset-0 z-9999 flex items-center justify-center p-4"
+          className={`fixed inset-0 z-9999 flex items-center justify-center p-4 ${exitingConfirm ? "animate-backdrop-exit" : "animate-backdrop-enter"}`}
           style={{ backgroundColor: "rgba(0,0,0,0.5)", backdropFilter: "blur(6px)" }}
-          onMouseDown={e => { if (e.target === e.currentTarget && !deleting) setShowDeleteConfirm(false); }}
+          onMouseDown={e => { if (e.target === e.currentTarget && !deleting) closeDeleteConfirm(); }}
         >
-          <div className="w-full max-w-sm rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200/60 dark:border-white/10 shadow-2xl p-6 space-y-4">
+          <div className={`w-full max-w-sm rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200/60 dark:border-white/10 shadow-2xl p-6 space-y-4 ${exitingConfirm ? "animate-modal-exit" : "animate-modal-enter"}`}>
             <div className="flex items-start gap-3">
               <div className="shrink-0 w-10 h-10 rounded-xl bg-rose-500/10 flex items-center justify-center">
                 <Trash2 size={18} className="text-rose-500" />
@@ -637,7 +643,7 @@ export default function ProjectDetailPage() {
             )}
             <div className="flex items-center justify-end gap-2 pt-1">
               <button
-                onClick={() => setShowDeleteConfirm(false)}
+                onClick={closeDeleteConfirm}
                 disabled={deleting}
                 className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/8 hover:text-slate-700 dark:hover:text-slate-200 transition-colors disabled:opacity-50"
               >

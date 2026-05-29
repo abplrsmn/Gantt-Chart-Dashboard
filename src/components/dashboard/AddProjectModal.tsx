@@ -50,7 +50,13 @@ export default function AddProjectModal({
   const [phaseDates,  setPhaseDates]  = useState<PhaseEntry[]>([]);
   const [addingPhase, setAddingPhase] = useState(false);
   const [error,       setError]       = useState<string | null>(null);
+  const [exiting,     setExiting]     = useState(false);
   const nameRef = useRef<HTMLInputElement>(null);
+
+  function closeWithAnimation() {
+    setExiting(true);
+    setTimeout(() => { setExiting(false); onClose(); }, 200);
+  }
 
   useEffect(() => {
     fetch("/api/master/options")
@@ -61,7 +67,7 @@ export default function AddProjectModal({
   }, []);
 
   useEffect(() => {
-    const h = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    const h = (e: KeyboardEvent) => { if (e.key === "Escape") closeWithAnimation(); };
     document.addEventListener("keydown", h);
     return () => document.removeEventListener("keydown", h);
   }, [onClose]);
@@ -149,18 +155,18 @@ export default function AddProjectModal({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-9998 flex items-center justify-center p-4"
+      className={`fixed inset-0 z-9998 flex items-center justify-center p-4 ${exiting ? "animate-backdrop-exit" : "animate-backdrop-enter"}`}
       style={{ backgroundColor: "rgba(0,0,0,0.45)", backdropFilter: "blur(6px)" }}
-      onMouseDown={e => { if (e.target === e.currentTarget) onClose(); }}
+      onMouseDown={e => { if (e.target === e.currentTarget) closeWithAnimation(); }}
     >
       <div
-        className="relative w-full max-w-lg bg-white dark:bg-zinc-950 rounded-2xl border border-slate-200/80 dark:border-white/8 overflow-hidden"
+        className={`relative w-full max-w-lg bg-white dark:bg-zinc-950 rounded-2xl border border-slate-200/80 dark:border-white/8 overflow-hidden ${exiting ? "animate-modal-exit" : "animate-modal-enter"}`}
         style={{ boxShadow: "0 24px 64px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.06)" }}
       >
         {/* Header */}
         <div className="flex items-center gap-3 px-5 py-4 border-b border-slate-200/60 dark:border-white/8">
           <h2 className="text-sm font-bold text-slate-800 dark:text-slate-100 flex-1">Add New Project</h2>
-          <button type="button" onClick={onClose}
+          <button type="button" onClick={closeWithAnimation}
             className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/8 transition-colors">
             <X size={14} />
           </button>
@@ -325,7 +331,7 @@ export default function AddProjectModal({
 
           {/* Footer */}
           <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-slate-200/60 dark:border-white/8 bg-slate-50/50 dark:bg-white/2">
-            <button type="button" onClick={onClose}
+            <button type="button" onClick={closeWithAnimation}
               className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/8 hover:text-slate-700 dark:hover:text-slate-200 transition-colors">
               Cancel
             </button>
