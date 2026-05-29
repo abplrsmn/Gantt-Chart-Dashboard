@@ -8,6 +8,18 @@ export async function GET() {
   let client;
   try {
     client = await pool.connect();
+    // Ensure default priorities exist
+    await client.query(`
+      INSERT INTO master_priorities (priority_code, priority_name, color_hex, level)
+      SELECT v.code, v.name, v.color, v.level FROM (VALUES
+        ('CRITICAL', 'Critical', '#ef4444', 1),
+        ('HIGH',     'High',     '#f97316', 2),
+        ('MID',      'Mid',      '#eab308', 3),
+        ('LOW',      'Low',      '#22c55e', 4)
+      ) AS v(code, name, color, level)
+      WHERE NOT EXISTS (SELECT 1 FROM master_priorities WHERE priority_code = v.code)
+    `);
+
     // Ensure exactly our 3 project statuses exist
     await client.query(`
       INSERT INTO master_statuses (status_label, color)
