@@ -18,8 +18,6 @@ type WeekEntry = {
 };
 
 type ProjectMeta = {
-  project_name: string;
-  project_code: string;
   pm_start: string | null;
   pm_end: string | null;
   start_date: string | null;
@@ -164,13 +162,8 @@ export default function WeeklyProgressPage() {
           className="flex items-center gap-1.5 text-sm font-semibold text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors shrink-0"
         >
           <ArrowLeft size={15} />
-          Back to Project
+          Back
         </button>
-        {project && (
-          <p className="text-xs text-slate-400 dark:text-slate-500 truncate">
-            {project.project_code} — {project.project_name}
-          </p>
-        )}
       </div>
 
       {loading ? (
