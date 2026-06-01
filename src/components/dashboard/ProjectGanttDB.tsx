@@ -232,54 +232,13 @@ function fmtRange(start: Date | null, end: Date | null): string {
   return start ? `${format(start, "dd MMM yy")} → —` : `— → ${format(end!, "dd MMM yy")}`;
 }
 
-function fmtSummaryDate(value: string | null | undefined): string {
-  const d = toDate(value);
-  return d ? format(d, "dd MMM yy") : "—";
-}
-
-function fmtSummaryText(value: string | number | null | undefined): string {
-  if (value === null || value === undefined || value === "") return "—";
-  return String(value);
-}
-
-function fmtSummaryMoney(value: string | null | undefined): string {
-  if (!value) return "—";
-  const n = Number(value);
-  if (!Number.isFinite(n) || n === 0) return n === 0 ? "0" : "—";
-  return new Intl.NumberFormat("id-ID", { maximumFractionDigits: 0 }).format(n);
-}
-
-function fmtSummaryDuration(value: number | string | null | undefined): string {
-  if (value === null || value === undefined || value === "") return "—";
-  const n = Number(value);
-  if (!Number.isFinite(n)) return String(value);
-  return n > 0 ? `+${n}` : String(n);
-}
-
-function projectDisplayName(p: DBProject): string {
-  const parts = p.project_name.split(" - ");
-  return parts.length > 1 ? parts.slice(1).join(" - ") : p.project_name;
-}
 
 function isPhaseActive(phKey: PhaseKey, phaseCode: string | null): boolean {
   if (!phaseCode) return false;
   return PHASE_CODE_MAP[phaseCode] === phKey;
 }
 
-function projectOverlapsRange(p: DBProject, rangeStart: Date | null, rangeEnd: Date | null, timelineStart: Date, totalDays: number): boolean {
-  if (!rangeStart || !rangeEnd || !isValid(rangeStart) || !isValid(rangeEnd)) return true;
-  const projectStart = toDate(p.start_date);
-  const projectEnd = toDate(p.end_date);
-  if (projectStart && projectEnd && projectStart <= rangeEnd && projectEnd >= rangeStart) return true;
-  return buildSegments(p, timelineStart, totalDays).some(seg => seg.start <= rangeEnd && seg.end >= rangeStart);
-}
 
-function getPhaseCompleteness(phases: PhaseDateInfo[]) {
-  const scheduled = phases.filter(ph => ph.start && ph.end).length;
-  const partial = phases.filter(ph => (ph.start || ph.end) && !(ph.start && ph.end)).length;
-  const missing = phases.length - scheduled - partial;
-  return { scheduled, partial, missing, total: phases.length };
-}
 
 // ─── Component ────────────────────────────────────────────────────────────────
 export default function ProjectGanttDB() {
@@ -698,14 +657,14 @@ export default function ProjectGanttDB() {
       <div className="rounded-2xl overflow-clip border border-slate-200/60 dark:border-white/8 bg-white/60 dark:bg-zinc-900/50 backdrop-blur-sm">
 
         {/* ── Sticky headers (outside overflow-x-auto so they stick on vertical scroll) ── */}
-        <div className={`sticky ${userRole === "pm" ? "top-0" : "top-14"} z-30 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md rounded-t-2xl border-b border-slate-200/60 dark:border-white/8`}>
+        <div className={`sticky ${userRole === "pm" ? "top-0" : "top-14"} z-30 bg-white dark:bg-zinc-900 rounded-t-2xl border-b border-slate-200/60 dark:border-white/8`}>
           {/* header scroll mirror — hidden overflow, synced via JS */}
           <div ref={headerRef} className="overflow-x-hidden">
             <div style={{ minWidth: `${240 + totalWidth}px` }}>
 
               {/* Month row */}
               <div className="flex border-b border-slate-200/50 dark:border-white/8">
-                <div className="sticky left-0 z-10 shrink-0 w-60 px-3 py-2 text-[9px] font-bold uppercase tracking-widest text-slate-400 border-r border-slate-200/60 dark:border-white/8 bg-white/95 dark:bg-zinc-900/95">
+                <div className="sticky left-0 z-20 shrink-0 w-60 px-3 py-2 text-[9px] font-bold uppercase tracking-widest text-slate-400 border-r border-slate-200/60 dark:border-white/8 bg-white dark:bg-zinc-900">
                   PROJECT
                 </div>
                 <div className="flex" style={{ width: `${totalWidth}px` }}>
@@ -723,7 +682,7 @@ export default function ProjectGanttDB() {
 
               {/* Week row */}
               <div className="flex">
-                <div className="sticky left-0 z-10 shrink-0 w-60 border-r border-slate-200/60 dark:border-white/8 bg-white/95 dark:bg-zinc-900/95" />
+                <div className="sticky left-0 z-20 shrink-0 w-60 border-r border-slate-200/60 dark:border-white/8 bg-white dark:bg-zinc-900" />
                 <div className="relative flex" style={{ width: `${totalWidth}px` }}>
                   {weekCols.map((wc, i) => {
                     const isLastOfMonth = i < weekCols.length - 1 && weekCols[i + 1].isFirstOfMonth;
@@ -751,14 +710,14 @@ export default function ProjectGanttDB() {
         {/* ── Scrollable body ── */}
         <div
           ref={bodyRef}
-          className="overflow-x-auto relative bg-white/95 dark:bg-zinc-900/95"
+          className="overflow-x-auto relative bg-white dark:bg-zinc-900"
           onScroll={onBodyScroll}
           onMouseLeave={() => setTooltip(null)}
         >
           <div style={{ minWidth: `${240 + totalWidth}px` }} className="relative">
 
             {/* Continuous Vertical Lines Overlay */}
-            <div className="absolute top-0 bottom-0 pointer-events-none" style={{ left: "240px", width: `${totalWidth}px`, zIndex: 10 }}>
+            <div className="absolute top-0 bottom-0 pointer-events-none overflow-hidden" style={{ left: "240px", width: `${totalWidth}px`, zIndex: 10 }}>
               {/* Today line */}
               <div className="absolute top-0 bottom-0 border-l-[3px] border-dashed border-red-500/90" style={{ left: `${(todayOffsetPct / 100) * totalWidth}px` }} />
 
@@ -785,9 +744,7 @@ export default function ProjectGanttDB() {
             ) : filteredProjects.map(p => {
               const segments = buildSegments(p, timeline.start, totalDays);
               const phaseDates = getProjectPhaseDates(p);
-              const phaseCompleteness = getPhaseCompleteness(phaseDates);
               const projectRangeBar = buildProjectRangeBar(p, timeline.start, totalDays);
-              const overallProgress = Number(p.overall_progress_pct ?? 0);
               const pCfg = PRIORITY_CONFIG[p.priority_code ?? ""] ?? { label: p.priority_name ?? "–", color: "#94a3b8", dot: "bg-slate-400" };
 
               // Is any phase running today?
@@ -818,10 +775,10 @@ export default function ProjectGanttDB() {
                   >
                     {/* Left: project info — sticky on horizontal scroll */}
                     <div
-                      className={`sticky left-0 z-10 shrink-0 w-60 px-3 py-2.5 border-r border-slate-200/40 dark:border-white/5 ${
-                        isActiveToday ? "bg-cyan-50/90 dark:bg-cyan-900/40"
-                        : isInRange   ? "bg-amber-50/80 dark:bg-amber-900/30"
-                        : "bg-white/95 dark:bg-zinc-900/95"
+                      className={`sticky left-0 z-20 shrink-0 w-60 px-3 py-2.5 border-r border-slate-200/40 dark:border-white/5 ${
+                        isActiveToday ? "bg-cyan-50 dark:bg-cyan-950"
+                        : isInRange   ? "bg-amber-50 dark:bg-amber-950"
+                        : "bg-white dark:bg-zinc-900"
                       }`}
                       style={isActiveToday ? { borderLeft: `3px solid ${activeTodayPhase?.color ?? "#06b6d4"}` } : {}}
                     >

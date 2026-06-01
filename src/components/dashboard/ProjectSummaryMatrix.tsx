@@ -223,18 +223,14 @@ export default function ProjectSummaryMatrix({
           <h3 className="text-sm font-extrabold text-slate-800 dark:text-white uppercase tracking-wide">{title}</h3>
           <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">{subtitle}</p>
         </div>
-        <span className="text-[10px] font-bold px-2 py-1 rounded-lg bg-cyan-500/10 text-cyan-600 dark:text-cyan-300 border border-cyan-500/20">
-          {projects.length} projects
-        </span>
       </div>
 
       <div className="max-h-[calc(100vh-180px)] overflow-auto scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-zinc-700">
-        <table className="min-w-[2200px] w-full border-collapse text-[10px] text-slate-700 dark:text-slate-200">
+        <table className="min-w-550 w-full border-separate border-spacing-0 text-[10px] text-slate-700 dark:text-slate-200">
           <thead className="sticky top-0 z-40 shadow-sm">
             <tr className="bg-slate-100 dark:bg-zinc-900 text-[9px] uppercase tracking-wider text-slate-500 dark:text-slate-400">
               <th rowSpan={2} className="sticky left-0 z-50 w-20 min-w-20 border-r border-b border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-zinc-900 px-2 py-2 text-left">Unit</th>
-              <th rowSpan={2} className="sticky left-20 z-50 w-12 min-w-12 border-r border-b border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-zinc-900 px-2 py-2">No</th>
-              <th rowSpan={2} className="sticky left-32 z-50 w-72 min-w-72 border-r border-b border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-zinc-900 px-2 py-2 text-left shadow-[8px_0_12px_-12px_rgba(15,23,42,0.45)]">Description</th>
+              <th rowSpan={2} className="sticky left-20 z-50 w-72 min-w-72 border-r border-b border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-zinc-900 px-2 py-2 text-left shadow-[8px_0_12px_-12px_rgba(15,23,42,0.45)]">Description</th>
               <th colSpan={3} className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2 bg-slate-200/70 dark:bg-zinc-800/80">Operational Brief (PR)</th>
               <th colSpan={5} className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2 bg-blue-100/70 dark:bg-blue-950/30">Design (HoD)</th>
               <th colSpan={4} className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2 bg-amber-100/80 dark:bg-amber-950/30">Project Control</th>
@@ -252,7 +248,7 @@ export default function ProjectSummaryMatrix({
           <tbody>
             {summaryGroups.length === 0 ? (
               <tr>
-                <td colSpan={23} className="px-4 py-8 text-center text-slate-400 dark:text-slate-500">No projects match your filter.</td>
+                <td colSpan={22} className="px-4 py-8 text-center text-slate-400 dark:text-slate-500">No projects match your filter.</td>
               </tr>
             ) : summaryGroups.map(group => group.rows.map((project, idx) => (
               <tr key={project.id} className="group odd:bg-white even:bg-slate-50 dark:odd:bg-zinc-950 dark:even:bg-zinc-900 hover:bg-cyan-50/30 dark:hover:bg-cyan-950/10 transition-colors">
@@ -261,8 +257,7 @@ export default function ProjectSummaryMatrix({
                     {group.unit}
                   </td>
                 )}
-                <td className="sticky left-20 z-20 w-12 min-w-12 border-r border-b border-slate-200 dark:border-white/10 bg-white group-odd:bg-white group-even:bg-slate-50 dark:bg-zinc-950 dark:group-even:bg-zinc-900 px-2 py-2 text-center font-mono text-slate-500">{project.project_code || project.id}</td>
-                <td className="sticky left-32 z-20 w-72 min-w-72 border-r border-b border-slate-200 dark:border-white/10 bg-white group-odd:bg-white group-even:bg-slate-50 dark:bg-zinc-950 dark:group-even:bg-zinc-900 px-2 py-2 font-semibold text-slate-800 dark:text-white leading-snug shadow-[8px_0_12px_-12px_rgba(15,23,42,0.45)]">{projectDisplayName(project)}</td>
+                <td className="sticky left-20 z-20 w-72 min-w-72 border-r border-b border-slate-200 dark:border-white/10 bg-white group-odd:bg-white group-even:bg-slate-50 dark:bg-zinc-950 dark:group-even:bg-zinc-900 px-2 py-2 font-semibold text-slate-800 dark:text-white leading-snug shadow-[8px_0_12px_-12px_rgba(15,23,42,0.45)]">{projectDisplayName(project)}</td>
 
                 <td className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2 whitespace-pre-wrap">
                   <InlineCell value={project.operational_brief} type="text" projectId={project.id} field="operational_brief" onSaved={(f, v) => onSaved(project.id, f, v)} />

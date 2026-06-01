@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Search } from "lucide-react";
 import ProjectSummaryMatrix from "./ProjectSummaryMatrix";
+import AnimatedDropdown from "./AnimatedDropdown";
 
 type ProjectRow = {
   id: string;
@@ -14,16 +15,21 @@ type ProjectRow = {
   current_phase_name: string | null;
   current_phase_code: string | null;
   priority_code: string | null;
+  priority_name: string | null;
   status_label: string | null;
   [key: string]: unknown;
 };
+
 
 export default function ProjectSummaryMatrixPage() {
   const router = useRouter();
   const [projects, setProjects] = useState<ProjectRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError]   = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [phaseFilter, setPhaseFilter] = useState("ALL");
+  const [prioFilter,  setPrioFilter]  = useState("ALL");
+
   useEffect(() => {
     fetch("/api/projects/gantt", { cache: "no-store" })
       .then(r => r.json())
@@ -32,12 +38,33 @@ export default function ProjectSummaryMatrixPage() {
       .finally(() => setLoading(false));
   }, []);
 
+  const phases = useMemo(() => [...new Set(projects.map(p => p.current_phase_name).filter(Boolean) as string[])].sort(), [projects]);
+  const prios  = useMemo(() => {
+    const seen = new Map<string, string>();
+    for (const p of projects) if (p.priority_code) seen.set(p.priority_code, p.priority_name ?? p.priority_code);
+    return [...seen.entries()].sort((a, b) => a[1].localeCompare(b[1]));
+  }, [projects]);
 
   const filteredProjects = useMemo(() => projects.filter(p => {
-    const haystack = [p.project_name, p.project_code, p.unit_code, p.unit_name, p.current_phase_name, p.status_label]
-      .join(" ").toLowerCase();
-    return haystack.includes(search.toLowerCase());
-  }), [projects, search]);
+    if (phaseFilter !== "ALL" && p.current_phase_name !== phaseFilter) return false;
+    if (prioFilter  !== "ALL" && p.priority_code !== prioFilter) return false;
+    if (search) {
+      const hay = [p.project_name, p.project_code, p.unit_code, p.unit_name, p.current_phase_name, p.status_label]
+        .join(" ").toLowerCase();
+      if (!hay.includes(search.toLowerCase())) return false;
+    }
+    return true;
+  }), [projects, search, phaseFilter, prioFilter]);
+
+  const phaseOptions = useMemo(() => [
+    { value: "ALL", label: "All Phases" },
+    ...phases.map(ph => ({ value: ph, label: ph })),
+  ], [phases]);
+
+  const prioOptions = useMemo(() => [
+    { value: "ALL", label: "All Priorities" },
+    ...prios.map(([code, name]) => ({ value: code, label: name })),
+  ], [prios]);
 
   if (loading) return (
     <div className="flex items-center justify-center h-48 text-slate-500 dark:text-slate-400 text-sm gap-2">
@@ -48,24 +75,45 @@ export default function ProjectSummaryMatrixPage() {
 
   if (error) return <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 text-sm">❌ {error}</div>;
 
+  const hasFilter = phaseFilter !== "ALL" || prioFilter !== "ALL" || search;
+
   return (
     <div className="space-y-4 pb-6 animate-page-enter">
-      <div className="relative flex items-center justify-center mb-6 min-h-[36px]">
+      {/* Toolbar: Back | Search (center) | Filters (right) */}
+      <div className="relative flex items-center justify-center min-h-9.5 mb-4">
+
+        {/* Back — absolute left */}
         <button
           onClick={() => router.push("/dashboard/projects/gantt")}
           className="absolute left-0 flex items-center gap-1.5 text-sm font-semibold text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors shrink-0"
         >
           <ArrowLeft size={15} /> Back
         </button>
-        <label className="relative w-full max-w-[600px]">
-          <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+
+        {/* Search — center */}
+        <label className="relative w-full max-w-sm">
+          <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder="Search project, unit, phase, status..."
+            placeholder="Search project, unit, phase..."
             className="w-full rounded-xl border border-slate-200/70 dark:border-white/10 bg-white/70 dark:bg-zinc-900/60 pl-8 pr-3 py-2 text-[12px] outline-none text-slate-800 dark:text-white"
           />
         </label>
+
+        {/* Filters — absolute right */}
+        <div className="absolute right-0 flex items-center gap-2">
+          <AnimatedDropdown value={phaseFilter} options={phaseOptions} onChange={setPhaseFilter} minWidth={168} align="right" />
+          <AnimatedDropdown value={prioFilter}  options={prioOptions}  onChange={setPrioFilter}  minWidth={148} align="right" />
+          {hasFilter && (
+            <button
+              onClick={() => { setSearch(""); setPhaseFilter("ALL"); setPrioFilter("ALL"); }}
+              className="text-[11px] font-semibold text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors px-2 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-white/8"
+            >
+              Clear
+            </button>
+          )}
+        </div>
       </div>
 
       <ProjectSummaryMatrix projects={filteredProjects} />
