@@ -103,7 +103,7 @@ export default function AddProjectModal({
   const usedPhaseIds = new Set(phaseDates.map(e => e.phase_id));
   const availablePhases = options?.phases.filter(p => !usedPhaseIds.has(String(p.id))) ?? [];
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: { preventDefault(): void }) {
     e.preventDefault();
     if (!form.project_name.trim()) {
       setError("Project name is required.");
@@ -149,7 +149,7 @@ export default function AddProjectModal({
       .catch(() => {});
   }
 
-  const lbl    = "text-[10px] uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1 block";
+  const lbl    = "text-[10px] uppercase tracking-wide text-slate-400 dark:text-slate-500 mb-1 block";
   const input  = "w-full rounded-xl border border-slate-200/70 dark:border-white/10 bg-white dark:bg-zinc-900/60 px-3 py-2 text-[12px] text-slate-700 dark:text-slate-200 outline-none focus:border-brand-sienna/60 focus:ring-2 focus:ring-brand-sienna/15 transition-all placeholder:text-slate-300 dark:placeholder:text-slate-600";
   const select = input + " cursor-pointer";
 

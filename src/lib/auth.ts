@@ -1,5 +1,6 @@
 import { cookies } from 'next/headers';
 import crypto from 'crypto';
+import bcrypt from 'bcryptjs';
 import { getDbPool } from '@/lib/db';
 
 export const AUTH_COOKIE_NAME = 'auth_token';
@@ -56,24 +57,19 @@ function decodeToken(token: string): AuthUser | null {
 
 export async function authenticateUser(email: string, password: string): Promise<AuthUser | null> {
   const pool = getDbPool();
-  const query = `
-    SELECT
-      a.id,
-      a.person_id,
-      a.email,
-      a.is_admin,
-      a.role,
-      p.full_name
-    FROM master_acc a
-    LEFT JOIN master_people p ON p.id = a.person_id
-    WHERE lower(a.email) = lower($1)
-      AND a.is_active = true
-      AND a.password_plain = $2
-    LIMIT 1
-  `;
-  const result = await pool.query(query, [email, password]);
+  const result = await pool.query(
+    `SELECT a.id, a.person_id, a.email, a.is_admin, a.role, a.password_hash, p.full_name
+     FROM master_acc a
+     LEFT JOIN master_people p ON p.id = a.person_id
+     WHERE lower(a.email) = lower($1) AND a.is_active = true
+     LIMIT 1`,
+    [email]
+  );
   const row = result.rows[0];
   if (!row) return null;
+
+  const valid = await bcrypt.compare(password, String(row.password_hash));
+  if (!valid) return null;
 
   return {
     accId: Number(row.id),

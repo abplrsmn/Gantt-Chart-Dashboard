@@ -12,10 +12,13 @@
     "recall:context": "node scripts/memory-recall.js context",
     "recall:stats": "node scripts/memory-recall.js stats",
     "skill:evolve": "node scripts/skill-evolution.js",
-    "skill:evolve:list": "node scripts/skill-evolution.js list"
+    "skill:evolve:list": "node scripts/skill-evolution.js list",
+    "migrate:pw": "node scripts/migrate_pw_to_bcrypt.js"
   },
   "dependencies": {
+    "@types/bcryptjs": "^2.4.6",
     "@types/three": "^0.184.1",
+    "bcryptjs": "^3.0.3",
     "chart.js": "^4.5.1",
     "date-fns": "^4.1.0",
     "lucide-react": "^0.577.0",
@@ -36,6 +39,7 @@
     "@types/pg": "^8.20.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "dotenv": "^17.4.2",
     "eslint": "^9",
     "eslint-config-next": "^16.2.3",
     "tailwindcss": "^4.2.2",

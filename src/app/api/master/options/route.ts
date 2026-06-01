@@ -22,12 +22,12 @@ export async function GET() {
 
     // Ensure exactly our 3 project statuses exist
     await client.query(`
-      INSERT INTO master_statuses (status_label, color)
-      SELECT v.label, v.color FROM (VALUES
-        ('Active',     '#22c55e'),
-        ('Not Active', '#94a3b8'),
-        ('Done',       '#3b82f6')
-      ) AS v(label, color)
+      INSERT INTO master_statuses (entity_type, status_code, status_label, color)
+      SELECT v.entity_type, v.code, v.label, v.color FROM (VALUES
+        ('project', 'active',     'Active',     '#22c55e'),
+        ('project', 'not_active', 'Not Active', '#94a3b8'),
+        ('project', 'done',       'Done',       '#3b82f6')
+      ) AS v(entity_type, code, label, color)
       WHERE NOT EXISTS (SELECT 1 FROM master_statuses WHERE status_label = v.label)
     `);
 

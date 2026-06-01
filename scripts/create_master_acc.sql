@@ -2,7 +2,7 @@ create table if not exists master_acc (
   id bigserial primary key,
   person_id bigint null,
   email varchar(255) not null unique,
-  password_plain varchar(255) not null,
+  password_hash varchar(255) not null,
   is_admin boolean not null default false,
   is_active boolean not null default true,
   created_at timestamptz not null default now(),
@@ -15,8 +15,8 @@ create table if not exists master_acc (
     on delete set null
 );
 
-alter table master_acc add column if not exists password_plain varchar(255);
-alter table master_acc drop column if exists password_hash;
+alter table master_acc add column if not exists password_hash varchar(255);
+alter table master_acc drop column if exists password_plain;
 
 create index if not exists idx_master_acc_email on master_acc (email);
 create index if not exists idx_master_acc_person_id on master_acc (person_id);
@@ -27,14 +27,14 @@ where not exists (
   select 1 from master_people where lower(email) = lower('admin@aryaduta.com')
 );
 
-insert into master_acc (person_id, email, password_plain, is_admin, is_active)
-select mp.id, 'admin@aryaduta.com', 'admin123', true, true
+-- password_hash below = bcrypt(cost=12) of 'admin123'
+-- To regenerate: node -e "const b=require('bcryptjs');b.hash('admin123',12).then(console.log)"
+insert into master_acc (person_id, email, password_hash, is_admin, is_active)
+select mp.id, 'admin@aryaduta.com', '$2b$12$placeholder_run_migrate_pw_script', true, true
 from master_people mp
 where lower(mp.email) = lower('admin@aryaduta.com')
   and not exists (
     select 1 from master_acc where lower(email) = lower('admin@aryaduta.com')
   );
 
-update master_acc
-set password_plain = 'admin123', is_admin = true, is_active = true, updated_at = now()
-where lower(email) = lower('admin@aryaduta.com');
+-- After insert, run: npm run migrate:pw  to hash any remaining plaintext passwords.

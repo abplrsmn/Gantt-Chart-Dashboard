@@ -123,8 +123,8 @@ export async function POST(req: Request, { params }: { params: Params }) {
     client = await pool.connect();
     const res = await client.query(
       `INSERT INTO project_change_logs
-         (project_id, field_name, old_value, new_value, change_summary, changed_by_name, action_type, created_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,NOW())
+         (project_id, entity_type, field_name, old_value, new_value, change_summary, changed_by_name, action_type, created_at)
+       VALUES ($1, 'project', $2,$3,$4,$5,$6,$7,NOW())
        RETURNING *`,
       [id, field_name ?? null, old_value ?? null, new_value ?? null,
        change_summary ?? null, changed_by_name, normalizedActionType]

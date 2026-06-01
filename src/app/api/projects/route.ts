@@ -135,8 +135,8 @@ export async function POST(req: Request) {
     const changedBy = user?.fullName ?? user?.email ?? "System";
     await client.query(
       `INSERT INTO project_change_logs
-         (project_id, change_summary, changed_by_name, action_type, created_at)
-       VALUES ($1, $2, $3, 'project_created', NOW())`,
+         (project_id, entity_type, change_summary, changed_by_name, action_type, created_at)
+       VALUES ($1, 'project', $2, $3, 'project_created', NOW())`,
       [projectId, `Project "${newProject.project_name}" created`, changedBy]
     );
 
