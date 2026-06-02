@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter, useParams } from "next/navigation";
 import { format, eachWeekOfInterval, addDays, parseISO, isValid } from "date-fns";
-import { ArrowLeft, Camera, Plus, Trash2, Check, FileText } from "lucide-react";
+import { ArrowLeft, Camera, Plus, Trash2, Check, FileText, FileSpreadsheet, FileType2, Presentation, Download, ExternalLink, X } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Photo = {
@@ -58,6 +58,23 @@ function buildWeeks(startRaw: string | null, endRaw: string | null): WeekEntry[]
 }
 
 const STATUS_OPTIONS = ["Not started", "On progress", "Completed", "Delayed"];
+
+function getFileType(fileName: string, mimeType: string | null): "image" | "pdf" | "spreadsheet" | "document" | "presentation" | "other" {
+  if ((mimeType ?? "").startsWith("image/") || /\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i.test(fileName)) return "image";
+  if (mimeType === "application/pdf" || /\.pdf$/i.test(fileName)) return "pdf";
+  if (/\.(xlsx|xls|csv|ods)$/i.test(fileName)) return "spreadsheet";
+  if (/\.(docx|doc|odt|rtf|txt)$/i.test(fileName)) return "document";
+  if (/\.(pptx|ppt|odp)$/i.test(fileName)) return "presentation";
+  return "other";
+}
+
+function FileTypeIcon({ type, size = 40 }: { type: ReturnType<typeof getFileType>; size?: number }) {
+  if (type === "spreadsheet")  return <FileSpreadsheet size={size} className="text-emerald-500" />;
+  if (type === "document")     return <FileType2 size={size} className="text-blue-500" />;
+  if (type === "presentation") return <Presentation size={size} className="text-orange-500" />;
+  if (type === "pdf")          return <FileText size={size} className="text-red-500" />;
+  return <FileText size={size} className="text-slate-400" />;
+}
 
 function StatField({ label, value, onSave, color }: {
   label: string; value: string; onSave: (v: string) => void; color?: string;
@@ -342,60 +359,111 @@ function WeekCard({ week, weekKey, range, projectId }: WeekEntry & { projectId: 
         onChange={e => { if (e.target.files?.[0]) handleReplace(e.target.files[0]); }}
       />
 
-      {/* Lightbox */}
-      {lightbox && typeof document !== "undefined" && createPortal(
-        <div
-          className="fixed inset-0 z-9999 flex items-center justify-center p-4 animate-backdrop-enter"
-          style={{ backgroundColor: "rgba(0,0,0,0.45)", backdropFilter: "blur(6px)" }}
-          onMouseDown={e => { if (e.target === e.currentTarget) setLightbox(null); }}
-        >
-          <div className="relative max-w-4xl max-h-[90vh] w-full animate-modal-enter" onClick={e => e.stopPropagation()}>
-            <img
-              src={lightbox.file_url}
-              alt={lightbox.file_name}
-              className="w-full h-full object-contain rounded-xl"
-            />
+      {/* Lightbox / File preview */}
+      {lightbox && typeof document !== "undefined" && createPortal((() => {
+        const fileType = getFileType(lightbox.file_name, lightbox.mime_type);
+        const isImage  = fileType === "image";
+        const isPdf    = fileType === "pdf";
 
-            {/* Bottom bar: info + actions */}
-            <div className="absolute bottom-0 left-0 right-0 p-3 rounded-b-xl bg-linear-to-t from-black/70 to-transparent flex items-end justify-between gap-3">
-              <div>
-                <p className="text-white text-xs font-medium">{lightbox.file_name}</p>
-                {lightbox.uploaded_by_name && (
-                  <p className="text-white/60 text-[10px]">Uploaded by {lightbox.uploaded_by_name}</p>
-                )}
+        return (
+          <div
+            className="fixed inset-0 z-9999 flex items-center justify-center p-4 animate-backdrop-enter"
+            style={{ backgroundColor: "rgba(0,0,0,0.45)", backdropFilter: "blur(6px)" }}
+            onMouseDown={e => { if (e.target === e.currentTarget) setLightbox(null); }}
+          >
+            {isImage ? (
+              /* ── Image lightbox ── */
+              <div className="relative max-w-4xl w-full animate-modal-enter overflow-hidden rounded-xl" onClick={e => e.stopPropagation()}>
+                <img src={lightbox.file_url} alt={lightbox.file_name} className="w-full max-h-[90vh] object-contain rounded-xl block" />
+                <div className="absolute bottom-0 left-0 right-0 p-3 rounded-b-xl bg-linear-to-t from-black/70 to-transparent flex items-end justify-between gap-3">
+                  <div>
+                    <p className="text-white text-xs font-medium">{lightbox.file_name}</p>
+                    {lightbox.uploaded_by_name && <p className="text-white/60 text-[10px]">Uploaded by {lightbox.uploaded_by_name}</p>}
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button onClick={() => replaceRef.current?.click()} disabled={replacing}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/20 hover:bg-white/30 text-white text-xs font-semibold transition-colors disabled:opacity-50">
+                      {replacing ? <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Plus size={12} />}
+                      Replace
+                    </button>
+                    <button onClick={() => handleDelete(lightbox.id)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/80 hover:bg-red-600 text-white text-xs font-semibold transition-colors">
+                      <Trash2 size={12} /> Delete
+                    </button>
+                  </div>
+                </div>
+                <button onClick={() => setLightbox(null)} className="absolute top-3 right-3 p-2 rounded-full bg-black/50 hover:bg-black/70 text-white transition-colors text-sm leading-none">✕</button>
               </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <button
-                  onClick={() => replaceRef.current?.click()}
-                  disabled={replacing}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/20 hover:bg-white/30 text-white text-xs font-semibold transition-colors disabled:opacity-50"
-                >
-                  {replacing
-                    ? <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    : <Plus size={12} />}
-                  Replace
-                </button>
-                <button
-                  onClick={() => handleDelete(lightbox.id)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/80 hover:bg-red-600 text-white text-xs font-semibold transition-colors"
-                >
-                  <Trash2 size={12} />
-                  Delete
-                </button>
+            ) : isPdf ? (
+              /* ── PDF embed ── */
+              <div className="relative w-full max-w-4xl h-[88vh] bg-white dark:bg-zinc-900 rounded-2xl border border-slate-200/80 dark:border-white/8 overflow-hidden animate-modal-enter shadow-2xl" onClick={e => e.stopPropagation()}>
+                <div className="flex items-center gap-3 px-4 py-3 border-b border-slate-200/60 dark:border-white/8">
+                  <FileText size={14} className="text-red-500 shrink-0" />
+                  <p className="text-xs font-bold text-slate-700 dark:text-white flex-1 truncate">{lightbox.file_name}</p>
+                  {lightbox.uploaded_by_name && <p className="text-[10px] text-slate-400 shrink-0">by {lightbox.uploaded_by_name}</p>}
+                  <div className="flex items-center gap-1.5 ml-2 shrink-0">
+                    <button onClick={() => replaceRef.current?.click()} disabled={replacing}
+                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-100 dark:bg-white/8 hover:bg-slate-200 dark:hover:bg-white/12 text-slate-600 dark:text-slate-300 text-[11px] font-semibold transition-colors disabled:opacity-50">
+                      {replacing ? <span className="w-3 h-3 border-2 border-slate-400/30 border-t-slate-500 rounded-full animate-spin" /> : <Plus size={11} />}
+                      Replace
+                    </button>
+                    <button onClick={() => handleDelete(lightbox.id)}
+                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-red-500 hover:bg-red-600 text-white text-[11px] font-semibold transition-colors">
+                      <Trash2 size={11} /> Delete
+                    </button>
+                    <button onClick={() => setLightbox(null)} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/8 transition-colors ml-1">
+                      <X size={14} />
+                    </button>
+                  </div>
+                </div>
+                <iframe src={lightbox.file_url} className="w-full h-[calc(100%-48px)] border-0" title={lightbox.file_name} />
               </div>
-            </div>
-
-            {/* Close */}
-            <button
-              onClick={() => setLightbox(null)}
-              className="absolute top-3 right-3 p-2 rounded-full bg-black/50 hover:bg-black/70 text-white transition-colors text-sm leading-none"
-            >
-              ✕
-            </button>
+            ) : (
+              /* ── Generic file preview card ── */
+              <div className="relative w-full max-w-sm bg-white dark:bg-zinc-900 rounded-2xl border border-slate-200/80 dark:border-white/8 overflow-hidden animate-modal-enter shadow-2xl" onClick={e => e.stopPropagation()}>
+                <div className="flex items-center gap-3 px-5 py-4 border-b border-slate-200/60 dark:border-white/8">
+                  <FileTypeIcon type={fileType} size={16} />
+                  <p className="text-sm font-bold text-slate-800 dark:text-white flex-1 truncate">{lightbox.file_name}</p>
+                  <button onClick={() => setLightbox(null)} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/8 transition-colors">
+                    <X size={14} />
+                  </button>
+                </div>
+                <div className="p-6 flex flex-col items-center gap-4">
+                  <div className="w-16 h-16 rounded-2xl bg-slate-100 dark:bg-white/6 flex items-center justify-center">
+                    <FileTypeIcon type={fileType} size={32} />
+                  </div>
+                  <div className="text-center">
+                    <p className="text-xs font-semibold text-slate-700 dark:text-slate-200 break-all">{lightbox.file_name}</p>
+                    {lightbox.uploaded_by_name && <p className="text-[10px] text-slate-400 mt-1">Uploaded by {lightbox.uploaded_by_name}</p>}
+                  </div>
+                  <div className="flex gap-2 w-full">
+                    <a href={lightbox.file_url} target="_blank" rel="noopener noreferrer"
+                      className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-slate-100 dark:bg-white/8 hover:bg-slate-200 dark:hover:bg-white/12 text-slate-700 dark:text-slate-200 text-xs font-semibold transition-colors">
+                      <ExternalLink size={12} /> Open
+                    </a>
+                    <a href={lightbox.file_url} download={lightbox.file_name}
+                      className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-white text-xs font-semibold transition-colors"
+                      style={{ backgroundColor: "var(--brand-sienna)" }}>
+                      <Download size={12} /> Download
+                    </a>
+                  </div>
+                </div>
+                <div className="px-5 py-4 border-t border-slate-200/60 dark:border-white/8 flex justify-end gap-2">
+                  <button onClick={() => replaceRef.current?.click()} disabled={replacing}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-white/8 hover:bg-slate-200 dark:hover:bg-white/12 text-slate-600 dark:text-slate-300 text-xs font-semibold transition-colors disabled:opacity-50">
+                    {replacing ? <span className="w-3 h-3 border-2 border-slate-400/30 border-t-slate-500 rounded-full animate-spin" /> : <Plus size={11} />}
+                    Replace
+                  </button>
+                  <button onClick={() => handleDelete(lightbox.id)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500 hover:bg-red-600 text-white text-xs font-semibold transition-colors">
+                    <Trash2 size={11} /> Delete
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
-        </div>,
-        document.body
-      )}
+        );
+      })(), document.body)}
     </>
   );
 }
