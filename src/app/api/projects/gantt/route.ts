@@ -77,6 +77,7 @@ export async function GET() {
         ) AS brief_pic,
 
         ds.start_design_date          AS design_start,
+        (ds.start_design_date + INTERVAL '1 month')::date AS design_approval_target,
         ds.design_approval_date       AS design_end,
         ds.progress_pct               AS design_progress,
         ds.design_duration_days,
@@ -91,6 +92,7 @@ export async function GET() {
         ) AS design_pic,
 
         pc.tender_start_date          AS control_start,
+        (pc.tender_start_date + INTERVAL '21 days')::date AS aps_spk_target,
         pc.aps_spk_released_date      AS control_end,
         pc.progress_pct               AS control_progress,
         pc.project_control_duration_days,
@@ -105,8 +107,10 @@ export async function GET() {
 
         pm.commence_date              AS pm_start,
         pm.end_contract_date          AS pm_end,
-        pm.progress_pct               AS pm_progress,
+        pm.actual_phase_completion_date AS pm_actual_end,
         pm.deviation_days,
+        GREATEST(0, (pm.end_contract_date - pm.commence_date))::int AS pm_duration_days,
+        pm.progress_pct               AS pm_progress,
         pm.current_site_progress,
         pm.notes                      AS pm_remarks,
         (

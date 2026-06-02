@@ -276,6 +276,7 @@ export default function ProjectGanttDB() {
   const dragRef   = useRef<ActiveDrag | null>(null);
   const [dragging, setDragging] = useState(false);
   const [toolMode, setToolMode] = useState<"select" | "drag" | "delete">("select");
+  const [rangeTooltip, setRangeTooltip] = useState<{ x: number; y: number } | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ projectId: string; seg: PhaseSegment } | null>(null);
   const [dragConfirm, setDragConfirm]     = useState<{ projectId: string; phaseKey: PhaseKey; origStart: Date; origEnd: Date; newStart: Date; newEnd: Date } | null>(null);
   const [modalExiting, setModalExiting]   = useState(false);
@@ -716,25 +717,29 @@ export default function ProjectGanttDB() {
         >
           <div style={{ minWidth: `${240 + totalWidth}px` }} className="relative">
 
-            {/* Continuous Vertical Lines Overlay */}
-            <div className="absolute top-0 bottom-0 pointer-events-none overflow-hidden" style={{ left: "240px", width: `${totalWidth}px`, zIndex: 10 }}>
-              {/* Today line */}
-              <div className="absolute top-0 bottom-0 border-l-[3px] border-dashed border-red-500/90" style={{ left: `${(todayOffsetPct / 100) * totalWidth}px` }} />
+            {/* Date range overlay block — full height, behind rows */}
+            {rangeRulers && (
+              <div
+                className="absolute top-0 bottom-0 border-t-[3px] cursor-default"
+                style={{
+                  left:        `${240 + (rangeRulers.startPct / 100) * totalWidth}px`,
+                  width:       `${((rangeRulers.endPct - rangeRulers.startPct) / 100) * totalWidth}px`,
+                  borderColor: "var(--brand-sand)",
+                  background:  "rgba(196,149,106,0.12)",
+                  zIndex:      1,
+                }}
+                onMouseMove={e => setRangeTooltip({ x: e.clientX, y: e.clientY })}
+                onMouseLeave={() => setRangeTooltip(null)}
+              />
+            )}
 
-              {/* Date range overlay block */}
-              {rangeRulers && (
-                <div
-                  className="absolute top-0 bottom-0 z-0 pointer-events-none border-t-[3px]"
-                  style={{
-                    left:        `${(rangeRulers.startPct / 100) * totalWidth}px`,
-                    width:       `${((rangeRulers.endPct - rangeRulers.startPct) / 100) * totalWidth}px`,
-                    borderColor: "var(--brand-sand)",
-                    background:  "rgba(196,149,106,0.12)",
-                  }}
-                />
-              )}
-
-            </div>
+            {/* Today line — single overlay spanning full gantt body height */}
+            {todayOffsetPct > 0 && todayOffsetPct < 100 && (
+              <div
+                className="absolute top-0 bottom-0 border-l-[3px] border-dashed border-red-500/90 pointer-events-none"
+                style={{ left: `${240 + (todayOffsetPct / 100) * totalWidth}px`, zIndex: 10 }}
+              />
+            )}
 
             {/* Project rows */}
             {filteredProjects.length === 0 ? (
@@ -766,7 +771,7 @@ export default function ProjectGanttDB() {
                   className={`border-b border-slate-100/80 dark:border-white/4 last:border-0 ${
                     isActiveToday ? "bg-cyan-50/30 dark:bg-cyan-900/10"
                     : isInRange   ? "bg-amber-50/40 dark:bg-amber-900/10"
-                    : ""
+                    : "bg-white dark:bg-zinc-900"
                   }`}
                 >
                   {/* Row */}
@@ -775,7 +780,7 @@ export default function ProjectGanttDB() {
                   >
                     {/* Left: project info — sticky on horizontal scroll */}
                     <div
-                      className={`sticky left-0 z-20 shrink-0 w-60 px-3 py-2.5 border-r border-slate-200/40 dark:border-white/5 ${
+                      className={`sticky left-0 z-20 shrink-0 w-60 h-22 px-3 flex flex-col justify-center overflow-hidden border-r border-slate-200/40 dark:border-white/5 ${
                         isActiveToday ? "bg-cyan-50 dark:bg-cyan-950"
                         : isInRange   ? "bg-amber-50 dark:bg-amber-950"
                         : "bg-white dark:bg-zinc-900"
@@ -803,7 +808,7 @@ export default function ProjectGanttDB() {
                     </div>
 
                     {/* Right: Gantt timeline (fixed pixel width per week) */}
-                    <div className="relative overflow-hidden" style={{ width: `${totalWidth}px`, height: "76px" }}>
+                    <div className="relative overflow-hidden" style={{ width: `${totalWidth}px`, height: "88px" }}>
                       {/* Week grid lines */}
                       {weekCols.map((_wc, i) => {
                         const isLastOfMonth = i < weekCols.length - 1 && weekCols[i + 1].isFirstOfMonth;
@@ -828,6 +833,20 @@ export default function ProjectGanttDB() {
                             zIndex: 2,
                           }}
                           onClick={() => { if (toolMode === "select") router.push(`/dashboard/projects/${p.id}`); }}
+                          onMouseMove={e => {
+                            if (dragRef.current) return;
+                            const rs = toDate(p.start_date);
+                            const re = toDate(p.end_date);
+                            if (!rs || !re) return;
+                            setTooltip({
+                              seg:     { key: "range", label: "Project Range", color: "#94a3b8", start: rs, end: re },
+                              project: p,
+                              phases:  phaseDates,
+                              x: e.clientX,
+                              y: e.clientY,
+                            });
+                          }}
+                          onMouseLeave={() => { if (!dragRef.current) setTooltip(null); }}
                         />
                       )}
 
@@ -958,6 +977,38 @@ export default function ProjectGanttDB() {
                   );
                 })}
               </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ── Range tooltip ── */}
+      {rangeTooltip && rangeStart && rangeEnd && (() => {
+        const TIP_W = 240;
+        const TIP_H = 90;
+        const vw = typeof window !== "undefined" ? window.innerWidth  : 1000;
+        const vh = typeof window !== "undefined" ? window.innerHeight : 700;
+        const m  = 12;
+        const rawLeft = rangeTooltip.x + TIP_W + m > vw ? rangeTooltip.x - TIP_W - m : rangeTooltip.x + m;
+        const rawTop  = rangeTooltip.y + TIP_H + m > vh ? rangeTooltip.y - TIP_H - m : rangeTooltip.y + m;
+        const left = Math.max(m, Math.min(rawLeft, vw - TIP_W - m));
+        const top  = Math.max(m, Math.min(rawTop,  vh - TIP_H - m));
+        return (
+          <div className="fixed z-999 pointer-events-none" style={{ left, top, width: TIP_W }}>
+            <div
+              className="rounded-xl border px-3 py-2.5 shadow-xl bg-white dark:bg-zinc-900"
+              style={{ borderColor: "rgba(196,149,106,0.4)", boxShadow: "0 8px 24px rgba(0,0,0,0.12), 0 0 0 1px rgba(196,149,106,0.2)" }}
+            >
+              <div className="flex items-center gap-1.5 mb-1.5">
+                <span className="w-2 h-2 rounded-sm shrink-0" style={{ backgroundColor: "var(--brand-sand)" }} />
+                <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--brand-sand)" }}>Selected Range</span>
+              </div>
+              <p className="text-[11px] font-semibold text-slate-700 dark:text-white/80 font-mono">
+                {format(rangeStart, "dd MMM yyyy")} → {format(rangeEnd, "dd MMM yyyy")}
+              </p>
+              <p className="mt-1 text-[10px] text-slate-400 dark:text-white/45">
+                {rangeSummary?.totalActiveProjects ?? 0} project ongoing dalam range ini
+              </p>
             </div>
           </div>
         );

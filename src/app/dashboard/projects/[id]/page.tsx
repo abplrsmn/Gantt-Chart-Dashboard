@@ -803,60 +803,6 @@ export default function ProjectDetailPage() {
               </div>
             </div>
 
-            {/* Attachments */}
-            <div>
-              <p className="text-[10px] uppercase tracking-widest text-slate-400 mb-2 flex items-center gap-1.5">
-                <Paperclip size={11} className="text-slate-400" />
-                Attachments
-              </p>
-              <div className="space-y-1.5">
-                {attachments.length > 0 && attachments.map(att => {
-                  const isImage = (att.mime_type ?? "").startsWith("image/");
-                  return (
-                    <div key={att.id} className="group flex items-center gap-3 rounded-lg border border-slate-200/70 dark:border-white/8 bg-white/60 dark:bg-white/3 px-3 py-2 hover:border-slate-300/70 transition-colors">
-                      <a href={att.file_url ?? "#"} target="_blank" rel="noreferrer" className="flex items-center gap-3 flex-1 min-w-0">
-                        {isImage && att.file_url ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={att.file_url} alt={att.file_name} className="h-8 w-8 rounded object-cover border border-slate-200/70 dark:border-white/10 shrink-0" />
-                        ) : (
-                          <div className="h-8 w-8 rounded border border-slate-200/70 dark:border-white/10 flex items-center justify-center text-slate-400 shrink-0">
-                            <FileText size={14} />
-                          </div>
-                        )}
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-xs font-semibold text-slate-700 dark:text-slate-200">{att.file_name}</p>
-                          <p className="text-[10px] text-slate-400">
-                            {att.phase_name ?? "Project"} · {att.uploaded_by_name ?? att.source_channel ?? "Uploaded"}
-                          </p>
-                        </div>
-                      </a>
-                      <button onClick={() => removeAttachment(att.id)} className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-300 hover:text-rose-400 shrink-0">
-                        <X size={13} />
-                      </button>
-                    </div>
-                  );
-                })}
-
-                {/* Upload button */}
-                <div
-                  onClick={() => !uploadingFile && fileInputRef.current?.click()}
-                  className="flex items-center gap-2 px-2.5 py-2 rounded-lg border border-dashed border-slate-200/70 dark:border-white/8 text-slate-400 dark:text-slate-600 hover:border-brand-sienna/40 hover:text-brand-sienna/70 transition-all cursor-pointer"
-                >
-                  {uploadingFile
-                    ? <Loader2 size={12} className="animate-spin shrink-0" />
-                    : <Upload size={12} className="shrink-0" />
-                  }
-                  <span className="text-[11px]">{uploadingFile ? "Uploading…" : attachments.length === 0 ? "Attach a file" : "Add another file"}</span>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    className="hidden"
-                    onChange={e => { const f = e.target.files?.[0]; if (f) uploadAttachment(f); }}
-                  />
-                </div>
-              </div>
-            </div>
-
             {/* Stakeholders */}
             <div>
               <p className="text-[10px] uppercase tracking-widest text-slate-400 mb-2 flex items-center gap-1.5">

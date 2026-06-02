@@ -82,6 +82,14 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL("/", request.url));
   }
 
+  // PM users can only access /dashboard/projects/*
+  if (pathname.startsWith("/dashboard") && !pathname.startsWith("/dashboard/projects")) {
+    const role = request.cookies.get("user_role")?.value;
+    if (role === "pm") {
+      return NextResponse.redirect(new URL("/dashboard/projects/gantt", request.url));
+    }
+  }
+
   return NextResponse.next();
 }
 

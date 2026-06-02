@@ -1,14 +1,16 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Settings2, SunMoon, LogOut } from "lucide-react";
+import { Settings2, SunMoon, LogOut, Database } from "lucide-react";
 import { useTheme } from "@/components/ThemeProvider";
+import { useRouter } from "next/navigation";
 
 export default function QuickMenu({ align = "right" }: { align?: "left" | "right" }) {
   const [open, setOpen] = useState(false);
   const { resolvedTheme, setTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
   const ref = useRef<HTMLDivElement>(null);
+  const router = useRouter();
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -42,9 +44,17 @@ export default function QuickMenu({ align = "right" }: { align?: "left" | "right
       </button>
 
       <div
-        className={`absolute ${align === "right" ? "right-0 origin-top-right" : "left-0 origin-top-left"} mt-2 w-48 rounded-xl border border-slate-200 dark:border-white/10 p-1.5 z-[100] overflow-hidden bg-white dark:bg-zinc-950/97 shadow-2xl backdrop-blur-xl transition-all duration-200 ease-out ${open ? "opacity-100 translate-y-0 scale-100 pointer-events-auto" : "opacity-0 -translate-y-1.5 scale-95 pointer-events-none"}`}
+        className={`absolute ${align === "right" ? "right-0 origin-top-right" : "left-0 origin-top-left"} mt-2 w-48 rounded-xl border border-slate-200 dark:border-white/10 p-1.5 z-100 overflow-hidden bg-white dark:bg-zinc-950/97 shadow-2xl backdrop-blur-xl transition-all duration-200 ease-out ${open ? "opacity-100 translate-y-0 scale-100 pointer-events-auto" : "opacity-0 -translate-y-1.5 scale-95 pointer-events-none"}`}
         aria-hidden={!open}
       >
+          <button
+            onClick={() => { router.push("/dashboard/master"); setOpen(false); }}
+            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium text-slate-700 dark:text-white/70 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5 transition-colors"
+          >
+            <Database size={14} />
+            Master Setup
+          </button>
+          <div className="my-1 border-t border-slate-100 dark:border-white/5" />
           <button
             onClick={() => { setTheme(isDark ? "light" : "dark"); setOpen(false); }}
             className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium text-slate-700 dark:text-white/70 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5 transition-colors"

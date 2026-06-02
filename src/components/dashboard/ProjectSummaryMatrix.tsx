@@ -9,24 +9,32 @@ type SummaryProject = {
   project_name: string;
   unit_code?: string | null;
   unit_name?: string | null;
+  // Phase 1 — Operational Brief
   operational_brief?: string | null;
   brief_received?: string | null;
   budget_capex?: string | null;
+  // Phase 2 — Design
   design_start?: string | null;
-  design_end?: string | null;
+  design_approval_target?: string | null; // calculated: design_start + 1 month
+  design_end?: string | null;             // real approval date
   design_duration_days?: number | string | null;
   design_brief?: string | null;
   working_drawing_status?: string | null;
+  // Phase 3 — Project Control
   control_start?: string | null;
-  control_end?: string | null;
+  aps_spk_target?: string | null;         // calculated: tender_start + 21 days
+  control_end?: string | null;            // real SPK release date
   project_control_duration_days?: number | string | null;
   phase_contract_amount?: string | null;
+  // Phase 4 — Project Management
   pm_start?: string | null;
   pm_end?: string | null;
-  actual_phase_completion_date?: string | null;
+  pm_actual_end?: string | null;          // COMPLETION real date
   deviation_days?: number | string | null;
+  pm_duration_days?: number | string | null; // calculated: pm_end - pm_start
   current_site_progress?: string | null;
   pm_remarks?: string | null;
+  // Phase 5 — Handover
   handover_start?: string | null;
   handover_end?: string | null;
 };
@@ -179,7 +187,7 @@ function InlineCell({
   return (
     <span
       onClick={startEdit}
-      title="Klik untuk edit"
+      title="Click to edit"
       className={`cursor-pointer group inline-block w-full rounded px-0.5 hover:bg-cyan-50 dark:hover:bg-cyan-950/40 hover:outline hover:outline-cyan-300 dark:hover:outline-cyan-700 transition-all ${baseCls}`}
     >
       <span className={isEmpty ? "italic text-slate-400 dark:text-slate-600" : ""}>{displayText}</span>
@@ -232,13 +240,24 @@ export default function ProjectSummaryMatrix({
               <th rowSpan={2} className="sticky left-0 z-50 w-20 min-w-20 border-r border-b border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-zinc-900 px-2 py-2 text-left">Unit</th>
               <th rowSpan={2} className="sticky left-20 z-50 w-72 min-w-72 border-r border-b border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-zinc-900 px-2 py-2 text-left shadow-[8px_0_12px_-12px_rgba(15,23,42,0.45)]">Description</th>
               <th colSpan={3} className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2 bg-slate-200/70 dark:bg-zinc-800/80">Operational Brief (PR)</th>
-              <th colSpan={5} className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2 bg-blue-100/70 dark:bg-blue-950/30">Design (HoD)</th>
-              <th colSpan={4} className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2 bg-amber-100/80 dark:bg-amber-950/30">Project Control</th>
-              <th colSpan={6} className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2 bg-teal-100/70 dark:bg-teal-950/30">Project Management Team</th>
+              <th colSpan={6} className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2 bg-blue-100/70 dark:bg-blue-950/30">Design (HoD)</th>
+              <th colSpan={5} className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2 bg-amber-100/80 dark:bg-amber-950/30">Project Control</th>
+              <th colSpan={7} className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2 bg-teal-100/70 dark:bg-teal-950/30">Project Management Team</th>
               <th colSpan={2} className="border-b border-slate-200 dark:border-white/10 px-2 py-2 bg-emerald-100/70 dark:bg-emerald-950/30">Handover</th>
             </tr>
             <tr className="bg-white dark:bg-zinc-950 text-[9px] uppercase tracking-wide text-slate-500 dark:text-slate-400">
-              {["Brief", "Received Date", "Budget / CAPEX", "Start Design Date", "Design Approval (+1 month)", "Duration: delay(-) / +", "Brief", "Working Drawing (+3 weeks)", "Tender Start", "APS = SPK Released (+3 weeks)", "Duration: delay(-) / +", "Contract Amount", "Commence Date", "End Contract", "Actual Completion", "Deviation: delay(-) / +", "Current Site Progress", "Remarks", "BAST-1", "BAST-2"].map((label, idx) => (
+              {[
+                // Operational Brief (3)
+                "Brief", "Received Date", "Budget / CAPEX",
+                // Design (6)
+                "Start Design", "Design Approval — Target (+1M)", "Design Approval — Real", "Duration (+/-)", "Brief", "Working Drawing (+3W)",
+                // Project Control (5)
+                "Tender Start", "SPK Released — Target (+3W)", "SPK Released — Real", "Duration (+/-)", "Contract Amount",
+                // Project Management (7)
+                "+/-", "START", "END", "Completion real date", "Duration (weeks)", "+/-", "Progress %",
+                // Handover (2)
+                "BAST-1", "BAST-2",
+              ].map((label, idx) => (
                 <th key={`${label}-${idx}`} className="min-w-28 border-r border-b border-slate-200 dark:border-white/10 px-2 py-2 align-bottom leading-tight text-left last:border-r-0">
                   {label}
                 </th>
@@ -271,6 +290,11 @@ export default function ProjectSummaryMatrix({
                 <td className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2">
                   <InlineCell value={project.design_start} type="date" projectId={project.id} field="design_start" onSaved={(f, v) => onSaved(project.id, f, v)} className="font-mono whitespace-nowrap" />
                 </td>
+                {/* Design Approval — Target (calculated, readonly) */}
+                <td className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2 font-mono text-slate-400 dark:text-slate-500 whitespace-nowrap text-[10px]">
+                  {fmtSummaryDate(project.design_approval_target)}
+                </td>
+                {/* Design Approval — Real (editable) */}
                 <td className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2">
                   <InlineCell value={project.design_end} type="date" projectId={project.id} field="design_end" onSaved={(f, v) => onSaved(project.id, f, v)} className="font-mono whitespace-nowrap" />
                 </td>
@@ -286,6 +310,11 @@ export default function ProjectSummaryMatrix({
                 <td className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2">
                   <InlineCell value={project.control_start} type="date" projectId={project.id} field="control_start" onSaved={(f, v) => onSaved(project.id, f, v)} className="font-mono whitespace-nowrap" />
                 </td>
+                {/* APS/SPK Target (calculated, readonly) */}
+                <td className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2 font-mono text-slate-400 dark:text-slate-500 whitespace-nowrap text-[10px]">
+                  {fmtSummaryDate(project.aps_spk_target)}
+                </td>
+                {/* APS/SPK Real (editable) */}
                 <td className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2">
                   <InlineCell value={project.control_end} type="date" projectId={project.id} field="control_end" onSaved={(f, v) => onSaved(project.id, f, v)} className="font-mono whitespace-nowrap" />
                 </td>
@@ -295,23 +324,37 @@ export default function ProjectSummaryMatrix({
                 <td className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2">
                   <InlineCell value={project.phase_contract_amount} type="money" projectId={project.id} field="phase_contract_amount" onSaved={(f, v) => onSaved(project.id, f, v)} className="font-mono text-right whitespace-nowrap" />
                 </td>
+                {/* PROJECT: +/- (deviation) */}
+                <td className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2 font-mono text-center text-[10px]">
+                  <span className={Number(project.deviation_days) < 0 ? "text-red-500" : Number(project.deviation_days) > 0 ? "text-emerald-600" : "text-slate-400"}>
+                    {fmtSummaryDuration(project.deviation_days)}
+                  </span>
+                </td>
+                {/* PROJECT: START */}
                 <td className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2">
                   <InlineCell value={project.pm_start} type="date" projectId={project.id} field="pm_start" onSaved={(f, v) => onSaved(project.id, f, v)} className="font-mono whitespace-nowrap" />
                 </td>
+                {/* PROJECT: END target */}
                 <td className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2">
                   <InlineCell value={project.pm_end} type="date" projectId={project.id} field="pm_end" onSaved={(f, v) => onSaved(project.id, f, v)} className="font-mono whitespace-nowrap" />
                 </td>
+                {/* COMPLETION: real date */}
                 <td className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2">
-                  <InlineCell value={project.actual_phase_completion_date} type="date" projectId={project.id} field="actual_phase_completion_date" onSaved={(f, v) => onSaved(project.id, f, v)} className="font-mono whitespace-nowrap" />
+                  <InlineCell value={project.pm_actual_end} type="date" projectId={project.id} field="pm_actual_end" onSaved={(f, v) => onSaved(project.id, f, v)} className="font-mono whitespace-nowrap" />
                 </td>
-                <td className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2 font-mono text-center">
-                  {fmtSummaryDuration(project.deviation_days)}
+                {/* duration: month (weeks) */}
+                <td className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2 font-mono text-center text-[10px] text-slate-500 dark:text-slate-400">
+                  {project.pm_duration_days ? `${Math.round(Number(project.pm_duration_days) / 7)}w` : "—"}
                 </td>
+                {/* duration: +/- (deviation days) */}
+                <td className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2 font-mono text-center text-[10px]">
+                  <span className={Number(project.deviation_days) < 0 ? "text-red-500" : Number(project.deviation_days) > 0 ? "text-emerald-600" : "text-slate-400"}>
+                    {fmtSummaryDuration(project.deviation_days)}
+                  </span>
+                </td>
+                {/* progress ss % */}
                 <td className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2 whitespace-pre-wrap">
                   <InlineCell value={project.current_site_progress} type="text" projectId={project.id} field="current_site_progress" onSaved={(f, v) => onSaved(project.id, f, v)} />
-                </td>
-                <td className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2 whitespace-pre-wrap">
-                  <InlineCell value={project.pm_remarks} type="text" projectId={project.id} field="pm_remarks" onSaved={(f, v) => onSaved(project.id, f, v)} />
                 </td>
                 <td className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2">
                   <InlineCell value={project.handover_start} type="date" projectId={project.id} field="handover_start" onSaved={(f, v) => onSaved(project.id, f, v)} className="font-mono whitespace-nowrap" />

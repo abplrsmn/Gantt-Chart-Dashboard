@@ -36,7 +36,7 @@ export async function GET() {
       client.query(`SELECT id, category_code AS code, category_name AS name FROM master_project_categories ORDER BY category_name`),
       client.query(`SELECT id, phase_code AS code, phase_name AS name FROM master_phases ORDER BY id`),
       client.query(`SELECT id, priority_code AS code, priority_name AS name, color_hex AS color FROM master_priorities ORDER BY level`),
-      client.query(`SELECT id, status_label AS name, color FROM master_statuses WHERE status_label IN ('Active','Not Active','Done') ORDER BY CASE status_label WHEN 'Active' THEN 1 WHEN 'Not Active' THEN 2 WHEN 'Done' THEN 3 END`),
+      client.query(`SELECT id, status_label AS name, color FROM master_statuses ORDER BY id`),
     ]);
     return NextResponse.json({
       success: true,

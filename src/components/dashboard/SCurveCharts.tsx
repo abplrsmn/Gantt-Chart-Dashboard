@@ -117,12 +117,12 @@ function buildMonthWeekHeader(points: SCurvePoint[]) {
 
 // ─── Tahap generation (deterministic per project) ────────────────────────────
 const WORK_POOLS: string[][] = [
-  ["Penampalan Retakan", "Pengecatan", "Silikon Jendela"],
-  ["Pemasangan Keramik", "Plafon Gypsum", "Instalasi Listrik"],
-  ["Instalasi Plumbing", "Pekerjaan Sipil", "Finishing Interior"],
-  ["Waterproofing", "Pemasangan Partisi", "MEP Works"],
-  ["Structural Work", "Landscaping", "Pengecatan Ulang"],
-  ["Pembongkaran", "Fabrikasi", "Instalasi Unit"],
+  ["Crack Patching", "Painting", "Window Sealant"],
+  ["Tile Installation", "Gypsum Ceiling", "Electrical Installation"],
+  ["Plumbing Installation", "Civil Works", "Interior Finishing"],
+  ["Waterproofing", "Partition Installation", "MEP Works"],
+  ["Structural Work", "Landscaping", "Repainting"],
+  ["Demolition", "Fabrication", "Unit Installation"],
 ];
 
 const TAHAP_COLORS = ["#ef4444", "#f59e0b", "#22c55e", "#8b5cf6", "#3b82f6", "#06b6d4"];
@@ -140,7 +140,7 @@ function generateTahap(projectId: string): TahapGroup[] {
   const base = Math.round((middle / numTahap) * 100) / 100;
 
   const groups: TahapGroup[] = [
-    { header: null, color: null, items: [{ name: "Persiapan dan Setting", bobot: 10.00 }] },
+    { header: null, color: null, items: [{ name: "Preparation & Setup", bobot: 10.00 }] },
   ];
 
   let weightLeft = middle;
@@ -155,7 +155,7 @@ function generateTahap(projectId: string): TahapGroup[] {
     const w3 = Math.round((total - w1 - w2) * 100) / 100;
 
     groups.push({
-      header: `Tahap ${t + 1}`,
+      header: `Phase ${t + 1}`,
       color: TAHAP_COLORS[t % TAHAP_COLORS.length],
       items: [
         { name: pool[0], bobot: w1 },
