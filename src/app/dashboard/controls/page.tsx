@@ -192,9 +192,9 @@ export default function ControlsPage() {
     <div className="space-y-5 pb-6 animate-page-enter">
 
       {/* ── Header ── */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between mb-3 mt-2">
         <div className="flex items-center gap-2">
-          <Server className="text-blue-500" size={20} />
+          <Server className="text-blue-500" size={16} />
           <h2 className="text-lg font-bold text-slate-800 dark:text-white">AI Mission Control</h2>
         </div>
         <div className="flex items-center gap-2">

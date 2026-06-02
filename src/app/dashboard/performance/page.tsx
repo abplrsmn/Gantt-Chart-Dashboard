@@ -5,8 +5,8 @@ import { Activity } from "lucide-react";
 export default function HealthPage() {
   return (
     <div className="space-y-6 pb-6 animate-page-enter">
-      <div className="flex items-start gap-2 mb-4">
-        <Activity className="text-blue-500" size={24} />
+      <div className="flex items-start gap-2 mb-3 mt-2">
+        <Activity className="text-blue-500" size={16} />
         <div>
           <h2 className="text-lg font-bold text-slate-800 dark:text-white">Project Performance</h2>
           <p className="text-xs text-slate-500 dark:text-gray-400 mt-0.5">

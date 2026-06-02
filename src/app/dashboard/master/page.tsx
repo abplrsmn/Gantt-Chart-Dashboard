@@ -715,7 +715,7 @@ export default function MasterSetupPage() {
   return (
     <div className="space-y-6 pb-6 animate-page-enter">
       {/* Page header */}
-      <div className="flex items-center gap-2 mt-2">
+      <div className="flex items-center gap-2 mb-3 mt-2">
         <Database size={16} className="text-brand-sienna" />
         <h2 className="text-lg font-bold text-slate-800 dark:text-white">Master Setup</h2>
       </div>

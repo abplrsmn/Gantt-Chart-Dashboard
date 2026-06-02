@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useRouter, useParams } from "next/navigation";
 import { format, eachWeekOfInterval, addDays, parseISO, isValid } from "date-fns";
 import { ArrowLeft, Camera, Plus, Trash2, Check, FileText } from "lucide-react";
@@ -342,13 +343,13 @@ function WeekCard({ week, weekKey, range, projectId }: WeekEntry & { projectId: 
       />
 
       {/* Lightbox */}
-      {lightbox && (
+      {lightbox && typeof document !== "undefined" && createPortal(
         <div
-          className={`fixed inset-0 z-9999 flex items-center justify-center animate-backdrop-enter`}
+          className="fixed inset-0 z-9999 flex items-center justify-center p-4 animate-backdrop-enter"
           style={{ backgroundColor: "rgba(0,0,0,0.45)", backdropFilter: "blur(6px)" }}
-          onClick={() => setLightbox(null)}
+          onMouseDown={e => { if (e.target === e.currentTarget) setLightbox(null); }}
         >
-          <div className="relative max-w-4xl max-h-[90vh] w-full mx-4 animate-modal-enter" onClick={e => e.stopPropagation()}>
+          <div className="relative max-w-4xl max-h-[90vh] w-full animate-modal-enter" onClick={e => e.stopPropagation()}>
             <img
               src={lightbox.file_url}
               alt={lightbox.file_name}
@@ -392,7 +393,8 @@ function WeekCard({ week, weekKey, range, projectId }: WeekEntry & { projectId: 
               ✕
             </button>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );

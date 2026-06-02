@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { differenceInCalendarDays, format, addDays, isValid, startOfWeek, endOfWeek, addWeeks, startOfMonth, endOfMonth } from "date-fns";
-import { Search, ArrowRight, MousePointer2, Move, Trash2, Plus } from "lucide-react";
+import { Search, ArrowRight, MousePointer2, Move, Trash2, Plus, FolderKanban } from "lucide-react";
 import DateRangePicker from "./DateRangePicker";
 import AnimatedDropdown from "./AnimatedDropdown";
 import QuickMenu from "./QuickMenu";
@@ -538,6 +538,11 @@ export default function ProjectGanttDB() {
 
   return (
     <div className="space-y-3 relative" style={{ overflowX: "clip" }} ref={containerRef}>
+      <div className="flex items-center gap-2 mb-3 mt-2">
+        <FolderKanban size={16} className="text-amber-500" />
+        <h2 className="text-lg font-bold text-slate-800 dark:text-white">Projects</h2>
+      </div>
+
       {/* Controls: search + ongoing badge + details | datepicker | phase | priority | unit */}
       <div className="flex flex-wrap gap-2 items-center">
         {/* Search + ongoing count + details button */}
