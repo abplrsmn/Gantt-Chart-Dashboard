@@ -884,8 +884,12 @@ export default function ProjectDetailPage() {
           <div className="flex items-stretch gap-1">
             {PHASE_DEFS.map((ph, i) => {
               const currentIdx = PHASE_DEFS.findIndex(p => p.phaseCode === project.current_phase_code);
-              const isCurrent = i === currentIdx;
-              const isPast = i < currentIdx;
+              const isCurrent  = i === currentIdx;
+              const hasData    = !!(project[ph.startKey] || project[ph.endKey]);
+              const isPast     = i < currentIdx && hasData;
+              const isSkipped  = i < currentIdx && !hasData;
+              const isFuture   = i > currentIdx;
+              const isNeutral  = isSkipped || isFuture;
               return (
                 <Fragment key={ph.key}>
                   <div
@@ -895,7 +899,7 @@ export default function ProjectDetailPage() {
                       border: `2px solid ${isCurrent ? ph.color : isPast ? `${ph.color}35` : "rgba(255,255,255,0.06)"}`,
                       boxShadow: isCurrent ? `0 0 0 3px ${ph.color}22, 0 10px 26px ${ph.color}24` : "none",
                       transform: isCurrent ? "translateY(-1px)" : "none",
-                      opacity: !isCurrent && !isPast ? 0.42 : 1,
+                      opacity: isNeutral ? 0.42 : 1,
                     }}
                   >
                     {isCurrent && (
@@ -908,8 +912,8 @@ export default function ProjectDetailPage() {
                         }}
                       />
                     )}
-                    {isPast && <span className="text-[9px] mb-1 leading-none" style={{ color: ph.color }}>✓</span>}
-                    {!isCurrent && !isPast && <span className="text-[9px] mb-1 leading-none text-slate-600">○</span>}
+                    {isPast    && <span className="text-[9px] mb-1 leading-none" style={{ color: ph.color }}>✓</span>}
+                    {isNeutral && <span className="text-[9px] mb-1 leading-none text-slate-600">○</span>}
                     <span
                       className="text-[8px] font-extrabold uppercase tracking-wider leading-tight block"
                       style={{ color: isCurrent ? ph.color : isPast ? `${ph.color}cc` : "#475569" }}

@@ -72,6 +72,15 @@ function ProjectListContent() {
     const inRange = (rangeStart && rangeEnd)
       ? projects.filter(p => {
           const projectStart = toDate(p.start_date);
+          const projectEnd   = toDate(p.end_date);
+
+          // Mirror Gantt rangeSummary: project-level overlap OR phase-level overlap
+          const hasProjectOverlap = !!(
+            projectStart && projectEnd &&
+            projectStart <= rangeEnd && projectEnd >= rangeStart
+          );
+          if (hasProjectOverlap) return true;
+
           const pairs: [string | null, string | null][] = [
             [p.brief_received,  p.brief_deadline],
             [p.design_start,    p.design_end],
@@ -83,9 +92,9 @@ function ProjectListContent() {
             const sd = toDate(s);
             const ed = toDate(e);
             if (!sd && !ed) return false;
-            // Mirror buildSegments fallback logic exactly
+            // Mirror buildSegments fallback: missing start → project start, missing end → start + 14d
             const phStart = sd ?? (projectStart ?? ed!);
-            const phEnd   = ed ?? new Date(sd!.getTime() + 14 * 86_400_000);
+            const phEnd   = ed ?? new Date(phStart.getTime() + 14 * 86_400_000);
             if (phEnd < phStart) return false;
             return phStart <= rangeEnd && phEnd >= rangeStart;
           });

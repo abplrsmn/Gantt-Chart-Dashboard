@@ -49,6 +49,7 @@ export async function GET() {
         sl.progress_variance AS scurve_progress_variance,
         p.start_date,
         p.end_date,
+        p.created_at,
         mp_phase.phase_name   AS current_phase_name,
         mp_phase.phase_code   AS current_phase_code,
         ms.status_label       AS status_label,

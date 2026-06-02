@@ -179,10 +179,10 @@ function TableShell({ heads, children, empty }: {
 }) {
   return (
     <div className="rounded-xl border border-slate-200 dark:border-white/8 overflow-hidden">
-      <table className="glass-table w-full text-sm">
+      <table className="glass-table w-full text-sm text-center">
         <thead>
           <tr>
-            {heads.map(h => <th key={h}>{h}</th>)}
+            {heads.map(h => <th key={h} className="text-center">{h}</th>)}
             <th className="text-right pr-4">Actions</th>
           </tr>
         </thead>
