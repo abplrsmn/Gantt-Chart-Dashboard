@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useRef, useEffect } from "react";
 import { Settings2, SunMoon, LogOut, Database } from "lucide-react";
@@ -34,7 +34,7 @@ export default function QuickMenu({ align = "right" }: { align?: "left" | "right
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen(!open)}
-        className="p-2 rounded-xl bg-white/50 dark:bg-white/10 border border-slate-200/60 dark:border-white/10 hover:bg-white/80 dark:hover:bg-white/20 transition-all shadow-sm text-slate-600 dark:text-gray-200"
+        className="p-2 rounded-xl bg-white/50 dark:bg-white/10 border border-slate-200/60 dark:border-white/10 hover:bg-white/80 dark:hover:bg-white/20 transition-all shadow-sm text-slate-600 dark:text-slate-200"
         aria-label="Open quick menu"
         aria-expanded={open}
       >
@@ -73,3 +73,5 @@ export default function QuickMenu({ align = "right" }: { align?: "left" | "right
     </div>
   );
 }
+
+

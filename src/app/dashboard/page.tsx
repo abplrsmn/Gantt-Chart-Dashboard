@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState, useCallback, useMemo } from "react";
 import {
@@ -178,7 +178,7 @@ export default function DashboardHome() {
               <TrendingUp size={18} />
             </div>
           </div>
-          <p className="text-xs font-medium text-slate-500 dark:text-gray-400">Active Projects</p>
+          <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Active Projects</p>
         </div>
 
         <div className="glass-card flex-1 min-w-0 p-5 flex flex-col justify-between overflow-hidden relative border-red-500/20 min-h-27">
@@ -190,7 +190,7 @@ export default function DashboardHome() {
               <Clock size={18} />
             </div>
           </div>
-          <p className="text-xs font-medium text-slate-500 dark:text-gray-400">Overdue</p>
+          <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Overdue</p>
         </div>
 
         <div className="glass-card flex-1 min-w-0 p-5 flex flex-col justify-between overflow-hidden relative min-h-27">
@@ -200,7 +200,7 @@ export default function DashboardHome() {
               <Users size={18} />
             </div>
           </div>
-          <p className="text-xs font-medium text-slate-500 dark:text-gray-400">Employees</p>
+          <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Employees</p>
         </div>
 
         <div className="glass-card flex-1 min-w-0 p-5 flex flex-col justify-between overflow-hidden relative min-h-27 border-cyan-400/20">
@@ -212,7 +212,7 @@ export default function DashboardHome() {
               <Building2 size={18} />
             </div>
           </div>
-          <p className="text-xs font-medium text-slate-500 dark:text-gray-400">Units</p>
+          <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Units</p>
         </div>
 
         <div className="glass-card flex-1 min-w-0 p-5 flex flex-col justify-between overflow-hidden relative min-h-27">
@@ -222,7 +222,7 @@ export default function DashboardHome() {
               <Network size={18} />
             </div>
           </div>
-          <p className="text-xs font-medium text-slate-500 dark:text-gray-400">Teams</p>
+          <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Teams</p>
         </div>
       </div>
 
@@ -235,12 +235,12 @@ export default function DashboardHome() {
           </div>
           <div>
             <p className="text-[11px] font-bold text-slate-400 dark:text-gray-500 uppercase tracking-widest">Top Unit</p>
-            <h3 className="text-sm font-bold text-slate-700 dark:text-gray-200">Most Active Workload</h3>
+            <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200">Most Active Workload</h3>
           </div>
         </div>
         <div className="text-left sm:text-right relative z-10">
           <span className="text-xl font-bold text-slate-800 dark:text-white">{mostActiveUnit.unit}</span>
-          <p className="text-xs font-medium text-slate-500 dark:text-gray-400">{mostActiveUnit.count} projects</p>
+          <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{mostActiveUnit.count} projects</p>
         </div>
       </div>
 
@@ -251,7 +251,7 @@ export default function DashboardHome() {
           <div className="flex items-center gap-2.5 mb-4">
             <div className="w-1 h-4 rounded-full shrink-0" style={{ background: "var(--brand-espresso)" }} />
             <PieChart size={14} style={{ color: "var(--brand-mahogany)" }} />
-            <h3 className="text-base font-bold text-slate-700 dark:text-gray-200">Overall Performance</h3>
+            <h3 className="text-base font-bold text-slate-700 dark:text-slate-200">Overall Performance</h3>
           </div>
           <div className="flex justify-center items-center h-64">
             {projects.length > 0 ? (
@@ -306,7 +306,7 @@ export default function DashboardHome() {
                 />
               </div>
             ) : (
-              <p className="text-xs text-slate-500 dark:text-gray-400">No data available.</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">No data available.</p>
             )}
           </div>
         </section>
@@ -316,18 +316,18 @@ export default function DashboardHome() {
           <div className="flex items-center gap-2.5 mb-3 shrink-0">
             <div className="w-1 h-4 rounded-full shrink-0 bg-growth-green" />
             <CheckCircle2 size={14} className="text-green-500" />
-            <h3 className="text-base font-bold text-slate-700 dark:text-gray-200">Completed Projects</h3>
+            <h3 className="text-base font-bold text-slate-700 dark:text-slate-200">Completed Projects</h3>
           </div>
           <div className="space-y-2 max-h-90 overflow-y-auto overflow-x-hidden pr-1 scrollbar-border min-w-0">
             {completedProjects.length === 0 ? (
               <div className="flex justify-center items-center h-64">
-                <p className="text-xs text-slate-500 dark:text-gray-400">No completed projects yet.</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">No completed projects yet.</p>
               </div>
             ) : (
               completedProjects.map((p) => (
                 <div key={p.id} className="block p-3 rounded-xl bg-white/20 dark:bg-zinc-800/20">
                   <div className="flex justify-between items-start gap-2">
-                    <p className="text-xs font-semibold text-slate-700 dark:text-gray-200 line-clamp-2 leading-tight">
+                    <p className="text-xs font-semibold text-slate-700 dark:text-slate-200 line-clamp-2 leading-tight">
                       {p.project_name}
                     </p>
                   </div>
@@ -351,12 +351,12 @@ export default function DashboardHome() {
           <div className="flex items-center gap-2.5 mb-3 shrink-0">
             <div className="w-1 h-4 rounded-full shrink-0" style={{ background: "var(--brand-sienna)" }} />
             <AlertCircle size={14} style={{ color: "var(--brand-sienna)" }} />
-            <h3 className="text-base font-bold text-slate-700 dark:text-gray-200">Latest Reminder Summary</h3>
+            <h3 className="text-base font-bold text-slate-700 dark:text-slate-200">Latest Reminder Summary</h3>
           </div>
           <div className="flex-1 min-h-90 rounded-2xl border border-slate-200/60 dark:border-white/10 bg-white/30 dark:bg-zinc-900/20 p-4 overflow-hidden">
             {!latestReminder ? (
               <div className="flex h-full items-center justify-center">
-                <p className="text-xs text-slate-500 dark:text-gray-400 text-center">No reminder summary available yet.</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400 text-center">No reminder summary available yet.</p>
               </div>
             ) : (
               <div className="flex h-full flex-col">
@@ -381,7 +381,7 @@ export default function DashboardHome() {
                   <h4 className="text-sm font-bold text-slate-800 dark:text-white">
                     {latestReminder.message_subject || "Reminder Summary"}
                   </h4>
-                  <p className="mt-1 text-[11px] text-slate-500 dark:text-gray-400">
+                  <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
                     {latestReminder.sent_at || latestReminder.created_at
                       ? new Date((latestReminder.sent_at || latestReminder.created_at) as string).toLocaleString()
                       : "No timestamp"}
@@ -403,11 +403,11 @@ export default function DashboardHome() {
         <div className="flex items-center gap-2.5 mb-3">
           <div className="w-1 h-4 rounded-full shrink-0" style={{ background: "var(--brand-espresso)" }} />
           <LayoutList size={14} style={{ color: "var(--brand-espresso)" }} />
-          <h3 className="text-base font-bold text-slate-700 dark:text-gray-200">Active Projects</h3>
+          <h3 className="text-base font-bold text-slate-700 dark:text-slate-200">Active Projects</h3>
         </div>
         <div className="space-y-2 max-h-105 overflow-y-auto overflow-x-hidden pr-1 scrollbar-border min-w-0">
           {activeProjects.length === 0 ? (
-            <p className="text-xs text-slate-500 dark:text-gray-400 text-center py-8">No active projects.</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400 text-center py-8">No active projects.</p>
           ) : (
             activeProjects.map((p) => (
               <div
@@ -419,7 +419,7 @@ export default function DashboardHome() {
                     <TrendingUp size={14} />
                   </div>
                   <div className="truncate pr-4">
-                    <p className="text-sm font-semibold text-slate-800 dark:text-gray-100 truncate block">
+                    <p className="text-sm font-semibold text-slate-800 dark:text-white truncate block">
                       {p.project_name}
                     </p>
                     <div className="flex gap-2 items-center mt-1">
@@ -431,8 +431,8 @@ export default function DashboardHome() {
                           {p.status_label}
                         </span>
                       )}
-                      <span className="text-xs font-semibold text-slate-600 dark:text-gray-400">
-                        {p.unit_code || "—"}
+                      <span className="text-xs font-semibold text-slate-600 dark:text-slate-400">
+                        {p.unit_code || "â€”"}
                       </span>
                       {p.current_phase_name && (
                         <span className="text-xs text-slate-400 dark:text-slate-500">{p.current_phase_name}</span>
@@ -461,3 +461,4 @@ export default function DashboardHome() {
     </div>
   );
 }
+

@@ -404,7 +404,7 @@ function WeekCard({ week, weekKey, range, projectId }: WeekEntry & { projectId: 
               </div>
             ) : isPdf ? (
               /* ── PDF embed ── */
-              <div className="relative w-full max-w-4xl h-[88vh] bg-white dark:bg-zinc-900 rounded-2xl border border-slate-200/80 dark:border-white/8 overflow-hidden animate-modal-enter shadow-2xl" onClick={e => e.stopPropagation()}>
+              <div className="relative w-full max-w-4xl h-[88vh] bg-white dark:bg-zinc-900 rounded-2xl border border-slate-200/80 dark:border-white/8 overflow-hidden animate-modal-enter" style={{ boxShadow: "0 24px 64px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.06)" }} onClick={e => e.stopPropagation()}>
                 <div className="flex items-center gap-3 px-4 py-3 border-b border-slate-200/60 dark:border-white/8">
                   <FileText size={14} className="text-red-500 shrink-0" />
                   <p className="text-xs font-bold text-slate-700 dark:text-white flex-1 truncate">{lightbox.file_name}</p>
@@ -428,7 +428,7 @@ function WeekCard({ week, weekKey, range, projectId }: WeekEntry & { projectId: 
               </div>
             ) : (
               /* ── Generic file preview card ── */
-              <div className="relative w-full max-w-sm bg-white dark:bg-zinc-900 rounded-2xl border border-slate-200/80 dark:border-white/8 overflow-hidden animate-modal-enter shadow-2xl" onClick={e => e.stopPropagation()}>
+              <div className="relative w-full max-w-sm bg-white dark:bg-zinc-900 rounded-2xl border border-slate-200/80 dark:border-white/8 overflow-hidden animate-modal-enter" style={{ boxShadow: "0 24px 64px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.06)" }} onClick={e => e.stopPropagation()}>
                 <div className="flex items-center gap-3 px-5 py-4 border-b border-slate-200/60 dark:border-white/8">
                   <FileTypeIcon type={fileType} size={16} />
                   <p className="text-sm font-bold text-slate-800 dark:text-white flex-1 truncate">{lightbox.file_name}</p>
@@ -474,7 +474,7 @@ function WeekCard({ week, weekKey, range, projectId }: WeekEntry & { projectId: 
           style={{ backgroundColor: "rgba(0,0,0,0.5)", backdropFilter: "blur(6px)" }}
           onMouseDown={e => { if (e.target === e.currentTarget) setDeleteConfirm(null); }}
         >
-          <div className="w-full max-w-sm rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200/60 dark:border-white/10 shadow-2xl p-6 space-y-4 animate-modal-enter">
+          <div className="w-full max-w-sm rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200/60 dark:border-white/10 p-6 space-y-4 animate-modal-enter" style={{ boxShadow: "0 24px 64px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.06)" }}>
             <div className="flex items-start gap-3">
               <div className="shrink-0 w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center">
                 <Trash2 size={18} className="text-red-500" />
@@ -551,13 +551,13 @@ export default function WeeklyProgressPage() {
       </div>
 
       {loading ? (
-        <div className="flex justify-center py-32">
+        <div className="flex justify-center py-20">
           <div className="w-6 h-6 border-2 border-brand-sienna/40 border-t-brand-sienna rounded-full animate-spin" />
         </div>
       ) : (
         <div className="glass-card overflow-hidden">
           <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-200/50 dark:border-white/8">
-            <Camera size={13} className="shrink-0" style={{ color: "var(--brand-sienna)" }} />
+            <Camera size={14} className="shrink-0" style={{ color: "var(--brand-sienna)" }} />
             <h3 className="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-widest">Weekly Progress</h3>
             <span className="ml-auto flex items-center gap-1.5 text-[10px] font-medium text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-white/5 px-2 py-1 rounded-full">
               <span className="w-1.5 h-1.5 rounded-full bg-slate-300 dark:bg-slate-600" />

@@ -159,12 +159,12 @@ function ProjectListContent() {
 
       {/* Table */}
       {loading ? (
-        <div className="flex justify-center py-24">
-          <div className="w-5 h-5 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin" />
+        <div className="flex justify-center py-20">
+          <div className="w-5 h-5 border-2 border-brand-sienna/40 border-t-brand-sienna rounded-full animate-spin" />
         </div>
       ) : filtered.length === 0 ? (
-        <div className="glass-card p-16 text-center text-sm text-slate-400">
-          No projects found for this range.
+        <div className="glass-card p-12 flex flex-col items-center gap-3 text-center">
+          <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">No projects found for this range.</p>
         </div>
       ) : (
         <div className="rounded-2xl border border-slate-200/60 dark:border-white/8 bg-white/60 dark:bg-zinc-900/50 backdrop-blur-sm overflow-hidden">

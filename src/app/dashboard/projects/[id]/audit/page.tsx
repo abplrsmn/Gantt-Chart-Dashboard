@@ -312,8 +312,8 @@ export default function AuditLogPage() {
       {/* ── Log timeline ── */}
       <div className="glass-card px-4 pt-4 pb-1">
         {loading ? (
-          <div className="flex justify-center py-16">
-            <div className="w-5 h-5 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin" />
+          <div className="flex justify-center py-20">
+            <div className="w-5 h-5 border-2 border-brand-sienna/40 border-t-brand-sienna rounded-full animate-spin" />
           </div>
         ) : logs.length === 0 ? (
           <div className="flex flex-col items-center gap-3 py-16 text-center">

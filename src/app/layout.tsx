@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/ThemeProvider";
@@ -30,7 +30,7 @@ export default function RootLayout({
         />
       </head>
       <body
-        className={`${inter.variable} antialiased bg-slab-bg dark:bg-slate-900 text-slate-900 dark:text-gray-100 transition-colors duration-500`}
+        className={`${inter.variable} antialiased bg-slab-bg dark:bg-slate-900 text-slate-900 dark:text-white transition-colors duration-500`}
       >
         <ThemeProvider>
           {children}
@@ -39,3 +39,5 @@ export default function RootLayout({
     </html>
   );
 }
+
+

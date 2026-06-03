@@ -287,7 +287,7 @@ export default function AlertsPage() {
       {/* Alert list */}
       {loading ? (
         <div className="flex justify-center py-20">
-          <div className="w-6 h-6 border-2 border-red-400/40 border-t-red-500 rounded-full animate-spin" />
+          <div className="w-5 h-5 border-2 border-brand-sienna/40 border-t-brand-sienna rounded-full animate-spin" />
         </div>
       ) : filtered.length === 0 ? (
         <div className="glass-card p-12 flex flex-col items-center gap-3 text-center">

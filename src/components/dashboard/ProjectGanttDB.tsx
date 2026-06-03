@@ -886,7 +886,7 @@ export default function ProjectGanttDB() {
                           <div
                             key={seg.key}
                             data-drag-bar="true"
-                            className="absolute rounded-md select-none"
+                            className="absolute rounded-full select-none"
                             style={{
                               left:   `${left}px`,
                               width:  `${width}px`,
@@ -922,13 +922,13 @@ export default function ProjectGanttDB() {
                             )}
                             {/* Left resize handle */}
                             <div
-                              className="absolute left-0 top-0 bottom-0 w-2.5 rounded-l-md z-10 hover:bg-black/10"
+                              className="absolute left-0 top-0 bottom-0 w-2.5 rounded-l-full z-10 hover:bg-black/10"
                               style={{ cursor: toolMode === "drag" ? "ew-resize" : "inherit" }}
                               onMouseDown={e => { if (toolMode === "drag") { e.stopPropagation(); startDrag(e, p, seg, "resize-left"); } }}
                             />
                             {/* Right resize handle */}
                             <div
-                              className="absolute right-0 top-0 bottom-0 w-2.5 rounded-r-md z-10 hover:bg-black/10"
+                              className="absolute right-0 top-0 bottom-0 w-2.5 rounded-r-full z-10 hover:bg-black/10"
                               style={{ cursor: toolMode === "drag" ? "ew-resize" : "inherit" }}
                               onMouseDown={e => { if (toolMode === "drag") { e.stopPropagation(); startDrag(e, p, seg, "resize-right"); } }}
                             />

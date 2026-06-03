@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { Activity } from "lucide-react";
 
@@ -9,8 +9,8 @@ export default function HealthPage() {
         <Activity className="text-blue-500" size={16} />
         <div>
           <h2 className="text-lg font-bold text-slate-800 dark:text-white">Project Performance</h2>
-          <p className="text-xs text-slate-500 dark:text-gray-400 mt-0.5">
-            Completion · On-time delivery · Overdue pressure
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+            Completion Â· On-time delivery Â· Overdue pressure
           </p>
         </div>
       </div>
@@ -21,7 +21,7 @@ export default function HealthPage() {
         </div>
         <div>
           <h3 className="text-base font-bold text-slate-800 dark:text-white mb-1">Performance coming soon</h3>
-          <p className="text-xs text-slate-500 dark:text-gray-400 max-w-sm">
+          <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm">
             This page will be connected to performance data from the database soon.
           </p>
         </div>
@@ -29,3 +29,4 @@ export default function HealthPage() {
     </div>
   );
 }
+

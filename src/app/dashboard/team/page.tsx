@@ -197,7 +197,7 @@ export default function TeamPage() {
       {/* Content */}
       {loading ? (
         <div className="flex justify-center py-20">
-          <div className="w-5 h-5 border-2 border-purple-400/40 border-t-purple-500 rounded-full animate-spin" />
+          <div className="w-5 h-5 border-2 border-brand-sienna/40 border-t-brand-sienna rounded-full animate-spin" />
         </div>
       ) : tab === "users" ? (
         <div className="space-y-5">

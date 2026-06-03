@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
@@ -36,14 +36,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <div className={`min-h-screen w-full transition-colors duration-500 ${isDark ? "mesh-bg-dark" : "mesh-bg-light"}`}>
 
-      {/* ── TOP NAVBAR — admin only ── */}
+      {/* â”€â”€ TOP NAVBAR â€” admin only â”€â”€ */}
       {!isPm && (
         <header className="sticky top-0 z-50 bg-white/80 dark:bg-zinc-950/80 backdrop-blur-xl transition-colors duration-300">
           <div className="w-full px-6 h-14 flex items-center justify-between relative">
 
             {/* Mobile hamburger */}
             <button
-              className="md:hidden p-2 rounded-xl bg-white/50 dark:bg-white/10 border border-slate-200/50 dark:border-white/10 text-slate-600 dark:text-gray-200 hover:bg-white dark:hover:bg-white/20 transition-all"
+              className="md:hidden p-2 rounded-xl bg-white/50 dark:bg-white/10 border border-slate-200/50 dark:border-white/10 text-slate-600 dark:text-slate-200 hover:bg-white dark:hover:bg-white/20 transition-all"
               onClick={() => setDrawerOpen(true)}
             >
               <Menu size={18} />
@@ -85,7 +85,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </header>
       )}
 
-      {/* ── MOBILE DRAWER — admin only ── */}
+      {/* â”€â”€ MOBILE DRAWER â€” admin only â”€â”€ */}
       {!isPm && drawerOpen && (
         <div
           className="md:hidden fixed inset-0 z-40 bg-black/40 backdrop-blur-sm"
@@ -129,7 +129,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </aside>
       )}
 
-      {/* ── MAIN CONTENT ── */}
+      {/* â”€â”€ MAIN CONTENT â”€â”€ */}
       <main className={`px-4 pb-8 w-full max-w-390 mx-auto ${isPm ? "pt-4" : "pt-4"}`}>
         {children}
       </main>
@@ -173,3 +173,5 @@ function DrawerNavItem({ icon, label, active, onClick }: {
     </button>
   );
 }
+
+

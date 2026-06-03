@@ -54,7 +54,9 @@
       "Bash(pdflatex --version)",
       "Bash(pdflatex -interaction=nonstopmode main.tex)",
       "Bash(curl -s \"http://localhost:3000/api/master/users\")",
-      "Bash(curl -s \"http://localhost:3000/api/master/people\")"
+      "Bash(curl -s \"http://localhost:3000/api/master/people\")",
+      "Bash(grep -n \"border-slate-200\\\\\\\\\\\\\\\\50\\\\|border-white\\\\\\\\\\\\\\\\8\" \"c:\\\\Users\\\\abrah\\\\Work_Projects\\\\Project-Dashboard\\\\src\\\\app\\\\dashboard\\\\projects\\\\[id]\\\\page.tsx\")",
+      "Bash(grep \"\\\\\\\\\\\\\\\\\")"
     ],
     "additionalDirectories": [
       "C:\\Users\\abrah\\clickup-dashboard\\src\\app\\api\\clickup",

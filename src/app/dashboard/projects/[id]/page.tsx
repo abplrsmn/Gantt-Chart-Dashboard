@@ -554,18 +554,18 @@ export default function ProjectDetailPage() {
 
   if (loading) {
     return (
-      <div className="flex justify-center py-32">
-        <div className="w-6 h-6 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin" />
+      <div className="flex justify-center py-20">
+        <div className="w-5 h-5 border-2 border-brand-sienna/40 border-t-brand-sienna rounded-full animate-spin" />
       </div>
     );
   }
 
   if (error || !project) {
     return (
-      <div className="glass-card p-16 text-center space-y-3">
+      <div className="glass-card p-12 flex flex-col items-center gap-3 text-center">
         <p className="text-sm font-semibold text-red-400">{error ?? "Project not found"}</p>
-        <button onClick={() => router.back()} className="text-xs text-cyan-500 underline">
-          Back to Projects
+        <button onClick={() => router.back()} className="text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors">
+          ← Back to Projects
         </button>
       </div>
     );
@@ -615,7 +615,7 @@ export default function ProjectDetailPage() {
           style={{ backgroundColor: "rgba(0,0,0,0.5)", backdropFilter: "blur(6px)" }}
           onMouseDown={e => { if (e.target === e.currentTarget && !deleting) closeDeleteConfirm(); }}
         >
-          <div className={`w-full max-w-sm rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200/60 dark:border-white/10 shadow-2xl p-6 space-y-4 ${exitingConfirm ? "animate-modal-exit" : "animate-modal-enter"}`}>
+          <div className={`w-full max-w-sm rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200/60 dark:border-white/10 p-6 space-y-4 ${exitingConfirm ? "animate-modal-exit" : "animate-modal-enter"}`} style={{ boxShadow: "0 24px 64px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.06)" }}>
             <div className="flex items-start gap-3">
               <div className="shrink-0 w-10 h-10 rounded-xl bg-rose-500/10 flex items-center justify-center">
                 <Trash2 size={18} className="text-rose-500" />
@@ -695,7 +695,7 @@ export default function ProjectDetailPage() {
           style={{ backgroundColor: "rgba(0,0,0,0.5)", backdropFilter: "blur(6px)" }}
           onMouseDown={e => { if (e.target === e.currentTarget) setPhaseNoteModal(null); }}
         >
-          <div className="w-full max-w-sm rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200/60 dark:border-white/10 shadow-2xl p-6 space-y-4 animate-modal-enter">
+          <div className="w-full max-w-sm rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200/60 dark:border-white/10 p-6 space-y-4 animate-modal-enter" style={{ boxShadow: "0 24px 64px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.06)" }}>
             <div className="flex items-start gap-3">
               <div className="shrink-0 w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${phaseNoteModal.nextPhase.color}20` }}>
                 <ChevronRight size={18} style={{ color: phaseNoteModal.nextPhase.color }} />
@@ -755,7 +755,7 @@ export default function ProjectDetailPage() {
       {/* ── Project Description ──────────────────────────────────────── */}
       <div className="glass-card overflow-hidden">
         <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-200/50 dark:border-white/8">
-          <FileText size={13} className="text-cyan-500 shrink-0" />
+          <FileText size={14} className="text-cyan-500 shrink-0" />
           <h3 className="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-widest">Project Description</h3>
         </div>
         <div className="grid grid-cols-2 divide-x divide-slate-200/50 dark:divide-white/8">
@@ -908,7 +908,7 @@ export default function ProjectDetailPage() {
       {/* ── Phase Parameters ─────────────────────────────────────────── */}
       <div className="glass-card overflow-hidden">
         <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-200/50 dark:border-white/8">
-          <Activity size={13} className="text-cyan-500 shrink-0" />
+          <Activity size={14} className="text-cyan-500 shrink-0" />
           <h3 className="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-widest">Phase Parameters</h3>
           {(() => {
             const currentIdx = PHASE_DEFS.findIndex(p => p.phaseCode === project.current_phase_code);

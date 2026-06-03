@@ -13,10 +13,10 @@ export default function TeamDetailsPage() {
     <div className="space-y-6 pb-6 animate-page-enter">
       <div className="flex items-center gap-3 mb-6">
         <Link href="/dashboard/team" className="p-2 rounded-lg bg-white/50 dark:bg-zinc-800/50 hover:bg-white dark:hover:bg-zinc-800 transition-colors shadow-sm shrink-0 self-center">
-          <ArrowLeft size={18} className="text-slate-600 dark:text-gray-300" />
+          <ArrowLeft size={18} className="text-slate-600 dark:text-slate-300" />
         </Link>
         <div className="flex flex-col justify-center">
-          <p className="text-sm font-semibold text-slate-600 dark:text-gray-300 leading-none">
+          <p className="text-sm font-semibold text-slate-600 dark:text-slate-300 leading-none">
             {decodedTeamName || "Team"} — Members & Access List
           </p>
         </div>
@@ -28,7 +28,7 @@ export default function TeamDetailsPage() {
         </div>
         <div>
           <h3 className="text-base font-bold text-slate-800 dark:text-white mb-1">Team detail coming soon</h3>
-          <p className="text-xs text-slate-500 dark:text-gray-400 max-w-sm">
+          <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm">
             Team member data will be connected to the database soon.
           </p>
         </div>
