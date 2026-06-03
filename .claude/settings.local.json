@@ -52,7 +52,9 @@
       "Bash(Select-Object -ExpandProperty FullName)",
       "Bash(cp \"c:\\\\Users\\\\abrah\\\\Work_Projects\\\\Project-Dashboard\\\\magang\\\\assets\\\\pics\\\\logo_perusahaan.jpg\" \"c:\\\\Users\\\\abrah\\\\Work_Projects\\\\Project-Dashboard\\\\public\\\\logo_perusahaan.jpg\")",
       "Bash(pdflatex --version)",
-      "Bash(pdflatex -interaction=nonstopmode main.tex)"
+      "Bash(pdflatex -interaction=nonstopmode main.tex)",
+      "Bash(curl -s \"http://localhost:3000/api/master/users\")",
+      "Bash(curl -s \"http://localhost:3000/api/master/people\")"
     ],
     "additionalDirectories": [
       "C:\\Users\\abrah\\clickup-dashboard\\src\\app\\api\\clickup",

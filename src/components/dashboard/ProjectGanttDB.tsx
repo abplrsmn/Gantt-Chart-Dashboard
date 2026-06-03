@@ -258,7 +258,8 @@ export default function ProjectGanttDB() {
       if (saved) return JSON.parse(saved);
     } catch { /* ignore */ }
     const current = new Date();
-    return { start: format(startOfMonth(current), "yyyy-MM-dd"), end: format(endOfMonth(current), "yyyy-MM-dd") };
+    const prevMonth = new Date(current.getFullYear(), current.getMonth() - 1, 1);
+    return { start: format(startOfMonth(prevMonth), "yyyy-MM-dd"), end: format(endOfMonth(current), "yyyy-MM-dd") };
   });
 
   const handleDateRangeChange = (range: { start: string; end: string }) => {
@@ -495,6 +496,26 @@ export default function ProjectGanttDB() {
   const WEEK_W     = 56; // px per week column
   const totalWidth = weekCols.length * WEEK_W;
   const pixelsPerDay = totalWidth / Math.max(1, totalDays);
+
+  // Auto-scroll to 1 month before the earliest project start date on first load
+  useEffect(() => {
+    if (projects.length === 0 || !bodyRef.current) return;
+
+    const allStarts = projects
+      .map(p => toDate(p.start_date))
+      .filter((d): d is Date => d !== null);
+    if (allStarts.length === 0) return;
+
+    const earliest = new Date(Math.min(...allStarts.map(d => d.getTime())));
+    const scrollTarget = new Date(earliest.getFullYear(), earliest.getMonth() - 1, 1);
+    const offsetDays = differenceInCalendarDays(scrollTarget, timeline.start);
+    const scrollPx = Math.max(0, offsetDays * pixelsPerDay);
+
+    bodyRef.current.scrollLeft = scrollPx;
+    if (headerRef.current) headerRef.current.scrollLeft = scrollPx;
+  // only run once after initial load
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projects.length > 0]);
 
   function startDrag(
     e: React.MouseEvent,

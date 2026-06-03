@@ -17,8 +17,24 @@ type ProjectRow = {
   priority_code: string | null;
   priority_name: string | null;
   status_label: string | null;
+  brief_pic: string | null;
+  design_pic: string | null;
+  control_pic: string | null;
+  pm_pic: string | null;
+  handover_pic: string | null;
   [key: string]: unknown;
 };
+
+function getCurrentPic(p: ProjectRow): string | null {
+  const map: Record<string, string | null> = {
+    operational_brief:   p.brief_pic,
+    design:              p.design_pic,
+    project_control:     p.control_pic,
+    project_management:  p.pm_pic,
+    handover:            p.handover_pic,
+  };
+  return (p.current_phase_code && map[p.current_phase_code]) || null;
+}
 
 
 export default function ProjectSummaryMatrixPage() {
@@ -29,6 +45,7 @@ export default function ProjectSummaryMatrixPage() {
   const [search, setSearch] = useState("");
   const [phaseFilter, setPhaseFilter] = useState("ALL");
   const [prioFilter,  setPrioFilter]  = useState("ALL");
+  const [picFilter,   setPicFilter]   = useState("ALL");
 
   useEffect(() => {
     fetch("/api/projects/gantt", { cache: "no-store" })
@@ -48,13 +65,14 @@ export default function ProjectSummaryMatrixPage() {
   const filteredProjects = useMemo(() => projects.filter(p => {
     if (phaseFilter !== "ALL" && p.current_phase_name !== phaseFilter) return false;
     if (prioFilter  !== "ALL" && p.priority_code !== prioFilter) return false;
+    if (picFilter   !== "ALL" && getCurrentPic(p) !== picFilter) return false;
     if (search) {
       const hay = [p.project_name, p.project_code, p.unit_code, p.unit_name, p.current_phase_name, p.status_label]
         .join(" ").toLowerCase();
       if (!hay.includes(search.toLowerCase())) return false;
     }
     return true;
-  }), [projects, search, phaseFilter, prioFilter]);
+  }), [projects, search, phaseFilter, prioFilter, picFilter]);
 
   const phaseOptions = useMemo(() => [
     { value: "ALL", label: "All Phases" },
@@ -66,6 +84,14 @@ export default function ProjectSummaryMatrixPage() {
     ...prios.map(([code, name]) => ({ value: code, label: name })),
   ], [prios]);
 
+  const picOptions = useMemo(() => {
+    const all = projects.map(getCurrentPic).filter((v): v is string => !!v);
+    return [
+      { value: "ALL", label: "All PIC" },
+      ...Array.from(new Set(all)).sort().map(pic => ({ value: pic, label: pic })),
+    ];
+  }, [projects]);
+
   if (loading) return (
     <div className="flex items-center justify-center h-48 text-slate-500 dark:text-slate-400 text-sm gap-2">
       <div className="w-4 h-4 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin" />
@@ -75,7 +101,7 @@ export default function ProjectSummaryMatrixPage() {
 
   if (error) return <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 text-sm">❌ {error}</div>;
 
-  const hasFilter = phaseFilter !== "ALL" || prioFilter !== "ALL" || search;
+  const hasFilter = phaseFilter !== "ALL" || prioFilter !== "ALL" || picFilter !== "ALL" || search;
 
   return (
     <div className="space-y-4 pb-6 animate-page-enter">
@@ -105,9 +131,12 @@ export default function ProjectSummaryMatrixPage() {
         <div className="absolute right-0 flex items-center gap-2">
           <AnimatedDropdown value={phaseFilter} options={phaseOptions} onChange={setPhaseFilter} minWidth={168} align="right" />
           <AnimatedDropdown value={prioFilter}  options={prioOptions}  onChange={setPrioFilter}  minWidth={148} align="right" />
+          {picOptions.length > 1 && (
+            <AnimatedDropdown value={picFilter} options={picOptions} onChange={setPicFilter} minWidth={148} align="right" />
+          )}
           {hasFilter && (
             <button
-              onClick={() => { setSearch(""); setPhaseFilter("ALL"); setPrioFilter("ALL"); }}
+              onClick={() => { setSearch(""); setPhaseFilter("ALL"); setPrioFilter("ALL"); setPicFilter("ALL"); }}
               className="text-[11px] font-semibold text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors px-2 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-white/8"
             >
               Clear

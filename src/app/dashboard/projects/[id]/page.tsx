@@ -7,8 +7,8 @@ import { format } from "date-fns";
 import {
   ArrowLeft, ChevronRight, ChevronDown,
   User, Users, Building2,
-  Activity, Clock, FileText, Paperclip, MapPin, Pencil,
-  Camera, Trash2, Loader2, X, Plus, Upload
+  Activity, Clock, FileText, MapPin, Pencil,
+  Camera, Trash2, Loader2, X, Plus
 } from "lucide-react";
 import SCurveCharts from "@/components/dashboard/SCurveCharts";
 
@@ -425,7 +425,7 @@ export default function ProjectDetailPage() {
 
   const [project, setProject] = useState<ProjectDetail | null>(null);
   const [people, setPeople]   = useState<PersonRow[]>([]);
-  const [attachments, setAttachments] = useState<AttachmentRow[]>([]);
+  const [, setAttachments] = useState<AttachmentRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -439,16 +439,18 @@ export default function ProjectDetailPage() {
   }
   const [newStakeholder, setNewStakeholder] = useState("");
   const [addingStakeholder, setAddingStakeholder] = useState(false);
-  const [uploadingFile, setUploadingFile] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [statuses, setStatuses] = useState<{ id: number; name: string; color: string }[]>([]);
+
   const [showStatusPicker, setShowStatusPicker] = useState(false);
+  const statusBtnRef = useRef<HTMLButtonElement>(null);
+  const [statusOptions, setStatusOptions] = useState<{ id: number; name: string; color: string }[]>([]);
+  const [phaseNoteModal, setPhaseNoteModal] = useState<{ nextPhase: typeof PHASE_DEFS[number] } | null>(null);
+  const [phaseNote, setPhaseNote] = useState("");
 
   useEffect(() => {
-    fetch("/api/master/options").then(r => r.json()).then(d => { if (d.success) setStatuses(d.statuses ?? []); }).catch(() => {});
-    const closeOnClick = () => setShowStatusPicker(false);
-    document.addEventListener("click", closeOnClick);
-    return () => document.removeEventListener("click", closeOnClick);
+    fetch("/api/master/options")
+      .then(r => r.json())
+      .then(d => { if (d.success) setStatusOptions(d.statuses ?? []); })
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -520,28 +522,6 @@ export default function ProjectDetailPage() {
     });
   }
 
-  async function uploadAttachment(file: File) {
-    setUploadingFile(true);
-    try {
-      const fd = new FormData();
-      fd.append("file", file);
-      const res  = await fetch(`/api/projects/${id}/attachments`, { method: "POST", body: fd });
-      const data = await res.json();
-      if (data.success) setAttachments(prev => [data.data, ...prev]);
-    } finally {
-      setUploadingFile(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
-    }
-  }
-
-  async function removeAttachment(attachmentId: string) {
-    setAttachments(prev => prev.filter(a => a.id !== attachmentId));
-    await fetch(`/api/projects/${id}/attachments`, {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ attachmentId }),
-    });
-  }
 
   const scProject = useMemo(() => {
     if (!project) return null;
@@ -672,6 +652,106 @@ export default function ProjectDetailPage() {
         document.body
       )}
 
+      {/* ── Status picker dropdown (portalled to escape overflow-hidden) ── */}
+      {showStatusPicker && typeof document !== "undefined" && createPortal(
+        <>
+          <div className="fixed inset-0 z-9997" onMouseDown={() => setShowStatusPicker(false)} />
+          <div
+            className="fixed z-9998 bg-white dark:bg-zinc-900 border border-slate-200/70 dark:border-white/10 rounded-xl shadow-xl p-1.5 flex flex-col gap-0.5 min-w-32.5 animate-dropdown-enter"
+            style={(() => {
+              const r = statusBtnRef.current?.getBoundingClientRect();
+              return r ? { top: r.bottom + 6, left: r.left } : { top: 0, left: 0 };
+            })()}
+          >
+            {statusOptions.map(s => (
+              <button
+                key={s.id}
+                onMouseDown={async () => {
+                  setShowStatusPicker(false);
+                  setProject(prev => prev ? { ...prev, status_label: s.name, status_color: s.color } : prev);
+                  await fetch(`/api/projects/${id}`, {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ field: "status_label", value: s.name, change_summary: `Status → ${s.name}`, action_type: "field_updated" }),
+                  });
+                }}
+                className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors hover:bg-slate-50 dark:hover:bg-white/6 text-left w-full"
+                style={{ color: s.color }}
+              >
+                <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: s.color }} />
+                {s.name}
+                {s.name === project.status_label && <span className="ml-auto text-[9px]">✓</span>}
+              </button>
+            ))}
+          </div>
+        </>,
+        document.body
+      )}
+
+      {/* ── Phase advance note modal ────────────────────────────────── */}
+      {phaseNoteModal && typeof document !== "undefined" && createPortal(
+        <div
+          className="fixed inset-0 z-9999 flex items-center justify-center p-4 animate-backdrop-enter"
+          style={{ backgroundColor: "rgba(0,0,0,0.5)", backdropFilter: "blur(6px)" }}
+          onMouseDown={e => { if (e.target === e.currentTarget) setPhaseNoteModal(null); }}
+        >
+          <div className="w-full max-w-sm rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200/60 dark:border-white/10 shadow-2xl p-6 space-y-4 animate-modal-enter">
+            <div className="flex items-start gap-3">
+              <div className="shrink-0 w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${phaseNoteModal.nextPhase.color}20` }}>
+                <ChevronRight size={18} style={{ color: phaseNoteModal.nextPhase.color }} />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-slate-800 dark:text-white">
+                  Proceed to {phaseNoteModal.nextPhase.label}?
+                </p>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  Tambahkan catatan alasan sebelum melanjutkan ke fase berikutnya.
+                </p>
+              </div>
+            </div>
+            <div>
+              <label className="text-[10px] uppercase tracking-widest text-slate-400 mb-1.5 block">
+                Note / Reason <span className="text-red-400">*</span>
+              </label>
+              <textarea
+                autoFocus
+                value={phaseNote}
+                onChange={e => setPhaseNote(e.target.value)}
+                rows={3}
+                placeholder="e.g. Design approved by stakeholders, ready to proceed..."
+                className="w-full rounded-xl border border-slate-200/70 dark:border-white/10 bg-slate-50 dark:bg-zinc-800 px-3 py-2 text-xs text-slate-700 dark:text-slate-200 outline-none focus:border-brand-sienna/60 resize-none placeholder:text-slate-300 dark:placeholder:text-slate-600"
+              />
+            </div>
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={() => setPhaseNoteModal(null)}
+                className="px-4 py-1.5 rounded-lg text-xs font-semibold text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/8 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                disabled={!phaseNote.trim()}
+                onClick={async () => {
+                  const { nextPhase } = phaseNoteModal;
+                  setPhaseNoteModal(null);
+                  setProject(prev => prev ? { ...prev, current_phase_code: nextPhase.phaseCode, current_phase_name: nextPhase.label } : prev);
+                  await fetch(`/api/projects/${id}`, {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ field: "current_phase_id", value: String(nextPhase.phaseId), change_summary: `Proceed to ${nextPhase.label}: ${phaseNote.trim()}`, action_type: "phase_advanced" }),
+                  });
+                }}
+                className="px-4 py-1.5 rounded-lg text-xs font-semibold text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                style={{ backgroundColor: phaseNoteModal.nextPhase.color }}
+              >
+                Confirm & Proceed
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
       {/* ── Project Description ──────────────────────────────────────── */}
       <div className="glass-card overflow-hidden">
         <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-200/50 dark:border-white/8">
@@ -711,38 +791,15 @@ export default function ProjectDetailPage() {
                   <span className="text-xs italic text-slate-400 dark:text-slate-600">—</span>
                 )}
               </div>
-              <div className="relative" onClick={e => e.stopPropagation()}>
+              <div onClick={e => e.stopPropagation()}>
                 <p className="text-[10px] uppercase tracking-widest text-slate-400 mb-1">Status</p>
-                {statuses.length > 0 ? (() => {
-                  const active = statuses.find(s => s.name === project.status_label) ?? statuses[0];
-                  return showStatusPicker ? (
-                    <div className="flex flex-wrap gap-1.5">
-                      {statuses.map(s => (
-                        <button
-                          key={s.id}
-                          onClick={async () => {
-                            setShowStatusPicker(false);
-                            setProject(prev => prev ? { ...prev, status_label: s.name, status_color: s.color } : prev);
-                            await fetch(`/api/projects/${id}`, {
-                              method: "PATCH",
-                              headers: { "Content-Type": "application/json" },
-                              body: JSON.stringify({ field: "overall_status_id", value: String(s.id), change_summary: `Status → ${s.name}`, action_type: "field_updated" }),
-                            });
-                          }}
-                          className="inline-flex items-center gap-1.5 text-xs font-semibold px-2 py-0.5 rounded-md transition-all"
-                          style={s.name === project.status_label
-                            ? { backgroundColor: `${s.color}22`, color: s.color, border: `1.5px solid ${s.color}60` }
-                            : { backgroundColor: "rgba(0,0,0,0.03)", color: "#94a3b8", border: "1.5px solid rgba(0,0,0,0.06)" }
-                          }
-                        >
-                          <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: s.name === project.status_label ? s.color : "#cbd5e1" }} />
-                          {s.name}
-                        </button>
-                      ))}
-                    </div>
-                  ) : (
+                {(() => {
+                  const active = statusOptions.find(s => s.name === project.status_label) ?? statusOptions[0];
+                  if (!active) return <span className="text-xs italic text-slate-400">—</span>;
+                  return (
                     <button
-                      onClick={() => setShowStatusPicker(true)}
+                      ref={statusBtnRef}
+                      onClick={e => { e.stopPropagation(); setShowStatusPicker(v => !v); }}
                       className="inline-flex items-center gap-1.5 text-xs font-semibold px-2 py-0.5 rounded-md transition-all"
                       style={{ backgroundColor: `${active.color}22`, color: active.color, border: `1.5px solid ${active.color}60` }}
                     >
@@ -751,9 +808,7 @@ export default function ProjectDetailPage() {
                       <ChevronDown size={10} />
                     </button>
                   );
-                })() : (
-                  <span className="text-xs italic text-slate-400 dark:text-slate-600">—</span>
-                )}
+                })()}
               </div>
             </div>
             <div>
@@ -861,14 +916,7 @@ export default function ProjectDetailPage() {
             if (!nextPhase) return null;
             return (
               <button
-                onClick={async () => {
-                  setProject(prev => prev ? { ...prev, current_phase_code: nextPhase.phaseCode, current_phase_name: nextPhase.label } : prev);
-                  await fetch(`/api/projects/${id}`, {
-                    method: "PATCH",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ field: "current_phase_id", value: String(nextPhase.phaseId), change_summary: `Proceed to ${nextPhase.label}`, action_type: "phase_advanced" }),
-                  });
-                }}
+                onClick={() => { setPhaseNote(""); setPhaseNoteModal({ nextPhase }); }}
                 className="ml-auto shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold text-white transition-all"
                 style={{ backgroundColor: nextPhase.color }}
               >

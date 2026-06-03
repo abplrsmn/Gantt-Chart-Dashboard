@@ -30,7 +30,23 @@ type DBProject = {
   pm_end: string | null;
   handover_start: string | null;
   handover_end: string | null;
+  brief_pic: string | null;
+  design_pic: string | null;
+  control_pic: string | null;
+  pm_pic: string | null;
+  handover_pic: string | null;
 };
+
+function getCurrentPic(p: DBProject): string | null {
+  const map: Record<string, string | null> = {
+    operational_brief: p.brief_pic,
+    design:            p.design_pic,
+    project_control:   p.control_pic,
+    project_management: p.pm_pic,
+    handover:          p.handover_pic,
+  };
+  return (p.current_phase_code && map[p.current_phase_code]) || null;
+}
 
 function toDate(v: string | null | undefined): Date | null {
   if (!v) return null;
@@ -201,8 +217,10 @@ function ProjectListContent() {
                           : <span className="text-[11px] text-slate-400">—</span>}
                       </td>
 
-                      <td className="px-4 py-3">
-                        <span className="text-[11px] text-slate-400">—</span>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        {getCurrentPic(p)
+                          ? <span className="text-[11px] text-slate-600 dark:text-slate-300">{getCurrentPic(p)}</span>
+                          : <span className="text-[11px] text-slate-400">—</span>}
                       </td>
 
                       <td className="px-4 py-3 whitespace-nowrap">

@@ -76,6 +76,13 @@ function FileTypeIcon({ type, size = 40 }: { type: ReturnType<typeof getFileType
   return <FileText size={size} className="text-slate-400" />;
 }
 
+function getOfficeViewerUrl(fileUrl: string): string {
+  const absolute = fileUrl.startsWith("http")
+    ? fileUrl
+    : `${typeof window !== "undefined" ? window.location.origin : ""}${fileUrl}`;
+  return `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(absolute)}`;
+}
+
 function StatField({ label, value, onSave, color }: {
   label: string; value: string; onSave: (v: string) => void; color?: string;
 }) {
@@ -125,8 +132,9 @@ function StatField({ label, value, onSave, color }: {
 function WeekCard({ week, weekKey, range, projectId }: WeekEntry & { projectId: string }) {
   const [photos, setPhotos]         = useState<Photo[]>([]);
   const [uploading, setUploading]   = useState(false);
-  const [lightbox, setLightbox]     = useState<Photo | null>(null);
-  const [replacing, setReplacing]   = useState(false);
+  const [lightbox, setLightbox]         = useState<Photo | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<Photo | null>(null);
+  const [replacing, setReplacing]       = useState(false);
   const [progress, setProgress]     = useState<WeekProgress>({ plan_pct: 0, actual_pct: 0, status: "Not started" });
   const [editStatus, setEditStatus] = useState(false);
   const fileRef    = useRef<HTMLInputElement>(null);
@@ -375,7 +383,7 @@ function WeekCard({ week, weekKey, range, projectId }: WeekEntry & { projectId: 
               /* ── Image lightbox ── */
               <div className="relative max-w-4xl w-full animate-modal-enter overflow-hidden rounded-xl" onClick={e => e.stopPropagation()}>
                 <img src={lightbox.file_url} alt={lightbox.file_name} className="w-full max-h-[90vh] object-contain rounded-xl block" />
-                <div className="absolute bottom-0 left-0 right-0 p-3 rounded-b-xl bg-linear-to-t from-black/70 to-transparent flex items-end justify-between gap-3">
+                <div className="absolute bottom-0 left-0 right-0 p-3 flex items-end justify-between gap-3">
                   <div>
                     <p className="text-white text-xs font-medium">{lightbox.file_name}</p>
                     {lightbox.uploaded_by_name && <p className="text-white/60 text-[10px]">Uploaded by {lightbox.uploaded_by_name}</p>}
@@ -386,13 +394,13 @@ function WeekCard({ week, weekKey, range, projectId }: WeekEntry & { projectId: 
                       {replacing ? <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Plus size={12} />}
                       Replace
                     </button>
-                    <button onClick={() => handleDelete(lightbox.id)}
+                    <button onClick={() => setDeleteConfirm(lightbox)}
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/80 hover:bg-red-600 text-white text-xs font-semibold transition-colors">
                       <Trash2 size={12} /> Delete
                     </button>
                   </div>
                 </div>
-                <button onClick={() => setLightbox(null)} className="absolute top-3 right-3 p-2 rounded-full bg-black/50 hover:bg-black/70 text-white transition-colors text-sm leading-none">✕</button>
+                <button onClick={() => setLightbox(null)} className="absolute top-3 right-3 w-8 h-8 flex items-center justify-center rounded-full bg-black/30 hover:bg-black/50 text-white transition-colors text-sm leading-none">✕</button>
               </div>
             ) : isPdf ? (
               /* ── PDF embed ── */
@@ -407,7 +415,7 @@ function WeekCard({ week, weekKey, range, projectId }: WeekEntry & { projectId: 
                       {replacing ? <span className="w-3 h-3 border-2 border-slate-400/30 border-t-slate-500 rounded-full animate-spin" /> : <Plus size={11} />}
                       Replace
                     </button>
-                    <button onClick={() => handleDelete(lightbox.id)}
+                    <button onClick={() => setDeleteConfirm(lightbox)}
                       className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-red-500 hover:bg-red-600 text-white text-[11px] font-semibold transition-colors">
                       <Trash2 size={11} /> Delete
                     </button>
@@ -436,17 +444,11 @@ function WeekCard({ week, weekKey, range, projectId }: WeekEntry & { projectId: 
                     <p className="text-xs font-semibold text-slate-700 dark:text-slate-200 break-all">{lightbox.file_name}</p>
                     {lightbox.uploaded_by_name && <p className="text-[10px] text-slate-400 mt-1">Uploaded by {lightbox.uploaded_by_name}</p>}
                   </div>
-                  <div className="flex gap-2 w-full">
-                    <a href={lightbox.file_url} target="_blank" rel="noopener noreferrer"
-                      className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-slate-100 dark:bg-white/8 hover:bg-slate-200 dark:hover:bg-white/12 text-slate-700 dark:text-slate-200 text-xs font-semibold transition-colors">
-                      <ExternalLink size={12} /> Open
-                    </a>
-                    <a href={lightbox.file_url} download={lightbox.file_name}
-                      className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-white text-xs font-semibold transition-colors"
-                      style={{ backgroundColor: "var(--brand-sienna)" }}>
-                      <Download size={12} /> Download
-                    </a>
-                  </div>
+                  <a href={lightbox.file_url} download={lightbox.file_name}
+                    className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-white text-xs font-semibold transition-colors"
+                    style={{ backgroundColor: "var(--brand-sienna)" }}>
+                    <Download size={12} /> Download
+                  </a>
                 </div>
                 <div className="px-5 py-4 border-t border-slate-200/60 dark:border-white/8 flex justify-end gap-2">
                   <button onClick={() => replaceRef.current?.click()} disabled={replacing}
@@ -454,7 +456,7 @@ function WeekCard({ week, weekKey, range, projectId }: WeekEntry & { projectId: 
                     {replacing ? <span className="w-3 h-3 border-2 border-slate-400/30 border-t-slate-500 rounded-full animate-spin" /> : <Plus size={11} />}
                     Replace
                   </button>
-                  <button onClick={() => handleDelete(lightbox.id)}
+                  <button onClick={() => setDeleteConfirm(lightbox)}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500 hover:bg-red-600 text-white text-xs font-semibold transition-colors">
                     <Trash2 size={11} /> Delete
                   </button>
@@ -464,6 +466,44 @@ function WeekCard({ week, weekKey, range, projectId }: WeekEntry & { projectId: 
           </div>
         );
       })(), document.body)}
+
+      {/* ── Delete confirmation ── */}
+      {deleteConfirm && typeof document !== "undefined" && createPortal(
+        <div
+          className="fixed inset-0 z-[10000] flex items-center justify-center p-4 animate-backdrop-enter"
+          style={{ backgroundColor: "rgba(0,0,0,0.5)", backdropFilter: "blur(6px)" }}
+          onMouseDown={e => { if (e.target === e.currentTarget) setDeleteConfirm(null); }}
+        >
+          <div className="w-full max-w-sm rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200/60 dark:border-white/10 shadow-2xl p-6 space-y-4 animate-modal-enter">
+            <div className="flex items-start gap-3">
+              <div className="shrink-0 w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center">
+                <Trash2 size={18} className="text-red-500" />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-slate-800 dark:text-white">Delete attachment?</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 break-all">
+                  <span className="font-semibold text-slate-700 dark:text-slate-200">{deleteConfirm.file_name}</span> will be permanently deleted.
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={() => setDeleteConfirm(null)}
+                className="px-4 py-1.5 rounded-lg text-xs font-semibold text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/8 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => { handleDelete(deleteConfirm.id); setDeleteConfirm(null); }}
+                className="px-4 py-1.5 rounded-lg text-xs font-semibold text-white bg-red-500 hover:bg-red-600 transition-colors"
+              >
+                Yes, delete
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </>
   );
 }
