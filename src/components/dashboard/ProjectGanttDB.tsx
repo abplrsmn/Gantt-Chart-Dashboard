@@ -195,7 +195,8 @@ function buildSegments(p: DBProject, timelineStart: Date, totalDays: number): Ph
     const widthDays  = Math.max(1, differenceInCalendarDays(visualEnd, visualStart) + 1);
     const offsetPct  = Math.max(0, (offsetDays / totalDays) * 100);
     const widthPct   = Math.max(0.3, (widthDays / totalDays) * 100);
-    const ph = PHASES.find(ph => ph.key === r.key)!;
+    const ph = PHASES.find(ph => ph.key === r.key);
+    if (!ph) return [];
     return [{ key: r.key, label: ph.label, color: ph.color, start: s, end: e, progress: r.progress, offsetPct, widthPct }];
   });
 }
@@ -250,8 +251,15 @@ export default function ProjectGanttDB() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [search, setSearch]     = useState("");
   const [userRole, setUserRole]             = useState<string>("");
-  const [priorityFilter, setPriorityFilter] = useState("ALL");
-  const [phaseFilter, setPhaseFilter]       = useState("ALL");
+  const [priorityFilter, setPriorityFilter] = useState(() => {
+    try { return typeof window !== "undefined" ? localStorage.getItem(`gantt_priority_${getUserIdFromCookie()}`) ?? "ALL" : "ALL"; } catch { return "ALL"; }
+  });
+  const [phaseFilter, setPhaseFilter] = useState(() => {
+    try { return typeof window !== "undefined" ? localStorage.getItem(`gantt_phase_${getUserIdFromCookie()}`) ?? "ALL" : "ALL"; } catch { return "ALL"; }
+  });
+
+  const handlePriorityFilter = (v: string) => { setPriorityFilter(v); try { localStorage.setItem(`gantt_priority_${getUserIdFromCookie()}`, v); } catch { /* ignore */ } };
+  const handlePhaseFilter    = (v: string) => { setPhaseFilter(v);    try { localStorage.setItem(`gantt_phase_${getUserIdFromCookie()}`, v);    } catch { /* ignore */ } };
   const [dateRange, setDateRange] = useState<{ start: string; end: string }>(() => {
     try {
       const saved = typeof window !== "undefined" ? localStorage.getItem(dateRangeKey()) : null;
@@ -302,6 +310,9 @@ export default function ProjectGanttDB() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // #9: clear range tooltip when date range changes to avoid stale count
+  useEffect(() => { setRangeTooltip(null); }, [dateRange]);
+
   useEffect(() => {
     if (!dragging) return;
 
@@ -344,6 +355,10 @@ export default function ProjectGanttDB() {
       setDragging(false);
       dragRef.current = null;
       if (!drag) return;
+
+      // Clear inline styles set during drag so React's computed values take over on re-render
+      drag.barEl.style.left  = "";
+      drag.barEl.style.width = "";
 
       // Only show confirm if dates actually changed
       const moved = drag.currentStart.getTime() !== drag.origStart.getTime() ||
@@ -409,6 +424,7 @@ export default function ProjectGanttDB() {
   // Ruler overlay positions for the selected date range
   const rangeRulers = useMemo(() => {
     if (!rangeStart || !rangeEnd || !isValid(rangeStart) || !isValid(rangeEnd)) return null;
+    if (rangeStart > rangeEnd) return null;
     const days = differenceInCalendarDays(timeline.end, timeline.start) || 1;
     const sPct = Math.max(0, Math.min(100, (differenceInCalendarDays(rangeStart, timeline.start) / days) * 100));
     const ePct = Math.max(0, Math.min(100, (differenceInCalendarDays(rangeEnd, timeline.start) / days) * 100));
@@ -423,7 +439,7 @@ export default function ProjectGanttDB() {
   const filteredProjects = useMemo(() => {
     return projects.filter(p => {
       const matchSearch = [p.project_name, p.project_code, p.status_label, p.current_phase_name, p.unit_code, p.unit_name]
-        .join(" ").toLowerCase().includes(search.toLowerCase());
+        .filter(Boolean).join(" ").toLowerCase().includes(search.toLowerCase());
       const matchPriority = priorityFilter === "ALL" || p.priority_code      === priorityFilter;
       const matchPhase    = phaseFilter    === "ALL" || p.current_phase_code === phaseFilter;
       const matchRange    = true;
@@ -497,25 +513,37 @@ export default function ProjectGanttDB() {
   const totalWidth = weekCols.length * WEEK_W;
   const pixelsPerDay = totalWidth / Math.max(1, totalDays);
 
-  // Auto-scroll to 1 month before the earliest project start date on first load
-  useEffect(() => {
-    if (projects.length === 0 || !bodyRef.current) return;
+  const dateRangeScrollInit = useRef(false);
+  const hasScrolledOnLoad   = useRef(false);
 
-    const allStarts = projects
-      .map(p => toDate(p.start_date))
-      .filter((d): d is Date => d !== null);
-    if (allStarts.length === 0) return;
-
-    const earliest = new Date(Math.min(...allStarts.map(d => d.getTime())));
-    const scrollTarget = new Date(earliest.getFullYear(), earliest.getMonth() - 1, 1);
-    const offsetDays = differenceInCalendarDays(scrollTarget, timeline.start);
+  function scrollToMonth(date: Date) {
+    if (!bodyRef.current || pixelsPerDay <= 0) return; // #5: guard against invalid pixelsPerDay
+    const target = new Date(date.getFullYear(), date.getMonth() - 1, 1);
+    const offsetDays = differenceInCalendarDays(target, timeline.start);
     const scrollPx = Math.max(0, offsetDays * pixelsPerDay);
-
     bodyRef.current.scrollLeft = scrollPx;
     if (headerRef.current) headerRef.current.scrollLeft = scrollPx;
-  // only run once after initial load
+  }
+
+  // Auto-scroll to 1 month before the earliest project start date — fires once after projects load
+  // #4: use a ref flag instead of boolean expression as dependency
+  useEffect(() => {
+    if (hasScrolledOnLoad.current || projects.length === 0 || !bodyRef.current) return;
+    const allStarts = projects.map(p => toDate(p.start_date)).filter((d): d is Date => d !== null);
+    if (allStarts.length === 0) return;
+    hasScrolledOnLoad.current = true;
+    const earliest = new Date(Math.min(...allStarts.map(d => d.getTime())));
+    scrollToMonth(earliest);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projects.length > 0]);
+  }, [projects]);
+
+  // Auto-scroll to 1 month before picked date range start when user changes the range
+  useEffect(() => {
+    if (!dateRangeScrollInit.current) { dateRangeScrollInit.current = true; return; }
+    if (!rangeStart || pixelsPerDay <= 0) return; // #5: guard against timeline not ready
+    scrollToMonth(rangeStart);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dateRange.start]);
 
   function startDrag(
     e: React.MouseEvent,
@@ -605,7 +633,7 @@ export default function ProjectGanttDB() {
         <DateRangePicker value={dateRange} onChange={handleDateRangeChange} />
         <AnimatedDropdown
           value={phaseFilter}
-          onChange={setPhaseFilter}
+          onChange={handlePhaseFilter}
           options={[
             { value: "ALL",                  label: "All Phases" },
             { value: "operational_brief",    label: "Operational Brief" },
@@ -618,7 +646,7 @@ export default function ProjectGanttDB() {
         />
         <AnimatedDropdown
           value={priorityFilter}
-          onChange={setPriorityFilter}
+          onChange={handlePriorityFilter}
           options={[
             { value: "ALL",      label: "All Priorities" },
             { value: "CRITICAL", label: "Critical", color: "#ef4444" },
@@ -716,14 +744,15 @@ export default function ProjectGanttDB() {
                     return (
                       <div
                         key={i}
-                        className={`text-center text-[9px] py-1 border-r shrink-0 ${
+                        className={`text-center text-[9px] py-1 border-r shrink-0 flex flex-col items-center justify-center gap-px ${
                           isLastOfMonth
                             ? "border-slate-300/60 dark:border-white/12"
                             : "border-slate-100/70 dark:border-white/5"
                         } ${wc.isFirstOfMonth ? "font-bold text-slate-500 dark:text-slate-300" : "text-slate-400 dark:text-slate-500"}`}
                         style={{ width: `${WEEK_W}px` }}
                       >
-                        W{wc.weekNum}
+                        <span>W{wc.weekNum}</span>
+                        <span className="text-[8px] font-normal opacity-60">{format(wc.start, "d MMM")}</span>
                       </div>
                     );
                   })}
@@ -760,7 +789,7 @@ export default function ProjectGanttDB() {
             )}
 
             {/* Today line — single overlay spanning full gantt body height */}
-            {todayOffsetPct > 0 && todayOffsetPct < 100 && (
+            {todayOffsetPct >= 0 && todayOffsetPct <= 100 && (
               <div
                 className="absolute top-0 bottom-0 border-l-[3px] border-dashed border-red-500/90 pointer-events-none"
                 style={{ left: `${240 + (todayOffsetPct / 100) * totalWidth}px`, zIndex: 10 }}
@@ -850,7 +879,7 @@ export default function ProjectGanttDB() {
                       {/* Project range bar — visual track only, click navigates to detail */}
                       {projectRangeBar && (
                         <div
-                          className={`absolute rounded-full border border-slate-300/60 bg-slate-200/50 dark:border-white/8 dark:bg-white/8 transition-colors ${toolMode === "select" ? "cursor-pointer hover:bg-slate-300/60 dark:hover:bg-white/12" : "cursor-default"}`}
+                          className={`absolute rounded-xl border border-slate-300/60 bg-slate-200/50 dark:border-white/8 dark:bg-white/8 transition-colors ${toolMode === "select" ? "cursor-pointer hover:bg-slate-300/60 dark:hover:bg-white/12" : "cursor-default"}`}
                           style={{
                             left:   `${(projectRangeBar.offsetPct / 100) * totalWidth}px`,
                             width:  `${Math.max(4, (projectRangeBar.widthPct / 100) * totalWidth)}px`,
@@ -886,7 +915,7 @@ export default function ProjectGanttDB() {
                           <div
                             key={seg.key}
                             data-drag-bar="true"
-                            className="absolute rounded-full select-none"
+                            className="absolute rounded-xl select-none"
                             style={{
                               left:   `${left}px`,
                               width:  `${width}px`,
@@ -922,13 +951,13 @@ export default function ProjectGanttDB() {
                             )}
                             {/* Left resize handle */}
                             <div
-                              className="absolute left-0 top-0 bottom-0 w-2.5 rounded-l-full z-10 hover:bg-black/10"
+                              className="absolute left-0 top-0 bottom-0 w-2.5 rounded-l-xl z-10 hover:bg-black/10"
                               style={{ cursor: toolMode === "drag" ? "ew-resize" : "inherit" }}
                               onMouseDown={e => { if (toolMode === "drag") { e.stopPropagation(); startDrag(e, p, seg, "resize-left"); } }}
                             />
                             {/* Right resize handle */}
                             <div
-                              className="absolute right-0 top-0 bottom-0 w-2.5 rounded-r-full z-10 hover:bg-black/10"
+                              className="absolute right-0 top-0 bottom-0 w-2.5 rounded-r-xl z-10 hover:bg-black/10"
                               style={{ cursor: toolMode === "drag" ? "ew-resize" : "inherit" }}
                               onMouseDown={e => { if (toolMode === "drag") { e.stopPropagation(); startDrag(e, p, seg, "resize-right"); } }}
                             />

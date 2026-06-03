@@ -40,10 +40,10 @@ const PRIORITY_CONFIG: Record<string, { color: string; dot: string }> = {
 
 const TAB_CONFIG: { key: Tab; label: string; icon: React.ElementType; color: string; emptyLabel: string }[] = [
   { key: "all",     label: "All",           icon: ShieldAlert,   color: "text-slate-500",  emptyLabel: "No alerts right now" },
-  { key: "overdue", label: "Overdue",       icon: AlertTriangle, color: "text-red-500",    emptyLabel: "No overdue projects" },
-  { key: "urgent",  label: "Due in 3 days", icon: Clock,         color: "text-orange-500", emptyLabel: "Nothing due in 3 days" },
-  { key: "soon",    label: "Due in 7 days", icon: Clock,         color: "text-amber-500",  emptyLabel: "Nothing due in 7 days" },
   { key: "new",     label: "New Projects",  icon: Sparkles,      color: "text-teal-500",   emptyLabel: "No new projects recently" },
+  { key: "soon",    label: "Due in 7 days", icon: Clock,         color: "text-amber-500",  emptyLabel: "Nothing due in 7 days" },
+  { key: "urgent",  label: "Due in 3 days", icon: Clock,         color: "text-orange-500", emptyLabel: "Nothing due in 3 days" },
+  { key: "overdue", label: "Overdue",       icon: AlertTriangle, color: "text-red-500",    emptyLabel: "No overdue projects" },
 ];
 
 function buildAlerts(projects: Project[]): AlertItem[] {
@@ -55,27 +55,19 @@ function buildAlerts(projects: Project[]): AlertItem[] {
     const progress = Number(p.overall_progress_pct ?? 0);
     const endDate  = p.end_date ? new Date(p.end_date) : null;
 
-    // Overdue
-    if (endDate && endDate < today && progress < 100) {
-      alerts.push({ project: p, category: "overdue", daysOverdue: differenceInCalendarDays(today, endDate) });
-      continue;
-    }
-
-    // Near deadline
-    if (endDate && endDate >= today && progress < 100) {
-      const daysLeft = differenceInCalendarDays(endDate, today);
-      if (daysLeft <= 3) {
-        alerts.push({ project: p, category: "urgent", daysLeft });
-        continue;
-      }
-      if (daysLeft <= 7) {
-        alerts.push({ project: p, category: "soon", daysLeft });
-        continue;
+    // Deadline alerts (mutually exclusive by severity)
+    if (endDate && progress < 100) {
+      if (endDate < today) {
+        alerts.push({ project: p, category: "overdue", daysOverdue: differenceInCalendarDays(today, endDate) });
+      } else {
+        const daysLeft = differenceInCalendarDays(endDate, today);
+        if (daysLeft <= 3) alerts.push({ project: p, category: "urgent", daysLeft });
+        else if (daysLeft <= 7) alerts.push({ project: p, category: "soon", daysLeft });
       }
     }
 
-    // New (created within last 7 days)
-    if (p.created_at) {
+    // New projects — independent from deadline alerts, only for in-progress projects
+    if (p.created_at && progress < 100) {
       const created = new Date(p.created_at);
       if (differenceInCalendarDays(today, created) <= 7) {
         alerts.push({ project: p, category: "new", createdAgo: formatDistanceToNow(created, { addSuffix: true }) });
@@ -136,20 +128,6 @@ function AlertCard({ item, onClick }: { item: AlertItem; onClick: () => void }) 
           {p.current_phase_name && (
             <span className="text-[10px] text-slate-400 dark:text-slate-500">{p.current_phase_name}</span>
           )}
-          {category !== "new" && (
-            <div className="flex items-center gap-1.5">
-              <div className="w-20 h-1 rounded-full bg-slate-200/70 dark:bg-white/10 overflow-hidden">
-                <div
-                  className="h-full rounded-full transition-all"
-                  style={{
-                    width: `${Math.min(100, progress)}%`,
-                    backgroundColor: progress >= 75 ? "#22c55e" : progress >= 40 ? "#f59e0b" : "#ef4444",
-                  }}
-                />
-              </div>
-              <span className="text-[10px] text-slate-400">{progress.toFixed(0)}%</span>
-            </div>
-          )}
           {category === "new" && p.created_at && (
             <span className="text-[10px] text-slate-400 dark:text-slate-500">Created {createdAgo}</span>
           )}
@@ -199,7 +177,9 @@ export default function AlertsPage() {
   }, [load]);
 
   const alerts   = buildAlerts(projects);
-  const filtered = tab === "all" ? alerts : alerts.filter(a => a.category === tab);
+  const filtered = tab === "all"
+    ? [...new Map(alerts.map(a => [a.project.id + a.category, a])).values()]
+    : alerts.filter(a => a.category === tab);
 
   const counts = {
     overdue: alerts.filter(a => a.category === "overdue").length,
@@ -207,8 +187,7 @@ export default function AlertsPage() {
     soon:    alerts.filter(a => a.category === "soon").length,
     new:     alerts.filter(a => a.category === "new").length,
   };
-  const totalAlerts = counts.overdue + counts.urgent + counts.soon;
-
+  const allCount = new Set(alerts.map(a => a.project.id)).size;
   return (
     <div className="space-y-4 pb-6 animate-page-enter">
 
@@ -217,11 +196,6 @@ export default function AlertsPage() {
         <div className="flex items-center gap-2">
           <ShieldAlert size={16} className="text-red-500" />
           <h2 className="text-lg font-bold text-slate-800 dark:text-white">Live Alerts</h2>
-          {totalAlerts > 0 && (
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-500 text-white animate-pulse">
-              {totalAlerts}
-            </span>
-          )}
         </div>
         <div className="flex items-center gap-2 text-[11px] text-slate-400 dark:text-slate-500">
           {lastUpdated && <span>Updated {format(lastUpdated, "HH:mm:ss")}</span>}
@@ -259,7 +233,7 @@ export default function AlertsPage() {
       {/* Tab filter */}
       <div className="flex items-center gap-1 p-1 rounded-xl bg-slate-100/80 dark:bg-white/6 border border-slate-200/60 dark:border-white/8 flex-wrap">
         {TAB_CONFIG.map(({ key, label, icon: Icon, color }) => {
-          const count = key === "all" ? alerts.length : counts[key as AlertCategory] ?? 0;
+          const count = key === "all" ? allCount : counts[key as AlertCategory] ?? 0;
           return (
             <button
               key={key}

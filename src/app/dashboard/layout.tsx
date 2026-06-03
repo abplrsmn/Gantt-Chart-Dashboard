@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { Home, Users, AlertTriangle, Menu, ChevronRight, Server, CalendarRange } from "lucide-react";
 import { useTheme } from "@/components/ThemeProvider";
@@ -12,6 +12,33 @@ function getRoleFromCookie(): string {
   return match ? match[1].trim() : "admin";
 }
 
+type AlertProject = { id: string; end_date: string | null; overall_progress_pct: string | null; created_at?: string | null };
+
+function computeAlertCount(projects: AlertProject[]): number {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const seen = new Set<string>();
+
+  for (const p of projects) {
+    const progress = Number(p.overall_progress_pct ?? 0);
+    if (progress >= 100) continue;
+
+    // Deadline alert: overdue or due within 7 days
+    const end = p.end_date ? new Date(p.end_date) : null;
+    if (end) {
+      const daysLeft = Math.ceil((end.getTime() - today.getTime()) / 86_400_000);
+      if (daysLeft <= 7) { seen.add(p.id); continue; }
+    }
+
+    // New project: created within last 7 days
+    if (p.created_at) {
+      const daysSince = Math.floor((today.getTime() - new Date(p.created_at).getTime()) / 86_400_000);
+      if (daysSince <= 7) seen.add(p.id);
+    }
+  }
+  return seen.size;
+}
+
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -19,17 +46,92 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const isDark = resolvedTheme === "dark";
   const [userRole, setUserRole] = useState<string>("admin");
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [alertCount, setAlertCount] = useState(0);
+  const pathnameRef = useRef(pathname);
 
+  useEffect(() => { pathnameRef.current = pathname; }, [pathname]);
   useEffect(() => { setUserRole(getRoleFromCookie()); }, []);
   useEffect(() => { setDrawerOpen(false); }, [pathname]);
+
+  // Key resets each new day automatically
+  function dismissedKey() {
+    return `alerts_dismissed_${new Date().toDateString()}_${getUserIdFromCookie()}`;
+  }
+
+  function getDismissedIds(): Set<string> {
+    try {
+      const raw = localStorage.getItem(dismissedKey());
+      return raw ? new Set(JSON.parse(raw)) : new Set();
+    } catch { return new Set(); }
+  }
+
+  function saveDismissedIds(ids: string[]) {
+    try { localStorage.setItem(dismissedKey(), JSON.stringify(ids)); } catch { /* ignore */ }
+  }
+
+  function getAlertProjectIds(projects: AlertProject[]): string[] {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const ids: string[] = [];
+    for (const p of projects) {
+      const progress = Number(p.overall_progress_pct ?? 0);
+      if (progress >= 100) continue;
+      const end = p.end_date ? new Date(p.end_date) : null;
+      if (end) {
+        const daysLeft = Math.ceil((end.getTime() - today.getTime()) / 86_400_000);
+        if (daysLeft <= 7) { ids.push(p.id); continue; }
+      }
+      if (p.created_at) {
+        const daysSince = Math.floor((today.getTime() - new Date(p.created_at).getTime()) / 86_400_000);
+        if (daysSince <= 7) ids.push(p.id);
+      }
+    }
+    return ids;
+  }
+
+  // When user visits alerts: save ALL current alert IDs as "dismissed today"
+  useEffect(() => {
+    if (pathname !== "/dashboard/alerts") return;
+    setAlertCount(0);
+    // Fetch fresh data to save the dismissed IDs
+    fetch("/api/projects/gantt", { cache: "no-store" })
+      .then(r => r.json())
+      .then(json => {
+        if (!json.success) return;
+        saveDismissedIds(getAlertProjectIds(json.data));
+      })
+      .catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
+
+  useEffect(() => {
+    function fetchAlerts() {
+      fetch("/api/projects/gantt", { cache: "no-store" })
+        .then(r => r.json())
+        .then(json => {
+          if (!json.success) return;
+          if (pathnameRef.current === "/dashboard/alerts") return;
+          // Show badge only for project IDs not yet dismissed today
+          const currentIds = getAlertProjectIds(json.data);
+          const dismissed  = getDismissedIds();
+          const unseen     = currentIds.filter(id => !dismissed.has(id));
+          setAlertCount(unseen.length);
+        })
+        .catch(() => {});
+    }
+    fetchAlerts();
+    const id = setInterval(fetchAlerts, 60_000);
+    return () => clearInterval(id);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const isPm = userRole === "pm";
 
   const navItems = [
-    { icon: <Home size={16} />, label: "Home", path: "/dashboard" },
+    { icon: <Home size={16} />, label: "Home",     path: "/dashboard" },
     { icon: <CalendarRange size={16} />, label: "Projects", path: "/dashboard/projects/gantt" },
-    { icon: <Users size={16} />, label: "Team", path: "/dashboard/team" },
-    { icon: <AlertTriangle size={16} />, label: "Alerts", path: "/dashboard/alerts" },
+    { icon: <Users size={16} />, label: "Team",     path: "/dashboard/team" },
+    { icon: <AlertTriangle size={16} />, label: "Alerts",   path: "/dashboard/alerts", badge: alertCount },
     { icon: <Server size={16} />, label: "Controls", path: "/dashboard/controls" },
   ];
 
@@ -71,6 +173,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     label={item.label}
                     active={pathname === item.path}
                     onClick={() => router.push(item.path)}
+                    badge={(item as { badge?: number }).badge}
                   />
                 ))}
               </nav>
@@ -116,6 +219,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 label={item.label}
                 active={pathname === item.path}
                 onClick={() => { router.push(item.path); setDrawerOpen(false); }}
+                badge={(item as { badge?: number }).badge}
               />
             ))}
           </nav>
@@ -137,8 +241,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   );
 }
 
-function TopNavItem({ icon, label, active, onClick }: {
-  icon: React.ReactNode; label: string; active: boolean; onClick: () => void;
+function TopNavItem({ icon, label, active, onClick, badge }: {
+  icon: React.ReactNode; label: string; active: boolean; onClick: () => void; badge?: number;
 }) {
   return (
     <button
@@ -149,14 +253,21 @@ function TopNavItem({ icon, label, active, onClick }: {
           : "text-slate-500 dark:text-slate-400 hover:bg-white/50 dark:hover:bg-white/10 hover:text-slate-700 dark:hover:text-slate-200"
       }`}
     >
-      {icon}
+      <span className="relative shrink-0">
+        {icon}
+        {badge != null && badge > 0 && (
+          <span className="absolute -top-1.5 -right-1.5 min-w-3.5 h-3.5 flex items-center justify-center text-[8px] font-bold rounded-full bg-red-500 text-white animate-pulse leading-none px-0.5">
+            {badge}
+          </span>
+        )}
+      </span>
       <span>{label}</span>
     </button>
   );
 }
 
-function DrawerNavItem({ icon, label, active, onClick }: {
-  icon: React.ReactNode; label: string; active: boolean; onClick: () => void;
+function DrawerNavItem({ icon, label, active, onClick, badge }: {
+  icon: React.ReactNode; label: string; active: boolean; onClick: () => void; badge?: number;
 }) {
   return (
     <button
@@ -169,7 +280,12 @@ function DrawerNavItem({ icon, label, active, onClick }: {
     >
       <span className="shrink-0">{icon}</span>
       <span className="text-sm font-medium">{label}</span>
-      {active && <ChevronRight size={14} className="ml-auto opacity-50 shrink-0" />}
+      {badge != null && badge > 0 && (
+        <span className="ml-auto text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-red-500 text-white animate-pulse leading-none shrink-0">
+          {badge}
+        </span>
+      )}
+      {active && !badge && <ChevronRight size={14} className="ml-auto opacity-50 shrink-0" />}
     </button>
   );
 }
