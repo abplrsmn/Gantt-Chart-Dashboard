@@ -1,8 +1,8 @@
-﻿"use client";
+"use client";
 
 import { useState, useEffect, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { Home, Users, AlertTriangle, Menu, ChevronRight, Server, CalendarRange } from "lucide-react";
+import { Home, Users, AlertTriangle, Menu, ChevronRight, Server, CalendarRange, X, Bell } from "lucide-react";
 import { useTheme } from "@/components/ThemeProvider";
 import QuickMenu from "@/components/dashboard/QuickMenu";
 
@@ -12,31 +12,32 @@ function getRoleFromCookie(): string {
   return match ? match[1].trim() : "admin";
 }
 
+function getUserIdFromCookie(): string {
+  if (typeof document === "undefined") return "default";
+  const match = document.cookie.match(/(?:^|;\s*)user_id=([^;]+)/);
+  return match ? match[1].trim() : "default";
+}
+
 type AlertProject = { id: string; end_date: string | null; overall_progress_pct: string | null; created_at?: string | null };
+type ToastState   = { visible: boolean; count: number };
 
-function computeAlertCount(projects: AlertProject[]): number {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const seen = new Set<string>();
-
-  for (const p of projects) {
-    const progress = Number(p.overall_progress_pct ?? 0);
-    if (progress >= 100) continue;
-
-    // Deadline alert: overdue or due within 7 days
-    const end = p.end_date ? new Date(p.end_date) : null;
-    if (end) {
-      const daysLeft = Math.ceil((end.getTime() - today.getTime()) / 86_400_000);
-      if (daysLeft <= 7) { seen.add(p.id); continue; }
-    }
-
-    // New project: created within last 7 days
-    if (p.created_at) {
-      const daysSince = Math.floor((today.getTime() - new Date(p.created_at).getTime()) / 86_400_000);
-      if (daysSince <= 7) seen.add(p.id);
-    }
-  }
-  return seen.size;
+function playPing() {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const W = window as any;
+    const ctx: AudioContext = new (W.AudioContext || W.webkitAudioContext)();
+    const osc  = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(880, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(660, ctx.currentTime + 0.12);
+    gain.gain.setValueAtTime(0.25, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.5);
+  } catch (e) { void e; }
 }
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -47,13 +48,28 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [userRole, setUserRole] = useState<string>("admin");
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [alertCount, setAlertCount] = useState(0);
+  const [toast, setToast] = useState<ToastState>({ visible: false, count: 0 });
+  const prevAlertCountRef = useRef(null as number | null);
+  const toastTimerRef = useRef(null as number | null);
   const pathnameRef = useRef(pathname);
 
   useEffect(() => { pathnameRef.current = pathname; }, [pathname]);
   useEffect(() => { setUserRole(getRoleFromCookie()); }, []);
   useEffect(() => { setDrawerOpen(false); }, [pathname]);
 
-  // Key resets each new day automatically
+  useEffect(() => {
+    const prev = prevAlertCountRef.current;
+    if (prev === null) { prevAlertCountRef.current = alertCount; return; }
+    if (alertCount > prev) {
+      playPing();
+      setToast({ visible: true, count: alertCount });
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+      toastTimerRef.current = setTimeout(() => setToast(t => ({ ...t, visible: false })), 5000) as unknown as number;
+    }
+    prevAlertCountRef.current = alertCount;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [alertCount]);
+
   function dismissedKey() {
     return `alerts_dismissed_${new Date().toDateString()}_${getUserIdFromCookie()}`;
   }
@@ -89,11 +105,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     return ids;
   }
 
-  // When user visits alerts: save ALL current alert IDs as "dismissed today"
   useEffect(() => {
     if (pathname !== "/dashboard/alerts") return;
     setAlertCount(0);
-    // Fetch fresh data to save the dismissed IDs
     fetch("/api/projects/gantt", { cache: "no-store" })
       .then(r => r.json())
       .then(json => {
@@ -111,7 +125,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         .then(json => {
           if (!json.success) return;
           if (pathnameRef.current === "/dashboard/alerts") return;
-          // Show badge only for project IDs not yet dismissed today
           const currentIds = getAlertProjectIds(json.data);
           const dismissed  = getDismissedIds();
           const unseen     = currentIds.filter(id => !dismissed.has(id));
@@ -138,12 +151,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <div className={`min-h-screen w-full transition-colors duration-500 ${isDark ? "mesh-bg-dark" : "mesh-bg-light"}`}>
 
-      {/* â”€â”€ TOP NAVBAR â€” admin only â”€â”€ */}
       {!isPm && (
         <header className="sticky top-0 z-50 bg-white/80 dark:bg-zinc-950/80 backdrop-blur-xl transition-colors duration-300">
           <div className="w-full px-6 h-14 flex items-center justify-between relative">
 
-            {/* Mobile hamburger */}
             <button
               className="md:hidden p-2 rounded-xl bg-white/50 dark:bg-white/10 border border-slate-200/50 dark:border-white/10 text-slate-600 dark:text-slate-200 hover:bg-white dark:hover:bg-white/20 transition-all"
               onClick={() => setDrawerOpen(true)}
@@ -151,7 +162,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <Menu size={18} />
             </button>
 
-            {/* Logo */}
             <div className="flex items-center gap-2.5 shrink-0 absolute left-1/2 -translate-x-1/2 md:static md:translate-x-0">
               <div className="w-10 h-10 rounded-xl overflow-hidden shrink-0 flex items-center justify-center">
                 <img src="/logo_perusahaan.jpg" alt="Aryaduta" className="w-full h-full object-contain" />
@@ -163,7 +173,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               </div>
             </div>
 
-            {/* Desktop: nav + quick menu */}
             <div className="hidden md:flex items-center gap-1 ml-auto">
               <nav className="flex items-center gap-1 mr-6">
                 {navItems.map(item => (
@@ -180,7 +189,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <QuickMenu />
             </div>
 
-            {/* Mobile: quick menu only */}
             <div className="md:hidden relative">
               <QuickMenu />
             </div>
@@ -188,7 +196,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </header>
       )}
 
-      {/* â”€â”€ MOBILE DRAWER â€” admin only â”€â”€ */}
       {!isPm && drawerOpen && (
         <div
           className="md:hidden fixed inset-0 z-40 bg-black/40 backdrop-blur-sm"
@@ -233,10 +240,42 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </aside>
       )}
 
-      {/* â”€â”€ MAIN CONTENT â”€â”€ */}
       <main className={`px-4 pb-8 w-full max-w-390 mx-auto ${isPm ? "pt-4" : "pt-4"}`}>
         {children}
       </main>
+
+      <div
+        className={`fixed top-4 right-4 z-9999 transition-all duration-300 ${
+          toast.visible ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-2 pointer-events-none"
+        }`}
+      >
+        <div className="flex items-start gap-3 px-4 py-3 rounded-2xl border shadow-xl backdrop-blur-md bg-white/90 dark:bg-zinc-900/90 border-red-200/60 dark:border-red-500/30 min-w-64 max-w-80">
+          <div className="shrink-0 w-8 h-8 rounded-xl bg-red-500/10 flex items-center justify-center mt-0.5">
+            <Bell size={15} className="text-red-500 animate-pulse" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-[12px] font-bold text-slate-800 dark:text-white">
+              {toast.count > 1 ? "New Alerts" : "New Alert"}
+            </p>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+              {toast.count} project{toast.count > 1 ? "s" : ""} need attention
+            </p>
+            <button
+              onClick={() => { router.push("/dashboard/alerts"); setToast(t => ({ ...t, visible: false })); }}
+              className="mt-1.5 text-[10px] font-bold text-red-500 hover:text-red-600 transition-colors"
+            >
+              View Alerts
+            </button>
+          </div>
+          <button
+            onClick={() => setToast(t => ({ ...t, visible: false }))}
+            className="shrink-0 p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/10 transition-colors"
+          >
+            <X size={13} />
+          </button>
+        </div>
+      </div>
+
     </div>
   );
 }
@@ -289,5 +328,3 @@ function DrawerNavItem({ icon, label, active, onClick, badge }: {
     </button>
   );
 }
-
-
