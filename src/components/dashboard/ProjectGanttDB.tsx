@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { differenceInCalendarDays, format, addDays, isValid, startOfWeek, endOfWeek, addWeeks, startOfMonth, endOfMonth } from "date-fns";
-import { Search, ArrowRight, MousePointer2, Move, Trash2, Plus, CalendarRange, BarChart2 } from "lucide-react";
+import { Search, ArrowRight, MousePointer2, Move, Trash2, Plus, CalendarRange } from "lucide-react";
 import DateRangePicker from "./DateRangePicker";
 import AnimatedDropdown from "./AnimatedDropdown";
 import QuickMenu from "./QuickMenu";
@@ -710,13 +710,6 @@ export default function ProjectGanttDB() {
 
         {/* Tool mode selector */}
         <div className="flex items-center gap-2 shrink-0">
-          <button
-            onClick={() => router.push("/dashboard/weekly-report")}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold transition-all whitespace-nowrap border border-slate-200/70 dark:border-white/10 text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-white/8 bg-white/60 dark:bg-zinc-900/50"
-          >
-            <BarChart2 size={13} />
-            Weekly Report
-          </button>
         <div className="flex items-center gap-1 p-1 rounded-xl bg-slate-100/80 dark:bg-white/6 border border-slate-200/60 dark:border-white/8">
           {([
             { mode: "select", Icon: MousePointer2, title: "Select — click bar to open project" },
