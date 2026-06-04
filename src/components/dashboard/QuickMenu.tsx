@@ -5,7 +5,7 @@ import { Settings2, SunMoon, LogOut, Database } from "lucide-react";
 import { useTheme } from "@/components/ThemeProvider";
 import { useRouter } from "next/navigation";
 
-export default function QuickMenu({ align = "right" }: { align?: "left" | "right" }) {
+export default function QuickMenu({ align = "right", dropUp = false }: { align?: "left" | "right"; dropUp?: boolean }) {
   const [open, setOpen] = useState(false);
   const { resolvedTheme, setTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
@@ -44,7 +44,7 @@ export default function QuickMenu({ align = "right" }: { align?: "left" | "right
       </button>
 
       <div
-        className={`absolute ${align === "right" ? "right-0 origin-top-right" : "left-0 origin-top-left"} mt-2 w-48 rounded-xl border border-slate-200 dark:border-white/10 p-1.5 z-100 overflow-hidden bg-white dark:bg-zinc-950/97 shadow-2xl backdrop-blur-xl transition-all duration-200 ease-out ${open ? "opacity-100 translate-y-0 scale-100 pointer-events-auto" : "opacity-0 -translate-y-1.5 scale-95 pointer-events-none"}`}
+        className={`absolute ${align === "right" ? "right-0" : "left-0"} ${dropUp ? "bottom-full mb-2 origin-bottom-left" : "mt-2 origin-top-left"} w-48 rounded-xl border border-slate-200 dark:border-white/10 p-1.5 z-200 overflow-hidden bg-white dark:bg-zinc-950/97 shadow-2xl backdrop-blur-xl transition-all duration-200 ease-out ${open ? "opacity-100 translate-y-0 scale-100 pointer-events-auto" : `opacity-0 ${dropUp ? "translate-y-1.5" : "-translate-y-1.5"} scale-95 pointer-events-none`}`}
         aria-hidden={!open}
       >
           <button

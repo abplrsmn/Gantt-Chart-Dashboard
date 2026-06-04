@@ -43,7 +43,11 @@ function isProtectedApiPath(pathname: string): boolean {
 // Pages each role is ALLOWED to access (prefix match)
 const ROLE_ALLOWED_PATHS: Record<string, string[]> = {
   admin: ['/dashboard'], // admin can access everything under /dashboard
-  pm: ['/dashboard/projects'], // pm can access Gantt and Projects
+  pm: [
+    '/dashboard/projects',    // Gantt, list, detail, weekly-progress, audit
+    '/dashboard/weekly-report',
+    '/dashboard/alerts',
+  ],
 };
 
 // Default landing page per role after login
@@ -79,7 +83,8 @@ export function middleware(request: NextRequest) {
   }
 
   // --- Role-based dashboard page access check ---
-  const role = typeof decoded.role === 'string' ? decoded.role : (decoded.isAdmin ? 'admin' : 'pm');
+  // Always derive from isAdmin so stale tokens without 'role' are handled correctly.
+  const role = decoded.isAdmin ? 'admin' : 'pm';
   const allowedPaths = ROLE_ALLOWED_PATHS[role] ?? [];
 
   const isAllowed = allowedPaths.some((allowed) =>

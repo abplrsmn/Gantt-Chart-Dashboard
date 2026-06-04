@@ -559,10 +559,6 @@ export default function WeeklyProgressPage() {
           <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-200/50 dark:border-white/8">
             <Camera size={14} className="shrink-0" style={{ color: "var(--brand-sienna)" }} />
             <h3 className="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-widest">Weekly Progress</h3>
-            <span className="ml-auto flex items-center gap-1.5 text-[10px] font-medium text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-white/5 px-2 py-1 rounded-full">
-              <span className="w-1.5 h-1.5 rounded-full bg-slate-300 dark:bg-slate-600" />
-              Photos via Telegram or manual upload
-            </span>
           </div>
 
           {weeks.length === 0 ? (

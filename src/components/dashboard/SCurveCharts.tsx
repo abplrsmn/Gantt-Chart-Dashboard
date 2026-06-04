@@ -9,7 +9,7 @@ import {
   format, differenceInCalendarDays, isAfter,
   addWeeks, addDays,
 } from "date-fns";
-import { Activity } from "lucide-react";
+import { Activity, Plus, Trash2, Pencil, Check, X } from "lucide-react";
 import AnimatedDropdown from "./AnimatedDropdown";
 import QuickMenu from "./QuickMenu";
 
@@ -115,59 +115,9 @@ function buildMonthWeekHeader(points: SCurvePoint[]) {
   return { monthGroups, weekLabels };
 }
 
-// ─── Tahap generation (deterministic per project) ────────────────────────────
-const WORK_POOLS: string[][] = [
-  ["Crack Patching", "Painting", "Window Sealant"],
-  ["Tile Installation", "Gypsum Ceiling", "Electrical Installation"],
-  ["Plumbing Installation", "Civil Works", "Interior Finishing"],
-  ["Waterproofing", "Partition Installation", "MEP Works"],
-  ["Structural Work", "Landscaping", "Repainting"],
-  ["Demolition", "Fabrication", "Unit Installation"],
-];
-
-const TAHAP_COLORS = ["#ef4444", "#f59e0b", "#22c55e", "#8b5cf6", "#3b82f6", "#06b6d4"];
-
-function hashStr(s: string): number {
-  let h = 0;
-  for (const c of s) h = (Math.imul(31, h) + c.charCodeAt(0)) | 0;
-  return Math.abs(h);
-}
-
-function generateTahap(projectId: string): TahapGroup[] {
-  const seed = hashStr(projectId);
-  const numTahap = 3 + (seed % 4); // 3–6 tahap
-  const middle = 80;
-  const base = Math.round((middle / numTahap) * 100) / 100;
-
-  const groups: TahapGroup[] = [
-    { header: null, color: null, items: [{ name: "Preparation & Setup", bobot: 10.00 }] },
-  ];
-
-  let weightLeft = middle;
-  for (let t = 0; t < numTahap; t++) {
-    const pool = WORK_POOLS[(seed + t) % WORK_POOLS.length];
-    const isLast = t === numTahap - 1;
-    const total = isLast ? Math.round(weightLeft * 100) / 100 : base;
-    if (!isLast) weightLeft = Math.round((weightLeft - base) * 100) / 100;
-
-    const w1 = Math.round(total * 0.25 * 100) / 100;
-    const w2 = Math.round(total * 0.50 * 100) / 100;
-    const w3 = Math.round((total - w1 - w2) * 100) / 100;
-
-    groups.push({
-      header: `Phase ${t + 1}`,
-      color: TAHAP_COLORS[t % TAHAP_COLORS.length],
-      items: [
-        { name: pool[0], bobot: w1 },
-        { name: pool[1], bobot: w2 },
-        { name: pool[2], bobot: w3 },
-      ],
-    });
-  }
-
-  groups.push({ header: null, color: null, items: [{ name: "Pembersihan Lokasi", bobot: 10.00 }] });
-  return groups;
-}
+// ─── DB Task type ─────────────────────────────────────────────────────────────
+type DBTask = { id: string; title: string; weight_pct: number; progress_pct: number; item_order: number };
+type TaskDraft = { id?: string; title: string; weight_pct: string; progress_pct: string };
 
 // ─── Phase definitions ────────────────────────────────────────────────────────
 const PHASE_DEFS = [
@@ -338,10 +288,72 @@ export default function SCurveCharts({ projects, hidePhaseDetails }: Props) {
     return null;
   }, [projects, selectedProjectId]);
 
-  const generatedTahapGroups = useMemo(() => {
-    if (!selectedProject) return [];
-    return generateTahap(selectedProject.id);
+  // ── Task CRUD state ───────────────────────────────────────────────────────────
+  const [dbTasks, setDbTasks]           = useState<DBTask[]>([]);
+  const [editingTasks, setEditingTasks] = useState(false);
+  const [drafts, setDrafts]             = useState<TaskDraft[]>([]);
+  const [saving, setSaving]             = useState(false);
+
+  function loadTasks(projectId: string) {
+    fetch(`/api/projects/${projectId}/tasks`)
+      .then(r => r.json())
+      .then(j => { if (j.success) setDbTasks(j.data ?? []); })
+      .catch(() => {});
+  }
+
+  useEffect(() => {
+    if (!selectedProject) { setDbTasks([]); setEditingTasks(false); return; }
+    loadTasks(selectedProject.id);
   }, [selectedProject]);
+
+  function startEdit() {
+    setDrafts(dbTasks.map(t => ({ id: t.id, title: t.title, weight_pct: String(t.weight_pct), progress_pct: String(t.progress_pct) })));
+    setEditingTasks(true);
+  }
+  function addDraft() { setDrafts(prev => [...prev, { title: "", weight_pct: "", progress_pct: "0" }]); }
+  function removeDraft(idx: number) { setDrafts(prev => prev.filter((_, i) => i !== idx)); }
+  function setDraft(idx: number, field: keyof TaskDraft, val: string) {
+    setDrafts(prev => prev.map((d, i) => i === idx ? { ...d, [field]: val } : d));
+  }
+
+  async function saveTasks() {
+    if (!selectedProject) return;
+    setSaving(true);
+    try {
+      const pid = selectedProject.id;
+      const existingIds = new Set(dbTasks.map(t => t.id));
+      const draftIds    = new Set(drafts.filter(d => d.id).map(d => d.id!));
+
+      // Delete removed tasks
+      for (const t of dbTasks) {
+        if (!draftIds.has(t.id)) {
+          await fetch(`/api/projects/${pid}/tasks`, { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ taskId: t.id }) });
+        }
+      }
+      // Create or update
+      for (let i = 0; i < drafts.length; i++) {
+        const d = drafts[i];
+        if (!d.title.trim()) continue;
+        const w = Math.max(0, Number(d.weight_pct) || 0);
+        const p = Math.min(100, Math.max(0, Number(d.progress_pct) || 0));
+        if (d.id && existingIds.has(d.id)) {
+          await fetch(`/api/projects/${pid}/tasks`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ taskId: d.id, title: d.title.trim(), weight_pct: w, progress_pct: p, item_order: i + 1 }) });
+        } else {
+          await fetch(`/api/projects/${pid}/tasks`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title: d.title.trim(), weight_pct: w, progress_pct: p, item_order: i + 1 }) });
+        }
+      }
+      loadTasks(pid);
+      setEditingTasks(false);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  // Build tahapGroups from DB tasks for chart calculation
+  const generatedTahapGroups = useMemo<TahapGroup[]>(() => {
+    if (dbTasks.length === 0) return [];
+    return [{ header: null, color: null, items: dbTasks.map(t => ({ name: t.title, bobot: t.weight_pct, progress: t.progress_pct })) }];
+  }, [dbTasks]);
 
   // ── Fetch S-curve data from DB (task/periods first, phase fallback) ─────────
   const [chartData, setChartData] = useState<SCurvePoint[]>([]);
@@ -476,64 +488,126 @@ export default function SCurveCharts({ projects, hidePhaseDetails }: Props) {
           {/* ── Keterangan (Y-axis) + S-Curve (side-by-side) ──────────── */}
           <div className="flex flex-row gap-0 border border-slate-200/60 dark:border-white/10 rounded-xl overflow-hidden">
 
-            {/* LEFT: Keterangan table — acts as the Y-axis label panel */}
-            {tahapGroups.length > 0 && (
-              <div className="w-[300px] shrink-0 flex flex-col border-r border-slate-200/60 dark:border-white/10 bg-slate-50/30 dark:bg-black/20">
-                {/* Column headers — height matches month/week header (48px) */}
-                <div className="h-12 shrink-0 border-b border-slate-200/60 dark:border-white/10 flex bg-slate-100/60 dark:bg-zinc-900/60">
-                  <div className="flex-1 px-3 flex items-center text-[9px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">
-                    Keterangan
-                  </div>
-                  <div className="w-16 shrink-0 border-l border-slate-200/60 dark:border-white/10 flex items-center justify-center text-[9px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">
-                    Bobot
-                  </div>
-                </div>
+            {/* LEFT: Keterangan — static view or task editor */}
+            <div className="w-75 shrink-0 flex flex-col border-r border-slate-200/60 dark:border-white/10 bg-slate-50/30 dark:bg-black/20">
 
-                {/* Rows — this middle section aligns with the chart plot area */}
-                <div className="flex-1 divide-y divide-slate-200/40 dark:divide-white/5 flex flex-col">
-                  {tahapGroups.map((group, gi) => (
-                    <div key={gi}>
-                      {group.header && (
-                        <div
-                          className="h-6 flex items-center px-3"
-                          style={{ backgroundColor: group.color + "28" }}
-                        >
-                          <span className="text-[10px] font-extrabold tracking-wide" style={{ color: group.color ?? undefined }}>
-                            {group.header}
-                          </span>
-                        </div>
-                      )}
-                      {group.items.map((item, ii) => (
-                        <div key={ii} className="h-10 flex text-[11px] hover:bg-slate-100/40 dark:hover:bg-white/4 transition-colors">
-                          <div className={`flex-1 flex items-center text-slate-700 dark:text-slate-200 leading-tight break-words min-w-0 ${group.header ? "px-3 pl-5" : "px-3"}`}
-                            title={item.name}>
-                            <span className="line-clamp-2">{item.name}</span>
-                          </div>
-                          <div className="w-16 shrink-0 border-l border-slate-200/60 dark:border-white/10 flex items-center justify-center font-mono text-[10px] text-slate-500 dark:text-slate-400">
-                            {item.bobot.toFixed(2)}
-                          </div>
-                        </div>
-                      ))}
+              {/* Header */}
+              <div className="h-12 shrink-0 border-b border-slate-200/60 dark:border-white/10 flex items-center bg-slate-100/60 dark:bg-zinc-900/60 px-3 gap-2">
+                <span className="flex-1 text-[9px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">Description</span>
+                <span className="text-[9px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 w-12 text-center">Weight</span>
+                <span className="text-[9px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 w-10 text-center">Real</span>
+                {!editingTasks && dbTasks.length > 0 && (
+                  <button onClick={startEdit} className="p-1 rounded-lg hover:bg-white dark:hover:bg-white/10 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors" title="Edit tasks">
+                    <Pencil size={11} />
+                  </button>
+                )}
+              </div>
+
+              {editingTasks ? (
+                /* ── Editor mode ── */
+                <div className="flex-1 flex flex-col overflow-y-auto">
+                  {/* Total bobot indicator */}
+                  {(() => {
+                    const total = drafts.reduce((s, d) => s + (Number(d.weight_pct) || 0), 0);
+                    const over  = total > 100;
+                    return (
+                      <div className={`px-3 py-1.5 text-[10px] font-semibold flex items-center justify-between border-b ${over ? "bg-rose-50 dark:bg-rose-500/10 text-rose-600 border-rose-200/60" : "bg-slate-50 dark:bg-white/3 text-slate-500 border-slate-200/50 dark:border-white/8"}`}>
+                        <span>Total weight</span>
+                        <span className={`font-bold ${over ? "text-rose-500" : total === 100 ? "text-emerald-500" : ""}`}>{total.toFixed(2)}%</span>
+                      </div>
+                    );
+                  })()}
+
+                  <div className="flex-1 divide-y divide-slate-100 dark:divide-white/5 overflow-y-auto">
+                    {drafts.map((d, idx) => (
+                      <div key={idx} className="flex items-center gap-1.5 px-2 py-1.5">
+                        <input
+                          value={d.title}
+                          onChange={e => setDraft(idx, "title", e.target.value)}
+                          placeholder="Work item description..."
+                          className="flex-1 min-w-0 text-[11px] bg-white dark:bg-zinc-800 border border-slate-200/70 dark:border-white/10 rounded-lg px-2 py-1 outline-none focus:border-brand-sienna/60 text-slate-700 dark:text-slate-200 placeholder:text-slate-300 dark:placeholder:text-slate-600"
+                        />
+                        <input
+                          value={d.weight_pct}
+                          onChange={e => setDraft(idx, "weight_pct", e.target.value)}
+                          placeholder="0"
+                          type="number" min="0" max="100" step="0.01"
+                          className="w-14 text-[11px] bg-white dark:bg-zinc-800 border border-slate-200/70 dark:border-white/10 rounded-lg px-1.5 py-1 outline-none focus:border-brand-sienna/60 text-center font-mono text-slate-700 dark:text-slate-200"
+                        />
+                        <button onClick={() => removeDraft(idx)} className="p-1 rounded-lg text-slate-300 dark:text-slate-600 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors shrink-0">
+                          <Trash2 size={12} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Add + Save/Cancel */}
+                  <div className="border-t border-slate-200/60 dark:border-white/8 p-2 space-y-1.5">
+                    <button onClick={addDraft} className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg border border-dashed border-slate-200/70 dark:border-white/10 text-[11px] font-semibold text-slate-400 hover:text-brand-sienna hover:border-brand-sienna/40 transition-colors">
+                      <Plus size={12} /> Add Item
+                    </button>
+                    <div className="flex gap-1.5">
+                      <button onClick={() => setEditingTasks(false)} className="flex-1 py-1.5 rounded-lg text-[11px] font-semibold text-slate-500 hover:bg-slate-100 dark:hover:bg-white/8 transition-colors">
+                        <X size={11} className="inline mr-1" />Cancel
+                      </button>
+                      <button
+                        onClick={saveTasks}
+                        disabled={saving}
+                        className="flex-1 py-1.5 rounded-lg text-[11px] font-bold text-white transition-colors disabled:opacity-50 glass-btn-primary"
+                      >
+                        {saving ? "Saving…" : <><Check size={11} className="inline mr-1" />Save</>}
+                      </button>
                     </div>
-                  ))}
+                  </div>
                 </div>
+              ) : dbTasks.length === 0 ? (
+                /* ── Empty state ── */
+                <div className="flex-1 flex flex-col items-center justify-center gap-2 p-4 text-center">
+                  <Activity size={22} className="text-slate-300 dark:text-slate-600" />
+                  <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">No work items yet</p>
+                  <p className="text-[10px] text-slate-400 dark:text-slate-600">Click Edit to add descriptions and weights.</p>
+                  <button onClick={startEdit} className="mt-1 flex items-center justify-center w-8 h-8 rounded-lg font-bold glass-btn-primary text-white">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                      <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                    </svg>
+                  </button>
+                </div>
+              ) : (
+                /* ── Static view ── */
+                <>
+                  <div className="flex-1 divide-y divide-slate-200/40 dark:divide-white/5 flex flex-col overflow-y-auto">
+                    {dbTasks.map(t => (
+                      <div key={t.id} className="flex text-[11px] hover:bg-slate-100/40 dark:hover:bg-white/4 transition-colors">
+                        <div className="flex-1 flex items-center px-3 text-slate-700 dark:text-slate-200 leading-tight min-w-0">
+                          <span className="line-clamp-2">{t.title}</span>
+                        </div>
+                        <div className="w-12 shrink-0 border-l border-slate-200/60 dark:border-white/10 flex items-center justify-center font-mono text-[10px] text-slate-500 dark:text-slate-400">
+                          {t.weight_pct.toFixed(2)}
+                        </div>
+                        <div className="w-10 shrink-0 border-l border-slate-200/60 dark:border-white/10 flex items-center justify-center font-mono text-[10px] text-emerald-600 dark:text-emerald-400">
+                          {t.progress_pct.toFixed(0)}%
+                        </div>
+                      </div>
+                    ))}
+                  </div>
 
-                {/* Summary rows — matches Excel S-curve bottom rows */}
-                <div className="shrink-0 border-t border-slate-200/60 dark:border-white/10 bg-slate-200/30 dark:bg-zinc-800/40 text-[9px] font-bold">
-                  {[
-                    ["Bobot Rencana", ""],
-                    ["Bobot Rencana Kumulatif", ""],
-                    ["Bobot Realisasi", ""],
-                    ["Bobot Realisasi Kumulatif", ""],
-                  ].map(([label, value]) => (
-                    <div key={label} className="h-6 flex border-b last:border-b-0 border-slate-200/50 dark:border-white/8">
+                  {/* Summary rows */}
+                  <div className="shrink-0 border-t border-slate-200/60 dark:border-white/10 bg-slate-200/30 dark:bg-zinc-800/40 text-[9px] font-bold">
+                    {[
+                      ["Planned Weight", ""],
+                      ["Cumulative Planned", ""],
+                      ["Actual Weight", ""],
+                      ["Cumulative Actual", ""],
+                    ].map(([label, value]) => (
+                      <div key={label} className="h-6 flex border-b last:border-b-0 border-slate-200/50 dark:border-white/8">
                       <div className="flex-1 px-3 flex items-center text-slate-700 dark:text-white/80 truncate">{label}</div>
                       <div className="w-16 shrink-0 border-l border-slate-200/60 dark:border-white/10 flex items-center justify-center text-cyan-600 dark:text-cyan-400">{value}</div>
                     </div>
                   ))}
-                </div>
-              </div>
-            )}
+                  </div>
+                </>
+              )}
+            </div>
 
             {/* RIGHT: weekly S-curve grid + chart overlay */}
             <div className="flex-1 min-w-0 relative bg-white dark:bg-zinc-950/30 overflow-x-auto scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-zinc-700" style={{ minHeight: chartHeight }}>
@@ -684,7 +758,7 @@ export default function SCurveCharts({ projects, hidePhaseDetails }: Props) {
                         <span className="text-white/80 font-medium text-right">{fmtDate(selectedProject[ph.endKey])}</span>
                       </div>
                       <div className="flex justify-between gap-2 mt-1 border-t border-white/5 pt-1.5">
-                        <span className="text-white/40">Bobot</span>
+                        <span className="text-white/40">Weight</span>
                         <span className="font-bold text-[12px]" style={{ color: ph.color }}>{ph.weight}%</span>
                       </div>
                     </div>

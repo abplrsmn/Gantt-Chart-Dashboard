@@ -42,12 +42,14 @@ function decodeToken(token: string): AuthUser | null {
     const parsed = JSON.parse(Buffer.from(b64, 'base64url').toString('utf8'));
     if (!parsed || typeof parsed !== 'object') return null;
     if (typeof parsed.email !== 'string') return null;
+    const isAdmin = Boolean(parsed.isAdmin);
     return {
       accId: Number(parsed.accId),
       personId: parsed.personId == null ? null : Number(parsed.personId),
       email: String(parsed.email),
-      isAdmin: Boolean(parsed.isAdmin),
-      role: typeof parsed.role === 'string' ? parsed.role : (parsed.isAdmin ? 'admin' : 'pm'),
+      isAdmin,
+      // Re-derive role from isAdmin so stale tokens without 'role' field still work correctly.
+      role: isAdmin ? 'admin' : 'pm',
       fullName: parsed.fullName == null ? null : String(parsed.fullName),
     };
   } catch {
@@ -58,7 +60,7 @@ function decodeToken(token: string): AuthUser | null {
 export async function authenticateUser(email: string, password: string): Promise<AuthUser | null> {
   const pool = getDbPool();
   const result = await pool.query(
-    `SELECT a.id, a.person_id, a.email, a.is_admin, a.role, a.password_hash, p.full_name
+    `SELECT a.id, a.person_id, a.email, a.is_admin, a.password_hash, p.full_name
      FROM master_acc a
      LEFT JOIN master_people p ON p.id = a.person_id
      WHERE lower(a.email) = lower($1) AND a.is_active = true
@@ -71,12 +73,13 @@ export async function authenticateUser(email: string, password: string): Promise
   const valid = await bcrypt.compare(password, String(row.password_hash));
   if (!valid) return null;
 
+  const isAdmin = Boolean(row.is_admin);
   return {
     accId: Number(row.id),
     personId: row.person_id == null ? null : Number(row.person_id),
     email: String(row.email),
-    isAdmin: Boolean(row.is_admin),
-    role: typeof row.role === 'string' ? row.role : (row.is_admin ? 'admin' : 'pm'),
+    isAdmin,
+    role: isAdmin ? 'admin' : 'pm',
     fullName: row.full_name == null ? null : String(row.full_name),
   };
 }

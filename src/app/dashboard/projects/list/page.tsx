@@ -125,10 +125,6 @@ function ProjectListContent() {
       : inRange;
   }, [projects, search, rangeStart, rangeEnd]);
 
-  const rangeLabel = rangeStart && rangeEnd
-    ? `${format(rangeStart, "dd MMM yyyy")} – ${format(rangeEnd, "dd MMM yyyy")}`
-    : null;
-
   return (
     <div className="space-y-4 pb-8 animate-page-enter">
 
@@ -141,7 +137,6 @@ function ProjectListContent() {
           <ArrowLeft size={15} />
           Back
         </button>
-        {rangeLabel && <span className="ml-auto text-[11px] text-slate-400 shrink-0">{rangeLabel}</span>}
       </div>
 
       {/* Search */}

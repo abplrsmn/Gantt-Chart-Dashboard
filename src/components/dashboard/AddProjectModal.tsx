@@ -8,6 +8,7 @@ type Option = { id: number; code?: string; name: string; color?: string };
 type Options = {
   phases:     Option[];
   priorities: Option[];
+  units:      Option[];
 };
 
 const PHASE_DATE_LABELS: Record<string, { start: string; end: string }> = {
@@ -61,7 +62,7 @@ export default function AddProjectModal({
   useEffect(() => {
     fetch("/api/master/options")
       .then(r => r.json())
-      .then(d => { if (d.success) setOptions({ phases: d.phases, priorities: d.priorities }); })
+      .then(d => { if (d.success) setOptions({ phases: d.phases, priorities: d.priorities, units: d.units ?? [] }); })
       .catch(() => {});
     setTimeout(() => nameRef.current?.focus(), 80);
   }, []);
@@ -194,13 +195,12 @@ export default function AddProjectModal({
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className={lbl}>Unit</label>
-                <input
-                  type="text"
-                  value={form.unit_name}
-                  onChange={e => set("unit_name", e.target.value)}
-                  placeholder="e.g. Aryaduta Lippo Village"
-                  className={input}
-                />
+                <select value={form.unit_name} onChange={e => set("unit_name", e.target.value)} className={select}>
+                  <option value="">— Select unit</option>
+                  {options?.units.map(u => (
+                    <option key={u.id} value={u.name}>{u.name}</option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label className={lbl}>Priority</label>

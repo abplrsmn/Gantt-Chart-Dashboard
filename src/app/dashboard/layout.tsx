@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { Home, Users, AlertTriangle, Menu, ChevronRight, Server, CalendarRange, X, Bell } from "lucide-react";
+import {
+  Home, Users, AlertTriangle, Server, CalendarRange,
+  Bell, X, Database, BarChart2, ShieldAlert, SunMoon, LogOut,
+} from "lucide-react";
 import { useTheme } from "@/components/ThemeProvider";
-import QuickMenu from "@/components/dashboard/QuickMenu";
 
 function getRoleFromCookie(): string {
   if (typeof document === "undefined") return "admin";
@@ -23,40 +25,85 @@ type ToastState   = { visible: boolean; count: number };
 
 function playPing() {
   try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const W = window as any;
+    const W = window as any; // eslint-disable-line @typescript-eslint/no-explicit-any
     const ctx: AudioContext = new (W.AudioContext || W.webkitAudioContext)();
     const osc  = ctx.createOscillator();
     const gain = ctx.createGain();
-    osc.connect(gain);
-    gain.connect(ctx.destination);
+    osc.connect(gain); gain.connect(ctx.destination);
     osc.type = "sine";
     osc.frequency.setValueAtTime(880, ctx.currentTime);
     osc.frequency.exponentialRampToValueAtTime(660, ctx.currentTime + 0.12);
     gain.gain.setValueAtTime(0.25, ctx.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
-    osc.start(ctx.currentTime);
-    osc.stop(ctx.currentTime + 0.5);
-  } catch (e) { void e; }
+    osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.5);
+  } catch { /* ignore */ }
 }
 
+// ─── Sidebar nav item ─────────────────────────────────────────────────────────
+function SideNavItem({ icon, label, active, onClick, badge }: {
+  icon: React.ReactNode; label: string; active: boolean; onClick: () => void; badge?: number;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`relative w-full flex items-center gap-3 px-2.5 py-2.5 rounded-xl overflow-hidden transition-all duration-150 ${
+        active
+          ? "glass-nav-active shadow-sm text-brand-mahogany dark:text-brand-sand"
+          : "text-slate-500 dark:text-slate-400 hover:bg-white/60 dark:hover:bg-white/8 hover:text-slate-700 dark:hover:text-slate-200"
+      }`}
+    >
+      {/* Icon — fixed, stays put while label slides in */}
+      <span className="relative shrink-0 w-5 h-5 flex items-center justify-center">
+        {icon}
+        {badge != null && badge > 0 && (
+          <span className="absolute -top-1.5 -right-1.5 min-w-3.5 h-3.5 flex items-center justify-center text-[8px] font-bold rounded-full bg-red-500 text-white animate-pulse leading-none px-0.5 z-10">
+            {badge > 9 ? "9+" : badge}
+          </span>
+        )}
+      </span>
+
+      {/* Label — clipped by button overflow-hidden when sidebar is narrow */}
+      <span className="text-[13px] font-semibold whitespace-nowrap leading-none flex-1 text-left">
+        {label}
+      </span>
+
+      {/* Badge pill (only visible when expanded) */}
+      {badge != null && badge > 0 && (
+        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-red-500 text-white shrink-0">
+          {badge > 9 ? "9+" : badge}
+        </span>
+      )}
+    </button>
+  );
+}
+
+// ─── Layout ───────────────────────────────────────────────────────────────────
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const router = useRouter();
+  const router   = useRouter();
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
-  const [userRole, setUserRole] = useState<string>("admin");
-  const [drawerOpen, setDrawerOpen] = useState(false);
+
+  const [userRole, setUserRole]   = useState<string>("admin");
   const [alertCount, setAlertCount] = useState(0);
-  const [toast, setToast] = useState<ToastState>({ visible: false, count: 0 });
-  const prevAlertCountRef = useRef(null as number | null);
-  const toastTimerRef = useRef(null as number | null);
-  const pathnameRef = useRef(pathname);
+  const [toast, setToast]         = useState<ToastState>({ visible: false, count: 0 });
+  const [logoMenuOpen, setLogoMenuOpen] = useState(false);
+  const logoMenuRef = useRef<HTMLDivElement>(null);
+  const prevAlertCountRef = useRef<number | null>(null);
+  const toastTimerRef     = useRef<number | null>(null);
+  const pathnameRef       = useRef(pathname);
 
   useEffect(() => { pathnameRef.current = pathname; }, [pathname]);
   useEffect(() => { setUserRole(getRoleFromCookie()); }, []);
-  useEffect(() => { setDrawerOpen(false); }, [pathname]);
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (!logoMenuRef.current?.contains(e.target as Node)) setLogoMenuOpen(false);
+    }
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
 
+  // Toast on new alerts
   useEffect(() => {
     const prev = prevAlertCountRef.current;
     if (prev === null) { prevAlertCountRef.current = alertCount; return; }
@@ -70,67 +117,40 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [alertCount]);
 
-  function dismissedKey() {
-    return `alerts_dismissed_${new Date().toDateString()}_${getUserIdFromCookie()}`;
-  }
-
+  function dismissedKey() { return `alerts_dismissed_${new Date().toDateString()}_${getUserIdFromCookie()}`; }
   function getDismissedIds(): Set<string> {
-    try {
-      const raw = localStorage.getItem(dismissedKey());
-      return raw ? new Set(JSON.parse(raw)) : new Set();
-    } catch { return new Set(); }
+    try { const r = localStorage.getItem(dismissedKey()); return r ? new Set(JSON.parse(r)) : new Set(); } catch { return new Set(); }
   }
-
   function saveDismissedIds(ids: string[]) {
     try { localStorage.setItem(dismissedKey(), JSON.stringify(ids)); } catch { /* ignore */ }
   }
-
   function getAlertProjectIds(projects: AlertProject[]): string[] {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const ids: string[] = [];
-    for (const p of projects) {
-      const progress = Number(p.overall_progress_pct ?? 0);
-      if (progress >= 100) continue;
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    return projects.flatMap(p => {
+      if (Number(p.overall_progress_pct ?? 0) >= 100) return [];
       const end = p.end_date ? new Date(p.end_date) : null;
-      if (end) {
-        const daysLeft = Math.ceil((end.getTime() - today.getTime()) / 86_400_000);
-        if (daysLeft <= 7) { ids.push(p.id); continue; }
-      }
-      if (p.created_at) {
-        const daysSince = Math.floor((today.getTime() - new Date(p.created_at).getTime()) / 86_400_000);
-        if (daysSince <= 7) ids.push(p.id);
-      }
-    }
-    return ids;
+      if (end && Math.ceil((end.getTime() - today.getTime()) / 86_400_000) <= 7) return [p.id];
+      if (p.created_at && Math.floor((today.getTime() - new Date(p.created_at).getTime()) / 86_400_000) <= 7) return [p.id];
+      return [];
+    });
   }
 
   useEffect(() => {
     if (pathname !== "/dashboard/alerts") return;
     setAlertCount(0);
     fetch("/api/projects/gantt", { cache: "no-store" })
-      .then(r => r.json())
-      .then(json => {
-        if (!json.success) return;
-        saveDismissedIds(getAlertProjectIds(json.data));
-      })
-      .catch(() => {});
+      .then(r => r.json()).then(j => { if (j.success) saveDismissedIds(getAlertProjectIds(j.data)); }).catch(() => {});
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
 
   useEffect(() => {
     function fetchAlerts() {
       fetch("/api/projects/gantt", { cache: "no-store" })
-        .then(r => r.json())
-        .then(json => {
-          if (!json.success) return;
-          if (pathnameRef.current === "/dashboard/alerts") return;
-          const currentIds = getAlertProjectIds(json.data);
-          const dismissed  = getDismissedIds();
-          const unseen     = currentIds.filter(id => !dismissed.has(id));
+        .then(r => r.json()).then(j => {
+          if (!j.success || pathnameRef.current === "/dashboard/alerts") return;
+          const unseen = getAlertProjectIds(j.data).filter(id => !getDismissedIds().has(id));
           setAlertCount(unseen.length);
-        })
-        .catch(() => {});
+        }).catch(() => {});
     }
     fetchAlerts();
     const id = setInterval(fetchAlerts, 60_000);
@@ -138,117 +158,110 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  async function handleLogout() {
+    setLogoMenuOpen(false);
+    try { await fetch("/api/auth/logout", { method: "POST", credentials: "include", cache: "no-store" }); } catch { /* continue */ }
+    localStorage.removeItem("gantt_dateRange");
+    localStorage.removeItem("projects_dateRange");
+    window.location.href = "/";
+  }
+
   const isPm = userRole === "pm";
 
-  const navItems = [
-    { icon: <Home size={16} />, label: "Home",     path: "/dashboard" },
-    { icon: <CalendarRange size={16} />, label: "Projects", path: "/dashboard/projects/gantt" },
-    { icon: <Users size={16} />, label: "Team",     path: "/dashboard/team" },
-    { icon: <AlertTriangle size={16} />, label: "Alerts",   path: "/dashboard/alerts", badge: alertCount },
-    { icon: <Server size={16} />, label: "Controls", path: "/dashboard/controls" },
+  const adminNavItems = [
+    { icon: <Home size={16} />,          label: "Home",          path: "/dashboard" },
+    { icon: <CalendarRange size={16} />, label: "Projects",      path: "/dashboard/projects/gantt" },
+    { icon: <BarChart2 size={16} />,     label: "Weekly Report", path: "/dashboard/weekly-report" },
+    { icon: <Users size={16} />,         label: "Team",          path: "/dashboard/team" },
+    { icon: <ShieldAlert size={16} />,   label: "Alerts",        path: "/dashboard/alerts", badge: alertCount },
+    { icon: <Server size={16} />,        label: "Controls",      path: "/dashboard/controls" },
+    { icon: <Database size={16} />,      label: "Master Setup",  path: "/dashboard/master" },
   ];
 
+  const pmNavItems = [
+    { icon: <CalendarRange size={16} />, label: "Projects", path: "/dashboard/projects/gantt" },
+    { icon: <AlertTriangle size={16} />, label: "Alerts",   path: "/dashboard/alerts", badge: alertCount },
+  ];
+
+  const navItems = isPm ? pmNavItems : adminNavItems;
+
+  // Active match: exact for home, prefix for others
+  function isActive(path: string) {
+    if (path === "/dashboard") return pathname === "/dashboard";
+    return pathname === path || pathname.startsWith(path.replace("/gantt", ""));
+  }
+
   return (
-    <div className={`min-h-screen w-full transition-colors duration-500 ${isDark ? "mesh-bg-dark" : "mesh-bg-light"}`}>
+    <div className={`flex min-h-screen transition-colors duration-500 ${isDark ? "mesh-bg-dark" : "mesh-bg-light"}`}>
 
-      {!isPm && (
-        <header className="sticky top-0 z-50 bg-white/80 dark:bg-zinc-950/80 backdrop-blur-xl transition-colors duration-300">
-          <div className="w-full px-6 h-14 flex items-center justify-between relative">
+      {/* ── Sidebar ───────────────────────────────────────────────────────── */}
+      <aside className="group sticky top-0 h-screen z-50 flex flex-col shrink-0
+                        w-14 hover:w-56
+                        transition-[width] duration-200 ease-out
+                        bg-white/85 dark:bg-zinc-950/85 backdrop-blur-xl
+                        border-r border-slate-200/60 dark:border-white/8
+                        select-none">
 
-            <button
-              className="md:hidden p-2 rounded-xl bg-white/50 dark:bg-white/10 border border-slate-200/50 dark:border-white/10 text-slate-600 dark:text-slate-200 hover:bg-white dark:hover:bg-white/20 transition-all"
-              onClick={() => setDrawerOpen(true)}
-            >
-              <Menu size={18} />
-            </button>
+        {/* Logo — click to open theme/logout menu */}
+        <div ref={logoMenuRef} className="relative flex items-center gap-3 px-3.5 py-4 shrink-0 border-b border-slate-200/50 dark:border-white/6">
+          <button
+            onClick={() => setLogoMenuOpen(v => !v)}
+            className="w-7 h-7 rounded-lg overflow-hidden shrink-0 flex items-center justify-center bg-white hover:ring-2 hover:ring-brand-sienna/40 transition-all"
+          >
+            <img src="/logo_perusahaan.jpg" alt="" className="w-full h-full object-contain" />
+          </button>
+          <span className="text-[11px] font-extrabold tracking-widest uppercase text-slate-700 dark:text-slate-200 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-150 delay-75">
+            Aryaduta
+          </span>
 
-            <div className="flex items-center gap-2.5 shrink-0 absolute left-1/2 -translate-x-1/2 md:static md:translate-x-0">
-              <div className="w-10 h-10 rounded-xl overflow-hidden shrink-0 flex items-center justify-center">
-                <img src="/logo_perusahaan.jpg" alt="Aryaduta" className="w-full h-full object-contain" />
-              </div>
-              <div>
-                <h1 className="text-sm font-bold leading-tight tracking-wider text-slate-800 dark:text-slate-100">
-                  ARYADUTA DASHBOARD
-                </h1>
-              </div>
+          {/* Dropdown */}
+          {logoMenuOpen && (
+            <div className="absolute left-0 top-full mt-1 w-44 rounded-xl border border-slate-200 dark:border-white/10 p-1.5 z-200 bg-white dark:bg-zinc-950 shadow-2xl backdrop-blur-xl animate-dropdown-enter">
+              <button
+                onClick={() => { setTheme(isDark ? "light" : "dark"); setLogoMenuOpen(false); }}
+                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium text-slate-700 dark:text-white/70 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5 transition-colors"
+              >
+                <SunMoon size={14} />
+                {isDark ? "Switch to Light" : "Switch to Dark"}
+              </button>
+              <div className="my-1 border-t border-slate-100 dark:border-white/5" />
+              <button
+                onClick={handleLogout}
+                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium text-red-500 dark:text-red-400 hover:text-red-600 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
+              >
+                <LogOut size={14} />
+                Log Out
+              </button>
             </div>
+          )}
+        </div>
 
-            <div className="hidden md:flex items-center gap-1 ml-auto">
-              <nav className="flex items-center gap-1 mr-6">
-                {navItems.map(item => (
-                  <TopNavItem
-                    key={item.path}
-                    icon={item.icon}
-                    label={item.label}
-                    active={pathname === item.path}
-                    onClick={() => router.push(item.path)}
-                    badge={(item as { badge?: number }).badge}
-                  />
-                ))}
-              </nav>
-              <QuickMenu />
-            </div>
+        {/* Nav */}
+        <nav className="flex-1 px-2 py-3 space-y-0.5 overflow-y-auto overflow-x-hidden">
+          {navItems.map(item => (
+            <SideNavItem
+              key={item.path}
+              icon={item.icon}
+              label={item.label}
+              active={isActive(item.path)}
+              onClick={() => router.push(item.path)}
+              badge={(item as { badge?: number }).badge}
+            />
+          ))}
+        </nav>
+      </aside>
 
-            <div className="md:hidden relative">
-              <QuickMenu />
-            </div>
-          </div>
-        </header>
-      )}
-
-      {!isPm && drawerOpen && (
-        <div
-          className="md:hidden fixed inset-0 z-40 bg-black/40 backdrop-blur-sm"
-          onClick={() => setDrawerOpen(false)}
-        />
-      )}
-
-      {!isPm && (
-        <aside
-          className={`md:hidden fixed left-0 top-0 h-screen w-64 z-50 flex flex-col bg-white/95 dark:bg-zinc-950/95 backdrop-blur-xl border-r border-slate-200/50 dark:border-white/5 shadow-2xl transition-transform duration-300 ease-in-out ${drawerOpen ? "translate-x-0" : "-translate-x-full"}`}
-        >
-          <div className="px-4 py-4 flex items-center border-b border-slate-200/40 dark:border-white/5">
-            <div className="flex items-center gap-2.5">
-              <div className="w-10 h-10 rounded-xl overflow-hidden shrink-0 flex items-center justify-center">
-                <img src="/logo_perusahaan.jpg" alt="Aryaduta" className="w-full h-full object-contain" />
-              </div>
-              <h1 className="text-sm font-bold tracking-wider text-slate-800 dark:text-slate-100">
-                PROJECT DASHBOARD
-              </h1>
-            </div>
-          </div>
-
-          <nav className="flex-1 px-3 py-4 space-y-1">
-            {navItems.map(item => (
-              <DrawerNavItem
-                key={item.path}
-                icon={item.icon}
-                label={item.label}
-                active={pathname === item.path}
-                onClick={() => { router.push(item.path); setDrawerOpen(false); }}
-                badge={(item as { badge?: number }).badge}
-              />
-            ))}
-          </nav>
-
-          <div className="p-4 border-t border-slate-200/40 dark:border-white/5 space-y-2">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 px-1">Quick Menu</p>
-            <div className="flex flex-col gap-2">
-              <QuickMenu align="left" />
-            </div>
-          </div>
-        </aside>
-      )}
-
-      <main className={`px-4 pb-8 w-full max-w-390 mx-auto ${isPm ? "pt-4" : "pt-4"}`}>
-        {children}
+      {/* ── Main content — offset by collapsed sidebar width ──────────────── */}
+      <main className="flex-1 min-w-0 px-4 pb-8 pt-5">
+        <div className="max-w-390 mx-auto">
+          {children}
+        </div>
       </main>
 
-      <div
-        className={`fixed top-4 right-4 z-9999 transition-all duration-300 ${
-          toast.visible ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-2 pointer-events-none"
-        }`}
-      >
+      {/* ── Alert toast ───────────────────────────────────────────────────── */}
+      <div className={`fixed top-4 right-4 z-9999 transition-all duration-300 ${
+        toast.visible ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-2 pointer-events-none"
+      }`}>
         <div className="flex items-start gap-3 px-4 py-3 rounded-2xl border shadow-xl backdrop-blur-md bg-white/90 dark:bg-zinc-900/90 border-red-200/60 dark:border-red-500/30 min-w-64 max-w-80">
           <div className="shrink-0 w-8 h-8 rounded-xl bg-red-500/10 flex items-center justify-center mt-0.5">
             <Bell size={15} className="text-red-500 animate-pulse" />
@@ -264,7 +277,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               onClick={() => { router.push("/dashboard/alerts"); setToast(t => ({ ...t, visible: false })); }}
               className="mt-1.5 text-[10px] font-bold text-red-500 hover:text-red-600 transition-colors"
             >
-              View Alerts
+              View Alerts →
             </button>
           </div>
           <button
@@ -277,54 +290,5 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </div>
 
     </div>
-  );
-}
-
-function TopNavItem({ icon, label, active, onClick, badge }: {
-  icon: React.ReactNode; label: string; active: boolean; onClick: () => void; badge?: number;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={`relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 ${
-        active
-          ? "glass-nav-active shadow-sm"
-          : "text-slate-500 dark:text-slate-400 hover:bg-white/50 dark:hover:bg-white/10 hover:text-slate-700 dark:hover:text-slate-200"
-      }`}
-    >
-      <span className="relative shrink-0">
-        {icon}
-        {badge != null && badge > 0 && (
-          <span className="absolute -top-1.5 -right-1.5 min-w-3.5 h-3.5 flex items-center justify-center text-[8px] font-bold rounded-full bg-red-500 text-white animate-pulse leading-none px-0.5">
-            {badge}
-          </span>
-        )}
-      </span>
-      <span>{label}</span>
-    </button>
-  );
-}
-
-function DrawerNavItem({ icon, label, active, onClick, badge }: {
-  icon: React.ReactNode; label: string; active: boolean; onClick: () => void; badge?: number;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl relative transition-all duration-200 ${
-        active
-          ? "glass-nav-active shadow-sm"
-          : "text-slate-500 dark:text-slate-400 hover:bg-white/40 dark:hover:bg-white/10 hover:text-slate-700 dark:hover:text-slate-200"
-      }`}
-    >
-      <span className="shrink-0">{icon}</span>
-      <span className="text-sm font-medium">{label}</span>
-      {badge != null && badge > 0 && (
-        <span className="ml-auto text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-red-500 text-white animate-pulse leading-none shrink-0">
-          {badge}
-        </span>
-      )}
-      {active && !badge && <ChevronRight size={14} className="ml-auto opacity-50 shrink-0" />}
-    </button>
   );
 }

@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { differenceInCalendarDays, format, addDays, isValid, startOfWeek, endOfWeek, addWeeks, startOfMonth, endOfMonth } from "date-fns";
-import { Search, ArrowRight, MousePointer2, Move, Trash2, Plus, FolderKanban } from "lucide-react";
+import { Search, ArrowRight, MousePointer2, Move, Trash2, Plus, CalendarRange, BarChart2 } from "lucide-react";
 import DateRangePicker from "./DateRangePicker";
 import AnimatedDropdown from "./AnimatedDropdown";
 import QuickMenu from "./QuickMenu";
@@ -258,8 +258,14 @@ export default function ProjectGanttDB() {
     try { return typeof window !== "undefined" ? localStorage.getItem(`gantt_phase_${getUserIdFromCookie()}`) ?? "ALL" : "ALL"; } catch { return "ALL"; }
   });
 
+  const [statusFilter, setStatusFilter] = useState(() => {
+    try { return typeof window !== "undefined" ? localStorage.getItem(`gantt_status_${getUserIdFromCookie()}`) ?? "ALL" : "ALL"; } catch { return "ALL"; }
+  });
+  const [statusOptions, setStatusOptions] = useState<{ value: string; label: string; color?: string }[]>([{ value: "ALL", label: "All Statuses" }]);
+
   const handlePriorityFilter = (v: string) => { setPriorityFilter(v); try { localStorage.setItem(`gantt_priority_${getUserIdFromCookie()}`, v); } catch { /* ignore */ } };
   const handlePhaseFilter    = (v: string) => { setPhaseFilter(v);    try { localStorage.setItem(`gantt_phase_${getUserIdFromCookie()}`, v);    } catch { /* ignore */ } };
+  const handleStatusFilter   = (v: string) => { setStatusFilter(v);   try { localStorage.setItem(`gantt_status_${getUserIdFromCookie()}`, v);   } catch { /* ignore */ } };
   const [dateRange, setDateRange] = useState<{ start: string; end: string }>(() => {
     try {
       const saved = typeof window !== "undefined" ? localStorage.getItem(dateRangeKey()) : null;
@@ -307,6 +313,18 @@ export default function ProjectGanttDB() {
   useEffect(() => {
     setUserRole(getRoleFromCookie());
     loadProjects();
+    fetch("/api/master/options")
+      .then(r => r.json())
+      .then(d => {
+        if (d.success && d.statuses) {
+          const opts = [
+            { value: "ALL", label: "All Statuses" },
+            ...d.statuses.map((s: { name: string; color: string }) => ({ value: s.name, label: s.name, color: s.color })),
+          ];
+          setStatusOptions(opts);
+        }
+      })
+      .catch(() => {});
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -442,10 +460,11 @@ export default function ProjectGanttDB() {
         .filter(Boolean).join(" ").toLowerCase().includes(search.toLowerCase());
       const matchPriority = priorityFilter === "ALL" || p.priority_code      === priorityFilter;
       const matchPhase    = phaseFilter    === "ALL" || p.current_phase_code === phaseFilter;
+      const matchStatus   = statusFilter   === "ALL" || p.status_label       === statusFilter;
       const matchRange    = true;
-      return matchSearch && matchPriority && matchPhase && matchRange;
+      return matchSearch && matchPriority && matchPhase && matchStatus && matchRange;
     });
-  }, [projects, search, priorityFilter, phaseFilter, rangeStart, rangeEnd, timeline, totalDays]);
+  }, [projects, search, priorityFilter, phaseFilter, statusFilter, rangeStart, rangeEnd, timeline, totalDays]);
 
   // Build week columns
   const weekCols = useMemo<WeekCol[]>(() => {
@@ -588,7 +607,7 @@ export default function ProjectGanttDB() {
   return (
     <div className="space-y-3 relative" style={{ overflowX: "clip" }} ref={containerRef}>
       <div className="flex items-center gap-2 mb-3 mt-2">
-        <FolderKanban size={16} className="text-amber-500" />
+        <CalendarRange size={16} className="text-amber-500" />
         <h2 className="text-lg font-bold text-slate-800 dark:text-white">Projects</h2>
       </div>
 
@@ -645,6 +664,12 @@ export default function ProjectGanttDB() {
           minWidth={160}
         />
         <AnimatedDropdown
+          value={statusFilter}
+          onChange={handleStatusFilter}
+          options={statusOptions}
+          minWidth={148}
+        />
+        <AnimatedDropdown
           value={priorityFilter}
           onChange={handlePriorityFilter}
           options={[
@@ -684,7 +709,15 @@ export default function ProjectGanttDB() {
         </div>
 
         {/* Tool mode selector */}
-        <div className="flex items-center gap-1 p-1 rounded-xl bg-slate-100/80 dark:bg-white/6 border border-slate-200/60 dark:border-white/8 shrink-0">
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            onClick={() => router.push("/dashboard/weekly-report")}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold transition-all whitespace-nowrap border border-slate-200/70 dark:border-white/10 text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-white/8 bg-white/60 dark:bg-zinc-900/50"
+          >
+            <BarChart2 size={13} />
+            Weekly Report
+          </button>
+        <div className="flex items-center gap-1 p-1 rounded-xl bg-slate-100/80 dark:bg-white/6 border border-slate-200/60 dark:border-white/8">
           {([
             { mode: "select", Icon: MousePointer2, title: "Select — click bar to open project" },
             { mode: "drag",   Icon: Move,          title: "Drag — move or resize phase bars" },
@@ -705,6 +738,7 @@ export default function ProjectGanttDB() {
               <Icon size={14} />
             </button>
           ))}
+        </div>
         </div>
       </div>
 

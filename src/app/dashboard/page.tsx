@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
 import {
   AlertCircle, CheckCircle2, TrendingUp, Users, Clock,
-  Loader2, LayoutList, PieChart, Star, Building2, Network, LayoutDashboard,
+  Loader2, LayoutList, PieChart, Star, Building2, Network, Home,
 } from "lucide-react";
 import { Line } from "react-chartjs-2";
 import {
@@ -150,7 +150,7 @@ export default function DashboardHome() {
 
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-3 mt-2">
         <div className="flex items-center gap-2">
-          <LayoutDashboard size={16} className="text-blue-500" />
+          <Home size={16} className="text-amber-500" />
           <h2 className="text-lg font-bold text-slate-800 dark:text-white">Dashboard Overview</h2>
         </div>
         <div className="flex items-center gap-1.5 text-[11px]">

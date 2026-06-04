@@ -443,13 +443,34 @@ export default function ProjectDetailPage() {
   const [showStatusPicker, setShowStatusPicker] = useState(false);
   const statusBtnRef = useRef<HTMLButtonElement>(null);
   const [statusOptions, setStatusOptions] = useState<{ id: number; name: string; color: string }[]>([]);
+  const [priorityOptions, setPriorityOptions] = useState<{ id: number; code: string; name: string; color: string }[]>([]);
+  const [showPriorityPicker, setShowPriorityPicker] = useState(false);
+  const priorityBtnRef = useRef<HTMLButtonElement>(null);
+  const [unitOptions, setUnitOptions] = useState<{ id: number; code: string; name: string }[]>([]);
+  const [showUnitPicker, setShowUnitPicker] = useState(false);
+  const unitBtnRef = useRef<HTMLButtonElement>(null);
   const [phaseNoteModal, setPhaseNoteModal] = useState<{ nextPhase: typeof PHASE_DEFS[number] } | null>(null);
   const [phaseNote, setPhaseNote] = useState("");
+  // Notes modal for priority/status changes
+  const [changeReasonModal, setChangeReasonModal] = useState<{
+    type: "status" | "priority";
+    newId: number;
+    newColor: string;
+    newLabel: string;
+    newCode?: string;
+  } | null>(null);
+  const [changeReason, setChangeReason] = useState("");
 
   useEffect(() => {
     fetch("/api/master/options")
       .then(r => r.json())
-      .then(d => { if (d.success) setStatusOptions(d.statuses ?? []); })
+      .then(d => {
+        if (d.success) {
+          setStatusOptions(d.statuses ?? []);
+          setPriorityOptions(d.priorities ?? []);
+          setUnitOptions((d.units ?? []).map((u: { id: number; code: string; name: string }) => ({ id: u.id, code: u.code, name: u.name })));
+        }
+      })
       .catch(() => {});
   }, []);
 
@@ -666,14 +687,11 @@ export default function ProjectDetailPage() {
             {statusOptions.map(s => (
               <button
                 key={s.id}
-                onMouseDown={async () => {
+                onMouseDown={() => {
                   setShowStatusPicker(false);
-                  setProject(prev => prev ? { ...prev, status_label: s.name, status_color: s.color } : prev);
-                  await fetch(`/api/projects/${id}`, {
-                    method: "PATCH",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ field: "status_label", value: s.name, change_summary: `Status → ${s.name}`, action_type: "field_updated" }),
-                  });
+                  if (s.name === project.status_label) return;
+                  setChangeReason("");
+                  setChangeReasonModal({ type: "status", newId: s.id, newColor: s.color, newLabel: s.name });
                 }}
                 className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors hover:bg-slate-50 dark:hover:bg-white/6 text-left w-full"
                 style={{ color: s.color }}
@@ -685,6 +703,147 @@ export default function ProjectDetailPage() {
             ))}
           </div>
         </>,
+        document.body
+      )}
+
+      {/* ── Priority picker ─────────────────────────────────────────────── */}
+      {showPriorityPicker && typeof document !== "undefined" && createPortal(
+        <>
+          <div className="fixed inset-0 z-9997" onMouseDown={() => setShowPriorityPicker(false)} />
+          <div
+            className="fixed z-9998 bg-white dark:bg-zinc-900 border border-slate-200/70 dark:border-white/10 rounded-xl shadow-xl p-1.5 flex flex-col gap-0.5 min-w-32 animate-dropdown-enter"
+            style={(() => {
+              const r = priorityBtnRef.current?.getBoundingClientRect();
+              return r ? { top: r.bottom + 6, left: r.left } : { top: 0, left: 0 };
+            })()}
+          >
+            {priorityOptions.map(p => (
+              <button
+                key={p.id}
+                onMouseDown={() => {
+                  setShowPriorityPicker(false);
+                  if (p.code === project.priority_code) return;
+                  setChangeReason("");
+                  setChangeReasonModal({ type: "priority", newId: p.id, newColor: p.color, newLabel: p.name, newCode: p.code });
+                }}
+                className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors hover:bg-slate-50 dark:hover:bg-white/6 text-left w-full"
+                style={{ color: p.color }}
+              >
+                <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: p.color }} />
+                {p.name}
+                {p.code === project.priority_code && <span className="ml-auto text-[9px]">✓</span>}
+              </button>
+            ))}
+          </div>
+        </>,
+        document.body
+      )}
+
+      {/* ── Unit picker ──────────────────────────────────────────────────── */}
+      {showUnitPicker && typeof document !== "undefined" && createPortal(
+        <>
+          <div className="fixed inset-0 z-9997" onMouseDown={() => setShowUnitPicker(false)} />
+          <div
+            className="fixed z-9998 bg-white dark:bg-zinc-900 border border-slate-200/70 dark:border-white/10 rounded-xl shadow-xl p-1.5 flex flex-col gap-0.5 min-w-52 max-h-64 overflow-y-auto animate-dropdown-enter"
+            style={(() => {
+              const r = unitBtnRef.current?.getBoundingClientRect();
+              return r ? { top: r.bottom + 6, left: r.left } : { top: 0, left: 0 };
+            })()}
+          >
+            {unitOptions.map(u => (
+              <button
+                key={u.id}
+                onMouseDown={async () => {
+                  setShowUnitPicker(false);
+                  setProject(prev => prev ? { ...prev, unit_name: u.name, unit_code: u.code } : prev);
+                  await fetch(`/api/projects/${id}`, {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ field: "unit_id", value: String(u.id), change_summary: `Unit → ${u.name}`, action_type: "field_updated" }),
+                  });
+                }}
+                className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors hover:bg-slate-50 dark:hover:bg-white/6 text-left w-full text-slate-700 dark:text-slate-200"
+              >
+                <span className="text-[10px] font-mono text-slate-400 w-10 shrink-0">{u.code}</span>
+                {u.name}
+                {u.name === project.unit_name && <span className="ml-auto text-[9px] text-brand-sienna">✓</span>}
+              </button>
+            ))}
+          </div>
+        </>,
+        document.body
+      )}
+
+      {/* ── Change reason modal (status & priority) ─────────────────────── */}
+      {changeReasonModal && typeof document !== "undefined" && createPortal(
+        <div
+          className="fixed inset-0 z-9999 flex items-center justify-center p-4 animate-backdrop-enter"
+          style={{ backgroundColor: "rgba(0,0,0,0.5)", backdropFilter: "blur(6px)" }}
+          onMouseDown={e => { if (e.target === e.currentTarget) setChangeReasonModal(null); }}
+        >
+          <div className="w-full max-w-sm rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200/60 dark:border-white/10 p-6 space-y-4 animate-modal-enter" style={{ boxShadow: "0 24px 64px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.06)" }}>
+            <div className="flex items-start gap-3">
+              <div className="shrink-0 w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${changeReasonModal.newColor}20` }}>
+                <span className="w-3.5 h-3.5 rounded-full" style={{ backgroundColor: changeReasonModal.newColor }} />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-slate-800 dark:text-white">
+                  Change {changeReasonModal.type === "status" ? "Status" : "Priority"} to &quot;{changeReasonModal.newLabel}&quot;?
+                </p>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  Please provide a reason for this change.
+                </p>
+              </div>
+            </div>
+            <div>
+              <label className="text-[10px] uppercase tracking-widest text-slate-400 mb-1.5 block">
+                Reason / Notes <span className="text-red-400">*</span>
+              </label>
+              <textarea
+                autoFocus
+                value={changeReason}
+                onChange={e => setChangeReason(e.target.value)}
+                rows={3}
+                placeholder={changeReasonModal.type === "status" ? "e.g. Project is now on hold due to budget review..." : "e.g. Escalated to Critical after stakeholder review..."}
+                className="w-full rounded-xl border border-slate-200/70 dark:border-white/10 bg-slate-50 dark:bg-zinc-800 px-3 py-2 text-xs text-slate-700 dark:text-slate-200 outline-none focus:border-brand-sienna/60 resize-none placeholder:text-slate-300 dark:placeholder:text-slate-600"
+              />
+            </div>
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={() => setChangeReasonModal(null)}
+                className="px-4 py-1.5 rounded-lg text-xs font-semibold text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/8 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                disabled={!changeReason.trim()}
+                onClick={async () => {
+                  const modal = changeReasonModal;
+                  setChangeReasonModal(null);
+                  if (modal.type === "status") {
+                    setProject(prev => prev ? { ...prev, status_label: modal.newLabel, status_color: modal.newColor } : prev);
+                    await fetch(`/api/projects/${id}`, {
+                      method: "PATCH",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ field: "overall_status_id", value: String(modal.newId), change_summary: `Status → ${modal.newLabel}: ${changeReason.trim()}`, action_type: "field_updated" }),
+                    });
+                  } else {
+                    setProject(prev => prev ? { ...prev, priority_name: modal.newLabel, priority_color: modal.newColor, priority_code: modal.newCode ?? null } : prev);
+                    await fetch(`/api/projects/${id}`, {
+                      method: "PATCH",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ field: "priority_id", value: String(modal.newId), change_summary: `Priority → ${modal.newLabel}: ${changeReason.trim()}`, action_type: "field_updated" }),
+                    });
+                  }
+                }}
+                className="px-4 py-1.5 rounded-lg text-xs font-semibold text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                style={{ backgroundColor: changeReasonModal.newColor }}
+              >
+                Confirm Change
+              </button>
+            </div>
+          </div>
+        </div>,
         document.body
       )}
 
@@ -777,19 +936,21 @@ export default function ProjectDetailPage() {
               </p>
             </div>
             <div className="flex items-start gap-4 flex-wrap">
-              <div>
+              <div onClick={e => e.stopPropagation()}>
                 <p className="text-[10px] uppercase tracking-widest text-slate-400 mb-1">Priority</p>
-                {project.priority_name ? (
-                  <span
-                    className="inline-flex items-center gap-1.5 text-xs font-semibold px-2 py-0.5 rounded-md"
-                    style={{ backgroundColor: `${project.priority_color}20`, color: project.priority_color ?? undefined, border: "1.5px solid transparent" }}
-                  >
-                    <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: project.priority_color ?? undefined }} />
-                    {project.priority_name}
-                  </span>
-                ) : (
-                  <span className="text-xs italic text-slate-400 dark:text-slate-600">—</span>
-                )}
+                <button
+                  ref={priorityBtnRef}
+                  onClick={e => { e.stopPropagation(); setShowPriorityPicker(v => !v); }}
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold px-2 py-0.5 rounded-md transition-all"
+                  style={project.priority_color
+                    ? { backgroundColor: `${project.priority_color}20`, color: project.priority_color, border: `1.5px solid ${project.priority_color}60` }
+                    : { backgroundColor: "rgba(0,0,0,0.05)", color: "var(--slate-500)", border: "1.5px solid rgba(0,0,0,0.08)" }
+                  }
+                >
+                  <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: project.priority_color ?? "#94a3b8" }} />
+                  {project.priority_name ?? "Set priority"}
+                  <ChevronDown size={10} />
+                </button>
               </div>
               <div onClick={e => e.stopPropagation()}>
                 <p className="text-[10px] uppercase tracking-widest text-slate-400 mb-1">Status</p>
@@ -824,24 +985,78 @@ export default function ProjectDetailPage() {
 
           {/* ── Right ── */}
           <div className="p-4 space-y-4">
+            {/* Project period */}
+            <div>
+              <p className="text-[10px] uppercase tracking-widest text-slate-400 mb-1.5 flex items-center gap-1.5">
+                <Clock size={11} className="text-slate-400" />
+                Project Period
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="rounded-lg border border-slate-200/60 dark:border-white/8 bg-slate-50/60 dark:bg-white/2 px-3 py-2">
+                  <p className="text-[9px] uppercase tracking-widest text-slate-400 mb-0.5">Start Date</p>
+                  <InlineField
+                    label=""
+                    value={project.start_date}
+                    format="date"
+                    onSave={v => patchField("start_date", v)}
+                  />
+                </div>
+                <div className="rounded-lg border border-slate-200/60 dark:border-white/8 bg-slate-50/60 dark:bg-white/2 px-3 py-2">
+                  <p className="text-[9px] uppercase tracking-widest text-slate-400 mb-0.5">End Date</p>
+                  <InlineField
+                    label=""
+                    value={project.end_date}
+                    format="date"
+                    onSave={v => patchField("end_date", v)}
+                  />
+                </div>
+              </div>
+              {project.start_date && project.end_date && (() => {
+                const s = new Date(project.start_date);
+                const e = new Date(project.end_date);
+                const today = new Date();
+                const total = Math.max(1, Math.round((e.getTime() - s.getTime()) / 86400000));
+                const elapsed = Math.round((today.getTime() - s.getTime()) / 86400000);
+                const remaining = Math.max(0, Math.round((e.getTime() - today.getTime()) / 86400000));
+                const pct = Math.min(100, Math.max(0, (elapsed / total) * 100));
+                const isOverdue = today > e;
+                return (
+                  <div className="mt-2 space-y-1">
+                    <div className="flex items-center justify-between text-[9px] text-slate-400">
+                      <span>{total} days total</span>
+                      <span className={isOverdue ? "text-rose-500 font-semibold" : ""}>{isOverdue ? `${Math.abs(remaining)} days overdue` : `${remaining} days left`}</span>
+                    </div>
+                    <div className="h-1 rounded-full bg-slate-200 dark:bg-white/10 overflow-hidden">
+                      <div className={`h-full rounded-full transition-all ${isOverdue ? "bg-rose-500" : "bg-brand-sienna"}`} style={{ width: `${pct}%` }} />
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+
             <div className="space-y-2">
               <div>
                 <p className="text-[10px] uppercase tracking-widest text-slate-400 mb-1 flex items-center gap-1.5">
                   <Building2 size={11} className="text-slate-400" />
                   Location
                 </p>
-                <div className="px-3 py-2 rounded-lg border border-slate-200/70 dark:border-white/8 bg-white/60 dark:bg-white/3">
+                <button
+                  ref={unitBtnRef}
+                  onClick={e => { e.stopPropagation(); setShowUnitPicker(v => !v); }}
+                  className="w-full flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200/70 dark:border-white/8 bg-white/60 dark:bg-white/3 hover:border-slate-300 dark:hover:border-white/20 hover:bg-white dark:hover:bg-white/6 transition-all text-left group"
+                >
                   {project.unit_name || project.unit_code ? (
-                    <span className="text-xs font-semibold text-slate-700 dark:text-slate-200">
+                    <span className="flex-1 text-xs font-semibold text-slate-700 dark:text-slate-200">
                       {project.unit_name ?? project.unit_code}
-                      {project.unit_name && project.unit_code ? (
+                      {project.unit_name && project.unit_code && (
                         <span className="ml-1 font-medium text-slate-400">({project.unit_code})</span>
-                      ) : null}
+                      )}
                     </span>
                   ) : (
-                    <span className="text-xs italic text-slate-400 dark:text-slate-600">Unit not specified</span>
+                    <span className="flex-1 text-xs italic text-slate-400 dark:text-slate-600">Unit not specified</span>
                   )}
-                </div>
+                  <ChevronDown size={11} className="text-slate-400 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
+                </button>
               </div>
               <div>
                 <p className="text-[10px] uppercase tracking-widest text-slate-400 mb-1 flex items-center gap-1.5">
