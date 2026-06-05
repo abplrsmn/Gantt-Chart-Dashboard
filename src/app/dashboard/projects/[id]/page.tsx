@@ -585,7 +585,7 @@ export default function ProjectDetailPage() {
     return (
       <div className="glass-card p-12 flex flex-col items-center gap-3 text-center">
         <p className="text-sm font-semibold text-red-400">{error ?? "Project not found"}</p>
-        <button onClick={() => router.back()} className="text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors">
+        <button onClick={() => router.push("/dashboard/projects/gantt")} className="text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors">
           ← Back to Projects
         </button>
       </div>
@@ -598,7 +598,7 @@ export default function ProjectDetailPage() {
       {/* ── Header ─────────────────────────────────────────────────────── */}
       <div className="flex items-center gap-3">
         <button
-          onClick={() => router.back()}
+          onClick={() => router.push("/dashboard/projects/gantt")}
           className="flex items-center gap-1.5 text-sm font-semibold text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors shrink-0"
         >
           <ArrowLeft size={15} />

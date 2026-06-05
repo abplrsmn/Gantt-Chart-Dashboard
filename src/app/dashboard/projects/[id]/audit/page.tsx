@@ -293,7 +293,7 @@ export default function AuditLogPage() {
       {/* ── Header ── */}
       <div className="flex items-center gap-3">
         <button
-          onClick={() => router.back()}
+          onClick={() => router.push(`/dashboard/projects/${id}`)}
           className="flex items-center gap-1.5 text-sm font-semibold text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors shrink-0"
         >
           <ArrowLeft size={15} />

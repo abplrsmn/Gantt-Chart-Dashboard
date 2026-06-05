@@ -297,7 +297,9 @@ export default function SCurveCharts({ projects, hidePhaseDetails }: Props) {
   function loadTasks(projectId: string) {
     fetch(`/api/projects/${projectId}/tasks`)
       .then(r => r.json())
-      .then(j => { if (j.success) setDbTasks(j.data ?? []); })
+      .then(j => {
+        if (j.success) setDbTasks((j.data ?? []).map((t: DBTask) => ({ ...t, weight_pct: Number(t.weight_pct), progress_pct: Number(t.progress_pct) })));
+      })
       .catch(() => {});
   }
 
@@ -582,10 +584,10 @@ export default function SCurveCharts({ projects, hidePhaseDetails }: Props) {
                           <span className="line-clamp-2">{t.title}</span>
                         </div>
                         <div className="w-12 shrink-0 border-l border-slate-200/60 dark:border-white/10 flex items-center justify-center font-mono text-[10px] text-slate-500 dark:text-slate-400">
-                          {t.weight_pct.toFixed(2)}
+                          {Number(t.weight_pct).toFixed(2)}
                         </div>
                         <div className="w-10 shrink-0 border-l border-slate-200/60 dark:border-white/10 flex items-center justify-center font-mono text-[10px] text-emerald-600 dark:text-emerald-400">
-                          {t.progress_pct.toFixed(0)}%
+                          {Number(t.progress_pct).toFixed(0)}%
                         </div>
                       </div>
                     ))}

@@ -284,9 +284,11 @@ export default function ProjectGanttDB() {
     seg: BarTooltipSegment; project: DBProject; phases: PhaseDateInfo[]; x: number; y: number;
   } | null>(null);
 
-  // Refs for synced horizontal scroll between sticky header and body
-  const headerRef = useRef<HTMLDivElement>(null);
-  const bodyRef   = useRef<HTMLDivElement>(null);
+  // Refs for synced horizontal scroll between sticky header, top scrollbar, and body
+  const headerRef    = useRef<HTMLDivElement>(null);
+  const bodyRef      = useRef<HTMLDivElement>(null);
+  const topScrollRef = useRef<HTMLDivElement>(null);
+  const syncingRef   = useRef(false);
 
   const dragRef   = useRef<ActiveDrag | null>(null);
   const [dragging, setDragging] = useState(false);
@@ -297,9 +299,21 @@ export default function ProjectGanttDB() {
   const [modalExiting, setModalExiting]   = useState(false);
 
   const onBodyScroll = () => {
-    if (headerRef.current && bodyRef.current) {
-      headerRef.current.scrollLeft = bodyRef.current.scrollLeft;
-    }
+    if (syncingRef.current) return;
+    syncingRef.current = true;
+    const x = bodyRef.current?.scrollLeft ?? 0;
+    if (headerRef.current)    headerRef.current.scrollLeft    = x;
+    if (topScrollRef.current) topScrollRef.current.scrollLeft = x;
+    syncingRef.current = false;
+  };
+
+  const onTopScroll = () => {
+    if (syncingRef.current) return;
+    syncingRef.current = true;
+    const x = topScrollRef.current?.scrollLeft ?? 0;
+    if (headerRef.current) headerRef.current.scrollLeft = x;
+    if (bodyRef.current)   bodyRef.current.scrollLeft   = x;
+    syncingRef.current = false;
   };
 
   function loadProjects() {
@@ -541,7 +555,8 @@ export default function ProjectGanttDB() {
     const offsetDays = differenceInCalendarDays(target, timeline.start);
     const scrollPx = Math.max(0, offsetDays * pixelsPerDay);
     bodyRef.current.scrollLeft = scrollPx;
-    if (headerRef.current) headerRef.current.scrollLeft = scrollPx;
+    if (headerRef.current)    headerRef.current.scrollLeft    = scrollPx;
+    if (topScrollRef.current) topScrollRef.current.scrollLeft = scrollPx;
   }
 
   // Auto-scroll to 1 month before the earliest project start date — fires once after projects load
@@ -738,8 +753,19 @@ export default function ProjectGanttDB() {
       {/* Gantt */}
       <div className="rounded-2xl overflow-clip border border-slate-200/60 dark:border-white/8 bg-white/60 dark:bg-zinc-900/50 backdrop-blur-sm">
 
-        {/* ── Sticky headers (outside overflow-x-auto so they stick on vertical scroll) ── */}
-        <div className={`sticky ${userRole === "pm" ? "top-0" : "top-14"} z-30 bg-white dark:bg-zinc-900 rounded-t-2xl border-b border-slate-200/60 dark:border-white/8`}>
+        {/* ── Sticky headers + top scrollbar ── */}
+        <div className="sticky top-0 z-30 bg-white dark:bg-zinc-900 rounded-t-2xl border-b border-slate-200/60 dark:border-white/8">
+
+          {/* Top scrollbar strip — inside sticky so it stays visible while scrolling down */}
+          <div
+            ref={topScrollRef}
+            className="overflow-x-auto border-b border-slate-200/40 dark:border-white/6"
+            style={{ height: 14 }}
+            onScroll={onTopScroll}
+          >
+            <div style={{ width: `${240 + totalWidth}px`, height: 1 }} />
+          </div>
+
           {/* header scroll mirror — hidden overflow, synced via JS */}
           <div ref={headerRef} className="overflow-x-hidden">
             <div style={{ minWidth: `${240 + totalWidth}px` }}>

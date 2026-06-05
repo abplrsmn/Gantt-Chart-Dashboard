@@ -1,7 +1,7 @@
 "use client";
 
 import { format, isValid } from "date-fns";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type SummaryProject = {
   id: string;
@@ -41,8 +41,6 @@ type SummaryProject = {
 
 interface Props {
   projects: SummaryProject[];
-  title?: string;
-  subtitle?: string;
 }
 
 function toDate(val: string | null | undefined): Date | null {
@@ -197,14 +195,35 @@ function InlineCell({
 
 export default function ProjectSummaryMatrix({
   projects: initialProjects,
-  title = "Project Summary Matrix",
-  subtitle = "Excel-style phase parameters sourced from the same Gantt data",
 }: Props) {
   const [projects, setProjects] = useState<SummaryProject[]>(initialProjects);
+  const [innerWidth, setInnerWidth] = useState(3200);
+
+  const topScrollRef = useRef<HTMLDivElement>(null);
+  const bodyRef      = useRef<HTMLDivElement>(null);
+  const syncingRef   = useRef(false);
 
   // Sync if parent re-fetches
   if (initialProjects !== projects && initialProjects.length !== projects.length) {
     setProjects(initialProjects);
+  }
+
+  useEffect(() => {
+    if (bodyRef.current) setInnerWidth(bodyRef.current.scrollWidth);
+  }, [projects]);
+
+  function onTopScroll() {
+    if (syncingRef.current) return;
+    syncingRef.current = true;
+    if (bodyRef.current) bodyRef.current.scrollLeft = topScrollRef.current?.scrollLeft ?? 0;
+    syncingRef.current = false;
+  }
+
+  function onBodyScroll() {
+    if (syncingRef.current) return;
+    syncingRef.current = true;
+    if (topScrollRef.current) topScrollRef.current.scrollLeft = bodyRef.current?.scrollLeft ?? 0;
+    syncingRef.current = false;
   }
 
   function onSaved(projectId: string, field: keyof SummaryProject, newVal: string | null) {
@@ -225,17 +244,23 @@ export default function ProjectSummaryMatrix({
   })();
 
   return (
-    <div className="rounded-2xl border border-slate-200/60 dark:border-white/8 bg-white dark:bg-zinc-900 overflow-hidden">
-      <div className="px-4 py-3 border-b border-slate-200/60 dark:border-white/8 flex items-center justify-between gap-3">
-        <div>
-          <h3 className="text-sm font-extrabold text-slate-800 dark:text-white uppercase tracking-wide">{title}</h3>
-          <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">{subtitle}</p>
+    <div className="rounded-2xl border border-slate-200/60 dark:border-white/8 bg-white dark:bg-zinc-900 overflow-clip">
+
+      {/* ── Sticky top scrollbar strip ── */}
+      <div className="sticky top-0 z-50 bg-white dark:bg-zinc-900 border-b border-slate-200/40 dark:border-white/6">
+        <div
+          ref={topScrollRef}
+          className="overflow-x-auto"
+          style={{ height: 14 }}
+          onScroll={onTopScroll}
+        >
+          <div style={{ width: innerWidth, height: 1 }} />
         </div>
       </div>
 
-      <div className="max-h-[calc(100vh-180px)] overflow-auto scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-zinc-700">
+      <div ref={bodyRef} className="overflow-x-auto scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-zinc-700" onScroll={onBodyScroll}>
         <table className="min-w-550 w-full border-separate border-spacing-0 text-[10px] text-slate-700 dark:text-slate-200">
-          <thead className="sticky top-0 z-40 shadow-sm">
+          <thead className="sticky top-3.5 z-40 shadow-sm">
             <tr className="bg-slate-100 dark:bg-zinc-900 text-[9px] uppercase tracking-wider text-slate-500 dark:text-slate-400">
               <th rowSpan={2} className="sticky left-0 z-50 w-20 min-w-20 border-r border-b border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-zinc-900 px-2 py-2 text-left">Unit</th>
               <th rowSpan={2} className="sticky left-20 z-50 w-72 min-w-72 border-r border-b border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-zinc-900 px-2 py-2 text-left shadow-[8px_0_12px_-12px_rgba(15,23,42,0.45)]">Description</th>

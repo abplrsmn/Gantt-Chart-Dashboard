@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
   Home, Users, AlertTriangle, Server, CalendarRange,
-  Bell, X, Database, BarChart2, ShieldAlert, SunMoon, LogOut,
+  Bell, X, Database, BarChart2, ShieldAlert, SunMoon, LogOut, Settings,
 } from "lucide-react";
 import { useTheme } from "@/components/ThemeProvider";
 
@@ -81,23 +81,44 @@ function SideNavItem({ icon, label, active, onClick, badge }: {
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router   = useRouter();
-  const { resolvedTheme } = useTheme();
+  const { resolvedTheme, setTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
 
   const [userRole, setUserRole]   = useState<string>("admin");
   const [alertCount, setAlertCount] = useState(0);
   const [toast, setToast]         = useState<ToastState>({ visible: false, count: 0 });
-  const [logoMenuOpen, setLogoMenuOpen] = useState(false);
-  const logoMenuRef = useRef<HTMLDivElement>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [sidebarExpanded, setSidebarExpanded] = useState(false);
+  const settingsRef    = useRef<HTMLDivElement>(null);
+  const expandTimerRef = useRef<number | null>(null);
   const prevAlertCountRef = useRef<number | null>(null);
   const toastTimerRef     = useRef<number | null>(null);
   const pathnameRef       = useRef(pathname);
+
+  // Only expand when cursor is clearly inside the icon column (left 44px of 56px sidebar).
+  // Prevents accidental trigger when cursor grazes the right edge heading to content.
+  function scheduleExpand(clientX: number) {
+    if (sidebarExpanded) return;
+    if (clientX > 44) {
+      if (expandTimerRef.current) { clearTimeout(expandTimerRef.current); expandTimerRef.current = null; }
+      return;
+    }
+    setSidebarExpanded(true);
+  }
+
+  function handleSidebarEnter(e: React.MouseEvent) { scheduleExpand(e.clientX); }
+  function handleSidebarMove(e: React.MouseEvent)  { scheduleExpand(e.clientX); }
+  function handleSidebarLeave() {
+    if (expandTimerRef.current) { clearTimeout(expandTimerRef.current); expandTimerRef.current = null; }
+    setSidebarExpanded(false);
+    setSettingsOpen(false);
+  }
 
   useEffect(() => { pathnameRef.current = pathname; }, [pathname]);
   useEffect(() => { setUserRole(getRoleFromCookie()); }, []);
   useEffect(() => {
     function handler(e: MouseEvent) {
-      if (!logoMenuRef.current?.contains(e.target as Node)) setLogoMenuOpen(false);
+      if (!settingsRef.current?.contains(e.target as Node)) setSettingsOpen(false);
     }
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
@@ -159,7 +180,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }, []);
 
   async function handleLogout() {
-    setLogoMenuOpen(false);
+    setSettingsOpen(false);
     try { await fetch("/api/auth/logout", { method: "POST", credentials: "include", cache: "no-store" }); } catch { /* continue */ }
     localStorage.removeItem("gantt_dateRange");
     localStorage.removeItem("projects_dateRange");
@@ -195,30 +216,64 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     <div className={`flex min-h-screen transition-colors duration-500 ${isDark ? "mesh-bg-dark" : "mesh-bg-light"}`}>
 
       {/* ── Sidebar ───────────────────────────────────────────────────────── */}
-      <aside className="group sticky top-0 h-screen z-50 flex flex-col shrink-0
-                        w-14 hover:w-56
-                        transition-[width] duration-200 ease-out
-                        bg-white/85 dark:bg-zinc-950/85 backdrop-blur-xl
-                        border-r border-slate-200/60 dark:border-white/8
-                        select-none">
+      <aside
+        onMouseEnter={handleSidebarEnter}
+        onMouseMove={handleSidebarMove}
+        onMouseLeave={handleSidebarLeave}
+        className={`fixed left-0 top-0 h-screen z-50 flex flex-col
+                   transition-[width] duration-200 ease-out
+                   bg-white/85 dark:bg-zinc-950/85 backdrop-blur-xl
+                   border-r border-slate-200/60 dark:border-white/8
+                   select-none ${sidebarExpanded ? "w-56" : "w-14"}`}
+      >
 
-        {/* Logo — click to open theme/logout menu */}
-        <div ref={logoMenuRef} className="relative flex items-center gap-3 px-3.5 py-4 shrink-0 border-b border-slate-200/50 dark:border-white/6">
-          <button
-            onClick={() => setLogoMenuOpen(v => !v)}
-            className="w-7 h-7 rounded-lg overflow-hidden shrink-0 flex items-center justify-center bg-white hover:ring-2 hover:ring-brand-sienna/40 transition-all"
-          >
+        {/* Logo — display only */}
+        <div className="flex items-center gap-3 px-3.5 py-4 shrink-0 border-b border-slate-200/50 dark:border-white/6">
+          <div className="w-7 h-7 rounded-lg overflow-hidden shrink-0 flex items-center justify-center bg-white">
             <img src="/logo_perusahaan.jpg" alt="" className="w-full h-full object-contain" />
-          </button>
-          <span className="text-[11px] font-extrabold tracking-widest uppercase text-slate-700 dark:text-slate-200 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-150 delay-75">
+          </div>
+          <span className={`text-[11px] font-extrabold tracking-widest uppercase text-slate-700 dark:text-slate-200 whitespace-nowrap transition-opacity duration-150 delay-75 ${sidebarExpanded ? "opacity-100" : "opacity-0"}`}>
             Aryaduta
           </span>
+        </div>
 
-          {/* Dropdown */}
-          {logoMenuOpen && (
-            <div className="absolute left-0 top-full mt-1 w-44 rounded-xl border border-slate-200 dark:border-white/10 p-1.5 z-200 bg-white dark:bg-zinc-950 shadow-2xl backdrop-blur-xl animate-dropdown-enter">
+        {/* Nav */}
+        <nav className="flex-1 px-2 py-3 space-y-0.5 overflow-y-auto overflow-x-hidden">
+          {navItems.map(item => (
+            <SideNavItem
+              key={item.path}
+              icon={item.icon}
+              label={item.label}
+              active={isActive(item.path)}
+              onClick={() => router.push(item.path)}
+              badge={(item as { badge?: number }).badge}
+            />
+          ))}
+        </nav>
+
+        {/* Settings button — bottom of sidebar */}
+        <div ref={settingsRef} className="relative px-2 py-3 shrink-0 border-t border-slate-200/50 dark:border-white/6">
+          <button
+            onClick={() => setSettingsOpen(v => !v)}
+            className={`relative w-full flex items-center gap-3 px-2.5 py-2.5 rounded-xl overflow-hidden transition-all duration-150 ${
+              settingsOpen
+                ? "glass-nav-active shadow-sm text-brand-mahogany dark:text-brand-sand"
+                : "text-slate-500 dark:text-slate-400 hover:bg-white/60 dark:hover:bg-white/8 hover:text-slate-700 dark:hover:text-slate-200"
+            }`}
+          >
+            <span className="shrink-0 w-5 h-5 flex items-center justify-center">
+              <Settings size={16} />
+            </span>
+            <span className={`text-[13px] font-semibold whitespace-nowrap leading-none flex-1 text-left transition-opacity duration-150 delay-75 ${sidebarExpanded ? "opacity-100" : "opacity-0"}`}>
+              Settings
+            </span>
+          </button>
+
+          {/* Dropdown — opens upward */}
+          {settingsOpen && (
+            <div className="absolute left-2 bottom-full mb-1 w-44 rounded-xl border border-slate-200 dark:border-white/10 p-1.5 z-200 bg-white dark:bg-zinc-950 shadow-2xl backdrop-blur-xl animate-dropdown-enter">
               <button
-                onClick={() => { setTheme(isDark ? "light" : "dark"); setLogoMenuOpen(false); }}
+                onClick={() => { setTheme(isDark ? "light" : "dark"); setSettingsOpen(false); }}
                 className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium text-slate-700 dark:text-white/70 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5 transition-colors"
               >
                 <SunMoon size={14} />
@@ -235,24 +290,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </div>
           )}
         </div>
-
-        {/* Nav */}
-        <nav className="flex-1 px-2 py-3 space-y-0.5 overflow-y-auto overflow-x-hidden">
-          {navItems.map(item => (
-            <SideNavItem
-              key={item.path}
-              icon={item.icon}
-              label={item.label}
-              active={isActive(item.path)}
-              onClick={() => router.push(item.path)}
-              badge={(item as { badge?: number }).badge}
-            />
-          ))}
-        </nav>
       </aside>
 
-      {/* ── Main content — offset by collapsed sidebar width ──────────────── */}
-      <main className="flex-1 min-w-0 px-4 pb-8 pt-5">
+      {/* ── Main content — fixed 56px left offset for collapsed sidebar ── */}
+      <main className="flex-1 min-w-0 ml-14 px-4 pb-8 pt-5">
         <div className="max-w-390 mx-auto">
           {children}
         </div>

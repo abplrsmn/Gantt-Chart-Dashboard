@@ -105,30 +105,32 @@ export default function ProjectSummaryMatrixPage() {
 
   return (
     <div className="space-y-4 pb-6 animate-page-enter">
-      {/* Toolbar: Back | Search (center) | Filters (right) */}
-      <div className="relative flex items-center justify-center min-h-9.5 mb-4">
+      {/* Toolbar: Back | Search | Filters */}
+      <div className="flex items-center gap-3 mb-4">
 
-        {/* Back — absolute left */}
+        {/* Back */}
         <button
           onClick={() => router.push("/dashboard/projects/gantt")}
-          className="absolute left-0 flex items-center gap-1.5 text-sm font-semibold text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors shrink-0"
+          className="flex items-center gap-1.5 text-sm font-semibold text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors shrink-0"
         >
           <ArrowLeft size={15} /> Back
         </button>
 
-        {/* Search — center */}
-        <label className="relative w-full max-w-sm">
-          <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-          <input
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Search project, unit, phase..."
-            className="w-full rounded-xl border border-slate-200/70 dark:border-white/10 bg-white/70 dark:bg-zinc-900/60 pl-8 pr-3 py-2 text-[12px] outline-none text-slate-800 dark:text-white"
-          />
-        </label>
+        {/* Search — grows to fill middle */}
+        <div className="flex-1 flex justify-center">
+          <label className="relative w-full max-w-sm">
+            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+            <input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search project, unit, phase..."
+              className="w-full rounded-xl border border-slate-200/70 dark:border-white/10 bg-white/70 dark:bg-zinc-900/60 pl-8 pr-3 py-2 text-[12px] outline-none text-slate-800 dark:text-white"
+            />
+          </label>
+        </div>
 
-        {/* Filters — absolute right */}
-        <div className="absolute right-0 flex items-center gap-2">
+        {/* Filters */}
+        <div className="flex items-center gap-2 shrink-0">
           <AnimatedDropdown value={phaseFilter} options={phaseOptions} onChange={setPhaseFilter} minWidth={168} align="right" />
           <AnimatedDropdown value={prioFilter}  options={prioOptions}  onChange={setPrioFilter}  minWidth={148} align="right" />
           {picOptions.length > 1 && (
