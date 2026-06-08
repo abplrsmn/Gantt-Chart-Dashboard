@@ -7,7 +7,7 @@ import {
 } from "recharts";
 import {
   format, differenceInCalendarDays, isAfter,
-  addWeeks, addDays,
+  addWeeks, addDays, parseISO, isValid,
 } from "date-fns";
 import { Activity, Plus, Trash2, Pencil, Check, X } from "lucide-react";
 import AnimatedDropdown from "./AnimatedDropdown";
@@ -113,6 +113,24 @@ function buildMonthWeekHeader(points: SCurvePoint[]) {
   }
 
   return { monthGroups, weekLabels };
+}
+
+function buildMonthWeekSummary(startRaw: string | null, endRaw: string | null) {
+  const parse = (s: string | null) => { if (!s) return null; const d = parseISO(s); return isValid(d) ? d : null; };
+  const start = parse(startRaw);
+  const end   = parse(endRaw);
+  if (!start || !end || start > end) return [];
+
+  const monthMap = new Map<string, number>();
+  let cur = new Date(start);
+  while (cur.getDay() !== 1) cur = addDays(cur, 1); // advance to first Monday
+
+  while (cur <= end) {
+    const key = format(cur, "MMM yyyy");
+    monthMap.set(key, (monthMap.get(key) ?? 0) + 1);
+    cur = addDays(cur, 7);
+  }
+  return Array.from(monthMap.entries()).map(([label, weeks]) => ({ label, weeks }));
 }
 
 // ─── DB Task type ─────────────────────────────────────────────────────────────
@@ -487,6 +505,28 @@ export default function SCurveCharts({ projects, hidePhaseDetails }: Props) {
         </div>
       ) : (
         <>
+          {/* ── Date range strip ─────────────────────────────────────── */}
+          {selectedProject && (() => {
+            const startRaw = selectedProject.pm_start ?? selectedProject.start_date;
+            const endRaw   = selectedProject.pm_end   ?? selectedProject.end_date;
+            const summary  = buildMonthWeekSummary(startRaw, endRaw);
+            if (summary.length === 0) return null;
+            return (
+              <div className="mb-4 flex items-center gap-3 flex-wrap">
+                <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 shrink-0">
+                  {fmtDate(startRaw)} → {fmtDate(endRaw)}
+                </span>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {summary.map(({ label, weeks }) => (
+                    <span key={label} className="text-[10px] font-semibold px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-white/6 text-slate-600 dark:text-slate-300 border border-slate-200/60 dark:border-white/8">
+                      {label} <span className="text-slate-400 dark:text-slate-500 font-normal">· {weeks}w</span>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
+
           {/* ── Keterangan (Y-axis) + S-Curve (side-by-side) ──────────── */}
           <div className="flex flex-row gap-0 border border-slate-200/60 dark:border-white/10 rounded-xl overflow-hidden">
 
@@ -496,8 +536,9 @@ export default function SCurveCharts({ projects, hidePhaseDetails }: Props) {
               {/* Header */}
               <div className="h-12 shrink-0 border-b border-slate-200/60 dark:border-white/10 flex items-center bg-slate-100/60 dark:bg-zinc-900/60 px-3 gap-2">
                 <span className="flex-1 text-[9px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">Description</span>
-                <span className="text-[9px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 w-12 text-center">Weight</span>
-                <span className="text-[9px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 w-10 text-center">Real</span>
+                <span className="text-[9px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 w-12 text-center">Bobot</span>
+                <span className="text-[9px] font-bold uppercase tracking-widest text-amber-500 w-10 text-center">Plan%</span>
+                <span className="text-[9px] font-bold uppercase tracking-widest text-emerald-500 w-10 text-center">Real%</span>
                 {!editingTasks && dbTasks.length > 0 && (
                   <button onClick={startEdit} className="p-1 rounded-lg hover:bg-white dark:hover:bg-white/10 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors" title="Edit tasks">
                     <Pencil size={11} />
@@ -578,19 +619,30 @@ export default function SCurveCharts({ projects, hidePhaseDetails }: Props) {
                 /* ── Static view ── */
                 <>
                   <div className="flex-1 divide-y divide-slate-200/40 dark:divide-white/5 flex flex-col overflow-y-auto">
-                    {dbTasks.map(t => (
-                      <div key={t.id} className="flex text-[11px] hover:bg-slate-100/40 dark:hover:bg-white/4 transition-colors">
-                        <div className="flex-1 flex items-center px-3 text-slate-700 dark:text-slate-200 leading-tight min-w-0">
-                          <span className="line-clamp-2">{t.title}</span>
-                        </div>
-                        <div className="w-12 shrink-0 border-l border-slate-200/60 dark:border-white/10 flex items-center justify-center font-mono text-[10px] text-slate-500 dark:text-slate-400">
-                          {Number(t.weight_pct).toFixed(2)}
-                        </div>
-                        <div className="w-10 shrink-0 border-l border-slate-200/60 dark:border-white/10 flex items-center justify-center font-mono text-[10px] text-emerald-600 dark:text-emerald-400">
-                          {Number(t.progress_pct).toFixed(0)}%
-                        </div>
-                      </div>
-                    ))}
+                    {(() => {
+                      const totalWeight = dbTasks.reduce((s, t) => s + Number(t.weight_pct), 0) || 100;
+                      return dbTasks.map(t => {
+                        const w = Number(t.weight_pct);
+                        const planPct = (w / totalWeight) * 100;
+                        const realPct = (Number(t.progress_pct) / 100) * w;
+                        return (
+                          <div key={t.id} className="flex text-[11px] hover:bg-slate-100/40 dark:hover:bg-white/4 transition-colors">
+                            <div className="flex-1 flex items-center px-3 text-slate-700 dark:text-slate-200 leading-tight min-w-0">
+                              <span className="line-clamp-2">{t.title}</span>
+                            </div>
+                            <div className="w-12 shrink-0 border-l border-slate-200/60 dark:border-white/10 flex items-center justify-center font-mono text-[10px] text-slate-500 dark:text-slate-400">
+                              {w.toFixed(2)}
+                            </div>
+                            <div className="w-10 shrink-0 border-l border-slate-200/60 dark:border-white/10 flex items-center justify-center font-mono text-[10px] text-amber-600 dark:text-amber-400">
+                              {planPct.toFixed(1)}%
+                            </div>
+                            <div className="w-10 shrink-0 border-l border-slate-200/60 dark:border-white/10 flex items-center justify-center font-mono text-[10px] text-emerald-600 dark:text-emerald-400">
+                              {realPct.toFixed(2)}
+                            </div>
+                          </div>
+                        );
+                      });
+                    })()}
                   </div>
 
                   {/* Summary rows */}

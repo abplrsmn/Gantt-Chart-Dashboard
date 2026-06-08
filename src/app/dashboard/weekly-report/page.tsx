@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { format, eachWeekOfInterval, addDays, parseISO, isValid } from "date-fns";
 import { BarChart2, Camera, Search, ChevronDown, Plus, X } from "lucide-react";
 
@@ -15,12 +16,29 @@ type ProjectMeta = {
   status_label: string | null;
   status_color: string | null;
   current_phase_name: string | null;
+  current_phase_code: string | null;
   overall_progress_pct: string | null;
   pm_start: string | null;
   pm_end: string | null;
   start_date: string | null;
   end_date: string | null;
+  brief_pic: string | null;
+  design_pic: string | null;
+  control_pic: string | null;
+  pm_pic: string | null;
+  handover_pic: string | null;
 };
+
+function getCurrentPic(p: ProjectMeta): string | null {
+  const map: Record<string, string | null> = {
+    operational_brief:  p.brief_pic,
+    design:             p.design_pic,
+    project_control:    p.control_pic,
+    project_management: p.pm_pic,
+    handover:           p.handover_pic,
+  };
+  return (p.current_phase_code && map[p.current_phase_code]) || null;
+}
 
 type Photo = {
   id: string;
@@ -80,6 +98,7 @@ function WeekCard({ week, weekKey, range, projectId }: WeekEntry & { projectId: 
   const [progress, setProgress]   = useState<WeekProgress | null>(null);
   const [loadingData, setLoadingData] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [lightbox, setLightbox]   = useState<Photo | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -124,7 +143,7 @@ function WeekCard({ week, weekKey, range, projectId }: WeekEntry & { projectId: 
     await fetch(`/api/projects/${projectId}/attachments`, {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: photoId }),
+      body: JSON.stringify({ attachmentId: photoId }),
     });
   }
 
@@ -154,18 +173,22 @@ function WeekCard({ week, weekKey, range, projectId }: WeekEntry & { projectId: 
                 <img
                   src={photo.file_url}
                   alt={photo.file_name}
-                  className="w-20 h-16 object-cover rounded-lg border border-slate-200/60 dark:border-white/8"
+                  onClick={() => setLightbox(photo)}
+                  className="w-20 h-16 object-cover rounded-lg border border-slate-200/60 dark:border-white/8 cursor-zoom-in"
                   onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}
                 />
                 {/* delete on hover */}
                 <button
-                  onClick={() => handleDelete(photo.id)}
+                  onClick={e => { e.stopPropagation(); handleDelete(photo.id); }}
                   className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-black/60 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
                 >
                   <X size={8} />
                 </button>
                 {pi === 3 && photos.length > 4 && (
-                  <div className="absolute inset-0 rounded-lg bg-black/50 flex items-center justify-center">
+                  <div
+                    onClick={() => setLightbox(photo)}
+                    className="absolute inset-0 rounded-lg bg-black/50 flex items-center justify-center cursor-zoom-in"
+                  >
                     <span className="text-white text-xs font-bold">+{photos.length - 4}</span>
                   </div>
                 )}
@@ -189,6 +212,32 @@ function WeekCard({ week, weekKey, range, projectId }: WeekEntry & { projectId: 
           </label>
         )}
       </div>
+
+      {/* Lightbox */}
+      {lightbox && typeof document !== "undefined" && createPortal(
+        <div
+          className="fixed inset-0 z-9999 flex items-center justify-center p-4"
+          style={{ backgroundColor: "rgba(0,0,0,0.82)", backdropFilter: "blur(8px)" }}
+          onMouseDown={e => { if (e.target === e.currentTarget) setLightbox(null); }}
+        >
+          {/* X button — top-right of viewport */}
+          <button
+            onClick={() => setLightbox(null)}
+            className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/10 hover:bg-white/25 text-white flex items-center justify-center transition-colors z-10"
+          >
+            <X size={20} />
+          </button>
+
+          <div className="relative max-w-4xl w-full animate-modal-enter overflow-hidden rounded-xl" onClick={e => e.stopPropagation()}>
+            <img
+              src={lightbox.file_url}
+              alt={lightbox.file_name}
+              className="w-full max-h-[90vh] object-contain rounded-xl block"
+            />
+          </div>
+        </div>,
+        document.body
+      )}
 
       {/* Progress stats */}
       {loadingData ? (
@@ -227,29 +276,36 @@ function ProjectWeeklySection({ project }: { project: ProjectMeta }) {
   const weeks     = buildWeeks(startDate, endDate);
 
   const months = Array.from(new Map(weeks.map(w => [w.monthKey, w.monthKey])).entries());
-  const [activeMonth, setActiveMonth] = useState(months[months.length - 1]?.[0] ?? "");
-  const [expanded, setExpanded]       = useState(true);
-  const bodyRef   = useRef<HTMLDivElement>(null);
-  const heightRef = useRef<number>(0);
+  const [activeMonth, setActiveMonth] = useState(months[0]?.[0] ?? "");
+  const [expanded, setExpanded]       = useState(false);
+  const bodyRef      = useRef<HTMLDivElement>(null);
+  const firstRender  = useRef(true);
 
   useLayoutEffect(() => {
     const el = bodyRef.current;
     if (!el) return;
+
     if (expanded) {
+      if (firstRender.current) {
+        // Initial mount already open — no animation needed, just allow free height
+        firstRender.current = false;
+        el.style.maxHeight = "none";
+        return;
+      }
+      // Re-expanding after collapse — animate from 0 → scrollHeight → none
       el.style.maxHeight = `${el.scrollHeight}px`;
-      heightRef.current  = el.scrollHeight;
+      const onEnd = () => { el.style.maxHeight = "none"; };
+      el.addEventListener("transitionend", onEnd, { once: true });
+      return () => el.removeEventListener("transitionend", onEnd);
     } else {
-      el.style.maxHeight = `${el.scrollHeight}px`;
+      firstRender.current = false;
+      // Collapsing — if currently unconstrained, capture real height first
+      if (!el.style.maxHeight || el.style.maxHeight === "none") {
+        el.style.maxHeight = `${el.scrollHeight}px`;
+      }
       requestAnimationFrame(() => { el.style.maxHeight = "0px"; });
     }
   }, [expanded]);
-
-  // Re-measure when active month changes
-  useLayoutEffect(() => {
-    const el = bodyRef.current;
-    if (!el || !expanded) return;
-    el.style.maxHeight = "none";
-  }, [activeMonth, expanded]);
 
   const filteredWeeks = weeks.filter(w => w.monthKey === activeMonth);
   const overallPct    = Number(project.overall_progress_pct ?? 0);
@@ -276,10 +332,15 @@ function ProjectWeeklySection({ project }: { project: ProjectMeta }) {
               </span>
             )}
           </div>
-          <div className="flex items-center gap-3 mt-1">
-            {project.unit_name && <span className="text-[11px] text-slate-500 dark:text-slate-400">{project.unit_name}</span>}
-            {project.current_phase_name && <span className="text-[11px] text-slate-400 dark:text-slate-500">Phase: {project.current_phase_name}</span>}
-            {weeks.length > 0 && <span className="text-[11px] text-slate-400 dark:text-slate-500">{weeks.length} weeks</span>}
+          <div className="flex items-center gap-3 mt-1 flex-wrap">
+            {project.unit_name && <span className="text-xs font-medium text-slate-600 dark:text-slate-300">{project.unit_name}</span>}
+            {project.current_phase_name && <span className="text-xs text-slate-500 dark:text-slate-400">Phase: <span className="font-medium">{project.current_phase_name}</span></span>}
+            {getCurrentPic(project) && (
+              <span className="text-xs text-slate-500 dark:text-slate-400">
+                PIC: <span className="font-medium text-slate-700 dark:text-slate-200">{getCurrentPic(project)}</span>
+              </span>
+            )}
+            {weeks.length > 0 && <span className="text-xs text-slate-400 dark:text-slate-500">{weeks.length} weeks</span>}
           </div>
         </div>
         <div className="shrink-0 flex items-center gap-3">
@@ -296,7 +357,7 @@ function ProjectWeeklySection({ project }: { project: ProjectMeta }) {
 
       <div
         ref={bodyRef}
-        style={{ maxHeight: expanded ? `${heightRef.current || 9999}px` : "0px", overflow: "hidden", transition: "max-height 0.35s cubic-bezier(0.4,0,0.2,1)" }}
+        style={{ overflow: "hidden", transition: "max-height 0.35s cubic-bezier(0.4,0,0.2,1)" }}
       >
         {weeks.length === 0 ? (
           <div className="p-6 flex items-center gap-2 text-slate-400 dark:text-slate-600 text-xs">

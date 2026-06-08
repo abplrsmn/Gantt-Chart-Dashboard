@@ -58,7 +58,10 @@
       "Bash(grep -n \"border-slate-200\\\\\\\\\\\\\\\\50\\\\|border-white\\\\\\\\\\\\\\\\8\" \"c:\\\\Users\\\\abrah\\\\Work_Projects\\\\Project-Dashboard\\\\src\\\\app\\\\dashboard\\\\projects\\\\[id]\\\\page.tsx\")",
       "Bash(grep \"\\\\\\\\\\\\\\\\\")",
       "Bash(grep -E \"\\(weekly-report|AddProjectModal|ProjectGanttDB|projects/\\\\[id\\\\]/page\\)\")",
-      "Bash(mkdir -p \"c:\\\\Users\\\\abrah\\\\Work_Projects\\\\Project-Dashboard\\\\src\\\\app\\\\api\\\\projects\\\\[id]\\\\tasks\" 2>&1; echo done)"
+      "Bash(mkdir -p \"c:\\\\Users\\\\abrah\\\\Work_Projects\\\\Project-Dashboard\\\\src\\\\app\\\\api\\\\projects\\\\[id]\\\\tasks\" 2>&1; echo done)",
+      "Bash(latexmk -pdf -interaction=nonstopmode -g MAGANG.tex)",
+      "Bash(latexmk -C MAGANG.tex)",
+      "Bash(latexmk -pdf -interaction=nonstopmode MAGANG.tex)"
     ],
     "additionalDirectories": [
       "C:\\Users\\abrah\\clickup-dashboard\\src\\app\\api\\clickup",

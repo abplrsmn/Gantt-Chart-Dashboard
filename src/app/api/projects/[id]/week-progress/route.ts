@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
+import type { PoolClient } from "pg";
 import { getDbPool } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
-async function ensureTable(client: Awaited<ReturnType<ReturnType<typeof getDbPool>["connect"]>>) {
+async function ensureTable(client: PoolClient) {
   await client.query(`
     CREATE TABLE IF NOT EXISTS project_week_progress (
       id           bigserial PRIMARY KEY,

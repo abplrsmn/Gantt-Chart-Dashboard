@@ -115,16 +115,16 @@ function buildPhaseWindows(row: ProjectManagementSummaryRow): GanttCapexProject[
   if (!Array.isArray(row.phase_windows)) return [];
 
   return row.phase_windows
-    .map((phase) => {
+    .flatMap((phase) => {
       const phaseKey = phaseNameToKey(phase.phase_name);
-      if (!phaseKey) return null;
-      return {
+      if (!phaseKey) return [];
+      const entry = {
         phase: phaseKey,
         start: toIsoDate(phase.start_date),
         end: toIsoDate(phase.end_date),
       };
-    })
-    .filter((phase): phase is { phase: GanttCapexPhase; start?: string; end?: string } => !!phase && isOrderedIsoRange(phase.start, phase.end));
+      return isOrderedIsoRange(entry.start, entry.end) ? [entry] : [];
+    });
 }
 
 
