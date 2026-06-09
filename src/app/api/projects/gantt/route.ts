@@ -136,7 +136,28 @@ export async function GET() {
           WHERE pp.project_id = p.id
             AND (pp.phase_id = hv.id OR pp.phase_id = hv.phase_id)
             AND COALESCE(NULLIF(pp.raw_person_name, ''), NULLIF(pp.raw_organization_name, '')) IS NOT NULL
-        ) AS handover_pic
+        ) AS handover_pic,
+
+        -- Phase advance notes (from proceed-to-next-phase confirmation dialog)
+        (SELECT SUBSTRING(cl.change_summary FROM POSITION(':' IN cl.change_summary) + 2)
+         FROM project_change_logs cl
+         WHERE cl.project_id = p.id AND cl.action_type = 'phase_advanced' AND cl.new_value = '2'
+         ORDER BY cl.created_at DESC LIMIT 1) AS brief_advance_note,
+
+        (SELECT SUBSTRING(cl.change_summary FROM POSITION(':' IN cl.change_summary) + 2)
+         FROM project_change_logs cl
+         WHERE cl.project_id = p.id AND cl.action_type = 'phase_advanced' AND cl.new_value = '3'
+         ORDER BY cl.created_at DESC LIMIT 1) AS design_advance_note,
+
+        (SELECT SUBSTRING(cl.change_summary FROM POSITION(':' IN cl.change_summary) + 2)
+         FROM project_change_logs cl
+         WHERE cl.project_id = p.id AND cl.action_type = 'phase_advanced' AND cl.new_value = '4'
+         ORDER BY cl.created_at DESC LIMIT 1) AS control_advance_note,
+
+        (SELECT SUBSTRING(cl.change_summary FROM POSITION(':' IN cl.change_summary) + 2)
+         FROM project_change_logs cl
+         WHERE cl.project_id = p.id AND cl.action_type = 'phase_advanced' AND cl.new_value = '5'
+         ORDER BY cl.created_at DESC LIMIT 1) AS pm_advance_note
 
       FROM projects p
       LEFT JOIN master_phases mp_phase       ON mp_phase.id = p.current_phase_id

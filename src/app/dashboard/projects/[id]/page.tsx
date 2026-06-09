@@ -599,7 +599,7 @@ export default function ProjectDetailPage() {
       <div className="flex items-center gap-3">
         <button
           onClick={() => router.push("/dashboard/projects/gantt")}
-          className="flex items-center gap-1.5 text-sm font-semibold text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors shrink-0"
+          className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-semibold text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors shrink-0"
         >
           <ArrowLeft size={15} />
           Back
@@ -1011,27 +1011,6 @@ export default function ProjectDetailPage() {
                   />
                 </div>
               </div>
-              {project.start_date && project.end_date && (() => {
-                const s = new Date(project.start_date);
-                const e = new Date(project.end_date);
-                const today = new Date();
-                const total = Math.max(1, Math.round((e.getTime() - s.getTime()) / 86400000));
-                const elapsed = Math.round((today.getTime() - s.getTime()) / 86400000);
-                const remaining = Math.max(0, Math.round((e.getTime() - today.getTime()) / 86400000));
-                const pct = Math.min(100, Math.max(0, (elapsed / total) * 100));
-                const isOverdue = today > e;
-                return (
-                  <div className="mt-2 space-y-1">
-                    <div className="flex items-center justify-between text-[9px] text-slate-400">
-                      <span>{total} days total</span>
-                      <span className={isOverdue ? "text-rose-500 font-semibold" : ""}>{isOverdue ? `${Math.abs(remaining)} days overdue` : `${remaining} days left`}</span>
-                    </div>
-                    <div className="h-1 rounded-full bg-slate-200 dark:bg-white/10 overflow-hidden">
-                      <div className={`h-full rounded-full transition-all ${isOverdue ? "bg-rose-500" : "bg-brand-sienna"}`} style={{ width: `${pct}%` }} />
-                    </div>
-                  </div>
-                );
-              })()}
             </div>
 
             <div className="space-y-2">

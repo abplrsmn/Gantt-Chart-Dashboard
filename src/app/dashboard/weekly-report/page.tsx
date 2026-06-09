@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { format, eachWeekOfInterval, addDays, parseISO, isValid } from "date-fns";
-import { BarChart2, Camera, Search, ChevronDown, X } from "lucide-react";
+import { BarChart2, Camera, Search, ChevronDown, X, CalendarRange } from "lucide-react";
 
 type ProjectMeta = {
   id: string;
@@ -43,11 +43,16 @@ type ProjectMeta = {
   handover_start: string | null;
   handover_end: string | null;
   handover_progress: string | null;
-  // Phase notes
+  // Phase notes (from phase fields)
   brief_notes: string | null;
   design_notes: string | null;
   control_notes: string | null;
   handover_notes: string | null;
+  // Phase advance notes (from "proceed to next phase" confirmation)
+  brief_advance_note: string | null;
+  design_advance_note: string | null;
+  control_advance_note: string | null;
+  pm_advance_note: string | null;
 };
 
 const PHASE_STEPS = [
@@ -168,13 +173,8 @@ function PhaseStepperStrip({ project }: { project: ProjectMeta }) {
                 NOW
               </span>
             )}
-            {info.progress > 0 && (
-              <span className="text-[8px] font-semibold" style={{ color: isReached ? step.color : "#94a3b8" }}>
-                {Math.round(info.progress)}%
-              </span>
-            )}
             {(info.start || info.end) && (
-              <span className="text-[8px] text-slate-400 dark:text-slate-600 text-center leading-tight whitespace-nowrap">
+              <span className="text-[10px] text-slate-500 dark:text-slate-400 text-center leading-tight whitespace-nowrap">
                 {fmtShort(info.start)}{info.end && info.end !== info.start ? `–${fmtShort(info.end)}` : ""}
               </span>
             )}
@@ -201,10 +201,10 @@ function PhaseStepperStrip({ project }: { project: ProjectMeta }) {
 // ─── PhaseNotesStrip ─────────────────────────────────────────────────────────
 function PhaseNotesStrip({ project }: { project: ProjectMeta }) {
   const notes = [
-    { label: "Brief",    color: "#64748b", text: project.brief_notes },
-    { label: "Design",   color: "#3b82f6", text: project.design_notes },
-    { label: "Control",  color: "#f59e0b", text: project.control_notes },
-    { label: "PM",       color: "#14b8a6", text: project.pm_remarks ?? project.current_site_progress },
+    { label: "Brief",    color: "#64748b", text: project.brief_advance_note   ?? project.brief_notes },
+    { label: "Design",   color: "#3b82f6", text: project.design_advance_note  ?? project.design_notes },
+    { label: "Control",  color: "#f59e0b", text: project.control_advance_note ?? project.control_notes },
+    { label: "PM",       color: "#14b8a6", text: project.pm_advance_note      ?? project.pm_remarks ?? project.current_site_progress },
     { label: "Handover", color: "#22c55e", text: project.handover_notes },
   ].filter(n => n.text?.trim());
 
@@ -397,6 +397,12 @@ function ProjectWeeklySection({ project }: { project: ProjectMeta }) {
             {getCurrentPic(project) && (
               <span className="text-xs text-slate-500 dark:text-slate-400">
                 PIC: <span className="font-medium text-slate-700 dark:text-slate-200">{getCurrentPic(project)}</span>
+              </span>
+            )}
+            {(project.start_date || project.end_date) && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 dark:bg-white/8 text-slate-500 dark:text-slate-400">
+                <CalendarRange size={10} className="shrink-0" />
+                {fmtShort(project.start_date)}{project.end_date ? ` – ${fmtShort(project.end_date)}` : ""}
               </span>
             )}
             {weeks.length > 0 && <span className="text-xs text-slate-400 dark:text-slate-500">{weeks.length} weeks</span>}

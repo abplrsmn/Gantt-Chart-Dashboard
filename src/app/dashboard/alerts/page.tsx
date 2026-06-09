@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { differenceInCalendarDays, format, formatDistanceToNow } from "date-fns";
-import { ShieldAlert, AlertTriangle, Clock, Sparkles, ArrowRight, RefreshCw } from "lucide-react";
+import { ShieldAlert, AlertTriangle, Clock, Sparkles, ArrowRight } from "lucide-react";
 
 type Project = {
   id: string;
@@ -152,21 +152,21 @@ function AlertCard({ item, onClick }: { item: AlertItem; onClick: () => void }) 
 
 export default function AlertsPage() {
   const router = useRouter();
-  const [projects, setProjects]     = useState<Project[]>([]);
-  const [loading, setLoading]       = useState(true);
-  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-  const [refreshing, setRefreshing] = useState(false);
-  const [tab, setTab]               = useState<Tab>("all");
+  const searchParams = useSearchParams();
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [loading, setLoading]   = useState(true);
+  const [tab, setTab]           = useState<Tab>(() => {
+    const t = searchParams.get("tab");
+    return (["all", "overdue", "urgent", "soon", "new"].includes(t ?? "") ? t : "all") as Tab;
+  });
 
-  const load = useCallback(async (isManual = false) => {
-    if (isManual) setRefreshing(true);
+  const load = useCallback(async () => {
     try {
       const res  = await fetch("/api/projects/gantt", { cache: "no-store" });
       const json = await res.json();
-      if (json.success) { setProjects(json.data); setLastUpdated(new Date()); }
+      if (json.success) setProjects(json.data);
     } finally {
       setLoading(false);
-      setRefreshing(false);
     }
   }, []);
 
@@ -192,43 +192,12 @@ export default function AlertsPage() {
     <div className="space-y-4 pb-6 animate-page-enter">
 
       {/* Header */}
-      <div className="flex items-center gap-2 mb-3 mt-2 justify-between">
-        <div className="flex items-center gap-2">
-          <ShieldAlert size={16} className="text-red-500" />
-          <h2 className="text-lg font-bold text-slate-800 dark:text-white">Live Alerts</h2>
-        </div>
-        <div className="flex items-center gap-2 text-[11px] text-slate-400 dark:text-slate-500">
-          {lastUpdated && <span>Updated {format(lastUpdated, "HH:mm:ss")}</span>}
-          <button
-            onClick={() => load(true)}
-            disabled={refreshing}
-            className="flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-slate-100 dark:hover:bg-white/8 transition-colors disabled:opacity-50"
-          >
-            <RefreshCw size={11} className={refreshing ? "animate-spin" : ""} />
-            Refresh
-          </button>
-        </div>
+      <div className="flex items-center gap-2 mb-3 mt-2">
+        <ShieldAlert size={16} className="text-red-500" />
+        <h2 className="text-lg font-bold text-slate-800 dark:text-white">Live Alerts</h2>
       </div>
 
-      {/* Summary cards */}
-      {!loading && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {[
-            { label: "Overdue",       count: counts.overdue, bg: "bg-red-50 dark:bg-red-500/10",    text: "text-red-600 dark:text-red-400",    border: "border-red-200/60 dark:border-red-500/20",    icon: <AlertTriangle size={14} /> },
-            { label: "Due in 3 days", count: counts.urgent,  bg: "bg-orange-50 dark:bg-orange-500/10", text: "text-orange-600 dark:text-orange-400", border: "border-orange-200/60 dark:border-orange-500/20", icon: <Clock size={14} /> },
-            { label: "Due in 7 days", count: counts.soon,    bg: "bg-amber-50 dark:bg-amber-500/10", text: "text-amber-600 dark:text-amber-400", border: "border-amber-200/60 dark:border-amber-500/20",  icon: <Clock size={14} /> },
-            { label: "New Projects",  count: counts.new,     bg: "bg-teal-50 dark:bg-teal-500/10",  text: "text-teal-600 dark:text-teal-400",  border: "border-teal-200/60 dark:border-teal-500/20",   icon: <Sparkles size={14} /> },
-          ].map(s => (
-            <div key={s.label} className={`glass-card p-4 border ${s.bg} ${s.border}`}>
-              <div className={`flex items-center gap-1.5 mb-1 ${s.text}`}>
-                {s.icon}
-                <span className="text-[10px] font-semibold uppercase tracking-wide">{s.label}</span>
-              </div>
-              <p className={`text-2xl font-bold ${s.text}`}>{s.count}</p>
-            </div>
-          ))}
-        </div>
-      )}
+
 
       {/* Tab filter */}
       <div className="flex items-center gap-1 p-1 rounded-xl bg-slate-100/80 dark:bg-white/6 border border-slate-200/60 dark:border-white/8 flex-wrap">

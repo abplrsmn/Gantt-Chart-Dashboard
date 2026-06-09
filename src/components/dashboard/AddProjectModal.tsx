@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { X, Plus, Trash2 } from "lucide-react";
+import { X, Plus, Trash2, Calendar } from "lucide-react";
 
 type Option = { id: number; code?: string; name: string; color?: string };
 type Options = {
@@ -38,6 +38,25 @@ const EMPTY: FormState = {
   current_phase_id: "", phase_start: "", phase_end: "",
   start_date: "", end_date: "", summary_brief: "",
 };
+
+function DateInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const ref = useRef<HTMLInputElement>(null);
+  return (
+    <div
+      className="relative cursor-pointer"
+      onClick={() => { ref.current?.showPicker?.(); ref.current?.focus(); }}
+    >
+      <input
+        ref={ref}
+        type="date"
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        className="w-full rounded-xl border border-slate-200/70 dark:border-white/10 bg-white dark:bg-zinc-900/60 pl-3 pr-10 py-2.5 text-[12px] text-slate-700 dark:text-slate-200 outline-none focus:border-brand-sienna/60 focus:ring-2 focus:ring-brand-sienna/15 transition-all cursor-pointer scheme-light dark:scheme-dark [&::-webkit-calendar-picker-indicator]:hidden"
+      />
+      <Calendar size={17} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-400 pointer-events-none" />
+    </div>
+  );
+}
 
 export default function AddProjectModal({
   onClose,
@@ -221,11 +240,11 @@ export default function AddProjectModal({
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-[10px] text-slate-400 mb-1 block">Start Date</label>
-                  <input type="date" value={form.start_date} onChange={e => set("start_date", e.target.value)} className={input} />
+                  <DateInput value={form.start_date} onChange={v => set("start_date", v)} />
                 </div>
                 <div>
                   <label className="text-[10px] text-slate-400 mb-1 block">End Date</label>
-                  <input type="date" value={form.end_date} onChange={e => set("end_date", e.target.value)} className={input} />
+                  <DateInput value={form.end_date} onChange={v => set("end_date", v)} />
                 </div>
               </div>
             </div>
@@ -243,11 +262,11 @@ export default function AddProjectModal({
                 <div className="grid grid-cols-2 gap-3 mt-3">
                   <div>
                     <label className="text-[10px] text-slate-400 mb-1 block">{phaseDateLabels.start}</label>
-                    <input type="date" value={form.phase_start} onChange={e => set("phase_start", e.target.value)} className={input} />
+                    <DateInput value={form.phase_start} onChange={v => set("phase_start", v)} />
                   </div>
                   <div>
                     <label className="text-[10px] text-slate-400 mb-1 block">{phaseDateLabels.end}</label>
-                    <input type="date" value={form.phase_end} onChange={e => set("phase_end", e.target.value)} className={input} />
+                    <DateInput value={form.phase_end} onChange={v => set("phase_end", v)} />
                   </div>
                 </div>
               )}

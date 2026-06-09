@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
-import { Users, UserCircle2, Mail, Briefcase, Shield } from "lucide-react";
+import { useSearchParams } from "next/navigation";
+import { Users, Mail, Briefcase, Shield } from "lucide-react";
 
 type UserAccount = {
   id: string;
@@ -91,12 +92,12 @@ function PersonCard({ name, email, jobTitle, department, isActive, isAdmin, empl
 
 function DepartmentGroup({ dept, children, count }: { dept: string; children: React.ReactNode; count: number }) {
   return (
-    <div>
-      <div className="flex items-center gap-2 mb-2">
+    <div className="glass-card p-4">
+      <div className="flex items-center gap-2 mb-3">
         <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">{dept}</span>
         <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-slate-100 dark:bg-white/8 text-slate-400">{count}</span>
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+      <div className="space-y-2">
         {children}
       </div>
     </div>
@@ -104,7 +105,11 @@ function DepartmentGroup({ dept, children, count }: { dept: string; children: Re
 }
 
 export default function TeamPage() {
-  const [tab, setTab] = useState<Tab>("users");
+  const searchParams = useSearchParams();
+  const [tab, setTab] = useState<Tab>(() => {
+    const t = searchParams.get("tab");
+    return (t === "stakeholders" ? "stakeholders" : "users") as Tab;
+  });
   const [users, setUsers] = useState<UserAccount[]>([]);
   const [stakeholders, setStakeholders] = useState<Stakeholder[]>([]);
   const [loading, setLoading] = useState(true);
@@ -139,40 +144,16 @@ export default function TeamPage() {
     return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0]));
   }, [stakeholders]);
 
-  const activeUsers = users.filter(u => u.is_active).length;
-  const activeStakeholders = stakeholders.filter(s => s.is_active).length;
-
   return (
-    <div className="space-y-5 pb-6 animate-page-enter">
+    <div className="space-y-4 pb-6 animate-page-enter">
+      {/* Header */}
       <div className="flex items-center gap-2 mb-3 mt-2">
         <Users className="text-purple-500" size={16} />
         <h2 className="text-lg font-bold text-slate-800 dark:text-white">Departments & Teams</h2>
       </div>
 
-      {/* Summary cards */}
-      {!loading && (
-        <div className="grid grid-cols-2 gap-3">
-          <div className="glass-card p-4">
-            <div className="flex items-center gap-1.5 mb-1 text-violet-500">
-              <UserCircle2 size={13} />
-              <span className="text-[10px] font-semibold uppercase tracking-wide">User Accounts</span>
-            </div>
-            <p className="text-2xl font-bold text-slate-800 dark:text-white">{users.length}</p>
-            <p className="text-[10px] text-slate-400 mt-0.5">{activeUsers} active</p>
-          </div>
-          <div className="glass-card p-4">
-            <div className="flex items-center gap-1.5 mb-1 text-teal-500">
-              <Users size={13} />
-              <span className="text-[10px] font-semibold uppercase tracking-wide">Stakeholders</span>
-            </div>
-            <p className="text-2xl font-bold text-slate-800 dark:text-white">{stakeholders.length}</p>
-            <p className="text-[10px] text-slate-400 mt-0.5">{activeStakeholders} active</p>
-          </div>
-        </div>
-      )}
-
       {/* Tabs */}
-      <div className="flex items-center gap-1 p-1 rounded-xl bg-slate-100/80 dark:bg-white/6 border border-slate-200/60 dark:border-white/8 w-fit">
+      <div className="flex items-center gap-1 p-1 rounded-xl bg-slate-100/80 dark:bg-white/6 border border-slate-200/60 dark:border-white/8 flex-wrap">
         {([
           { key: "users",        label: "User Accounts", count: users.length },
           { key: "stakeholders", label: "Stakeholders",  count: stakeholders.length },
@@ -180,16 +161,18 @@ export default function TeamPage() {
           <button
             key={key}
             onClick={() => setTab(key)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all whitespace-nowrap ${
               tab === key
                 ? "bg-white dark:bg-zinc-800 shadow-sm text-slate-800 dark:text-white"
                 : "text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300"
             }`}
           >
             {label}
-            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
-              tab === key ? "bg-slate-100 dark:bg-white/10 text-slate-500 dark:text-slate-400" : "bg-slate-200 dark:bg-white/8 text-slate-400"
-            }`}>{count}</span>
+            {count > 0 && (
+              <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
+                tab === key ? "bg-slate-100 dark:bg-white/10 text-slate-500 dark:text-slate-400" : "bg-slate-200 dark:bg-white/8 text-slate-400"
+              }`}>{count}</span>
+            )}
           </button>
         ))}
       </div>
@@ -200,7 +183,7 @@ export default function TeamPage() {
           <div className="w-5 h-5 border-2 border-brand-sienna/40 border-t-brand-sienna rounded-full animate-spin" />
         </div>
       ) : tab === "users" ? (
-        <div className="space-y-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
           {usersByDept.map(([dept, members]) => (
             <DepartmentGroup key={dept} dept={dept} count={members.length}>
               {members.map(u => (
@@ -219,7 +202,7 @@ export default function TeamPage() {
           ))}
         </div>
       ) : (
-        <div className="space-y-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
           {stakeholdersByDept.map(([dept, members]) => (
             <DepartmentGroup key={dept} dept={dept} count={members.length}>
               {members.map(s => (
