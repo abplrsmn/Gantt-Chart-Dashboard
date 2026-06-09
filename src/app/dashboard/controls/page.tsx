@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   Activity, Bot, Cpu, Database, Server, Terminal,
   RefreshCw, WifiOff, DollarSign, Clock, Wifi,
@@ -118,6 +119,14 @@ function StatCard({
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 export default function ControlsPage() {
+  const router = useRouter();
+
+  useEffect(() => {
+    const match = document.cookie.match(/(?:^|;\s*)user_role=([^;]+)/);
+    const role = match ? match[1].trim() : "admin";
+    if (role === "pm") router.replace("/dashboard/projects/gantt");
+  }, [router]);
+
   const [agents,      setAgents]      = useState<AgentData[]>([]);
   const [configuredAgents, setConfiguredAgents] = useState<ConfigAgent[]>([]);
   const [telemetry,   setTelemetry]   = useState<TelemetrySummary>(EMPTY_TELEMETRY);

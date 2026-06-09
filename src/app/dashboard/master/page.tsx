@@ -13,7 +13,7 @@ type Unit     = { id: number; unit_code: string; unit_name: string };
 type Priority = { id: number; priority_code: string; priority_name: string; color_hex: string; level: number };
 type Status   = { id: number; entity_type: string; status_code: string; status_label: string; color: string };
 type User     = { id: number; email: string; is_admin: boolean; is_active: boolean; created_at: string; full_name: string | null; department: string | null; job_title: string | null; employee_code: string | null; person_id: number | null };
-type Person   = { id: number; employee_code: string | null; full_name: string; nickname: string | null; department: string | null; job_title: string | null; email: string | null; is_active: boolean };
+type Person   = { id: number; employee_code: string | null; full_name: string; nickname: string | null; department: string | null; job_title: string | null; email: string | null; phone_number: string | null; is_active: boolean };
 type Phase    = { id: number; phase_code: string; phase_name: string };
 
 type Tab = "units" | "priorities" | "statuses" | "users" | "stakeholders" | "phases";
@@ -549,7 +549,7 @@ function StakeholdersSection({ onAddReady }: SectionProps) {
   const [data, setData] = useState<Person[]>([]);
   const [modal, setModal] = useState<null | "add" | Person>(null);
   const [deleting, setDeleting] = useState<Person | null>(null);
-  const [form, setForm] = useState({ full_name: "", email: "", nickname: "", department: "", job_title: "", employee_code: "", is_active: true });
+  const [form, setForm] = useState({ full_name: "", email: "", phone_number: "", nickname: "", department: "", job_title: "", employee_code: "", is_active: true });
   const [loading, setLoading] = useState(false);
 
   const load = useCallback(async () => {
@@ -558,10 +558,10 @@ function StakeholdersSection({ onAddReady }: SectionProps) {
   }, []);
   useEffect(() => { load(); }, [load]);
 
-  const openAdd  = () => { setForm({ full_name: "", email: "", nickname: "", department: "", job_title: "", employee_code: "", is_active: true }); setModal("add"); };
+  const openAdd  = () => { setForm({ full_name: "", email: "", phone_number: "", nickname: "", department: "", job_title: "", employee_code: "", is_active: true }); setModal("add"); };
   useEffect(() => { onAddReady(openAdd); }, [onAddReady]); // eslint-disable-line
   const openEdit = (p: Person) => {
-    setForm({ full_name: p.full_name, email: p.email || "", nickname: p.nickname || "", department: p.department || "", job_title: p.job_title || "", employee_code: p.employee_code || "", is_active: p.is_active });
+    setForm({ full_name: p.full_name, email: p.email || "", phone_number: p.phone_number || "", nickname: p.nickname || "", department: p.department || "", job_title: p.job_title || "", employee_code: p.employee_code || "", is_active: p.is_active });
     setModal(p);
   };
 
@@ -578,7 +578,7 @@ function StakeholdersSection({ onAddReady }: SectionProps) {
 
   return (
     <>
-      <TableShell heads={["Name", "Email", "Department", "Job Title", "Status"]} empty={!data.length}>
+      <TableShell heads={["Name", "Email", "Phone", "Department", "Job Title", "Status"]} empty={!data.length}>
         {data.map(p => (
           <tr key={p.id}>
             <td className="px-4 py-3">
@@ -586,6 +586,7 @@ function StakeholdersSection({ onAddReady }: SectionProps) {
               {p.nickname && <div className="text-xs text-slate-400 mt-0.5">{p.nickname}</div>}
             </td>
             <td className="px-4 py-3 text-slate-500 dark:text-slate-400 text-xs">{p.email || "—"}</td>
+            <td className="px-4 py-3 text-slate-500 dark:text-slate-400 text-xs">{p.phone_number || "—"}</td>
             <td className="px-4 py-3 text-slate-600 dark:text-slate-300 text-sm">{p.department || "—"}</td>
             <td className="px-4 py-3 text-slate-600 dark:text-slate-300 text-sm">{p.job_title || "—"}</td>
             <td className="px-4 py-3">
@@ -605,9 +606,14 @@ function StakeholdersSection({ onAddReady }: SectionProps) {
           <Field label="Nickname">
             <input className={inputCls} value={form.nickname} onChange={e => setForm(f => ({ ...f, nickname: e.target.value }))} placeholder="e.g. Budi" />
           </Field>
-          <Field label="Email">
-            <input type="email" className={inputCls} value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} placeholder="budi@company.com" />
-          </Field>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Email">
+              <input type="email" className={inputCls} value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} placeholder="budi@company.com" />
+            </Field>
+            <Field label="Phone Number">
+              <input type="tel" className={inputCls} value={form.phone_number} onChange={e => setForm(f => ({ ...f, phone_number: e.target.value }))} placeholder="+62 812 3456 7890" />
+            </Field>
+          </div>
           <div className="grid grid-cols-2 gap-3">
             <Field label="Department">
               <input className={inputCls} value={form.department} onChange={e => setForm(f => ({ ...f, department: e.target.value }))} placeholder="e.g. Engineering" />

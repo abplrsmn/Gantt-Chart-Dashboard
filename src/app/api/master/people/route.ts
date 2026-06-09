@@ -7,8 +7,9 @@ export async function GET() {
   const pool = getDbPool();
   const client = await pool.connect();
   try {
+    await client.query(`ALTER TABLE master_people ADD COLUMN IF NOT EXISTS phone_number varchar(50)`);
     const { rows } = await client.query(
-      `SELECT id, employee_code, full_name, nickname, department, job_title, email, is_active FROM master_people ORDER BY full_name`
+      `SELECT id, employee_code, full_name, nickname, department, job_title, email, phone_number, is_active FROM master_people ORDER BY full_name`
     );
     return NextResponse.json({ success: true, data: rows });
   } catch (err) {
@@ -20,7 +21,7 @@ export async function GET() {
 
 export async function POST(req: Request) {
   const body = await req.json();
-  const { full_name, email, nickname, department, job_title, employee_code } = body;
+  const { full_name, email, nickname, department, job_title, employee_code, phone_number } = body;
   if (!full_name?.trim())
     return NextResponse.json({ success: false, error: "full_name is required" }, { status: 400 });
 
@@ -28,8 +29,8 @@ export async function POST(req: Request) {
   const client = await pool.connect();
   try {
     const { rows } = await client.query(
-      `INSERT INTO master_people (employee_code, full_name, nickname, department, job_title, email, is_active)
-       VALUES ($1, $2, $3, $4, $5, $6, true) RETURNING *`,
+      `INSERT INTO master_people (employee_code, full_name, nickname, department, job_title, email, phone_number, is_active)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, true) RETURNING *`,
       [
         employee_code?.trim() || null,
         full_name.trim(),
@@ -37,6 +38,7 @@ export async function POST(req: Request) {
         department?.trim() || null,
         job_title?.trim() || null,
         email?.trim()?.toLowerCase() || null,
+        phone_number?.trim() || null,
       ]
     );
     return NextResponse.json({ success: true, data: rows[0] });
