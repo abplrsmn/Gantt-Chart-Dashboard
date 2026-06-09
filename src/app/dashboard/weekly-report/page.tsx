@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { format, eachWeekOfInterval, addDays, parseISO, isValid } from "date-fns";
-import { BarChart2, Camera, Search, ChevronDown, Plus, X } from "lucide-react";
+import { BarChart2, Camera, Search, ChevronDown, X } from "lucide-react";
 
 type ProjectMeta = {
   id: string;
@@ -27,7 +27,42 @@ type ProjectMeta = {
   control_pic: string | null;
   pm_pic: string | null;
   handover_pic: string | null;
+  // Phase date + progress fields
+  brief_received: string | null;
+  brief_deadline: string | null;
+  brief_progress: string | null;
+  design_start: string | null;
+  design_end: string | null;
+  design_progress: string | null;
+  control_start: string | null;
+  control_end: string | null;
+  control_progress: string | null;
+  pm_progress: string | null;
+  pm_remarks: string | null;
+  current_site_progress: string | null;
+  handover_start: string | null;
+  handover_end: string | null;
+  handover_progress: string | null;
+  // Phase notes
+  brief_notes: string | null;
+  design_notes: string | null;
+  control_notes: string | null;
+  handover_notes: string | null;
 };
+
+const PHASE_STEPS = [
+  { code: "operational_brief",  short: "Brief",    color: "#64748b" },
+  { code: "design",             short: "Design",   color: "#3b82f6" },
+  { code: "project_control",    short: "Control",  color: "#f59e0b" },
+  { code: "project_management", short: "PM",       color: "#14b8a6" },
+  { code: "handover",           short: "Handover", color: "#22c55e" },
+] as const;
+
+function fmtShort(dateStr: string | null): string {
+  if (!dateStr) return "";
+  const d = parseISO(dateStr);
+  return isValid(d) ? format(d, "d MMM") : "";
+}
 
 function getCurrentPic(p: ProjectMeta): string | null {
   const map: Record<string, string | null> = {
@@ -92,14 +127,112 @@ function statusDot(s: string) {
   return "bg-slate-400";
 }
 
+// ─── PhaseStepperStrip ────────────────────────────────────────────────────────
+function PhaseStepperStrip({ project }: { project: ProjectMeta }) {
+  const currentIdx = PHASE_STEPS.findIndex(s => s.code === project.current_phase_code);
+
+  const phaseInfos = [
+    { start: project.brief_received,  end: project.brief_deadline,   progress: Number(project.brief_progress   ?? 0) },
+    { start: project.design_start,    end: project.design_end,        progress: Number(project.design_progress  ?? 0) },
+    { start: project.control_start,   end: project.control_end,       progress: Number(project.control_progress ?? 0) },
+    { start: project.pm_start,        end: project.pm_end,            progress: Number(project.pm_progress      ?? 0) },
+    { start: project.handover_start,  end: project.handover_end,      progress: Number(project.handover_progress ?? 0) },
+  ];
+
+  return (
+    <div className="flex items-start px-5 py-3 border-b border-slate-100 dark:border-white/5 bg-slate-50/40 dark:bg-white/[0.015]">
+      {PHASE_STEPS.flatMap((step, i) => {
+        const isPast    = i < currentIdx;
+        const isCurrent = i === currentIdx;
+        const isReached = isPast || isCurrent;
+        const info = phaseInfos[i];
+
+        const items: ReactNode[] = [
+          <div key={step.code} className="flex flex-col items-center gap-0.5">
+            <div
+              className="w-3 h-3 rounded-full border-2 shrink-0 transition-all"
+              style={{
+                backgroundColor: isReached ? step.color : "transparent",
+                borderColor: isReached ? step.color : "#cbd5e1",
+                boxShadow: isCurrent ? `0 0 10px ${step.color}90` : "none",
+              }}
+            />
+            <span
+              className="text-[9px] font-bold uppercase tracking-wide whitespace-nowrap mt-0.5"
+              style={{ color: isReached ? step.color : "#94a3b8" }}
+            >
+              {step.short}
+            </span>
+            {isCurrent && (
+              <span className="text-[7px] font-bold px-1 py-px rounded-full text-white leading-tight" style={{ backgroundColor: step.color }}>
+                NOW
+              </span>
+            )}
+            {info.progress > 0 && (
+              <span className="text-[8px] font-semibold" style={{ color: isReached ? step.color : "#94a3b8" }}>
+                {Math.round(info.progress)}%
+              </span>
+            )}
+            {(info.start || info.end) && (
+              <span className="text-[8px] text-slate-400 dark:text-slate-600 text-center leading-tight whitespace-nowrap">
+                {fmtShort(info.start)}{info.end && info.end !== info.start ? `–${fmtShort(info.end)}` : ""}
+              </span>
+            )}
+          </div>,
+        ];
+
+        if (i < PHASE_STEPS.length - 1) {
+          const nextIsReached = (i + 1) <= currentIdx;
+          items.push(
+            <div
+              key={`line-${i}`}
+              className="flex-1 h-px mt-1.5 mx-1 shrink min-w-[8px]"
+              style={{ backgroundColor: nextIsReached ? PHASE_STEPS[i + 1].color : "#e2e8f0" }}
+            />
+          );
+        }
+
+        return items;
+      })}
+    </div>
+  );
+}
+
+// ─── PhaseNotesStrip ─────────────────────────────────────────────────────────
+function PhaseNotesStrip({ project }: { project: ProjectMeta }) {
+  const notes = [
+    { label: "Brief",    color: "#64748b", text: project.brief_notes },
+    { label: "Design",   color: "#3b82f6", text: project.design_notes },
+    { label: "Control",  color: "#f59e0b", text: project.control_notes },
+    { label: "PM",       color: "#14b8a6", text: project.pm_remarks ?? project.current_site_progress },
+    { label: "Handover", color: "#22c55e", text: project.handover_notes },
+  ].filter(n => n.text?.trim());
+
+  if (notes.length === 0) return null;
+
+  return (
+    <div className="px-5 py-3 border-b border-slate-100 dark:border-white/5 bg-white/50 dark:bg-zinc-900/30">
+      <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-600 mb-2">Phase Notes</p>
+      <div className="space-y-2">
+        {notes.map(n => (
+          <div key={n.label} className="flex items-start gap-2">
+            <span className="shrink-0 text-[8px] font-bold px-1.5 py-0.5 rounded-full text-white mt-px leading-tight" style={{ backgroundColor: n.color }}>
+              {n.label}
+            </span>
+            <p className="text-[10px] text-slate-600 dark:text-slate-300 leading-relaxed">{n.text}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ─── WeekCard ─────────────────────────────────────────────────────────────────
 function WeekCard({ week, weekKey, range, projectId }: WeekEntry & { projectId: string }) {
-  const [photos, setPhotos]       = useState<Photo[]>([]);
-  const [progress, setProgress]   = useState<WeekProgress | null>(null);
+  const [photos, setPhotos]           = useState<Photo[]>([]);
+  const [progress, setProgress]       = useState<WeekProgress | null>(null);
   const [loadingData, setLoadingData] = useState(true);
-  const [uploading, setUploading] = useState(false);
-  const [lightbox, setLightbox]   = useState<Photo | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [lightbox, setLightbox]       = useState<Photo | null>(null);
 
   useEffect(() => {
     Promise.all([
@@ -120,33 +253,6 @@ function WeekCard({ week, weekKey, range, projectId }: WeekEntry & { projectId: 
     }).catch(() => {}).finally(() => setLoadingData(false));
   }, [projectId, weekKey]);
 
-  async function handleUpload(files: FileList | null) {
-    if (!files || files.length === 0) return;
-    setUploading(true);
-    try {
-      for (const file of Array.from(files)) {
-        const fd = new FormData();
-        fd.append("file", file);
-        fd.append("week_key", weekKey);
-        const res  = await fetch(`/api/projects/${projectId}/attachments`, { method: "POST", body: fd });
-        const data = await res.json();
-        if (data.success && data.data) setPhotos(prev => [...prev, data.data]);
-      }
-    } finally {
-      setUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
-    }
-  }
-
-  async function handleDelete(photoId: string) {
-    setPhotos(prev => prev.filter(p => p.id !== photoId));
-    await fetch(`/api/projects/${projectId}/attachments`, {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ attachmentId: photoId }),
-    });
-  }
-
   const prog = progress ?? { plan_pct: 0, actual_pct: 0, status: "Not started" };
   const variance = Number((prog.actual_pct - prog.plan_pct).toFixed(2));
 
@@ -164,12 +270,12 @@ function WeekCard({ week, weekKey, range, projectId }: WeekEntry & { projectId: 
         )}
       </div>
 
-      {/* Photos area */}
+      {/* Photos area — read-only, managed from project detail */}
       <div className="bg-slate-50/50 dark:bg-white/2">
         {photos.length > 0 ? (
           <div className="flex gap-1.5 p-2.5 flex-wrap">
             {photos.map((photo, pi) => (
-              <div key={photo.id} className="relative group">
+              <div key={photo.id} className="relative">
                 <img
                   src={photo.file_url}
                   alt={photo.file_name}
@@ -177,13 +283,6 @@ function WeekCard({ week, weekKey, range, projectId }: WeekEntry & { projectId: 
                   className="w-20 h-16 object-cover rounded-lg border border-slate-200/60 dark:border-white/8 cursor-zoom-in"
                   onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}
                 />
-                {/* delete on hover */}
-                <button
-                  onClick={e => { e.stopPropagation(); handleDelete(photo.id); }}
-                  className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-black/60 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                >
-                  <X size={8} />
-                </button>
                 {pi === 3 && photos.length > 4 && (
                   <div
                     onClick={() => setLightbox(photo)}
@@ -194,22 +293,12 @@ function WeekCard({ week, weekKey, range, projectId }: WeekEntry & { projectId: 
                 )}
               </div>
             ))}
-            {/* Add more */}
-            <label className="w-20 h-16 rounded-lg border border-dashed border-slate-200/70 dark:border-white/8 flex items-center justify-center cursor-pointer hover:border-brand-sienna/50 hover:bg-brand-cream/10 dark:hover:bg-brand-sienna/5 transition-all group shrink-0">
-              {uploading
-                ? <div className="w-4 h-4 border-2 border-brand-sienna/30 border-t-brand-sienna rounded-full animate-spin" />
-                : <Plus size={14} className="text-slate-300 dark:text-white/20 group-hover:text-brand-sienna transition-colors" />}
-              <input ref={fileInputRef} type="file" accept="image/*" multiple className="hidden" onChange={e => handleUpload(e.target.files)} />
-            </label>
           </div>
         ) : (
-          <label className="px-3 py-3 flex items-center gap-2 text-slate-400 dark:text-slate-600 text-[11px] cursor-pointer hover:text-brand-sienna dark:hover:text-brand-sienna hover:bg-amber-50/30 dark:hover:bg-brand-sienna/5 transition-colors">
-            {uploading
-              ? <div className="w-3.5 h-3.5 border-2 border-brand-sienna/30 border-t-brand-sienna rounded-full animate-spin" />
-              : <Camera size={11} />}
-            <span>{uploading ? "Uploading…" : "No photos — click to add"}</span>
-            <input type="file" accept="image/*" multiple className="hidden" onChange={e => handleUpload(e.target.files)} />
-          </label>
+          <div className="px-3 py-3 flex items-center gap-2 text-slate-300 dark:text-slate-700 text-[11px]">
+            <Camera size={11} />
+            <span>No photos</span>
+          </div>
         )}
       </div>
 
@@ -278,37 +367,8 @@ function ProjectWeeklySection({ project }: { project: ProjectMeta }) {
   const months = Array.from(new Map(weeks.map(w => [w.monthKey, w.monthKey])).entries());
   const [activeMonth, setActiveMonth] = useState(months[0]?.[0] ?? "");
   const [expanded, setExpanded]       = useState(false);
-  const bodyRef      = useRef<HTMLDivElement>(null);
-  const firstRender  = useRef(true);
-
-  useLayoutEffect(() => {
-    const el = bodyRef.current;
-    if (!el) return;
-
-    if (expanded) {
-      if (firstRender.current) {
-        // Initial mount already open — no animation needed, just allow free height
-        firstRender.current = false;
-        el.style.maxHeight = "none";
-        return;
-      }
-      // Re-expanding after collapse — animate from 0 → scrollHeight → none
-      el.style.maxHeight = `${el.scrollHeight}px`;
-      const onEnd = () => { el.style.maxHeight = "none"; };
-      el.addEventListener("transitionend", onEnd, { once: true });
-      return () => el.removeEventListener("transitionend", onEnd);
-    } else {
-      firstRender.current = false;
-      // Collapsing — if currently unconstrained, capture real height first
-      if (!el.style.maxHeight || el.style.maxHeight === "none") {
-        el.style.maxHeight = `${el.scrollHeight}px`;
-      }
-      requestAnimationFrame(() => { el.style.maxHeight = "0px"; });
-    }
-  }, [expanded]);
 
   const filteredWeeks = weeks.filter(w => w.monthKey === activeMonth);
-  const overallPct    = Number(project.overall_progress_pct ?? 0);
 
   return (
     <div className="rounded-2xl border border-slate-200/70 dark:border-white/8 overflow-hidden bg-white/60 dark:bg-zinc-900/50">
@@ -334,7 +394,6 @@ function ProjectWeeklySection({ project }: { project: ProjectMeta }) {
           </div>
           <div className="flex items-center gap-3 mt-1 flex-wrap">
             {project.unit_name && <span className="text-xs font-medium text-slate-600 dark:text-slate-300">{project.unit_name}</span>}
-            {project.current_phase_name && <span className="text-xs text-slate-500 dark:text-slate-400">Phase: <span className="font-medium">{project.current_phase_name}</span></span>}
             {getCurrentPic(project) && (
               <span className="text-xs text-slate-500 dark:text-slate-400">
                 PIC: <span className="font-medium text-slate-700 dark:text-slate-200">{getCurrentPic(project)}</span>
@@ -343,22 +402,23 @@ function ProjectWeeklySection({ project }: { project: ProjectMeta }) {
             {weeks.length > 0 && <span className="text-xs text-slate-400 dark:text-slate-500">{weeks.length} weeks</span>}
           </div>
         </div>
-        <div className="shrink-0 flex items-center gap-3">
-          <div className="text-right">
-            <p className="text-[9px] uppercase tracking-widest text-slate-400 mb-0.5">Overall</p>
-            <p className="text-sm font-bold text-slate-700 dark:text-slate-200">{overallPct.toFixed(1)}%</p>
-          </div>
-          <div className="w-16 h-1.5 rounded-full bg-slate-200 dark:bg-white/10 overflow-hidden">
-            <div className="h-full rounded-full bg-brand-sienna transition-all" style={{ width: `${Math.min(100, overallPct)}%` }} />
-          </div>
-          <ChevronDown size={15} className="text-slate-400 shrink-0 transition-transform duration-300" style={{ transform: expanded ? "rotate(0deg)" : "rotate(-90deg)" }} />
-        </div>
+        <ChevronDown size={15} className="text-slate-400 shrink-0 transition-transform duration-300" style={{ transform: expanded ? "rotate(0deg)" : "rotate(-90deg)" }} />
       </button>
 
       <div
-        ref={bodyRef}
-        style={{ overflow: "hidden", transition: "max-height 0.35s cubic-bezier(0.4,0,0.2,1)" }}
+        style={{
+          display: "grid",
+          gridTemplateRows: expanded ? "1fr" : "0fr",
+          transition: "grid-template-rows 0.35s cubic-bezier(0.4,0,0.2,1)",
+        }}
       >
+      <div style={{ overflow: "hidden" }}>
+        {/* Phase stepper */}
+        <PhaseStepperStrip project={project} />
+
+        {/* Phase notes (static, no async fetch) */}
+        <PhaseNotesStrip project={project} />
+
         {weeks.length === 0 ? (
           <div className="p-6 flex items-center gap-2 text-slate-400 dark:text-slate-600 text-xs">
             <Camera size={14} />
@@ -382,7 +442,7 @@ function ProjectWeeklySection({ project }: { project: ProjectMeta }) {
               ))}
             </div>
 
-            {/* Weeks grid — each WeekCard manages its own data & upload */}
+            {/* Weeks grid */}
             <div className="p-4 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
               {filteredWeeks.map(w => (
                 <WeekCard key={w.weekKey} {...w} projectId={project.id} />
@@ -390,6 +450,7 @@ function ProjectWeeklySection({ project }: { project: ProjectMeta }) {
             </div>
           </>
         )}
+      </div>
       </div>
     </div>
   );

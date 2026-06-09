@@ -69,6 +69,7 @@ export async function GET() {
         ob.progress_pct               AS brief_progress,
         ob.brief_text                 AS operational_brief,
         ob.budget_capex               AS budget_capex,
+        ob.notes                      AS brief_notes,
         (
           SELECT string_agg(DISTINCT COALESCE(NULLIF(pp.raw_person_name, ''), NULLIF(pp.raw_organization_name, '')), ', ')
           FROM project_people pp
@@ -84,6 +85,7 @@ export async function GET() {
         ds.design_duration_days,
         ds.brief_text                 AS design_brief,
         ds.working_drawing_status,
+        ds.notes                      AS design_notes,
         (
           SELECT string_agg(DISTINCT COALESCE(NULLIF(pp.raw_person_name, ''), NULLIF(pp.raw_organization_name, '')), ', ')
           FROM project_people pp
@@ -98,6 +100,7 @@ export async function GET() {
         pc.progress_pct               AS control_progress,
         pc.project_control_duration_days,
         pc.phase_contract_amount,
+        pc.notes                      AS control_notes,
         (
           SELECT string_agg(DISTINCT COALESCE(NULLIF(pp.raw_person_name, ''), NULLIF(pp.raw_organization_name, '')), ', ')
           FROM project_people pp
@@ -126,6 +129,7 @@ export async function GET() {
         hv.bast_2_date                AS handover_end,
         hv.progress_pct               AS handover_progress,
         hv.actual_phase_completion_date,
+        hv.notes                      AS handover_notes,
         (
           SELECT string_agg(DISTINCT COALESCE(NULLIF(pp.raw_person_name, ''), NULLIF(pp.raw_organization_name, '')), ', ')
           FROM project_people pp
