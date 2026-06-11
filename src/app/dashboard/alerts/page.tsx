@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { differenceInCalendarDays, format, formatDistanceToNow } from "date-fns";
-import { ShieldAlert, AlertTriangle, Clock, Sparkles, ArrowRight } from "lucide-react";
+import { ShieldAlert, AlertTriangle, Clock, Sparkles, ArrowRight, Search } from "lucide-react";
 
 type Project = {
   id: string;
@@ -159,6 +159,7 @@ export default function AlertsPage() {
     const t = searchParams.get("tab");
     return (["all", "overdue", "urgent", "soon", "new"].includes(t ?? "") ? t : "all") as Tab;
   });
+  const [search, setSearch] = useState("");
 
   const load = useCallback(async () => {
     try {
@@ -177,9 +178,13 @@ export default function AlertsPage() {
   }, [load]);
 
   const alerts   = buildAlerts(projects);
-  const filtered = tab === "all"
+  const byTab = tab === "all"
     ? [...new Map(alerts.map(a => [a.project.id + a.category, a])).values()]
     : alerts.filter(a => a.category === tab);
+  const filtered = search.trim()
+    ? byTab.filter(a => [a.project.project_name, a.project.project_code, a.project.unit_code, a.project.current_phase_name]
+        .join(" ").toLowerCase().includes(search.toLowerCase()))
+    : byTab;
 
   const counts = {
     overdue: alerts.filter(a => a.category === "overdue").length,
@@ -226,6 +231,17 @@ export default function AlertsPage() {
           );
         })}
       </div>
+
+      {/* Search */}
+      <label className="relative block w-full max-w-sm">
+        <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+        <input
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="Search project, unit, phase..."
+          className="w-full rounded-xl border border-slate-200/70 dark:border-white/10 bg-white/70 dark:bg-zinc-900/60 pl-8 pr-3 py-2 text-[12px] outline-none text-slate-800 dark:text-white"
+        />
+      </label>
 
       {/* Alert list */}
       {loading ? (

@@ -61,7 +61,8 @@
       "Bash(mkdir -p \"c:\\\\Users\\\\abrah\\\\Work_Projects\\\\Project-Dashboard\\\\src\\\\app\\\\api\\\\projects\\\\[id]\\\\tasks\" 2>&1; echo done)",
       "Bash(latexmk -pdf -interaction=nonstopmode -g MAGANG.tex)",
       "Bash(latexmk -C MAGANG.tex)",
-      "Bash(latexmk -pdf -interaction=nonstopmode MAGANG.tex)"
+      "Bash(latexmk -pdf -interaction=nonstopmode MAGANG.tex)",
+      "Bash(PGPASSWORD=clickup123 psql -h 202.83.121.156 -p 5433 -U cici -d cici -c ' *)"
     ],
     "additionalDirectories": [
       "C:\\Users\\abrah\\clickup-dashboard\\src\\app\\api\\clickup",

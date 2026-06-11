@@ -9,7 +9,6 @@ const AUTH_COOKIE_NAME = 'auth_token';
 const PROTECTED_API_PREFIXES = [
   '/api/ai-telemetry',
   '/api/capex',
-  '/api/clickup',
   '/api/gchat/notify',
   '/api/google/calendar',
   '/api/google/oauth/start',

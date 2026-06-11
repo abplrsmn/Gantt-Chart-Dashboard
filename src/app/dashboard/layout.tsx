@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
   Home, Users, AlertTriangle, Server, CalendarRange,
-  Bell, X, Database, BarChart2, ShieldAlert, SunMoon, LogOut, Settings,
+  Bell, X, Database, BarChart2, ShieldAlert, SunMoon, LogOut, Settings, TableProperties,
 } from "lucide-react";
 import { useTheme } from "@/components/ThemeProvider";
 
@@ -190,13 +190,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const isPm = userRole === "pm";
 
   const adminNavItems = [
-    { icon: <Home size={16} />,          label: "Home",          path: "/dashboard" },
-    { icon: <CalendarRange size={16} />, label: "Projects",      path: "/dashboard/projects/gantt" },
-    { icon: <BarChart2 size={16} />,     label: "Weekly Report", path: "/dashboard/weekly-report" },
-    { icon: <Users size={16} />,         label: "Team",          path: "/dashboard/team" },
-    { icon: <ShieldAlert size={16} />,   label: "Alerts",        path: "/dashboard/alerts", badge: alertCount },
-    { icon: <Server size={16} />,        label: "Controls",      path: "/dashboard/controls" },
-    { icon: <Database size={16} />,      label: "Master Setup",  path: "/dashboard/master" },
+    { icon: <Home size={16} />,             label: "Home",          path: "/dashboard" },
+    { icon: <CalendarRange size={16} />,    label: "Projects",      path: "/dashboard/projects/gantt" },
+    { icon: <TableProperties size={16} />,  label: "Summary",       path: "/dashboard/projects/summary-matrix" },
+    { icon: <BarChart2 size={16} />,        label: "Report",        path: "/dashboard/weekly-report" },
+    { icon: <Users size={16} />,            label: "Team",          path: "/dashboard/team" },
+    { icon: <ShieldAlert size={16} />,      label: "Alerts",        path: "/dashboard/alerts", badge: alertCount },
+    { icon: <Server size={16} />,           label: "Controls",      path: "/dashboard/controls" },
+    { icon: <Database size={16} />,         label: "Master Setup",  path: "/dashboard/master" },
   ];
 
   const pmNavItems = [
@@ -206,10 +207,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   const navItems = isPm ? pmNavItems : adminNavItems;
 
-  // Active match: exact for home, prefix for others
+  // Active match: exact for home & summary-matrix, prefix for others
   function isActive(path: string) {
     if (path === "/dashboard") return pathname === "/dashboard";
-    return pathname === path || pathname.startsWith(path.replace("/gantt", ""));
+    if (path === "/dashboard/projects/summary-matrix") return pathname === path;
+    if (path === "/dashboard/projects/gantt") {
+      return pathname === path || (pathname.startsWith("/dashboard/projects") && pathname !== "/dashboard/projects/summary-matrix");
+    }
+    return pathname === path || pathname.startsWith(path);
   }
 
   return (

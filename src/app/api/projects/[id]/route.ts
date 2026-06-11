@@ -149,11 +149,17 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   let client;
   try {
     client = await pool.connect();
-    const [projectRes, peopleRes, logsRes, attachmentsRes] = await Promise.all([
+    const [projectRes, peopleRes, logsRes, attachmentsRes, tasksRes] = await Promise.all([
       client.query(`
         SELECT
           p.id, p.project_code, p.project_name, p.overall_progress_pct,
-          p.start_date, p.end_date, p.budget_capex, p.contract_amount,
+          p.start_date, p.end_date, p.contract_amount,
+          ob.budget_capex,
+          ob.id::text AS brief_phase_row_id,
+          ds.id::text AS design_phase_row_id,
+          pc.id::text AS control_phase_row_id,
+          pm.id::text AS pm_phase_row_id,
+          hv.id::text AS handover_phase_row_id,
           p.summary_brief, p.address, p.blocker_note, p.next_action_note,
           mp_phase.phase_name   AS current_phase_name,
           mp_phase.phase_code   AS current_phase_code,
@@ -243,12 +249,25 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
           pa.source_message_id,
           pa.uploaded_by_name,
           pa.created_at,
+          pa.phase_id::text AS phase_id,
           mp.phase_name
         FROM project_attachments pa
         LEFT JOIN project_phases pp ON pp.id = pa.phase_id
         LEFT JOIN master_phases mp ON mp.id = pp.phase_id
         WHERE pa.project_id = $1
         ORDER BY pa.created_at DESC, pa.id DESC
+      `, [id]),
+
+      client.query(`
+        SELECT pt.id::text, pt.title,
+               COALESCE(pt.progress_pct, 0)::numeric AS progress_pct,
+               pt.phase_id::text AS phase_id,
+               pt.item_order,
+               pt.raw_assignee_name,
+               pt.raw_assigned_by_name
+        FROM project_tasks pt
+        WHERE pt.project_id = $1
+        ORDER BY pt.phase_id NULLS LAST, pt.item_order, pt.id
       `, [id]),
     ]);
 
@@ -263,6 +282,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
         people: peopleRes.rows,
         logs: logsRes.rows,
         attachments: attachmentsRes.rows,
+        tasks: tasksRes.rows,
       },
     });
   } catch (err: unknown) {

@@ -352,8 +352,8 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 *::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
+  width: 8px;
+  height: 8px;
 }
 
 *::-webkit-scrollbar-track {
@@ -374,6 +374,9 @@ h1, h2, h3, h4, h5, h6 {
 *::-webkit-scrollbar-corner {
   background: transparent;
 }
+
+.no-scrollbar { scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
 
 /* Legacy .scrollbar-border — keep for any components still using it */
 .scrollbar-border {

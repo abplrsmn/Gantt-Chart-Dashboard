@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
-import { ArrowLeft, Search } from "lucide-react";
+import { Search } from "lucide-react";
 import ProjectSummaryMatrix from "./ProjectSummaryMatrix";
 import AnimatedDropdown from "./AnimatedDropdown";
 
@@ -38,7 +37,6 @@ function getCurrentPic(p: ProjectRow): string | null {
 
 
 export default function ProjectSummaryMatrixPage() {
-  const router = useRouter();
   const [projects, setProjects] = useState<ProjectRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError]   = useState<string | null>(null);
@@ -67,7 +65,7 @@ export default function ProjectSummaryMatrixPage() {
     if (prioFilter  !== "ALL" && p.priority_code !== prioFilter) return false;
     if (picFilter   !== "ALL" && getCurrentPic(p) !== picFilter) return false;
     if (search) {
-      const hay = [p.project_name, p.project_code, p.unit_code, p.unit_name, p.current_phase_name, p.status_label]
+      const hay = [p.project_name, p.project_code, p.unit_code, p.unit_name, p.current_phase_name, p.status_label, p.brief_pic, p.design_pic, p.control_pic, p.pm_pic, p.handover_pic]
         .join(" ").toLowerCase();
       if (!hay.includes(search.toLowerCase())) return false;
     }
@@ -107,14 +105,6 @@ export default function ProjectSummaryMatrixPage() {
     <div className="space-y-4 pb-6 animate-page-enter">
       {/* Toolbar: Back | Search | Filters */}
       <div className="flex items-center gap-3 mb-4">
-
-        {/* Back */}
-        <button
-          onClick={() => router.push("/dashboard/projects/gantt")}
-          className="flex items-center gap-1.5 text-sm font-semibold text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors shrink-0"
-        >
-          <ArrowLeft size={15} /> Back
-        </button>
 
         {/* Search — grows to fill middle */}
         <div className="flex-1 flex justify-center">

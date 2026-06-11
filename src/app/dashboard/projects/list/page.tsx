@@ -131,8 +131,8 @@ function ProjectListContent() {
       {/* Header */}
       <div className="flex items-center gap-3">
         <button
-          onClick={() => router.push("/dashboard/projects/gantt")}
-          className="flex items-center gap-1.5 text-sm font-semibold text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors shrink-0"
+          onClick={() => router.back()}
+          className="flex items-center gap-1.5 px-3 py-2 text-sm font-semibold text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors shrink-0"
         >
           <ArrowLeft size={15} />
           Back
@@ -227,7 +227,7 @@ function ProjectListContent() {
                       <td className="px-4 py-3 whitespace-nowrap">
                         <button
                           onClick={() => router.push(`/dashboard/projects/${p.id}`)}
-                          className="px-3 py-1 rounded-lg bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 text-[11px] font-bold hover:bg-cyan-500 hover:text-white transition-all shadow-sm"
+                          className="px-3 py-1 rounded-lg bg-amber-800/10 text-amber-800 dark:text-amber-400 text-[11px] font-bold hover:bg-amber-800 hover:text-white transition-all shadow-sm"
                         >
                           Details
                         </button>

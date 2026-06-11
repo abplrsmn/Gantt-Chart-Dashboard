@@ -2,13 +2,13 @@
 
 import { useEffect, useMemo, useRef, useState, Fragment } from "react";
 import { createPortal } from "react-dom";
-import { useRouter, useParams } from "next/navigation";
+import { useRouter, useParams, useSearchParams } from "next/navigation";
 import { format } from "date-fns";
 import {
   ArrowLeft, ChevronRight, ChevronDown,
   User, Users, Building2,
   Activity, Clock, FileText, MapPin, Pencil,
-  Camera, Trash2, Loader2, X, Plus
+  Camera, Trash2, Loader2, X, Plus, Upload, CheckSquare, Square
 } from "lucide-react";
 import SCurveCharts from "@/components/dashboard/SCurveCharts";
 
@@ -36,6 +36,11 @@ type ProjectDetail = {
   unit_code: string | null;
   unit_name: string | null;
   category_name: string | null;
+  brief_phase_row_id: string | null;
+  design_phase_row_id: string | null;
+  control_phase_row_id: string | null;
+  pm_phase_row_id: string | null;
+  handover_phase_row_id: string | null;
   brief_deadline: string | null;
   brief_received: string | null;
   brief_progress: string | null;
@@ -61,6 +66,15 @@ type ProjectDetail = {
   handover_progress: string | null;
   actual_phase_completion_date: string | null;
   handover_notes: string | null;
+};
+
+type TaskRow = {
+  id: string;
+  title: string;
+  progress_pct: number;
+  phase_id: string | null;
+  raw_assignee_name: string | null;
+  raw_assigned_by_name: string | null;
 };
 
 type PersonRow = {
@@ -89,6 +103,7 @@ type AttachmentRow = {
   source_message_id: string | null;
   uploaded_by_name: string | null;
   created_at: string;
+  phase_id: string | null;
   phase_name: string | null;
 };
 
@@ -108,6 +123,15 @@ function fmtCurrency(v: string | null): string {
   return `Rp ${n.toLocaleString("id-ID")}`;
 }
 
+function fmtBytes(v: string | null): string {
+  if (!v) return "";
+  const n = Number(v);
+  if (isNaN(n) || n === 0) return "";
+  if (n < 1024) return `${n} B`;
+  if (n < 1_048_576) return `${(n / 1024).toFixed(0)} KB`;
+  return `${(n / 1_048_576).toFixed(1)} MB`;
+}
+
 function toInputValue(fmt: FieldDef["format"], raw: string | null): string {
   if (!raw) return "";
   if (fmt === "date") {
@@ -119,13 +143,14 @@ function toInputValue(fmt: FieldDef["format"], raw: string | null): string {
 
 // ─── InlineField ──────────────────────────────────────────────────────────────
 function InlineField({
-  label, value, format: fmt, fullWidth, onSave,
+  label, value, format: fmt, fullWidth, onSave, readOnly,
 }: {
   label: string;
   value: string | null;
   format: FieldDef["format"];
   fullWidth?: boolean;
   onSave: (raw: string | null) => Promise<void>;
+  readOnly?: boolean;
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
@@ -134,6 +159,7 @@ function InlineField({
   const taRef = useRef<HTMLTextAreaElement>(null);
 
   function startEdit() {
+    if (readOnly) return;
     setDraft(toInputValue(fmt, value));
     setEditing(true);
     setTimeout(() => (fullWidth ? taRef.current?.focus() : inputRef.current?.focus()), 0);
@@ -153,7 +179,7 @@ function InlineField({
     : String(value);
 
   const wrapCls = fullWidth ? "col-span-2" : "";
-  const labelEl = <p className="text-[9px] uppercase tracking-widest text-slate-400 mb-0.5">{label}</p>;
+  const labelEl = <p className="text-[9px] uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-0.5">{label}</p>;
   const inputCls = "w-full bg-white dark:bg-zinc-800 border border-cyan-400 rounded px-2 py-0.5 text-xs text-slate-700 dark:text-slate-200 outline-none ring-2 ring-cyan-400/30";
 
   if (editing) {
@@ -186,14 +212,49 @@ function InlineField({
   }
 
   return (
-    <div className={`group cursor-pointer ${wrapCls}`} onClick={startEdit}>
+    <div className={`${readOnly ? "" : "group cursor-pointer"} ${wrapCls}`} onClick={startEdit}>
       {labelEl}
       <div className="flex items-center gap-1">
-        <p className={`font-semibold ${fullWidth ? "text-[11px] leading-relaxed" : "text-xs"} ${displayVal === "—" ? "text-slate-500 dark:text-slate-600 italic" : "text-slate-700 dark:text-slate-200"} group-hover:text-cyan-500 dark:group-hover:text-cyan-400 transition-colors ${saving ? "opacity-50" : ""}`}>
+        <p className={`font-semibold ${fullWidth ? "text-[11px] leading-relaxed" : "text-xs"} ${displayVal === "—" ? "text-slate-400 dark:text-slate-500 italic" : "text-slate-700 dark:text-slate-200"} ${!readOnly ? "group-hover:text-cyan-500 dark:group-hover:text-cyan-400" : ""} transition-colors ${saving ? "opacity-50" : ""}`}>
           {displayVal}
         </p>
-        <Pencil size={9} className="text-slate-400 opacity-0 group-hover:opacity-60 transition-opacity shrink-0" />
+        {!readOnly && <Pencil size={9} className="text-slate-400 dark:text-slate-500 opacity-0 group-hover:opacity-60 transition-opacity shrink-0" />}
       </div>
+    </div>
+  );
+}
+
+// ─── NotesBox — always-visible textarea that saves on blur ────────────────────
+function NotesBox({ value, onSave, readOnly }: { value: string | null; onSave: (v: string | null) => Promise<void>; readOnly?: boolean }) {
+  const [draft, setDraft] = useState(value ?? "");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => { setDraft(value ?? ""); }, [value]);
+
+  async function handleBlur() {
+    const next = draft.trim() === "" ? null : draft.trim();
+    const current = value?.trim() === "" ? null : value?.trim() ?? null;
+    if (next === current) return;
+    setSaving(true);
+    try { await onSave(next); } finally { setSaving(false); }
+  }
+
+  return (
+    <div className="relative">
+      <textarea
+        value={draft}
+        onChange={e => setDraft(e.target.value)}
+        onBlur={handleBlur}
+        readOnly={readOnly}
+        rows={3}
+        placeholder={readOnly ? "—" : "Tulis notes..."}
+        className={`w-full text-xs px-3 py-2 rounded-lg border resize-none outline-none transition-all leading-relaxed
+          ${readOnly
+            ? "bg-slate-50 dark:bg-white/2 border-slate-200/40 dark:border-white/6 text-slate-500 dark:text-slate-400 cursor-default placeholder:text-slate-300 dark:placeholder:text-slate-600"
+            : "bg-white dark:bg-zinc-800/60 border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-200 placeholder:text-slate-300 dark:placeholder:text-slate-600 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20"
+          } ${saving ? "opacity-50" : ""}`}
+      />
+      {saving && <Loader2 size={10} className="absolute top-2 right-2 animate-spin text-cyan-400" />}
     </div>
   );
 }
@@ -267,6 +328,7 @@ type PhaseDef = {
   startKey: keyof ProjectDetail;
   endKey: keyof ProjectDetail;
   fields: FieldDef[];
+  phaseRowIdKey: keyof ProjectDetail;
 };
 
 const PHASE_DEFS: PhaseDef[] = [
@@ -275,6 +337,7 @@ const PHASE_DEFS: PhaseDef[] = [
     label: "Operational Brief", color: "#64748b", weight: 10,
     progressKey: "brief_progress",
     startKey: "brief_received", endKey: "brief_deadline",
+    phaseRowIdKey: "brief_phase_row_id",
     fields: [
       { label: "Brief Received",  key: "brief_received", format: "date" },
       { label: "Brief Deadline",  key: "brief_deadline", format: "date" },
@@ -286,6 +349,7 @@ const PHASE_DEFS: PhaseDef[] = [
     label: "Design", color: "#3b82f6", weight: 20,
     progressKey: "design_progress",
     startKey: "design_start", endKey: "design_end",
+    phaseRowIdKey: "design_phase_row_id",
     fields: [
       { label: "Start Design",    key: "design_start",           format: "date" },
       { label: "Design Approval", key: "design_end",             format: "date" },
@@ -298,6 +362,7 @@ const PHASE_DEFS: PhaseDef[] = [
     label: "Project Control", color: "#f59e0b", weight: 15,
     progressKey: "control_progress",
     startKey: "control_start", endKey: "control_end",
+    phaseRowIdKey: "control_phase_row_id",
     fields: [
       { label: "Tender Start",     key: "control_start",         format: "date" },
       { label: "SPK Released",     key: "control_end",           format: "date" },
@@ -310,6 +375,7 @@ const PHASE_DEFS: PhaseDef[] = [
     label: "Project Management", color: "#14b8a6", weight: 45,
     progressKey: "pm_progress",
     startKey: "pm_start", endKey: "pm_end",
+    phaseRowIdKey: "pm_phase_row_id",
     fields: [
       { label: "Commence Date", key: "pm_start",              format: "date" },
       { label: "End Contract",  key: "pm_end",                format: "date" },
@@ -323,6 +389,7 @@ const PHASE_DEFS: PhaseDef[] = [
     label: "Handover", color: "#22c55e", weight: 10,
     progressKey: "handover_progress",
     startKey: "handover_start", endKey: "handover_end",
+    phaseRowIdKey: "handover_phase_row_id",
     fields: [
       { label: "BAST 1",          key: "handover_start",               format: "date" },
       { label: "BAST 2",          key: "handover_end",                 format: "date" },
@@ -332,16 +399,59 @@ const PHASE_DEFS: PhaseDef[] = [
   },
 ];
 
-function PhaseCard({ ph, project, isCurrent, isPast, people, onSave }: {
+function PhaseCard({
+  ph, project, isCurrent, isPast, people, onSave,
+  phaseRowId, tasks, attachments,
+  onTaskAdd, onTaskToggle, onTaskDelete,
+  onFileUpload, onFileDelete,
+}: {
   ph: PhaseDef;
   project: ProjectDetail;
   isCurrent: boolean;
   isPast: boolean;
   people: PersonRow[];
   onSave: (key: keyof ProjectDetail, value: string | null) => Promise<void>;
+  phaseRowId: string | null;
+  tasks: TaskRow[];
+  attachments: AttachmentRow[];
+  onTaskAdd: (title: string, assigneeName?: string | null, assignedByName?: string | null) => Promise<void>;
+  onTaskToggle: (taskId: string, done: boolean) => Promise<void>;
+  onTaskDelete: (taskId: string) => Promise<void>;
+  onFileUpload: (file: File) => Promise<void>;
+  onFileDelete: (attachmentId: string) => Promise<void>;
 }) {
+  const isLocked    = !isCurrent;
   const phasePeople = people.filter(p => Number(p.phase_id) === ph.phaseId);
-  const assignedBy  = phasePeople.filter(p => p.role_code === "pic");
+
+  const [newTaskInput,      setNewTaskInput]      = useState("");
+  const [newTaskAssignee,   setNewTaskAssignee]   = useState("");
+  const [newTaskAssignedBy, setNewTaskAssignedBy] = useState("");
+  const [addingTask,        setAddingTask]        = useState(false);
+  const [uploadingFile,     setUploadingFile]     = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  async function handleTaskAdd() {
+    if (!newTaskInput.trim()) return;
+    setAddingTask(true);
+    try {
+      await onTaskAdd(newTaskInput.trim(), newTaskAssignee.trim() || null, newTaskAssignedBy.trim() || null);
+      setNewTaskInput("");
+      setNewTaskAssignee("");
+      setNewTaskAssignedBy("");
+    }
+    finally { setAddingTask(false); }
+  }
+
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingFile(true);
+    try { await onFileUpload(file); }
+    finally { setUploadingFile(false); if (fileInputRef.current) fileInputRef.current.value = ""; }
+  }
+
+  const inputCls = "flex-1 text-[10px] px-2 py-1 rounded-lg border border-dashed border-slate-200/70 dark:border-white/8 bg-transparent text-slate-700 dark:text-slate-300 placeholder:text-slate-300 dark:placeholder:text-slate-600 outline-none focus:border-cyan-400/60 focus:ring-1 focus:ring-cyan-400/20 transition-all";
+  const addBtnCls = "p-1 rounded-lg bg-slate-100 dark:bg-white/8 text-slate-500 hover:bg-slate-200 dark:hover:bg-white/12 disabled:opacity-40 transition-colors shrink-0";
 
   return (
     <div
@@ -368,10 +478,16 @@ function PhaseCard({ ph, project, isCurrent, isPast, people, onSave }: {
               CURRENT PHASE
             </span>
           )}
+          {isLocked && (
+            <span className="ml-2 text-[8px] font-semibold px-2 py-0.5 rounded-full align-middle text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-white/6 border border-slate-200/60 dark:border-white/8">
+              NOT STARTED
+            </span>
+          )}
         </span>
       </div>
 
       <div className="px-4 py-3 bg-white/40 dark:bg-zinc-900/30 space-y-3">
+        {/* ── Date/field grid ── */}
         <div className="grid grid-cols-2 gap-x-6 gap-y-3">
           {ph.fields.filter(f => f.label !== "Notes").map(f => (
             <InlineField
@@ -380,38 +496,171 @@ function PhaseCard({ ph, project, isCurrent, isPast, people, onSave }: {
               value={project[f.key] as string | null}
               format={f.format}
               fullWidth={f.fullWidth}
+              readOnly={isLocked}
               onSave={v => onSave(f.key, v)}
             />
           ))}
 
-          <div className="col-span-2">
-            <p className="text-[9px] uppercase tracking-widest text-slate-400 mb-1">Assigned By</p>
-            {assignedBy.length > 0 ? (
-              <div className="flex flex-wrap gap-1.5">
-                {assignedBy.map(a => (
-                  <span key={a.id} className="inline-flex items-center gap-1 text-[10px] font-medium text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-white/6 px-2 py-0.5 rounded-md">
-                    <User size={9} className="text-slate-400 shrink-0" />
-                    {a.full_name ?? a.raw_person_name ?? "—"}
-                  </span>
-                ))}
-              </div>
-            ) : (
-              <p className="text-[10px] italic text-slate-400 dark:text-slate-600">—</p>
-            )}
-          </div>
         </div>
 
+        {/* Notes */}
         {ph.fields.filter(f => f.label === "Notes").map(f => (
           <div key={f.key as string} className="pt-2 border-t border-slate-200/40 dark:border-white/6">
-            <InlineField
-              label="Notes"
+            <p className="text-[9px] uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1.5">Notes</p>
+            <NotesBox
               value={project[f.key] as string | null}
-              format={f.format}
-              fullWidth
+              readOnly={isLocked}
               onSave={v => onSave(f.key, v)}
             />
           </div>
         ))}
+
+        {/* ── Sub-Tasks ── */}
+        <div className="pt-3 border-t border-slate-200/40 dark:border-white/6">
+          <p className="text-[9px] uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-2">Sub-Tasks</p>
+          {tasks.length > 0 && (
+            <div className="space-y-1 mb-2">
+              {tasks.map(t => {
+                const done = Number(t.progress_pct) >= 100;
+                return (
+                  <div key={t.id} className="flex items-center gap-2 group py-1.5 px-2 rounded-lg hover:bg-slate-50 dark:hover:bg-white/4 transition-colors">
+                    <button
+                      onClick={() => !isLocked && onTaskToggle(t.id, !done)}
+                      className={`shrink-0 transition-colors ${isLocked ? "cursor-default text-slate-300 dark:text-slate-600" : "text-slate-400 hover:text-cyan-500"}`}
+                    >
+                      {done
+                        ? <CheckSquare size={16} className={isLocked ? "text-slate-300 dark:text-slate-600" : "text-cyan-500"} />
+                        : <Square size={16} />
+                      }
+                    </button>
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-sm leading-snug ${done ? "line-through text-slate-400 dark:text-slate-600" : "text-slate-700 dark:text-slate-200"}`}>
+                        {t.title}
+                      </p>
+                      {(t.raw_assignee_name || t.raw_assigned_by_name) && (
+                        <div className="flex items-center gap-2 mt-0.5">
+                          {t.raw_assignee_name && (
+                            <span className="inline-flex items-center gap-1 text-[10px] text-slate-500 dark:text-slate-400">
+                              <User size={10} className="shrink-0" />
+                              {t.raw_assignee_name}
+                            </span>
+                          )}
+                          {t.raw_assigned_by_name && (
+                            <span className="inline-flex items-center gap-1 text-[10px] text-slate-400 dark:text-slate-400">
+                              <span className="text-[9px]">by</span>
+                              {t.raw_assigned_by_name}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    {!isLocked && (
+                      <button
+                        onClick={() => onTaskDelete(t.id)}
+                        className="opacity-0 group-hover:opacity-60 hover:opacity-100! text-slate-400 hover:text-rose-500 transition-all shrink-0"
+                      >
+                        <Trash2 size={18} />
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          {tasks.length === 0 && (
+            <p className="text-[10px] italic text-slate-400 dark:text-slate-500 mb-2">No sub-tasks</p>
+          )}
+          {!isLocked && phaseRowId && (
+            <div className="space-y-2 pt-2 border-t border-dashed border-slate-200/50 dark:border-white/6 mt-2">
+              <div>
+                <p className="text-[9px] uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1">Nama Sub-Task</p>
+                <input
+                  value={newTaskInput}
+                  onChange={e => setNewTaskInput(e.target.value)}
+                  onKeyDown={e => { if (e.key === "Enter") handleTaskAdd(); }}
+                  placeholder="Tulis nama sub-task..."
+                  className="w-full text-xs px-3 py-2 rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-zinc-800 text-slate-700 dark:text-slate-200 placeholder:text-slate-300 dark:placeholder:text-slate-600 outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20 transition-all"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <p className="text-[9px] uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1">Assignee</p>
+                  <input
+                    value={newTaskAssignee}
+                    onChange={e => setNewTaskAssignee(e.target.value)}
+                    placeholder="Nama assignee..."
+                    className="w-full text-xs px-3 py-2 rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-zinc-800 text-slate-700 dark:text-slate-200 placeholder:text-slate-300 dark:placeholder:text-slate-600 outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20 transition-all"
+                  />
+                </div>
+                <div>
+                  <p className="text-[9px] uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1">Assigned By</p>
+                  <input
+                    value={newTaskAssignedBy}
+                    onChange={e => setNewTaskAssignedBy(e.target.value)}
+                    placeholder="Nama yang assign..."
+                    className="w-full text-xs px-3 py-2 rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-zinc-800 text-slate-700 dark:text-slate-200 placeholder:text-slate-300 dark:placeholder:text-slate-600 outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20 transition-all"
+                  />
+                </div>
+              </div>
+              <button
+                onClick={handleTaskAdd}
+                disabled={addingTask || !newTaskInput.trim()}
+                className="w-full flex items-center justify-center gap-1.5 text-xs font-medium py-2 px-3 rounded-lg bg-cyan-500 hover:bg-cyan-600 disabled:opacity-40 text-white transition-colors"
+              >
+                {addingTask ? <Loader2 size={12} className="animate-spin" /> : <Plus size={12} />}
+                Tambah Sub-Task
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* ── Documents ── */}
+        <div className="pt-3 border-t border-slate-200/40 dark:border-white/6">
+          <div className="flex items-center gap-2 mb-2">
+            <p className="text-[9px] uppercase tracking-widest text-slate-400">Documents</p>
+            {!isLocked && phaseRowId && (
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploadingFile}
+                className="flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-white/8 text-slate-500 dark:text-slate-400 hover:bg-cyan-50 hover:text-cyan-600 dark:hover:bg-cyan-500/10 dark:hover:text-cyan-400 disabled:opacity-40 transition-colors"
+              >
+                {uploadingFile ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />}
+                Upload
+              </button>
+            )}
+          </div>
+          <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileChange} />
+          {attachments.length > 0 ? (
+            <div className="space-y-1">
+              {attachments.map(a => (
+                <div key={a.id} className="flex items-center gap-2 group rounded-lg px-2 py-1 hover:bg-slate-50 dark:hover:bg-white/4 transition-colors">
+                  <FileText size={10} className="text-slate-400 shrink-0" />
+                  <a
+                    href={a.file_url ?? "#"}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex-1 text-[10px] text-slate-600 dark:text-slate-300 truncate hover:text-cyan-500 dark:hover:text-cyan-400 hover:underline transition-colors"
+                  >
+                    {a.file_name}
+                  </a>
+                  {a.file_size_bytes && (
+                    <span className="text-[9px] text-slate-400 shrink-0">{fmtBytes(a.file_size_bytes)}</span>
+                  )}
+                  {!isLocked && (
+                    <button
+                      onClick={() => onFileDelete(a.id)}
+                      className="opacity-0 group-hover:opacity-60 hover:opacity-100! text-slate-400 hover:text-rose-500 transition-all shrink-0"
+                    >
+                      <X size={10} />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-[10px] italic text-slate-400 dark:text-slate-500">No documents yet</p>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -422,10 +671,15 @@ function PhaseCard({ ph, project, isCurrent, isPast, people, onSave }: {
 export default function ProjectDetailPage() {
   const router = useRouter();
   const { id } = useParams<{ id: string }>();
+  const searchParams = useSearchParams();
+  const backTo = searchParams.get("from") === "summary"
+    ? "/dashboard/projects/summary-matrix"
+    : "/dashboard/projects/gantt";
 
   const [project, setProject] = useState<ProjectDetail | null>(null);
-  const [people, setPeople]   = useState<PersonRow[]>([]);
-  const [, setAttachments] = useState<AttachmentRow[]>([]);
+  const [people, setPeople]         = useState<PersonRow[]>([]);
+  const [attachments, setAttachments] = useState<AttachmentRow[]>([]);
+  const [tasks, setTasks]           = useState<TaskRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -483,6 +737,7 @@ export default function ProjectDetailPage() {
           setProject(json.data.project);
           setPeople(json.data.people);
           setAttachments(json.data.attachments ?? []);
+          setTasks(json.data.tasks ?? []);
         } else {
           setError(json.error ?? "Unknown error");
         }
@@ -543,6 +798,62 @@ export default function ProjectDetailPage() {
     });
   }
 
+  async function handleTaskAdd(phaseRowId: string, title: string, assigneeName?: string | null, assignedByName?: string | null) {
+    const res = await fetch(`/api/projects/${id}/tasks`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title, phase_id: phaseRowId, raw_assignee_name: assigneeName ?? null, raw_assigned_by_name: assignedByName ?? null }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      setTasks(prev => [...prev, {
+        id: data.data.id,
+        title: data.data.title,
+        progress_pct: Number(data.data.progress_pct ?? 0),
+        phase_id: phaseRowId,
+        raw_assignee_name: data.data.raw_assignee_name ?? null,
+        raw_assigned_by_name: data.data.raw_assigned_by_name ?? null,
+      }]);
+    }
+  }
+
+  async function handleTaskToggle(taskId: string, done: boolean) {
+    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, progress_pct: done ? 100 : 0 } : t));
+    await fetch(`/api/projects/${id}/tasks`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ taskId, progress_pct: done ? 100 : 0 }),
+    });
+  }
+
+  async function handleTaskDelete(taskId: string) {
+    setTasks(prev => prev.filter(t => t.id !== taskId));
+    await fetch(`/api/projects/${id}/tasks`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ taskId }),
+    });
+  }
+
+  async function handleFileUpload(phaseRowId: string, file: File) {
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("phase_id", phaseRowId);
+    const res = await fetch(`/api/projects/${id}/attachments`, { method: "POST", body: formData });
+    const data = await res.json();
+    if (data.success) {
+      setAttachments(prev => [{ ...data.data, phase_name: null }, ...prev]);
+    }
+  }
+
+  async function handleFileDelete(attachmentId: string) {
+    setAttachments(prev => prev.filter(a => a.id !== attachmentId));
+    await fetch(`/api/projects/${id}/attachments`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ attachmentId }),
+    });
+  }
 
   const scProject = useMemo(() => {
     if (!project) return null;
@@ -585,8 +896,8 @@ export default function ProjectDetailPage() {
     return (
       <div className="glass-card p-12 flex flex-col items-center gap-3 text-center">
         <p className="text-sm font-semibold text-red-400">{error ?? "Project not found"}</p>
-        <button onClick={() => router.push("/dashboard/projects/gantt")} className="text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors">
-          ← Back to Projects
+        <button onClick={() => router.back()} className="text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors">
+          ← Back
         </button>
       </div>
     );
@@ -598,8 +909,8 @@ export default function ProjectDetailPage() {
       {/* ── Header ─────────────────────────────────────────────────────── */}
       <div className="flex items-center gap-3">
         <button
-          onClick={() => router.push("/dashboard/projects/gantt")}
-          className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-semibold text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors shrink-0"
+          onClick={() => router.push(backTo)}
+          className="flex items-center gap-1.5 px-3 py-2 text-sm font-semibold text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors shrink-0"
         >
           <ArrowLeft size={15} />
           Back
@@ -796,7 +1107,7 @@ export default function ProjectDetailPage() {
               </div>
             </div>
             <div>
-              <label className="text-[10px] uppercase tracking-widest text-slate-400 mb-1.5 block">
+              <label className="text-[10px] uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1.5 block">
                 Reason / Notes <span className="text-red-400">*</span>
               </label>
               <textarea
@@ -869,7 +1180,7 @@ export default function ProjectDetailPage() {
               </div>
             </div>
             <div>
-              <label className="text-[10px] uppercase tracking-widest text-slate-400 mb-1.5 block">
+              <label className="text-[10px] uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1.5 block">
                 Note / Reason <span className="text-red-400">*</span>
               </label>
               <textarea
@@ -922,7 +1233,7 @@ export default function ProjectDetailPage() {
           {/* ── Left ── */}
           <div className="p-4 space-y-4">
             <div>
-              <p className="text-[10px] uppercase tracking-widest text-slate-400 mb-1">Project Name</p>
+              <p className="text-[10px] uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1">Project Name</p>
               <InlineText
                 value={project.project_name}
                 onSave={v => patchField("project_name", v)}
@@ -930,21 +1241,21 @@ export default function ProjectDetailPage() {
               />
             </div>
             <div>
-              <p className="text-[10px] uppercase tracking-widest text-slate-400 mb-1">Project ID</p>
+              <p className="text-[10px] uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1">Project ID</p>
               <p className="text-sm font-semibold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-white/5 px-2 py-1 rounded inline-block">
                 {project.project_code}
               </p>
             </div>
             <div className="flex items-start gap-4 flex-wrap">
               <div onClick={e => e.stopPropagation()}>
-                <p className="text-[10px] uppercase tracking-widest text-slate-400 mb-1">Priority</p>
+                <p className="text-[10px] uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1">Priority</p>
                 <button
                   ref={priorityBtnRef}
                   onClick={e => { e.stopPropagation(); setShowPriorityPicker(v => !v); }}
-                  className="inline-flex items-center gap-1.5 text-xs font-semibold px-2 py-0.5 rounded-md transition-all"
+                  className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2 py-0.5 rounded-md transition-all ${!project.priority_color ? "bg-slate-100 dark:bg-white/8 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-white/10" : ""}`}
                   style={project.priority_color
                     ? { backgroundColor: `${project.priority_color}20`, color: project.priority_color, border: `1.5px solid ${project.priority_color}60` }
-                    : { backgroundColor: "rgba(0,0,0,0.05)", color: "var(--slate-500)", border: "1.5px solid rgba(0,0,0,0.08)" }
+                    : undefined
                   }
                 >
                   <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: project.priority_color ?? "#94a3b8" }} />
@@ -953,7 +1264,7 @@ export default function ProjectDetailPage() {
                 </button>
               </div>
               <div onClick={e => e.stopPropagation()}>
-                <p className="text-[10px] uppercase tracking-widest text-slate-400 mb-1">Status</p>
+                <p className="text-[10px] uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1">Status</p>
                 {(() => {
                   const active = statusOptions.find(s => s.name === project.status_label) ?? statusOptions[0];
                   if (!active) return <span className="text-xs italic text-slate-400">—</span>;
@@ -973,7 +1284,7 @@ export default function ProjectDetailPage() {
               </div>
             </div>
             <div>
-              <p className="text-[10px] uppercase tracking-widest text-slate-400 mb-1">Summary</p>
+              <p className="text-[10px] uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1">Summary</p>
               <InlineText
                 value={project.summary_brief}
                 onSave={v => patchField("summary_brief", v)}
@@ -987,13 +1298,13 @@ export default function ProjectDetailPage() {
           <div className="p-4 space-y-4">
             {/* Project period */}
             <div>
-              <p className="text-[10px] uppercase tracking-widest text-slate-400 mb-1.5 flex items-center gap-1.5">
-                <Clock size={11} className="text-slate-400" />
+              <p className="text-[10px] uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1.5 flex items-center gap-1.5">
+                <Clock size={11} className="text-slate-400 dark:text-slate-500" />
                 Project Period
               </p>
               <div className="grid grid-cols-2 gap-2">
                 <div className="rounded-lg border border-slate-200/60 dark:border-white/8 bg-slate-50/60 dark:bg-white/2 px-3 py-2">
-                  <p className="text-[9px] uppercase tracking-widest text-slate-400 mb-0.5">Start Date</p>
+                  <p className="text-[9px] uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-0.5">Start Date</p>
                   <InlineField
                     label=""
                     value={project.start_date}
@@ -1002,7 +1313,7 @@ export default function ProjectDetailPage() {
                   />
                 </div>
                 <div className="rounded-lg border border-slate-200/60 dark:border-white/8 bg-slate-50/60 dark:bg-white/2 px-3 py-2">
-                  <p className="text-[9px] uppercase tracking-widest text-slate-400 mb-0.5">End Date</p>
+                  <p className="text-[9px] uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-0.5">End Date</p>
                   <InlineField
                     label=""
                     value={project.end_date}
@@ -1015,8 +1326,8 @@ export default function ProjectDetailPage() {
 
             <div className="space-y-2">
               <div>
-                <p className="text-[10px] uppercase tracking-widest text-slate-400 mb-1 flex items-center gap-1.5">
-                  <Building2 size={11} className="text-slate-400" />
+                <p className="text-[10px] uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1 flex items-center gap-1.5">
+                  <Building2 size={11} className="text-slate-400 dark:text-slate-500" />
                   Location
                 </p>
                 <button
@@ -1028,18 +1339,18 @@ export default function ProjectDetailPage() {
                     <span className="flex-1 text-xs font-semibold text-slate-700 dark:text-slate-200">
                       {project.unit_name ?? project.unit_code}
                       {project.unit_name && project.unit_code && (
-                        <span className="ml-1 font-medium text-slate-400">({project.unit_code})</span>
+                        <span className="ml-1 font-medium text-slate-400 dark:text-slate-500">({project.unit_code})</span>
                       )}
                     </span>
                   ) : (
-                    <span className="flex-1 text-xs italic text-slate-400 dark:text-slate-600">Unit not specified</span>
+                    <span className="flex-1 text-xs italic text-slate-400 dark:text-slate-500">Unit not specified</span>
                   )}
-                  <ChevronDown size={11} className="text-slate-400 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <ChevronDown size={11} className="text-slate-400 dark:text-slate-500 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
                 </button>
               </div>
               <div>
-                <p className="text-[10px] uppercase tracking-widest text-slate-400 mb-1 flex items-center gap-1.5">
-                  <MapPin size={11} className="text-slate-400" />
+                <p className="text-[10px] uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1 flex items-center gap-1.5">
+                  <MapPin size={11} className="text-slate-400 dark:text-slate-500" />
                   Address
                 </p>
                 <textarea
@@ -1054,8 +1365,8 @@ export default function ProjectDetailPage() {
 
             {/* Stakeholders */}
             <div>
-              <p className="text-[10px] uppercase tracking-widest text-slate-400 mb-2 flex items-center gap-1.5">
-                <Users size={11} className="text-slate-400" />
+              <p className="text-[10px] uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-2 flex items-center gap-1.5">
+                <Users size={11} className="text-slate-400 dark:text-slate-500" />
                 Stakeholders
               </p>
               <div className="space-y-2">
@@ -1063,7 +1374,7 @@ export default function ProjectDetailPage() {
                   <div className="flex flex-wrap gap-1.5">
                     {people.filter(p => p.role_code === "stakeholder").map(s => (
                       <span key={s.id} className="group inline-flex items-center gap-1 text-xs font-medium text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-white/6 px-2 py-1 rounded-md">
-                        <Building2 size={10} className="text-slate-400 shrink-0" />
+                        <Building2 size={10} className="text-slate-400 dark:text-slate-500 shrink-0" />
                         {s.full_name ?? s.raw_person_name ?? s.raw_organization_name ?? "—"}
                         <button onClick={() => removeStakeholder(s.id)} className="ml-0.5 opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-rose-500">
                           <X size={10} />
@@ -1072,7 +1383,7 @@ export default function ProjectDetailPage() {
                     ))}
                   </div>
                 ) : (
-                  <p className="text-[10px] italic text-slate-400 dark:text-slate-600">No stakeholders yet</p>
+                  <p className="text-[10px] italic text-slate-400 dark:text-slate-500">No stakeholders yet</p>
                 )}
                 {/* Add stakeholder inline */}
                 <div className="flex items-center gap-1.5">
@@ -1106,7 +1417,9 @@ export default function ProjectDetailPage() {
           <h3 className="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-widest">Phase Parameters</h3>
           {(() => {
             const currentIdx = PHASE_DEFS.findIndex(p => p.phaseCode === project.current_phase_code);
-            const nextPhase  = currentIdx >= 0 && currentIdx < PHASE_DEFS.length - 1 ? PHASE_DEFS[currentIdx + 1] : null;
+            const nextPhase  = currentIdx === -1
+              ? PHASE_DEFS[0]
+              : currentIdx < PHASE_DEFS.length - 1 ? PHASE_DEFS[currentIdx + 1] : null;
             if (!nextPhase) return null;
             return (
               <button
@@ -1177,8 +1490,9 @@ export default function ProjectDetailPage() {
         {/* Phase details */}
         <div className="p-4 space-y-2">
           {PHASE_DEFS.map((ph) => {
-            const currentIdx = PHASE_DEFS.findIndex(p => p.phaseCode === project.current_phase_code);
-            const phIdx = PHASE_DEFS.findIndex(p => p.key === ph.key);
+            const currentIdx  = PHASE_DEFS.findIndex(p => p.phaseCode === project.current_phase_code);
+            const phIdx       = PHASE_DEFS.findIndex(p => p.key === ph.key);
+            const phaseRowId  = project[ph.phaseRowIdKey] as string | null;
             return (
               <PhaseCard
                 key={ph.key}
@@ -1188,6 +1502,14 @@ export default function ProjectDetailPage() {
                 isPast={phIdx < currentIdx}
                 people={people}
                 onSave={patchField}
+                phaseRowId={phaseRowId}
+                tasks={tasks.filter(t => t.phase_id === phaseRowId)}
+                attachments={attachments.filter(a => a.phase_id === phaseRowId)}
+                onTaskAdd={(title, assigneeName, assignedByName) => handleTaskAdd(phaseRowId!, title, assigneeName, assignedByName)}
+                onTaskToggle={handleTaskToggle}
+                onTaskDelete={handleTaskDelete}
+                onFileUpload={file => handleFileUpload(phaseRowId!, file)}
+                onFileDelete={handleFileDelete}
               />
             );
           })}

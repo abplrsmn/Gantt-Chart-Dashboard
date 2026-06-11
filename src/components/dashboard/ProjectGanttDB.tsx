@@ -290,7 +290,8 @@ export default function ProjectGanttDB() {
   const topScrollRef = useRef<HTMLDivElement>(null);
   const syncingRef   = useRef(false);
 
-  const dragRef   = useRef<ActiveDrag | null>(null);
+  const dragRef        = useRef<ActiveDrag | null>(null);
+  const dragTipRef     = useRef<HTMLDivElement>(null);
   const [dragging, setDragging] = useState(false);
   const [toolMode, setToolMode] = useState<"select" | "drag" | "delete">("select");
   const [rangeTooltip, setRangeTooltip] = useState<{ x: number; y: number } | null>(null);
@@ -378,6 +379,14 @@ export default function ProjectGanttDB() {
       const widthDays  = Math.max(1, differenceInCalendarDays(newEnd, newStart) + 1);
       drag.barEl.style.left  = `${(offsetDays / drag.totalDays) * drag.totalWidth}px`;
       drag.barEl.style.width = `${Math.max(6, (widthDays / drag.totalDays) * drag.totalWidth)}px`;
+
+      // Update drag date tooltip directly (no setState to avoid re-renders)
+      if (dragTipRef.current) {
+        dragTipRef.current.style.left    = `${e.clientX + 12}px`;
+        dragTipRef.current.style.top     = `${e.clientY - 36}px`;
+        dragTipRef.current.style.display = "block";
+        dragTipRef.current.textContent   = `${format(newStart, "d MMM")} – ${format(newEnd, "d MMM yyyy")}`;
+      }
     }
 
     function onMouseUp() {
@@ -386,11 +395,12 @@ export default function ProjectGanttDB() {
       document.body.style.userSelect = "";
       setDragging(false);
       dragRef.current = null;
+      if (dragTipRef.current) dragTipRef.current.style.display = "none";
       if (!drag) return;
 
-      // Clear inline styles set during drag so React's computed values take over on re-render
-      drag.barEl.style.left  = "";
-      drag.barEl.style.width = "";
+      // Do NOT clear barEl inline styles here — clearing before React re-renders
+      // causes a flash where the bar has no position. React reconciliation will
+      // overwrite them naturally when the confirm dialog triggers a re-render.
 
       // Only show confirm if dates actually changed
       const moved = drag.currentStart.getTime() !== drag.origStart.getTime() ||
@@ -470,7 +480,7 @@ export default function ProjectGanttDB() {
 
   const filteredProjects = useMemo(() => {
     return projects.filter(p => {
-      const matchSearch = [p.project_name, p.project_code, p.status_label, p.current_phase_name, p.unit_code, p.unit_name]
+      const matchSearch = [p.project_name, p.project_code, p.status_label, p.current_phase_name, p.unit_code, p.unit_name, p.brief_pic, p.design_pic, p.control_pic, p.pm_pic, p.handover_pic]
         .filter(Boolean).join(" ").toLowerCase().includes(search.toLowerCase());
       const matchPriority = priorityFilter === "ALL" || p.priority_code      === priorityFilter;
       const matchPhase    = phaseFilter    === "ALL" || p.current_phase_code === phaseFilter;
@@ -697,12 +707,6 @@ export default function ProjectGanttDB() {
           minWidth={148}
         />
         <button
-          onClick={() => router.push("/dashboard/projects/summary-matrix")}
-          className="shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-[11px] font-bold transition-all whitespace-nowrap text-white glass-btn-primary"
-        >
-          Summary <ArrowRight size={11} />
-        </button>
-        <button
           onClick={() => setShowAddModal(true)}
           className="shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-[11px] font-bold transition-all whitespace-nowrap border text-white glass-btn-primary"
         >
@@ -760,7 +764,7 @@ export default function ProjectGanttDB() {
           <div
             ref={topScrollRef}
             className="overflow-x-auto border-b border-slate-200/40 dark:border-white/6"
-            style={{ height: 14 }}
+            style={{ height: 18 }}
             onScroll={onTopScroll}
           >
             <div style={{ width: `${240 + totalWidth}px`, height: 1 }} />
@@ -819,7 +823,7 @@ export default function ProjectGanttDB() {
         {/* ── Scrollable body ── */}
         <div
           ref={bodyRef}
-          className="overflow-x-auto relative bg-white dark:bg-zinc-900"
+          className="overflow-x-auto no-scrollbar relative bg-white dark:bg-zinc-900"
           onScroll={onBodyScroll}
           onMouseLeave={() => setTooltip(null)}
         >
@@ -1027,6 +1031,13 @@ export default function ProjectGanttDB() {
           </div>
         </div>{/* end scrollable body */}
       </div>{/* end gantt card */}
+
+      {/* ── Drag date tooltip — updated via direct DOM, no setState during drag ── */}
+      <div
+        ref={dragTipRef}
+        className="fixed z-9999 pointer-events-none px-2.5 py-1.5 rounded-lg text-[11px] font-semibold text-white shadow-lg"
+        style={{ display: "none", backgroundColor: "rgba(15,23,42,0.88)", backdropFilter: "blur(6px)", whiteSpace: "nowrap" }}
+      />
 
       {/* ── Bar tooltip — one source of truth for project/phase date ranges ── */}
       {tooltip && (() => {

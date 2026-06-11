@@ -542,8 +542,8 @@ export default function WeeklyProgressPage() {
     <div className="space-y-4 pb-10 animate-page-enter">
       <div className="flex items-center gap-3">
         <button
-          onClick={() => router.push(`/dashboard/projects/${id}`)}
-          className="flex items-center gap-1.5 text-sm font-semibold text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors shrink-0"
+          onClick={() => router.replace(`/dashboard/projects/${id}`)}
+          className="flex items-center gap-1.5 px-3 py-2 text-sm font-semibold text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors shrink-0"
         >
           <ArrowLeft size={15} />
           Back

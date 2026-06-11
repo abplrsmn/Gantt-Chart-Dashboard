@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { format, eachWeekOfInterval, addDays, parseISO, isValid } from "date-fns";
+import { useRouter } from "next/navigation";
+import { format, eachWeekOfInterval, addDays, parseISO, isValid, getISOWeek, getISOWeekYear, startOfISOWeek } from "date-fns";
 import { BarChart2, Camera, Search, ChevronDown, X, CalendarRange } from "lucide-react";
 
 type ProjectMeta = {
@@ -100,6 +101,34 @@ type WeekEntry = {
   monthKey: string;
   range: string;
 };
+
+function nowWIB(): Date {
+  // WIB = UTC+7; create a Date whose local fields reflect Jakarta time
+  const utc = Date.now() + new Date().getTimezoneOffset() * 60_000;
+  return new Date(utc + 7 * 3_600_000);
+}
+
+function toWeekInputValue(date: Date): string {
+  const year = getISOWeekYear(date);
+  const week = getISOWeek(date);
+  return `${year}-W${String(week).padStart(2, "0")}`;
+}
+
+function weekInputToMonday(val: string): Date | null {
+  const m = val.match(/^(\d{4})-W(\d{2})$/);
+  if (!m) return null;
+  const year = parseInt(m[1]);
+  const week = parseInt(m[2]);
+  const jan4 = new Date(year, 0, 4);
+  const jan4dow = jan4.getDay() || 7;
+  const monday = new Date(jan4);
+  monday.setDate(jan4.getDate() - (jan4dow - 1) + (week - 1) * 7);
+  return monday;
+}
+
+function weekKeyFromDate(monday: Date): string {
+  return `week-${format(monday, "yyyy-MM-dd")}`;
+}
 
 function buildWeeks(startRaw: string | null, endRaw: string | null): WeekEntry[] {
   const start = startRaw ? parseISO(startRaw) : null;
@@ -359,16 +388,14 @@ function WeekCard({ week, weekKey, range, projectId }: WeekEntry & { projectId: 
 }
 
 // ─── ProjectWeeklySection ─────────────────────────────────────────────────────
-function ProjectWeeklySection({ project }: { project: ProjectMeta }) {
+function ProjectWeeklySection({ project, selectedWeekKey }: { project: ProjectMeta; selectedWeekKey: string }) {
+  const router    = useRouter();
   const startDate = project.pm_start ?? project.start_date;
   const endDate   = project.pm_end   ?? project.end_date;
   const weeks     = buildWeeks(startDate, endDate);
+  const [expanded, setExpanded] = useState(false);
 
-  const months = Array.from(new Map(weeks.map(w => [w.monthKey, w.monthKey])).entries());
-  const [activeMonth, setActiveMonth] = useState(months[0]?.[0] ?? "");
-  const [expanded, setExpanded]       = useState(false);
-
-  const filteredWeeks = weeks.filter(w => w.monthKey === activeMonth);
+  const weekEntry = weeks.find(w => w.weekKey === selectedWeekKey);
 
   return (
     <div className="rounded-2xl border border-slate-200/70 dark:border-white/8 overflow-hidden bg-white/60 dark:bg-zinc-900/50">
@@ -379,7 +406,12 @@ function ProjectWeeklySection({ project }: { project: ProjectMeta }) {
       >
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-sm font-bold text-slate-800 dark:text-slate-100 truncate">{project.project_name}</span>
+            <span
+              onClick={e => { e.stopPropagation(); router.push(`/dashboard/projects/${project.id}`); }}
+              className="text-sm font-bold text-slate-800 dark:text-slate-100 hover:text-cyan-600 dark:hover:text-cyan-400 hover:underline transition-colors truncate cursor-pointer"
+            >
+              {project.project_name}
+            </span>
             <span className="text-[10px] font-mono text-slate-400 bg-slate-100 dark:bg-white/5 px-1.5 py-0.5 rounded">{project.project_code}</span>
             {project.priority_name && (
               <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded" style={{ color: project.priority_color ?? undefined, backgroundColor: `${project.priority_color}18` }}>
@@ -405,7 +437,6 @@ function ProjectWeeklySection({ project }: { project: ProjectMeta }) {
                 {fmtShort(project.start_date)}{project.end_date ? ` – ${fmtShort(project.end_date)}` : ""}
               </span>
             )}
-            {weeks.length > 0 && <span className="text-xs text-slate-400 dark:text-slate-500">{weeks.length} weeks</span>}
           </div>
         </div>
         <ChevronDown size={15} className="text-slate-400 shrink-0 transition-transform duration-300" style={{ transform: expanded ? "rotate(0deg)" : "rotate(-90deg)" }} />
@@ -418,45 +449,25 @@ function ProjectWeeklySection({ project }: { project: ProjectMeta }) {
           transition: "grid-template-rows 0.35s cubic-bezier(0.4,0,0.2,1)",
         }}
       >
-      <div style={{ overflow: "hidden" }}>
-        {/* Phase stepper */}
-        <PhaseStepperStrip project={project} />
+        <div style={{ overflow: "hidden" }}>
+          <PhaseStepperStrip project={project} />
+          <PhaseNotesStrip project={project} />
 
-        {/* Phase notes (static, no async fetch) */}
-        <PhaseNotesStrip project={project} />
-
-        {weeks.length === 0 ? (
-          <div className="p-6 flex items-center gap-2 text-slate-400 dark:text-slate-600 text-xs">
-            <Camera size={14} />
-            No project dates set — weekly progress unavailable.
-          </div>
-        ) : (
-          <>
-            {/* Month tabs */}
-            <div className="flex items-center gap-1 px-4 py-2.5 border-b border-slate-200/50 dark:border-white/8 bg-slate-50/50 dark:bg-white/2 flex-wrap">
-              {months.map(([key]) => (
-                <button
-                  key={key}
-                  onClick={() => setActiveMonth(key)}
-                  className={`px-3 py-1 rounded-lg text-[11px] font-semibold transition-all ${
-                    activeMonth === key ? "text-white shadow-sm" : "text-slate-500 dark:text-slate-400 hover:bg-white dark:hover:bg-white/8"
-                  }`}
-                  style={activeMonth === key ? { backgroundColor: "var(--brand-sienna)" } : undefined}
-                >
-                  {key}
-                </button>
-              ))}
+          {weeks.length === 0 ? (
+            <div className="p-6 flex items-center gap-2 text-slate-400 dark:text-slate-600 text-xs">
+              <Camera size={14} />
+              No project dates set — weekly progress unavailable.
             </div>
-
-            {/* Weeks grid */}
-            <div className="p-4 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
-              {filteredWeeks.map(w => (
-                <WeekCard key={w.weekKey} {...w} projectId={project.id} />
-              ))}
+          ) : weekEntry ? (
+            <div className="p-4">
+              <WeekCard {...weekEntry} projectId={project.id} />
             </div>
-          </>
-        )}
-      </div>
+          ) : (
+            <div className="p-6 text-xs text-slate-400 dark:text-slate-600">
+              Week not in this project's timeline.
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -467,7 +478,21 @@ export default function WeeklyReportPage() {
   const [projects, setProjects] = useState<ProjectMeta[]>([]);
   const [loading, setLoading]   = useState(true);
   const [search, setSearch]     = useState("");
+  const [selectedWeekVal, setSelectedWeekVal] = useState(() => toWeekInputValue(nowWIB()));
   const searchRef = useRef<HTMLInputElement>(null);
+
+  // Auto-advance selected week when the WIB week rolls over (checked every minute)
+  useEffect(() => {
+    const id = setInterval(() => {
+      const wibWeek = toWeekInputValue(nowWIB());
+      setSelectedWeekVal(prev => {
+        // Only auto-advance if the user is currently viewing the live current week
+        const prevWasCurrentWeek = prev === toWeekInputValue(nowWIB());
+        return prevWasCurrentWeek ? wibWeek : prev;
+      });
+    }, 60_000);
+    return () => clearInterval(id);
+  }, []);
 
   useEffect(() => {
     fetch("/api/projects/gantt", { cache: "no-store" })
@@ -477,42 +502,65 @@ export default function WeeklyReportPage() {
       .finally(() => setLoading(false));
   }, []);
 
+  const selectedMonday   = weekInputToMonday(selectedWeekVal) ?? startOfISOWeek(nowWIB());
+  const selectedWeekKey  = weekKeyFromDate(selectedMonday);
+  const selectedWeekLabel = `${format(selectedMonday, "d MMM")} – ${format(addDays(selectedMonday, 6), "d MMM yyyy")}`;
+
+  const allPics = (p: ProjectMeta) =>
+    [p.brief_pic, p.design_pic, p.control_pic, p.pm_pic, p.handover_pic].filter(Boolean).join(" ");
+
   const filtered = projects.filter(p =>
     !search.trim() ||
-    [p.project_name, p.project_code, p.unit_name, p.unit_code]
+    [p.project_name, p.project_code, p.unit_name, p.unit_code, p.status_label, p.current_phase_name, allPics(p)]
       .filter(Boolean).join(" ").toLowerCase().includes(search.toLowerCase())
   );
+
+  const filteredWithWeek = filtered.filter(p => {
+    const startDate = p.pm_start ?? p.start_date;
+    const endDate   = p.pm_end   ?? p.end_date;
+    return buildWeeks(startDate, endDate).some(w => w.weekKey === selectedWeekKey);
+  });
 
   return (
     <div className="space-y-4 pb-10 animate-page-enter">
       {/* Header */}
-      <div className="flex items-center gap-3 mb-3 mt-2 justify-between">
+      <div className="flex items-center gap-3 mb-3 mt-2 justify-between flex-wrap">
         <div className="flex items-center gap-2">
           <BarChart2 size={16} className="text-amber-500" />
-          <h2 className="text-lg font-bold text-slate-800 dark:text-white">Weekly Report</h2>
+          <h2 className="text-lg font-bold text-slate-800 dark:text-white">Report</h2>
         </div>
-        <label className="relative">
-          <Search size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
-            ref={searchRef}
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Filter projects..."
-            className="rounded-xl border border-slate-200/70 dark:border-white/10 bg-white/70 dark:bg-zinc-900/60 pl-8 pr-3 py-2 text-[12px] outline-none text-slate-800 dark:text-white w-52"
-          />
-        </label>
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Week picker */}
+          <div className="relative">
+            <CalendarRange size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+            <input
+              type="week"
+              value={selectedWeekVal}
+              onChange={e => setSelectedWeekVal(e.target.value)}
+              className="rounded-xl border border-slate-200/70 dark:border-white/10 bg-white/70 dark:bg-zinc-900/60 pl-8 pr-3 py-2 text-[12px] outline-none text-slate-800 dark:text-white w-44 cursor-pointer focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20 transition-all"
+            />
+          </div>
+          {/* Search */}
+          <label className="relative">
+            <Search size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+            <input
+              ref={searchRef}
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search project, PIC, unit..."
+              className="rounded-xl border border-slate-200/70 dark:border-white/10 bg-white/70 dark:bg-zinc-900/60 pl-8 pr-3 py-2 text-[12px] outline-none text-slate-800 dark:text-white w-56 focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20 transition-all"
+            />
+          </label>
+        </div>
       </div>
 
       {/* Title card */}
       <div className="glass-card overflow-hidden">
         <div className="flex items-center gap-2 px-5 py-4 border-b border-slate-200/50 dark:border-white/8">
           <Camera size={16} className="shrink-0" style={{ color: "var(--brand-sienna)" }} />
-          <div>
-            <h2 className="text-sm font-bold text-slate-800 dark:text-slate-100 uppercase tracking-widest">Weekly Progress Report</h2>
-            <p className="text-[11px] text-slate-400 mt-0.5">All projects — photos &amp; progress per week</p>
-          </div>
+          <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">{selectedWeekLabel}</p>
           <span className="ml-auto text-[11px] font-semibold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-white/5 px-2.5 py-1 rounded-full">
-            {filtered.length} project{filtered.length !== 1 ? "s" : ""}
+            {filteredWithWeek.length} project{filteredWithWeek.length !== 1 ? "s" : ""}
           </span>
         </div>
 
@@ -520,14 +568,14 @@ export default function WeeklyReportPage() {
           <div className="flex justify-center py-16">
             <div className="w-6 h-6 border-2 border-brand-sienna/40 border-t-brand-sienna rounded-full animate-spin" />
           </div>
-        ) : filtered.length === 0 ? (
+        ) : filteredWithWeek.length === 0 ? (
           <div className="p-10 text-center text-sm text-slate-400 dark:text-slate-600">
-            {search ? "No projects match your search." : "No projects found."}
+            {search ? "No projects match your search for this week." : "No projects in this week's range."}
           </div>
         ) : (
           <div className="p-4 space-y-3">
-            {filtered.map(p => (
-              <ProjectWeeklySection key={p.id} project={p} />
+            {filteredWithWeek.map(p => (
+              <ProjectWeeklySection key={p.id} project={p} selectedWeekKey={selectedWeekKey} />
             ))}
           </div>
         )}

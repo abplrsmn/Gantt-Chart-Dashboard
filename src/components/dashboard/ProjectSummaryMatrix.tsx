@@ -2,6 +2,7 @@
 
 import { format, isValid } from "date-fns";
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 
 type SummaryProject = {
   id: string;
@@ -196,12 +197,14 @@ function InlineCell({
 export default function ProjectSummaryMatrix({
   projects: initialProjects,
 }: Props) {
+  const router = useRouter();
   const [projects, setProjects] = useState<SummaryProject[]>(initialProjects);
   const [innerWidth, setInnerWidth] = useState(3200);
 
-  const topScrollRef = useRef<HTMLDivElement>(null);
-  const bodyRef      = useRef<HTMLDivElement>(null);
-  const syncingRef   = useRef(false);
+  const topScrollRef  = useRef<HTMLDivElement>(null);
+  const headerScrollRef = useRef<HTMLDivElement>(null);
+  const bodyRef       = useRef<HTMLDivElement>(null);
+  const syncingRef    = useRef(false);
 
   // Sync if parent re-fetches
   if (initialProjects !== projects && initialProjects.length !== projects.length) {
@@ -212,19 +215,18 @@ export default function ProjectSummaryMatrix({
     if (bodyRef.current) setInnerWidth(bodyRef.current.scrollWidth);
   }, [projects]);
 
-  function onTopScroll() {
+  function syncScroll(sourceLeft: number) {
     if (syncingRef.current) return;
     syncingRef.current = true;
-    if (bodyRef.current) bodyRef.current.scrollLeft = topScrollRef.current?.scrollLeft ?? 0;
+    if (topScrollRef.current)    topScrollRef.current.scrollLeft    = sourceLeft;
+    if (headerScrollRef.current) headerScrollRef.current.scrollLeft = sourceLeft;
+    if (bodyRef.current)         bodyRef.current.scrollLeft         = sourceLeft;
     syncingRef.current = false;
   }
 
-  function onBodyScroll() {
-    if (syncingRef.current) return;
-    syncingRef.current = true;
-    if (topScrollRef.current) topScrollRef.current.scrollLeft = bodyRef.current?.scrollLeft ?? 0;
-    syncingRef.current = false;
-  }
+  function onTopScroll()    { syncScroll(topScrollRef.current?.scrollLeft    ?? 0); }
+  function onHeaderScroll() { syncScroll(headerScrollRef.current?.scrollLeft ?? 0); }
+  function onBodyScroll()   { syncScroll(bodyRef.current?.scrollLeft         ?? 0); }
 
   function onSaved(projectId: string, field: keyof SummaryProject, newVal: string | null) {
     setProjects(prev =>
@@ -243,52 +245,53 @@ export default function ProjectSummaryMatrix({
     return Array.from(groups.entries()).map(([unit, rows]) => ({ unit, rows }));
   })();
 
-  return (
-    <div className="rounded-2xl border border-slate-200/60 dark:border-white/8 bg-white dark:bg-zinc-900 overflow-clip">
+  const COL_WIDTHS = [80, 288, ...Array(23).fill(112)];
 
-      {/* ── Sticky top scrollbar strip ── */}
-      <div className="sticky top-0 z-50 bg-white dark:bg-zinc-900 border-b border-slate-200/40 dark:border-white/6">
-        <div
-          ref={topScrollRef}
-          className="overflow-x-auto"
-          style={{ height: 14 }}
-          onScroll={onTopScroll}
-        >
+  return (
+    <div className="rounded-2xl overflow-clip border border-slate-200/60 dark:border-white/8 bg-white/60 dark:bg-zinc-900/50 backdrop-blur-sm" style={{ overflowX: "clip" }}>
+
+      {/* ── Sticky header section — page-level sticky, outside body scroll container ── */}
+      <div className="sticky top-0 z-50 bg-white dark:bg-zinc-900 rounded-t-2xl shadow-sm">
+        {/* Top scrollbar strip */}
+        <div ref={topScrollRef} className="overflow-x-auto border-b border-slate-200/40 dark:border-white/6" onScroll={onTopScroll}>
           <div style={{ width: innerWidth, height: 1 }} />
+        </div>
+        {/* Sticky column headers — horizontally synced */}
+        <div ref={headerScrollRef} className="overflow-x-hidden" onScroll={onHeaderScroll}>
+          <table className="w-full border-separate border-spacing-0 text-[10px]" style={{ minWidth: innerWidth }}>
+            <colgroup>{COL_WIDTHS.map((w, i) => <col key={i} style={{ width: w, minWidth: w }} />)}</colgroup>
+            <thead>
+              <tr className="bg-slate-100 dark:bg-zinc-900 text-[9px] uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                <th rowSpan={2} className="sticky left-0 z-50 w-20 min-w-20 border-r border-b border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-zinc-900 px-2 py-2 text-left">Unit</th>
+                <th rowSpan={2} className="sticky left-20 z-50 w-72 min-w-72 border-r border-b border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-zinc-900 px-2 py-2 text-left shadow-[8px_0_12px_-12px_rgba(15,23,42,0.45)]">Description</th>
+                <th colSpan={3} className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2 bg-slate-200/70 dark:bg-zinc-800/80">Operational Brief (PR)</th>
+                <th colSpan={6} className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2 bg-blue-100/70 dark:bg-blue-950/30">Design (HoD)</th>
+                <th colSpan={5} className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2 bg-amber-100/80 dark:bg-amber-950/30">Project Control</th>
+                <th colSpan={7} className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2 bg-teal-100/70 dark:bg-teal-950/30">Project Management Team</th>
+                <th colSpan={2} className="border-b border-slate-200 dark:border-white/10 px-2 py-2 bg-emerald-100/70 dark:bg-emerald-950/30">Handover</th>
+              </tr>
+              <tr className="bg-white dark:bg-zinc-950 text-[9px] uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                {[
+                  "Brief", "Received Date", "Budget / CAPEX",
+                  "Start Design", "Design Approval — Target (+1M)", "Design Approval — Real", "Duration (+/-)", "Brief", "Working Drawing (+3W)",
+                  "Tender Start", "SPK Released — Target (+3W)", "SPK Released — Real", "Duration (+/-)", "Contract Amount",
+                  "+/-", "START", "END", "Completion real date", "Duration (weeks)", "+/-", "Progress %",
+                  "BAST-1", "BAST-2",
+                ].map((label, idx) => (
+                  <th key={`${label}-${idx}`} className="min-w-28 border-r border-b border-slate-200 dark:border-white/10 px-2 py-2 align-bottom leading-tight text-left last:border-r-0">
+                    {label}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+          </table>
         </div>
       </div>
 
-      <div ref={bodyRef} className="overflow-x-auto scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-zinc-700" onScroll={onBodyScroll}>
-        <table className="min-w-550 w-full border-separate border-spacing-0 text-[10px] text-slate-700 dark:text-slate-200">
-          <thead className="sticky top-3.5 z-40 shadow-sm">
-            <tr className="bg-slate-100 dark:bg-zinc-900 text-[9px] uppercase tracking-wider text-slate-500 dark:text-slate-400">
-              <th rowSpan={2} className="sticky left-0 z-50 w-20 min-w-20 border-r border-b border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-zinc-900 px-2 py-2 text-left">Unit</th>
-              <th rowSpan={2} className="sticky left-20 z-50 w-72 min-w-72 border-r border-b border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-zinc-900 px-2 py-2 text-left shadow-[8px_0_12px_-12px_rgba(15,23,42,0.45)]">Description</th>
-              <th colSpan={3} className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2 bg-slate-200/70 dark:bg-zinc-800/80">Operational Brief (PR)</th>
-              <th colSpan={6} className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2 bg-blue-100/70 dark:bg-blue-950/30">Design (HoD)</th>
-              <th colSpan={5} className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2 bg-amber-100/80 dark:bg-amber-950/30">Project Control</th>
-              <th colSpan={7} className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2 bg-teal-100/70 dark:bg-teal-950/30">Project Management Team</th>
-              <th colSpan={2} className="border-b border-slate-200 dark:border-white/10 px-2 py-2 bg-emerald-100/70 dark:bg-emerald-950/30">Handover</th>
-            </tr>
-            <tr className="bg-white dark:bg-zinc-950 text-[9px] uppercase tracking-wide text-slate-500 dark:text-slate-400">
-              {[
-                // Operational Brief (3)
-                "Brief", "Received Date", "Budget / CAPEX",
-                // Design (6)
-                "Start Design", "Design Approval — Target (+1M)", "Design Approval — Real", "Duration (+/-)", "Brief", "Working Drawing (+3W)",
-                // Project Control (5)
-                "Tender Start", "SPK Released — Target (+3W)", "SPK Released — Real", "Duration (+/-)", "Contract Amount",
-                // Project Management (7)
-                "+/-", "START", "END", "Completion real date", "Duration (weeks)", "+/-", "Progress %",
-                // Handover (2)
-                "BAST-1", "BAST-2",
-              ].map((label, idx) => (
-                <th key={`${label}-${idx}`} className="min-w-28 border-r border-b border-slate-200 dark:border-white/10 px-2 py-2 align-bottom leading-tight text-left last:border-r-0">
-                  {label}
-                </th>
-              ))}
-            </tr>
-          </thead>
+      {/* ── Body — horizontal scroll only, page handles vertical ── */}
+      <div ref={bodyRef} className="overflow-x-auto no-scrollbar" onScroll={onBodyScroll}>
+        <table className="w-full border-separate border-spacing-0 text-[10px] text-slate-700 dark:text-slate-200" style={{ minWidth: innerWidth }}>
+          <colgroup>{COL_WIDTHS.map((w, i) => <col key={i} style={{ width: w, minWidth: w }} />)}</colgroup>
           <tbody>
             {summaryGroups.length === 0 ? (
               <tr>
@@ -301,7 +304,10 @@ export default function ProjectSummaryMatrix({
                     {group.unit}
                   </td>
                 )}
-                <td className="sticky left-20 z-20 w-72 min-w-72 border-r border-b border-slate-200 dark:border-white/10 bg-white group-odd:bg-white group-even:bg-slate-50 dark:bg-zinc-950 dark:group-even:bg-zinc-900 px-2 py-2 font-semibold text-slate-800 dark:text-white leading-snug shadow-[8px_0_12px_-12px_rgba(15,23,42,0.45)]">{projectDisplayName(project)}</td>
+                <td
+                  className="sticky left-20 z-20 w-72 min-w-72 border-r border-b border-slate-200 dark:border-white/10 bg-white group-odd:bg-white group-even:bg-slate-50 dark:bg-zinc-950 dark:group-even:bg-zinc-900 px-2 py-2 font-semibold leading-snug shadow-[8px_0_12px_-12px_rgba(15,23,42,0.45)] cursor-pointer hover:text-cyan-600 dark:hover:text-cyan-400 transition-colors text-slate-800 dark:text-white"
+                  onClick={() => router.push(`/dashboard/projects/${project.id}?from=summary`)}
+                >{projectDisplayName(project)}</td>
 
                 <td className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2 whitespace-pre-wrap">
                   <InlineCell value={project.operational_brief} type="text" projectId={project.id} field="operational_brief" onSaved={(f, v) => onSaved(project.id, f, v)} />

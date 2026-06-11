@@ -1,6 +1,7 @@
 ﻿"use client";
 
 import { useEffect, useState, useCallback, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import {
   AlertCircle, AlertTriangle, CheckCircle2, TrendingUp, Users, Clock,
@@ -148,8 +149,8 @@ export default function DashboardHome() {
       labels: ["Completed", "Overdue", "On Track"],
       datasets: [{
         data: [completedProjects.length, overdueProjects.length, onTrack],
-        backgroundColor: ["#22c55e", "#ef4444", "#6B3A2A"],
-        borderColor: ["#16a34a", "#dc2626", "#4a2419"],
+        backgroundColor: ["#2dd4bf", "#f43f5e", "#94a3b8"],
+        borderColor: ["#14b8a6", "#e11d48", "#64748b"],
         borderWidth: 1,
         hoverOffset: 6,
       }],
@@ -181,7 +182,7 @@ export default function DashboardHome() {
 
       {/* Stat Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div onClick={() => router.push("/dashboard/projects")} className="glass-card flex-1 min-w-0 p-5 flex flex-col justify-between overflow-hidden relative min-h-27 cursor-pointer card-hover">
+        <div onClick={() => router.push("/dashboard/projects/list")} className="glass-card flex-1 min-w-0 p-5 flex flex-col justify-between overflow-hidden relative min-h-27 cursor-pointer card-hover">
           <div className="flex justify-between items-start mb-2">
             <span className="text-3xl font-bold text-slate-800 dark:text-white">
               {loading ? "..." : activeProjects.length}
@@ -205,7 +206,7 @@ export default function DashboardHome() {
           <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Completed Projects</p>
         </div>
 
-        <div className="glass-card flex-1 min-w-0 p-5 flex flex-col justify-between overflow-hidden relative min-h-27 border-cyan-400/20">
+        <div onClick={() => router.push("/dashboard/team?tab=units")} className="glass-card flex-1 min-w-0 p-5 flex flex-col justify-between overflow-hidden relative min-h-27 cursor-pointer card-hover">
           <div className="flex justify-between items-start mb-2">
             <span className="text-3xl font-bold text-slate-800 dark:text-white">
               {loading ? "..." : uniqueUnits.length}
@@ -221,38 +222,48 @@ export default function DashboardHome() {
       {/* Alert + People summary */}
       {!loading && (
         <>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             {[
-              { label: "Overdue",       count: overdueProjects.length, tab: "overdue", bg: "bg-red-50 dark:bg-red-500/10",       text: "text-red-600 dark:text-red-400",       border: "border-red-200/60 dark:border-red-500/20",       icon: <AlertTriangle size={14} /> },
-              { label: "Due in 3 Days", count: urgentProjects.length,  tab: "urgent",  bg: "bg-orange-50 dark:bg-orange-500/10", text: "text-orange-600 dark:text-orange-400", border: "border-orange-200/60 dark:border-orange-500/20", icon: <Clock size={14} /> },
-              { label: "Due in 7 Days", count: soonProjects.length,    tab: "soon",    bg: "bg-amber-50 dark:bg-amber-500/10",   text: "text-amber-600 dark:text-amber-400",   border: "border-amber-200/60 dark:border-amber-500/20",   icon: <Clock size={14} /> },
-              { label: "New Projects",  count: newProjects.length,     tab: "new",     bg: "bg-teal-50 dark:bg-teal-500/10",     text: "text-teal-600 dark:text-teal-400",     border: "border-teal-200/60 dark:border-teal-500/20",     icon: <Sparkles size={14} /> },
+              { label: "Overdue",       count: overdueProjects.length, tab: "overdue", iconBg: "rgba(244,63,94,0.10)",  iconColor: "#f43f5e", icon: <AlertTriangle size={18} /> },
+              { label: "Due in 3 Days", count: urgentProjects.length,  tab: "urgent",  iconBg: "rgba(249,115,22,0.10)", iconColor: "#f97316", icon: <Clock size={18} /> },
+              { label: "Due in 7 Days", count: soonProjects.length,    tab: "soon",    iconBg: "rgba(234,179,8,0.10)",  iconColor: "#eab308", icon: <Clock size={18} /> },
+              { label: "New Projects",  count: newProjects.length,     tab: "new",     iconBg: "rgba(45,212,191,0.10)", iconColor: "#2dd4bf", icon: <Sparkles size={18} /> },
             ].map(s => (
-              <div key={s.label} onClick={() => router.push(`/dashboard/alerts?tab=${s.tab}`)} className={`glass-card p-4 border cursor-pointer card-hover ${s.bg} ${s.border}`}>
-                <div className={`flex items-center gap-1.5 mb-1 ${s.text}`}>
-                  {s.icon}
-                  <span className="text-[10px] font-semibold uppercase tracking-wide">{s.label}</span>
+              <div key={s.label} onClick={() => router.push(`/dashboard/alerts?tab=${s.tab}`)} className="glass-card flex-1 min-w-0 p-5 flex flex-col justify-between overflow-hidden relative min-h-27 cursor-pointer card-hover">
+                <div className="flex justify-between items-start mb-2">
+                  <span className="text-3xl font-bold text-slate-800 dark:text-white">{s.count}</span>
+                  <div className="p-2 rounded-lg" style={{ background: s.iconBg, color: s.iconColor }}>
+                    {s.icon}
+                  </div>
                 </div>
-                <p className={`text-2xl font-bold ${s.text}`}>{s.count}</p>
+                <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{s.label}</p>
               </div>
             ))}
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div onClick={() => router.push("/dashboard/team?tab=users")} className="glass-card p-4 cursor-pointer card-hover">
-              <div className="flex items-center gap-1.5 mb-1 text-violet-500">
-                <UserCircle2 size={13} />
-                <span className="text-[10px] font-semibold uppercase tracking-wide">User Accounts</span>
+          <div className="grid grid-cols-2 gap-4">
+            <div onClick={() => router.push("/dashboard/team?tab=users")} className="glass-card flex-1 min-w-0 p-5 flex flex-col justify-between overflow-hidden relative min-h-27 cursor-pointer card-hover">
+              <div className="flex justify-between items-start mb-2">
+                <div>
+                  <span className="text-3xl font-bold text-slate-800 dark:text-white">{userCount}</span>
+                  <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1">{userActiveCount} active</p>
+                </div>
+                <div className="p-2 rounded-lg" style={{ background: "rgba(139,92,246,0.10)", color: "#8b5cf6" }}>
+                  <UserCircle2 size={18} />
+                </div>
               </div>
-              <p className="text-2xl font-bold text-slate-800 dark:text-white">{userCount}</p>
-              <p className="text-[10px] text-slate-400 mt-0.5">{userActiveCount} active</p>
+              <p className="text-xs font-medium text-slate-500 dark:text-slate-400">PIC</p>
             </div>
-            <div onClick={() => router.push("/dashboard/team?tab=stakeholders")} className="glass-card p-4 cursor-pointer card-hover">
-              <div className="flex items-center gap-1.5 mb-1 text-teal-500">
-                <Users size={13} />
-                <span className="text-[10px] font-semibold uppercase tracking-wide">Stakeholders</span>
+            <div onClick={() => router.push("/dashboard/team?tab=stakeholders")} className="glass-card flex-1 min-w-0 p-5 flex flex-col justify-between overflow-hidden relative min-h-27 cursor-pointer card-hover">
+              <div className="flex justify-between items-start mb-2">
+                <div>
+                  <span className="text-3xl font-bold text-slate-800 dark:text-white">{stakeholderCount}</span>
+                  <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1">{stakeholderActiveCount} active</p>
+                </div>
+                <div className="p-2 rounded-lg" style={{ background: "rgba(45,212,191,0.10)", color: "#2dd4bf" }}>
+                  <Users size={18} />
+                </div>
               </div>
-              <p className="text-2xl font-bold text-slate-800 dark:text-white">{stakeholderCount}</p>
-              <p className="text-[10px] text-slate-400 mt-0.5">{stakeholderActiveCount} active</p>
+              <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Stakeholders</p>
             </div>
           </div>
         </>
@@ -290,9 +301,9 @@ export default function DashboardHome() {
             </div>
             <div className="flex flex-col gap-3 flex-1">
               {[
-                { label: "Completed",  count: completedProjects.length, color: "#22c55e" },
-                { label: "Overdue",    count: overdueProjects.length,   color: "#ef4444" },
-                { label: "On Track",   count: Math.max(0, activeProjects.length - overdueProjects.length), color: "#6B3A2A" },
+                { label: "Completed",  count: completedProjects.length, color: "#2dd4bf" },
+                { label: "Overdue",    count: overdueProjects.length,   color: "#f43f5e" },
+                { label: "On Track",   count: Math.max(0, activeProjects.length - overdueProjects.length), color: "#94a3b8" },
               ].map(item => (
                 <div key={item.label} className="flex items-center gap-3">
                   <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
@@ -386,14 +397,16 @@ export default function DashboardHome() {
       </section>
 
       {/* Completed Projects Modal */}
-      {showCompleted && (
+      {showCompleted && typeof document !== "undefined" && createPortal(
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-backdrop-enter"
-          onClick={() => setShowCompleted(false)}
+          className="fixed inset-0 z-9998 flex items-center justify-center p-4 animate-backdrop-enter"
+          style={{ backgroundColor: "rgba(0,0,0,0.45)", backdropFilter: "blur(6px)" }}
+          onMouseDown={e => { if (e.target === e.currentTarget) setShowCompleted(false); }}
         >
           <div
-            className="glass-card w-full max-w-md max-h-[70vh] flex flex-col overflow-hidden shadow-2xl animate-modal-enter"
-            onClick={e => e.stopPropagation()}
+            className="w-full max-w-md max-h-[72vh] flex flex-col overflow-hidden rounded-2xl border border-slate-200/80 dark:border-white/8 bg-white dark:bg-zinc-950 animate-modal-enter"
+            style={{ boxShadow: "0 24px 64px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.06)" }}
+            onMouseDown={e => e.stopPropagation()}
           >
             {/* Modal header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200/60 dark:border-white/8 shrink-0">
@@ -412,7 +425,7 @@ export default function DashboardHome() {
               </button>
             </div>
             {/* Modal list */}
-            <div className="overflow-y-auto flex-1 p-3 space-y-2 scrollbar-border">
+            <div className="overflow-y-auto flex-1 p-3 space-y-1.5 scrollbar-border">
               {completedProjects.length === 0 ? (
                 <p className="text-xs text-slate-400 text-center py-8">No completed projects yet.</p>
               ) : (
@@ -420,12 +433,17 @@ export default function DashboardHome() {
                   <div
                     key={p.id}
                     onClick={() => { setShowCompleted(false); router.push(`/dashboard/projects/${p.id}`); }}
-                    className="flex items-center justify-between gap-3 p-3 rounded-xl bg-white/30 dark:bg-zinc-800/30 hover:bg-white/60 dark:hover:bg-zinc-800/60 border border-transparent hover:border-slate-200/50 dark:hover:border-white/10 cursor-pointer transition-all duration-150"
+                    className="flex items-center gap-3 p-3 rounded-xl border border-slate-100 dark:border-white/6 hover:bg-slate-50 dark:hover:bg-white/5 cursor-pointer transition-colors"
                   >
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-semibold text-slate-800 dark:text-white truncate">{p.project_name}</p>
-                      <div className="flex items-center gap-2 mt-1">
-                        {p.unit_code && <span className="text-[10px] text-slate-400">{p.unit_code}</span>}
+                      <div className="flex items-center gap-2 mt-1 flex-wrap">
+                        {p.unit_code && (
+                          <span className="text-[10px] font-medium text-slate-400 dark:text-slate-500">{p.unit_code}</span>
+                        )}
+                        {p.current_phase_name && (
+                          <span className="text-[10px] text-slate-400 dark:text-slate-500">{p.current_phase_name}</span>
+                        )}
                         {p.status_label && (
                           <span className="text-[9px] font-bold px-1.5 py-0.5 rounded text-white uppercase" style={{ backgroundColor: p.status_color || "#22c55e" }}>
                             {p.status_label}
@@ -433,14 +451,21 @@ export default function DashboardHome() {
                         )}
                       </div>
                     </div>
-                    <span className="text-xs font-bold text-green-500 shrink-0">{p.overall_progress_pct ?? 0}%</span>
+                    <div className="flex flex-col items-end gap-1 shrink-0">
+                      <span className="text-xs font-bold text-green-500">{p.overall_progress_pct ?? 0}%</span>
+                      {p.priority_name && (
+                        <span className="text-[9px] font-bold uppercase" style={{ color: p.priority_color || "#94a3b8" }}>
+                          {p.priority_name}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 ))
               )}
             </div>
           </div>
         </div>
-      )}
+      , document.body)}
     </div>
   );
 }
