@@ -62,7 +62,8 @@
       "Bash(latexmk -pdf -interaction=nonstopmode -g MAGANG.tex)",
       "Bash(latexmk -C MAGANG.tex)",
       "Bash(latexmk -pdf -interaction=nonstopmode MAGANG.tex)",
-      "Bash(PGPASSWORD=clickup123 psql -h 202.83.121.156 -p 5433 -U cici -d cici -c ' *)"
+      "Bash(PGPASSWORD=clickup123 psql -h 202.83.121.156 -p 5433 -U cici -d cici -c ' *)",
+      "Bash(pdfinfo \"00000093055_2521_1_1_DailyTask.pdf\")"
     ],
     "additionalDirectories": [
       "C:\\Users\\abrah\\clickup-dashboard\\src\\app\\api\\clickup",

@@ -168,11 +168,13 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
           mu.unit_code, mu.unit_name,
           mc.category_name,
 
+          ob.brief_text               AS operational_brief,
           ob.normalized_deadline_date AS brief_deadline,
           ob.received_date            AS brief_received,
           ob.progress_pct             AS brief_progress,
           ob.notes                    AS brief_notes,
 
+          ds.brief_text               AS design_brief,
           ds.start_design_date        AS design_start,
           ds.design_approval_date     AS design_end,
           ds.progress_pct             AS design_progress,
@@ -188,6 +190,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
           pm.commence_date            AS pm_start,
           pm.end_contract_date        AS pm_end,
           pm.progress_pct             AS pm_progress,
+          pm.actual_phase_completion_date AS pm_actual_end,
           pm.deviation_days,
           pm.current_site_progress,
           pm.notes                    AS pm_notes,

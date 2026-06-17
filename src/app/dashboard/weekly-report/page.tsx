@@ -4,7 +4,24 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { format, eachWeekOfInterval, addDays, parseISO, isValid, getISOWeek, getISOWeekYear, startOfISOWeek } from "date-fns";
-import { BarChart2, Camera, Search, ChevronDown, X, CalendarRange } from "lucide-react";
+import { BarChart2, Camera, Search, ChevronDown, X, CalendarRange, Plus, Loader2, CheckSquare, Square, Trash2, ClipboardList } from "lucide-react";
+
+type SubTask = {
+  id: string;
+  title: string;
+  progress_pct: number;
+  phase_id: string | null;
+  raw_assignee_name: string | null;
+  raw_assigned_by_name: string | null;
+};
+
+const PHASE_ROW_ID_MAP: Record<string, string> = {
+  operational_brief:  "brief_phase_row_id",
+  design:             "design_phase_row_id",
+  project_control:    "control_phase_row_id",
+  project_management: "pm_phase_row_id",
+  handover:           "handover_phase_row_id",
+};
 
 type ProjectMeta = {
   id: string;
@@ -395,7 +412,72 @@ function ProjectWeeklySection({ project, selectedWeekKey }: { project: ProjectMe
   const weeks     = buildWeeks(startDate, endDate);
   const [expanded, setExpanded] = useState(false);
 
+  // Sub-tasks state
+  const [tasks,            setTasks]            = useState<SubTask[]>([]);
+  const [phaseRowId,       setPhaseRowId]       = useState<string | null>(null);
+  const [loadingTasks,     setLoadingTasks]     = useState(false);
+  const [newTaskInput,     setNewTaskInput]     = useState("");
+  const [newTaskAssignee,  setNewTaskAssignee]  = useState("");
+  const [newTaskAssignedBy,setNewTaskAssignedBy]= useState("");
+  const [addingTask,       setAddingTask]       = useState(false);
+
   const weekEntry = weeks.find(w => w.weekKey === selectedWeekKey);
+
+  // Fetch tasks + current phase row ID when expanded
+  useEffect(() => {
+    if (!expanded) return;
+    setLoadingTasks(true);
+    Promise.all([
+      fetch(`/api/projects/${project.id}/tasks`).then(r => r.json()),
+      fetch(`/api/projects/${project.id}`).then(r => r.json()),
+    ]).then(([tasksRes, detailRes]) => {
+      if (tasksRes.success) setTasks(tasksRes.data);
+      if (detailRes.success && project.current_phase_code) {
+        const key = PHASE_ROW_ID_MAP[project.current_phase_code];
+        setPhaseRowId(key ? (detailRes.data.project[key] ?? null) : null);
+      }
+    }).catch(() => {}).finally(() => setLoadingTasks(false));
+  }, [expanded, project.id, project.current_phase_code]);
+
+  async function handleTaskAdd() {
+    if (!newTaskInput.trim()) return;
+    setAddingTask(true);
+    try {
+      const res = await fetch(`/api/projects/${project.id}/tasks`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: newTaskInput.trim(),
+          phase_id: phaseRowId ?? null,
+          raw_assignee_name: newTaskAssignee.trim() || null,
+          raw_assigned_by_name: newTaskAssignedBy.trim() || null,
+        }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        setTasks(prev => [...prev, json.data]);
+        setNewTaskInput(""); setNewTaskAssignee(""); setNewTaskAssignedBy("");
+      }
+    } finally { setAddingTask(false); }
+  }
+
+  async function handleTaskToggle(taskId: string, done: boolean) {
+    await fetch(`/api/projects/${project.id}/tasks`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ taskId, progress_pct: done ? 100 : 0 }),
+    });
+    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, progress_pct: done ? 100 : 0 } : t));
+  }
+
+  async function handleTaskDelete(taskId: string) {
+    await fetch(`/api/projects/${project.id}/tasks`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ taskId }),
+    });
+    setTasks(prev => prev.filter(t => t.id !== taskId));
+  }
 
   return (
     <div className="rounded-2xl border border-slate-200/70 dark:border-white/8 overflow-hidden bg-white/60 dark:bg-zinc-900/50">
@@ -442,13 +524,7 @@ function ProjectWeeklySection({ project, selectedWeekKey }: { project: ProjectMe
         <ChevronDown size={15} className="text-slate-400 shrink-0 transition-transform duration-300" style={{ transform: expanded ? "rotate(0deg)" : "rotate(-90deg)" }} />
       </button>
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateRows: expanded ? "1fr" : "0fr",
-          transition: "grid-template-rows 0.35s cubic-bezier(0.4,0,0.2,1)",
-        }}
-      >
+      <div style={{ display: "grid", gridTemplateRows: expanded ? "1fr" : "0fr", transition: "grid-template-rows 0.35s cubic-bezier(0.4,0,0.2,1)" }}>
         <div style={{ overflow: "hidden" }}>
           <PhaseStepperStrip project={project} />
           <PhaseNotesStrip project={project} />
@@ -467,6 +543,88 @@ function ProjectWeeklySection({ project, selectedWeekKey }: { project: ProjectMe
               Week not in this project's timeline.
             </div>
           )}
+
+          {/* ── Sub-Tasks ── */}
+          <div className="px-5 py-4 border-t border-slate-100 dark:border-white/6">
+            <div className="flex items-center gap-2 mb-3">
+              <ClipboardList size={12} className="text-slate-400 shrink-0" />
+              <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">Sub-Tasks</p>
+              {tasks.length > 0 && (
+                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-slate-100 dark:bg-white/8 text-slate-500 dark:text-slate-400">
+                  {tasks.filter(t => Number(t.progress_pct) >= 100).length}/{tasks.length}
+                </span>
+              )}
+            </div>
+
+            {loadingTasks ? (
+              <div className="flex items-center gap-2 py-2 text-slate-400 text-xs">
+                <Loader2 size={12} className="animate-spin" /> Loading…
+              </div>
+            ) : (
+              <>
+                {tasks.length > 0 && (
+                  <div className="space-y-1 mb-3">
+                    {tasks.map(t => {
+                      const done = Number(t.progress_pct) >= 100;
+                      return (
+                        <div key={t.id} className="flex items-center gap-2 group py-1.5 px-2 rounded-lg hover:bg-slate-50 dark:hover:bg-white/4 transition-colors">
+                          <button onClick={() => handleTaskToggle(t.id, !done)} className="shrink-0 text-slate-400 hover:text-amber-500 transition-colors">
+                            {done ? <CheckSquare size={15} className="text-amber-500" /> : <Square size={15} />}
+                          </button>
+                          <div className="flex-1 min-w-0">
+                            <p className={`text-xs leading-snug ${done ? "line-through text-slate-400 dark:text-slate-600" : "text-slate-700 dark:text-slate-200"}`}>{t.title}</p>
+                            {(t.raw_assignee_name || t.raw_assigned_by_name) && (
+                              <div className="flex items-center gap-2 mt-0.5 text-[10px] text-slate-400">
+                                {t.raw_assignee_name && <span>{t.raw_assignee_name}</span>}
+                                {t.raw_assigned_by_name && <span className="text-slate-300 dark:text-slate-600">by {t.raw_assigned_by_name}</span>}
+                              </div>
+                            )}
+                          </div>
+                          <button onClick={() => handleTaskDelete(t.id)} className="opacity-0 group-hover:opacity-60 hover:opacity-100! text-slate-400 hover:text-rose-500 transition-all shrink-0">
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+                {tasks.length === 0 && <p className="text-[10px] italic text-slate-400 dark:text-slate-500 mb-3">No sub-tasks yet</p>}
+
+                {/* Add form */}
+                <div className="space-y-2 pt-2 border-t border-dashed border-slate-200/50 dark:border-white/6">
+                  <input
+                    value={newTaskInput}
+                    onChange={e => setNewTaskInput(e.target.value)}
+                    onKeyDown={e => { if (e.key === "Enter") handleTaskAdd(); }}
+                    placeholder="Nama sub-task..."
+                    className="w-full text-xs px-3 py-2 rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-zinc-800 text-slate-700 dark:text-slate-200 placeholder:text-slate-300 dark:placeholder:text-slate-600 outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20 transition-all"
+                  />
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      value={newTaskAssignee}
+                      onChange={e => setNewTaskAssignee(e.target.value)}
+                      placeholder="Assignee..."
+                      className="w-full text-xs px-3 py-2 rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-zinc-800 text-slate-700 dark:text-slate-200 placeholder:text-slate-300 dark:placeholder:text-slate-600 outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20 transition-all"
+                    />
+                    <input
+                      value={newTaskAssignedBy}
+                      onChange={e => setNewTaskAssignedBy(e.target.value)}
+                      placeholder="Assigned by..."
+                      className="w-full text-xs px-3 py-2 rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-zinc-800 text-slate-700 dark:text-slate-200 placeholder:text-slate-300 dark:placeholder:text-slate-600 outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20 transition-all"
+                    />
+                  </div>
+                  <button
+                    onClick={handleTaskAdd}
+                    disabled={addingTask || !newTaskInput.trim()}
+                    className="w-full flex items-center justify-center gap-1.5 text-xs font-medium py-2 px-3 rounded-lg bg-amber-500 hover:bg-amber-600 disabled:opacity-40 text-white transition-colors"
+                  >
+                    {addingTask ? <Loader2 size={12} className="animate-spin" /> : <Plus size={12} />}
+                    Tambah Sub-Task
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </div>
     </div>

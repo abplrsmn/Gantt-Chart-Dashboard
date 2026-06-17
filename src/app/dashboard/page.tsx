@@ -143,16 +143,24 @@ export default function DashboardHome() {
   );
 
 
+  const DONUT_ITEMS = [
+    { label: "Completed", color: "#22c55e", onClick: () => setShowCompleted(true) },
+    { label: "Overdue",   color: "#f43f5e", onClick: () => router.push("/dashboard/alerts?tab=overdue") },
+    { label: "On Track",  color: "#6B3A2A", onClick: () => router.push("/dashboard/projects/list") },
+  ] as const;
+
   const donutData = useMemo(() => {
-    const onTrack = activeProjects.length - overdueProjects.length;
+    const onTrack = Math.max(0, activeProjects.length - overdueProjects.length);
     return {
-      labels: ["Completed", "Overdue", "On Track"],
+      labels: DONUT_ITEMS.map(i => i.label),
       datasets: [{
         data: [completedProjects.length, overdueProjects.length, onTrack],
-        backgroundColor: ["#2dd4bf", "#f43f5e", "#94a3b8"],
-        borderColor: ["#14b8a6", "#e11d48", "#64748b"],
-        borderWidth: 1,
-        hoverOffset: 6,
+        backgroundColor: DONUT_ITEMS.map(i => i.color),
+        borderColor: "transparent",
+        borderWidth: 0,
+        hoverOffset: 14,
+        borderRadius: 5,
+        spacing: 4,
       }],
     };
   }, [activeProjects, overdueProjects, completedProjects]);
@@ -222,31 +230,19 @@ export default function DashboardHome() {
       {/* Alert + People summary */}
       {!loading && (
         <>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            {[
-              { label: "Overdue",       count: overdueProjects.length, tab: "overdue", iconBg: "rgba(244,63,94,0.10)",  iconColor: "#f43f5e", icon: <AlertTriangle size={18} /> },
-              { label: "Due in 3 Days", count: urgentProjects.length,  tab: "urgent",  iconBg: "rgba(249,115,22,0.10)", iconColor: "#f97316", icon: <Clock size={18} /> },
-              { label: "Due in 7 Days", count: soonProjects.length,    tab: "soon",    iconBg: "rgba(234,179,8,0.10)",  iconColor: "#eab308", icon: <Clock size={18} /> },
-              { label: "New Projects",  count: newProjects.length,     tab: "new",     iconBg: "rgba(45,212,191,0.10)", iconColor: "#2dd4bf", icon: <Sparkles size={18} /> },
-            ].map(s => (
-              <div key={s.label} onClick={() => router.push(`/dashboard/alerts?tab=${s.tab}`)} className="glass-card flex-1 min-w-0 p-5 flex flex-col justify-between overflow-hidden relative min-h-27 cursor-pointer card-hover">
-                <div className="flex justify-between items-start mb-2">
-                  <span className="text-3xl font-bold text-slate-800 dark:text-white">{s.count}</span>
-                  <div className="p-2 rounded-lg" style={{ background: s.iconBg, color: s.iconColor }}>
-                    {s.icon}
-                  </div>
+          <div className="grid grid-cols-3 gap-4">
+            <div onClick={() => router.push("/dashboard/alerts?tab=overdue")} className="glass-card flex-1 min-w-0 p-5 flex flex-col justify-between overflow-hidden relative min-h-27 cursor-pointer card-hover">
+              <div className="flex justify-between items-start mb-2">
+                <span className="text-3xl font-bold text-slate-800 dark:text-white">{overdueProjects.length}</span>
+                <div className="p-2 rounded-lg" style={{ background: "rgba(244,63,94,0.10)", color: "#f43f5e" }}>
+                  <AlertTriangle size={18} />
                 </div>
-                <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{s.label}</p>
               </div>
-            ))}
-          </div>
-          <div className="grid grid-cols-2 gap-4">
+              <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Overdue</p>
+            </div>
             <div onClick={() => router.push("/dashboard/team?tab=users")} className="glass-card flex-1 min-w-0 p-5 flex flex-col justify-between overflow-hidden relative min-h-27 cursor-pointer card-hover">
               <div className="flex justify-between items-start mb-2">
-                <div>
-                  <span className="text-3xl font-bold text-slate-800 dark:text-white">{userCount}</span>
-                  <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1">{userActiveCount} active</p>
-                </div>
+                <span className="text-3xl font-bold text-slate-800 dark:text-white">{userCount}</span>
                 <div className="p-2 rounded-lg" style={{ background: "rgba(139,92,246,0.10)", color: "#8b5cf6" }}>
                   <UserCircle2 size={18} />
                 </div>
@@ -255,10 +251,7 @@ export default function DashboardHome() {
             </div>
             <div onClick={() => router.push("/dashboard/team?tab=stakeholders")} className="glass-card flex-1 min-w-0 p-5 flex flex-col justify-between overflow-hidden relative min-h-27 cursor-pointer card-hover">
               <div className="flex justify-between items-start mb-2">
-                <div>
-                  <span className="text-3xl font-bold text-slate-800 dark:text-white">{stakeholderCount}</span>
-                  <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1">{stakeholderActiveCount} active</p>
-                </div>
+                <span className="text-3xl font-bold text-slate-800 dark:text-white">{stakeholderCount}</span>
                 <div className="p-2 rounded-lg" style={{ background: "rgba(45,212,191,0.10)", color: "#2dd4bf" }}>
                   <Users size={18} />
                 </div>
@@ -278,47 +271,79 @@ export default function DashboardHome() {
             <h3 className="text-base font-bold text-slate-700 dark:text-slate-200">Project Status Overview</h3>
           </div>
           <div className="flex flex-col sm:flex-row items-center gap-6">
-            <div className="w-52 h-52 shrink-0">
+            {/* Chart with center text overlay */}
+            <div className="relative w-56 h-56 shrink-0 cursor-pointer">
               {projects.length > 0 ? (
-                <Doughnut
-                  data={donutData}
-                  options={{
-                    maintainAspectRatio: true,
-                    cutout: "68%",
-                    plugins: {
-                      legend: { display: false },
-                      tooltip: {
-                        callbacks: {
-                          label: (ctx) => ` ${ctx.label}: ${ctx.raw} projects`,
+                <>
+                  <Doughnut
+                    data={donutData}
+                    options={{
+                      maintainAspectRatio: true,
+                      cutout: "72%",
+                      animation: { animateRotate: true, animateScale: false, duration: 700 },
+                      layout: { padding: 18 },
+                      onClick: (_e, elements) => {
+                        if (!elements.length) return;
+                        DONUT_ITEMS[elements[0].index]?.onClick();
+                      },
+                      plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                          backgroundColor: "rgba(15,23,42,0.88)",
+                          titleColor: "#f1f5f9",
+                          bodyColor: "#94a3b8",
+                          borderColor: "rgba(255,255,255,0.10)",
+                          borderWidth: 1,
+                          padding: { top: 9, bottom: 9, left: 13, right: 13 },
+                          cornerRadius: 10,
+                          boxPadding: 6,
+                          boxWidth: 9,
+                          boxHeight: 9,
+                          titleFont: { family: "'Inter', ui-sans-serif, sans-serif", weight: "bold" as const, size: 12 },
+                          bodyFont:  { family: "'Inter', ui-sans-serif, sans-serif", size: 11 },
+                          callbacks: {
+                            title: () => "",
+                            label: (ctx) => `  ${ctx.label}: ${ctx.raw} projects`,
+                          },
                         },
                       },
-                    },
-                  }}
-                />
+                    }}
+                  />
+                  {/* Center label */}
+                  <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none select-none">
+                    <span className="text-3xl font-black text-slate-800 dark:text-white leading-none">{projects.length}</span>
+                    <span className="text-[9px] font-bold uppercase tracking-[0.18em] text-slate-400 mt-1">Projects</span>
+                  </div>
+                </>
               ) : (
                 <p className="text-xs text-slate-500 dark:text-slate-400">No data available.</p>
               )}
             </div>
-            <div className="flex flex-col gap-3 flex-1">
-              {[
-                { label: "Completed",  count: completedProjects.length, color: "#2dd4bf" },
-                { label: "Overdue",    count: overdueProjects.length,   color: "#f43f5e" },
-                { label: "On Track",   count: Math.max(0, activeProjects.length - overdueProjects.length), color: "#94a3b8" },
-              ].map(item => (
-                <div key={item.label} className="flex items-center gap-3">
-                  <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
-                  <span className="text-xs text-slate-500 dark:text-slate-400 flex-1">{item.label}</span>
-                  <span className="text-sm font-bold text-slate-800 dark:text-white">{item.count}</span>
-                  <span className="text-[10px] text-slate-400 w-10 text-right">
-                    {projects.length > 0 ? `${Math.round((item.count / projects.length) * 100)}%` : "0%"}
-                  </span>
-                </div>
-              ))}
-              <div className="mt-1 pt-2 border-t border-slate-200/50 dark:border-white/8">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] text-slate-400 uppercase tracking-wide">Total Projects</span>
-                  <span className="text-sm font-bold text-slate-800 dark:text-white">{projects.length}</span>
-                </div>
+
+            {/* Legend cards */}
+            <div className="flex flex-col gap-2.5 flex-1 w-full">
+              {DONUT_ITEMS.map((item, i) => {
+                const counts = [completedProjects.length, overdueProjects.length, Math.max(0, activeProjects.length - overdueProjects.length)];
+                const count = counts[i];
+                const pct = projects.length > 0 ? Math.round((count / projects.length) * 100) : 0;
+                return (
+                  <div key={item.label} onClick={item.onClick} className="px-3.5 py-2.5 rounded-xl border border-slate-100 dark:border-white/7 bg-slate-50/60 dark:bg-white/3 hover:bg-white dark:hover:bg-white/6 transition-colors cursor-pointer">
+                    <div className="flex items-center gap-2.5 mb-1.5">
+                      <span className="w-2.5 h-2.5 rounded-full shrink-0 shadow-sm" style={{ backgroundColor: item.color, boxShadow: `0 0 6px ${item.color}80` }} />
+                      <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 flex-1">{item.label}</span>
+                      <span className="text-sm font-black" style={{ color: item.color }}>{count}</span>
+                      <span className="text-[10px] font-medium text-slate-400 dark:text-slate-500 w-8 text-right">{pct}%</span>
+                    </div>
+                    {/* Mini progress bar */}
+                    <div className="h-1 rounded-full bg-slate-200 dark:bg-white/8 overflow-hidden">
+                      <div className="h-full rounded-full transition-all duration-700" style={{ width: `${pct}%`, backgroundColor: item.color, opacity: 0.75 }} />
+                    </div>
+                  </div>
+                );
+              })}
+              <div className="flex items-center justify-between px-1 pt-1">
+                <span className="text-[9px] font-bold uppercase tracking-widest text-slate-400">Total</span>
+                <span className="text-sm font-black text-slate-700 dark:text-slate-200">{projects.length} projects</span>
               </div>
             </div>
           </div>

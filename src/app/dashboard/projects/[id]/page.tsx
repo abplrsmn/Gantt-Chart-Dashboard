@@ -41,10 +41,12 @@ type ProjectDetail = {
   control_phase_row_id: string | null;
   pm_phase_row_id: string | null;
   handover_phase_row_id: string | null;
+  operational_brief: string | null;
   brief_deadline: string | null;
   brief_received: string | null;
   brief_progress: string | null;
   brief_notes: string | null;
+  design_brief: string | null;
   design_start: string | null;
   design_end: string | null;
   design_progress: string | null;
@@ -57,6 +59,7 @@ type ProjectDetail = {
   control_notes: string | null;
   pm_start: string | null;
   pm_end: string | null;
+  pm_actual_end: string | null;
   pm_progress: string | null;
   deviation_days: string | null;
   current_site_progress: string | null;
@@ -180,7 +183,7 @@ function InlineField({
 
   const wrapCls = fullWidth ? "col-span-2" : "";
   const labelEl = <p className="text-[9px] uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-0.5">{label}</p>;
-  const inputCls = "w-full bg-white dark:bg-zinc-800 border border-cyan-400 rounded px-2 py-0.5 text-xs text-slate-700 dark:text-slate-200 outline-none ring-2 ring-cyan-400/30";
+  const inputCls = "w-full bg-white dark:bg-zinc-800 border border-amber-400 rounded px-2 py-0.5 text-xs text-slate-700 dark:text-slate-200 outline-none ring-2 ring-amber-400/30";
 
   if (editing) {
     return (
@@ -215,7 +218,7 @@ function InlineField({
     <div className={`${readOnly ? "" : "group cursor-pointer"} ${wrapCls}`} onClick={startEdit}>
       {labelEl}
       <div className="flex items-center gap-1">
-        <p className={`font-semibold ${fullWidth ? "text-[11px] leading-relaxed" : "text-xs"} ${displayVal === "—" ? "text-slate-400 dark:text-slate-500 italic" : "text-slate-700 dark:text-slate-200"} ${!readOnly ? "group-hover:text-cyan-500 dark:group-hover:text-cyan-400" : ""} transition-colors ${saving ? "opacity-50" : ""}`}>
+        <p className={`font-semibold ${fullWidth ? "text-[11px] leading-relaxed" : "text-xs"} ${displayVal === "—" ? "text-slate-400 dark:text-slate-500 italic" : "text-slate-700 dark:text-slate-200"} ${!readOnly ? "group-hover:text-amber-600 dark:group-hover:text-amber-400" : ""} transition-colors ${saving ? "opacity-50" : ""}`}>
           {displayVal}
         </p>
         {!readOnly && <Pencil size={9} className="text-slate-400 dark:text-slate-500 opacity-0 group-hover:opacity-60 transition-opacity shrink-0" />}
@@ -251,10 +254,10 @@ function NotesBox({ value, onSave, readOnly }: { value: string | null; onSave: (
         className={`w-full text-xs px-3 py-2 rounded-lg border resize-none outline-none transition-all leading-relaxed
           ${readOnly
             ? "bg-slate-50 dark:bg-white/2 border-slate-200/40 dark:border-white/6 text-slate-500 dark:text-slate-400 cursor-default placeholder:text-slate-300 dark:placeholder:text-slate-600"
-            : "bg-white dark:bg-zinc-800/60 border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-200 placeholder:text-slate-300 dark:placeholder:text-slate-600 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20"
+            : "bg-white dark:bg-zinc-800/60 border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-200 placeholder:text-slate-300 dark:placeholder:text-slate-600 focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20"
           } ${saving ? "opacity-50" : ""}`}
       />
-      {saving && <Loader2 size={10} className="absolute top-2 right-2 animate-spin text-cyan-400" />}
+      {saving && <Loader2 size={10} className="absolute top-2 right-2 animate-spin text-amber-400" />}
     </div>
   );
 }
@@ -284,7 +287,7 @@ function InlineText({
     await onSave(draft.trim() || null);
   }
 
-  const inputCls = "bg-white dark:bg-zinc-800 border border-cyan-400 rounded px-2 py-0.5 outline-none ring-2 ring-cyan-400/30 w-full " + (className ?? "");
+  const inputCls = "bg-white dark:bg-zinc-800 border border-amber-400 rounded px-2 py-0.5 outline-none ring-2 ring-amber-400/30 w-full " + (className ?? "");
 
   if (editing) {
     return multiline ? (
@@ -302,7 +305,7 @@ function InlineText({
 
   return (
     <span className={`group inline-flex items-center gap-1.5 cursor-pointer`} onClick={startEdit}>
-      <span className={`${className} group-hover:text-cyan-500 dark:group-hover:text-cyan-400 transition-colors`}>
+      <span className={`${className} group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors`}>
         {value || <span className="italic text-slate-400">—</span>}
       </span>
       <Pencil size={10} className="text-slate-400 opacity-0 group-hover:opacity-60 transition-opacity shrink-0" />
@@ -339,9 +342,11 @@ const PHASE_DEFS: PhaseDef[] = [
     startKey: "brief_received", endKey: "brief_deadline",
     phaseRowIdKey: "brief_phase_row_id",
     fields: [
-      { label: "Brief Received",  key: "brief_received", format: "date" },
-      { label: "Brief Deadline",  key: "brief_deadline", format: "date" },
-      { label: "Notes",           key: "brief_notes",    format: "text", fullWidth: true },
+      { label: "Brief Received",  key: "brief_received",   format: "date" },
+      { label: "Brief Deadline",  key: "brief_deadline",   format: "date" },
+      { label: "Budget / CAPEX",  key: "budget_capex",     format: "currency", fullWidth: true },
+      { label: "Brief Text",      key: "operational_brief",format: "text",     fullWidth: true },
+      { label: "Notes",           key: "brief_notes",      format: "text",     fullWidth: true },
     ],
   },
   {
@@ -353,6 +358,7 @@ const PHASE_DEFS: PhaseDef[] = [
     fields: [
       { label: "Start Design",    key: "design_start",           format: "date" },
       { label: "Design Approval", key: "design_end",             format: "date" },
+      { label: "Design Brief",    key: "design_brief",           format: "text", fullWidth: true },
       { label: "Working Drawing", key: "working_drawing_status", format: "text", fullWidth: true },
       { label: "Notes",           key: "design_notes",           format: "text", fullWidth: true },
     ],
@@ -377,11 +383,12 @@ const PHASE_DEFS: PhaseDef[] = [
     startKey: "pm_start", endKey: "pm_end",
     phaseRowIdKey: "pm_phase_row_id",
     fields: [
-      { label: "Commence Date", key: "pm_start",              format: "date" },
-      { label: "End Contract",  key: "pm_end",                format: "date" },
-      { label: "Deviation Days",key: "deviation_days",        format: "text" },
-      { label: "Site Progress", key: "current_site_progress", format: "text" },
-      { label: "Notes",         key: "pm_notes",              format: "text", fullWidth: true },
+      { label: "Commence Date",    key: "pm_start",              format: "date" },
+      { label: "End Contract",     key: "pm_end",                format: "date" },
+      { label: "Completion Date",  key: "pm_actual_end",         format: "date" },
+      { label: "Deviation Days",   key: "deviation_days",        format: "text" },
+      { label: "Site Progress",    key: "current_site_progress", format: "text" },
+      { label: "Notes",            key: "pm_notes",              format: "text", fullWidth: true },
     ],
   },
   {
@@ -423,6 +430,7 @@ function PhaseCard({
   const isLocked    = !isCurrent;
   const phasePeople = people.filter(p => Number(p.phase_id) === ph.phaseId);
 
+  const [open,             setOpen]             = useState(isCurrent);
   const [newTaskInput,      setNewTaskInput]      = useState("");
   const [newTaskAssignee,   setNewTaskAssignee]   = useState("");
   const [newTaskAssignedBy, setNewTaskAssignedBy] = useState("");
@@ -450,7 +458,7 @@ function PhaseCard({
     finally { setUploadingFile(false); if (fileInputRef.current) fileInputRef.current.value = ""; }
   }
 
-  const inputCls = "flex-1 text-[10px] px-2 py-1 rounded-lg border border-dashed border-slate-200/70 dark:border-white/8 bg-transparent text-slate-700 dark:text-slate-300 placeholder:text-slate-300 dark:placeholder:text-slate-600 outline-none focus:border-cyan-400/60 focus:ring-1 focus:ring-cyan-400/20 transition-all";
+  const inputCls = "flex-1 text-[10px] px-2 py-1 rounded-lg border border-dashed border-slate-200/70 dark:border-white/8 bg-transparent text-slate-700 dark:text-slate-300 placeholder:text-slate-300 dark:placeholder:text-slate-600 outline-none focus:border-amber-400/60 focus:ring-1 focus:ring-amber-400/20 transition-all";
   const addBtnCls = "p-1 rounded-lg bg-slate-100 dark:bg-white/8 text-slate-500 hover:bg-slate-200 dark:hover:bg-white/12 disabled:opacity-40 transition-colors shrink-0";
 
   return (
@@ -466,8 +474,9 @@ function PhaseCard({
       {isCurrent && (
         <div className="absolute left-0 top-0 bottom-0 w-1.5" style={{ backgroundColor: ph.color }} />
       )}
-      <div
-        className="flex items-center gap-3 px-3.5 py-3"
+      <button
+        onClick={() => setOpen(v => !v)}
+        className="w-full flex items-center gap-3 px-3.5 py-3 text-left transition-colors"
         style={{ backgroundColor: isCurrent ? `${ph.color}24` : isPast ? `${ph.color}0a` : `${ph.color}06` }}
       >
         <span className="w-2.5 h-2.5 rounded-full shrink-0 ring-4" style={{ backgroundColor: ph.color, opacity: isCurrent ? 1 : 0.5, boxShadow: isCurrent ? `0 0 16px ${ph.color}` : "none", ['--tw-ring-color' as string]: isCurrent ? `${ph.color}30` : "transparent" }} />
@@ -478,14 +487,22 @@ function PhaseCard({
               CURRENT PHASE
             </span>
           )}
-          {isLocked && (
+          {isLocked && !isPast && (
             <span className="ml-2 text-[8px] font-semibold px-2 py-0.5 rounded-full align-middle text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-white/6 border border-slate-200/60 dark:border-white/8">
               NOT STARTED
             </span>
           )}
+          {isPast && (
+            <span className="ml-2 text-[8px] font-semibold px-2 py-0.5 rounded-full align-middle" style={{ color: ph.color, backgroundColor: `${ph.color}18` }}>
+              DONE
+            </span>
+          )}
         </span>
-      </div>
+        <ChevronDown size={13} className="shrink-0 transition-transform duration-200" style={{ color: `${ph.color}99`, transform: open ? "rotate(0deg)" : "rotate(-90deg)" }} />
+      </button>
 
+      <div style={{ display: "grid", gridTemplateRows: open ? "1fr" : "0fr", transition: "grid-template-rows 0.25s cubic-bezier(0.4,0,0.2,1)" }}>
+      <div style={{ overflow: "hidden" }}>
       <div className="px-4 py-3 bg-white/40 dark:bg-zinc-900/30 space-y-3">
         {/* ── Date/field grid ── */}
         <div className="grid grid-cols-2 gap-x-6 gap-y-3">
@@ -526,10 +543,10 @@ function PhaseCard({
                   <div key={t.id} className="flex items-center gap-2 group py-1.5 px-2 rounded-lg hover:bg-slate-50 dark:hover:bg-white/4 transition-colors">
                     <button
                       onClick={() => !isLocked && onTaskToggle(t.id, !done)}
-                      className={`shrink-0 transition-colors ${isLocked ? "cursor-default text-slate-300 dark:text-slate-600" : "text-slate-400 hover:text-cyan-500"}`}
+                      className={`shrink-0 transition-colors ${isLocked ? "cursor-default text-slate-300 dark:text-slate-600" : "text-slate-400 hover:text-amber-500"}`}
                     >
                       {done
-                        ? <CheckSquare size={16} className={isLocked ? "text-slate-300 dark:text-slate-600" : "text-cyan-500"} />
+                        ? <CheckSquare size={16} className={isLocked ? "text-slate-300 dark:text-slate-600" : "text-amber-500"} />
                         : <Square size={16} />
                       }
                     </button>
@@ -579,7 +596,7 @@ function PhaseCard({
                   onChange={e => setNewTaskInput(e.target.value)}
                   onKeyDown={e => { if (e.key === "Enter") handleTaskAdd(); }}
                   placeholder="Tulis nama sub-task..."
-                  className="w-full text-xs px-3 py-2 rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-zinc-800 text-slate-700 dark:text-slate-200 placeholder:text-slate-300 dark:placeholder:text-slate-600 outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20 transition-all"
+                  className="w-full text-xs px-3 py-2 rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-zinc-800 text-slate-700 dark:text-slate-200 placeholder:text-slate-300 dark:placeholder:text-slate-600 outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20 transition-all"
                 />
               </div>
               <div className="grid grid-cols-2 gap-2">
@@ -589,7 +606,7 @@ function PhaseCard({
                     value={newTaskAssignee}
                     onChange={e => setNewTaskAssignee(e.target.value)}
                     placeholder="Nama assignee..."
-                    className="w-full text-xs px-3 py-2 rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-zinc-800 text-slate-700 dark:text-slate-200 placeholder:text-slate-300 dark:placeholder:text-slate-600 outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20 transition-all"
+                    className="w-full text-xs px-3 py-2 rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-zinc-800 text-slate-700 dark:text-slate-200 placeholder:text-slate-300 dark:placeholder:text-slate-600 outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20 transition-all"
                   />
                 </div>
                 <div>
@@ -598,14 +615,14 @@ function PhaseCard({
                     value={newTaskAssignedBy}
                     onChange={e => setNewTaskAssignedBy(e.target.value)}
                     placeholder="Nama yang assign..."
-                    className="w-full text-xs px-3 py-2 rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-zinc-800 text-slate-700 dark:text-slate-200 placeholder:text-slate-300 dark:placeholder:text-slate-600 outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20 transition-all"
+                    className="w-full text-xs px-3 py-2 rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-zinc-800 text-slate-700 dark:text-slate-200 placeholder:text-slate-300 dark:placeholder:text-slate-600 outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20 transition-all"
                   />
                 </div>
               </div>
               <button
                 onClick={handleTaskAdd}
                 disabled={addingTask || !newTaskInput.trim()}
-                className="w-full flex items-center justify-center gap-1.5 text-xs font-medium py-2 px-3 rounded-lg bg-cyan-500 hover:bg-cyan-600 disabled:opacity-40 text-white transition-colors"
+                className="w-full flex items-center justify-center gap-1.5 text-xs font-medium py-2 px-3 rounded-lg bg-amber-500 hover:bg-amber-600 disabled:opacity-40 text-white transition-colors"
               >
                 {addingTask ? <Loader2 size={12} className="animate-spin" /> : <Plus size={12} />}
                 Tambah Sub-Task
@@ -622,7 +639,7 @@ function PhaseCard({
               <button
                 onClick={() => fileInputRef.current?.click()}
                 disabled={uploadingFile}
-                className="flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-white/8 text-slate-500 dark:text-slate-400 hover:bg-cyan-50 hover:text-cyan-600 dark:hover:bg-cyan-500/10 dark:hover:text-cyan-400 disabled:opacity-40 transition-colors"
+                className="flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-white/8 text-slate-500 dark:text-slate-400 hover:bg-amber-50 hover:text-amber-600 dark:hover:bg-amber-500/10 dark:hover:text-amber-400 disabled:opacity-40 transition-colors"
               >
                 {uploadingFile ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />}
                 Upload
@@ -639,7 +656,7 @@ function PhaseCard({
                     href={a.file_url ?? "#"}
                     target="_blank"
                     rel="noreferrer"
-                    className="flex-1 text-[10px] text-slate-600 dark:text-slate-300 truncate hover:text-cyan-500 dark:hover:text-cyan-400 hover:underline transition-colors"
+                    className="flex-1 text-[10px] text-slate-600 dark:text-slate-300 truncate hover:text-amber-600 dark:hover:text-amber-400 hover:underline transition-colors"
                   >
                     {a.file_name}
                   </a>
@@ -661,6 +678,8 @@ function PhaseCard({
             <p className="text-[10px] italic text-slate-400 dark:text-slate-500">No documents yet</p>
           )}
         </div>
+      </div>
+      </div>
       </div>
     </div>
   );
@@ -1225,7 +1244,7 @@ export default function ProjectDetailPage() {
       {/* ── Project Description ──────────────────────────────────────── */}
       <div className="glass-card overflow-hidden">
         <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-200/50 dark:border-white/8">
-          <FileText size={14} className="text-cyan-500 shrink-0" />
+          <FileText size={14} className="text-amber-500 shrink-0" />
           <h3 className="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-widest">Project Description</h3>
         </div>
         <div className="grid grid-cols-2 divide-x divide-slate-200/50 dark:divide-white/8">
@@ -1413,7 +1432,7 @@ export default function ProjectDetailPage() {
       {/* ── Phase Parameters ─────────────────────────────────────────── */}
       <div className="glass-card overflow-hidden">
         <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-200/50 dark:border-white/8">
-          <Activity size={14} className="text-cyan-500 shrink-0" />
+          <Activity size={14} className="text-amber-500 shrink-0" />
           <h3 className="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-widest">Phase Parameters</h3>
           {(() => {
             const currentIdx = PHASE_DEFS.findIndex(p => p.phaseCode === project.current_phase_code);
