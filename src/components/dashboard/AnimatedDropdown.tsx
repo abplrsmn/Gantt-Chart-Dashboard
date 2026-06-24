@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useRef, useState } from "react";
 import { ChevronDown, Check } from "lucide-react";
@@ -44,7 +44,7 @@ export default function AnimatedDropdown({
         type="button"
         onClick={() => !disabled && setOpen(o => !o)}
         disabled={disabled}
-        className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-sm font-medium transition-all whitespace-nowrap select-none ${
+        className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium transition-all whitespace-nowrap select-none ${
           disabled
             ? "border-slate-200/30 dark:border-white/5 bg-white/30 dark:bg-zinc-900/30 text-slate-400 dark:text-slate-600 cursor-not-allowed opacity-50"
             : "border-slate-200/70 dark:border-white/10 bg-white/70 dark:bg-zinc-900/60 text-slate-700 dark:text-slate-200 hover:border-slate-300/80 dark:hover:border-white/20"
@@ -62,7 +62,7 @@ export default function AnimatedDropdown({
 
       {/* Dropdown panel */}
       <div
-        className="absolute z-50 mt-1.5 rounded-xl border border-slate-200 dark:border-white/10 shadow-xl overflow-hidden bg-white dark:bg-zinc-950/97"
+        className="absolute z-50 mt-1.5 rounded-lg border border-slate-200 dark:border-white/10 shadow-xl overflow-hidden bg-white dark:bg-zinc-950/97"
         style={{
           ...(align === "right" ? { right: 0 } : { left: 0 }),
           minWidth: `${minWidth}px`,

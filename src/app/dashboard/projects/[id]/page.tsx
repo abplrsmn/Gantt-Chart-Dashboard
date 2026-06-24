@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useMemo, useRef, useState, Fragment } from "react";
 import { createPortal } from "react-dom";
@@ -478,7 +478,7 @@ function PhaseCard({
 
   return (
     <div
-      className="relative rounded-xl border overflow-hidden transition-all"
+      className="relative rounded-lg border overflow-hidden transition-all"
       style={{
         borderColor: isCurrent ? ph.color : isPast ? `${ph.color}28` : "rgba(255,255,255,0.06)",
         borderWidth: isCurrent ? 2 : 1,
@@ -552,7 +552,7 @@ function PhaseCard({
           <div className="pt-3 border-t border-slate-200/40 dark:border-white/6">
             <a
               href={`/dashboard/projects/${project.id}/weekly-progress`}
-              className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl border border-slate-200 dark:border-white/10 bg-white/60 dark:bg-zinc-900/40 text-slate-600 dark:text-slate-300 hover:border-amber-400/60 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-amber-50/50 dark:hover:bg-amber-900/10 transition-all text-xs font-semibold"
+              className="flex items-center justify-center gap-2 w-full py-2.5 rounded-lg border border-slate-200 dark:border-white/10 bg-white/60 dark:bg-zinc-900/40 text-slate-600 dark:text-slate-300 hover:border-amber-400/60 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-amber-50/50 dark:hover:bg-amber-900/10 transition-all text-xs font-semibold"
             >
               <Camera size={13} />
               Weekly Progress
@@ -634,7 +634,7 @@ function PhaseCard({
               onMouseDown={e => { if (e.target === e.currentTarget) setShowAddTask(false); }}
             >
               <div
-                className="w-full max-w-sm rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200/60 dark:border-white/10 p-6 space-y-4 animate-modal-enter"
+                className="w-full max-w-sm rounded-xl bg-white dark:bg-zinc-900 border border-slate-200/60 dark:border-white/10 p-6 space-y-4 animate-modal-enter"
                 style={{ boxShadow: "0 24px 64px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.06)" }}
                 onMouseDown={e => e.stopPropagation()}
               >
@@ -653,7 +653,7 @@ function PhaseCard({
                       onChange={e => setNewTaskInput(e.target.value)}
                       onKeyDown={e => { if (e.key === "Enter" && newTaskInput.trim()) handleTaskAdd(); }}
                       placeholder="Tulis nama sub-task..."
-                      className="w-full text-xs px-3 py-2 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-zinc-800 text-slate-700 dark:text-slate-200 placeholder:text-slate-300 outline-none focus:border-amber-600/60 transition-all"
+                      className="w-full text-xs px-3 py-2 rounded-lg border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-zinc-800 text-slate-700 dark:text-slate-200 placeholder:text-slate-300 outline-none focus:border-amber-600/60 transition-all"
                     />
                   </div>
                   <div className="grid grid-cols-2 gap-2">
@@ -663,7 +663,7 @@ function PhaseCard({
                         value={newTaskAssignee}
                         onChange={e => setNewTaskAssignee(e.target.value)}
                         placeholder="Nama assignee..."
-                        className="w-full text-xs px-3 py-2 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-zinc-800 text-slate-700 dark:text-slate-200 placeholder:text-slate-300 outline-none focus:border-amber-600/60 transition-all"
+                        className="w-full text-xs px-3 py-2 rounded-lg border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-zinc-800 text-slate-700 dark:text-slate-200 placeholder:text-slate-300 outline-none focus:border-amber-600/60 transition-all"
                       />
                     </div>
                     <div>
@@ -672,7 +672,7 @@ function PhaseCard({
                         value={newTaskAssignedBy}
                         onChange={e => setNewTaskAssignedBy(e.target.value)}
                         placeholder="Nama yang assign..."
-                        className="w-full text-xs px-3 py-2 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-zinc-800 text-slate-700 dark:text-slate-200 placeholder:text-slate-300 outline-none focus:border-amber-600/60 transition-all"
+                        className="w-full text-xs px-3 py-2 rounded-lg border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-zinc-800 text-slate-700 dark:text-slate-200 placeholder:text-slate-300 outline-none focus:border-amber-600/60 transition-all"
                       />
                     </div>
                   </div>
@@ -1011,14 +1011,14 @@ export default function ProjectDetailPage() {
         <div className="ml-auto flex items-center gap-2">
           <button
             onClick={() => router.push(`/dashboard/projects/${id}/audit`)}
-            className="shrink-0 flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/60 dark:bg-zinc-900/50 text-slate-500 dark:text-slate-400 hover:border-slate-300 dark:hover:border-white/20 hover:bg-white dark:hover:bg-zinc-900/80 transition-all text-xs font-semibold"
+            className="shrink-0 flex items-center gap-2 px-4 py-2 rounded-lg border border-slate-200/60 dark:border-white/10 bg-white/60 dark:bg-zinc-900/50 text-slate-500 dark:text-slate-400 hover:border-slate-300 dark:hover:border-white/20 hover:bg-white dark:hover:bg-zinc-900/80 transition-all text-xs font-semibold"
           >
             <Clock size={13} />
             View Audit Log
           </button>
           <button
             onClick={() => { setDeleteError(null); setShowDeleteConfirm(true); }}
-            className="shrink-0 flex items-center gap-2 px-4 py-2 rounded-xl border border-rose-200/70 dark:border-rose-500/20 bg-rose-50/80 dark:bg-rose-500/8 text-rose-500 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-500/15 hover:border-rose-300 dark:hover:border-rose-500/40 transition-all text-xs font-semibold"
+            className="shrink-0 flex items-center gap-2 px-4 py-2 rounded-lg border border-rose-200/70 dark:border-rose-500/20 bg-rose-50/80 dark:bg-rose-500/8 text-rose-500 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-500/15 hover:border-rose-300 dark:hover:border-rose-500/40 transition-all text-xs font-semibold"
           >
             <Trash2 size={13} />
             Delete
@@ -1033,9 +1033,9 @@ export default function ProjectDetailPage() {
           style={{ backgroundColor: "rgba(0,0,0,0.5)", backdropFilter: "blur(6px)" }}
           onMouseDown={e => { if (e.target === e.currentTarget && !deleting) closeDeleteConfirm(); }}
         >
-          <div className={`w-full max-w-sm rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200/60 dark:border-white/10 p-6 space-y-4 ${exitingConfirm ? "animate-modal-exit" : "animate-modal-enter"}`} style={{ boxShadow: "0 24px 64px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.06)" }}>
+          <div className={`w-full max-w-sm rounded-xl bg-white dark:bg-zinc-900 border border-slate-200/60 dark:border-white/10 p-6 space-y-4 ${exitingConfirm ? "animate-modal-exit" : "animate-modal-enter"}`} style={{ boxShadow: "0 24px 64px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.06)" }}>
             <div className="flex items-start gap-3">
-              <div className="shrink-0 w-10 h-10 rounded-xl bg-rose-500/10 flex items-center justify-center">
+              <div className="shrink-0 w-10 h-10 rounded-lg bg-rose-500/10 flex items-center justify-center">
                 <Trash2 size={18} className="text-rose-500" />
               </div>
               <div>
@@ -1052,14 +1052,14 @@ export default function ProjectDetailPage() {
               <button
                 onClick={closeDeleteConfirm}
                 disabled={deleting}
-                className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/8 hover:text-slate-700 dark:hover:text-slate-200 transition-colors disabled:opacity-50"
+                className="px-4 py-2 rounded-lg text-xs font-semibold text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/8 hover:text-slate-700 dark:hover:text-slate-200 transition-colors disabled:opacity-50"
               >
                 Cancel
               </button>
               <button
                 onClick={handleDelete}
                 disabled={deleting}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-white bg-rose-500 hover:bg-rose-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold text-white bg-rose-500 hover:bg-rose-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {deleting ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
                 {deleting ? "Deleting…" : "Yes, delete it"}
@@ -1075,7 +1075,7 @@ export default function ProjectDetailPage() {
         <>
           <div className="fixed inset-0 z-9997" onMouseDown={() => setShowStatusPicker(false)} />
           <div
-            className="fixed z-9998 bg-white dark:bg-zinc-900 border border-slate-200/70 dark:border-white/10 rounded-xl shadow-xl p-1.5 flex flex-col gap-0.5 min-w-32.5 animate-dropdown-enter"
+            className="fixed z-9998 bg-white dark:bg-zinc-900 border border-slate-200/70 dark:border-white/10 rounded-lg shadow-xl p-1.5 flex flex-col gap-0.5 min-w-32.5 animate-dropdown-enter"
             style={(() => {
               const r = statusBtnRef.current?.getBoundingClientRect();
               return r ? { top: r.bottom + 6, left: r.left } : { top: 0, left: 0 };
@@ -1108,7 +1108,7 @@ export default function ProjectDetailPage() {
         <>
           <div className="fixed inset-0 z-9997" onMouseDown={() => setShowPriorityPicker(false)} />
           <div
-            className="fixed z-9998 bg-white dark:bg-zinc-900 border border-slate-200/70 dark:border-white/10 rounded-xl shadow-xl p-1.5 flex flex-col gap-0.5 min-w-32 animate-dropdown-enter"
+            className="fixed z-9998 bg-white dark:bg-zinc-900 border border-slate-200/70 dark:border-white/10 rounded-lg shadow-xl p-1.5 flex flex-col gap-0.5 min-w-32 animate-dropdown-enter"
             style={(() => {
               const r = priorityBtnRef.current?.getBoundingClientRect();
               return r ? { top: r.bottom + 6, left: r.left } : { top: 0, left: 0 };
@@ -1141,7 +1141,7 @@ export default function ProjectDetailPage() {
         <>
           <div className="fixed inset-0 z-9997" onMouseDown={() => setShowUnitPicker(false)} />
           <div
-            className="fixed z-9998 bg-white dark:bg-zinc-900 border border-slate-200/70 dark:border-white/10 rounded-xl shadow-xl p-1.5 flex flex-col gap-0.5 min-w-52 max-h-64 overflow-y-auto animate-dropdown-enter"
+            className="fixed z-9998 bg-white dark:bg-zinc-900 border border-slate-200/70 dark:border-white/10 rounded-lg shadow-xl p-1.5 flex flex-col gap-0.5 min-w-52 max-h-64 overflow-y-auto animate-dropdown-enter"
             style={(() => {
               const r = unitBtnRef.current?.getBoundingClientRect();
               return r ? { top: r.bottom + 6, left: r.left } : { top: 0, left: 0 };
@@ -1178,9 +1178,9 @@ export default function ProjectDetailPage() {
           style={{ backgroundColor: "rgba(0,0,0,0.5)", backdropFilter: "blur(6px)" }}
           onMouseDown={e => { if (e.target === e.currentTarget) setChangeReasonModal(null); }}
         >
-          <div className="w-full max-w-sm rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200/60 dark:border-white/10 p-6 space-y-4 animate-modal-enter" style={{ boxShadow: "0 24px 64px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.06)" }}>
+          <div className="w-full max-w-sm rounded-xl bg-white dark:bg-zinc-900 border border-slate-200/60 dark:border-white/10 p-6 space-y-4 animate-modal-enter" style={{ boxShadow: "0 24px 64px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.06)" }}>
             <div className="flex items-start gap-3">
-              <div className="shrink-0 w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${changeReasonModal.newColor}20` }}>
+              <div className="shrink-0 w-10 h-10 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${changeReasonModal.newColor}20` }}>
                 <span className="w-3.5 h-3.5 rounded-full" style={{ backgroundColor: changeReasonModal.newColor }} />
               </div>
               <div>
@@ -1202,7 +1202,7 @@ export default function ProjectDetailPage() {
                 onChange={e => setChangeReason(e.target.value)}
                 rows={3}
                 placeholder={changeReasonModal.type === "status" ? "e.g. Project is now on hold due to budget review..." : "e.g. Escalated to Critical after stakeholder review..."}
-                className="w-full rounded-xl border border-slate-200/70 dark:border-white/10 bg-slate-50 dark:bg-zinc-800 px-3 py-2 text-xs text-slate-700 dark:text-slate-200 outline-none focus:border-brand-sienna/60 resize-none placeholder:text-slate-300 dark:placeholder:text-slate-600"
+                className="w-full rounded-lg border border-slate-200/70 dark:border-white/10 bg-slate-50 dark:bg-zinc-800 px-3 py-2 text-xs text-slate-700 dark:text-slate-200 outline-none focus:border-brand-sienna/60 resize-none placeholder:text-slate-300 dark:placeholder:text-slate-600"
               />
             </div>
             <div className="flex gap-2 justify-end">
@@ -1251,9 +1251,9 @@ export default function ProjectDetailPage() {
           style={{ backgroundColor: "rgba(0,0,0,0.5)", backdropFilter: "blur(6px)" }}
           onMouseDown={e => { if (e.target === e.currentTarget) setPhaseNoteModal(null); }}
         >
-          <div className="w-full max-w-sm rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200/60 dark:border-white/10 p-6 space-y-4 animate-modal-enter" style={{ boxShadow: "0 24px 64px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.06)" }}>
+          <div className="w-full max-w-sm rounded-xl bg-white dark:bg-zinc-900 border border-slate-200/60 dark:border-white/10 p-6 space-y-4 animate-modal-enter" style={{ boxShadow: "0 24px 64px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.06)" }}>
             <div className="flex items-start gap-3">
-              <div className="shrink-0 w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${phaseNoteModal.nextPhase.color}20` }}>
+              <div className="shrink-0 w-10 h-10 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${phaseNoteModal.nextPhase.color}20` }}>
                 <ChevronRight size={18} style={{ color: phaseNoteModal.nextPhase.color }} />
               </div>
               <div>
@@ -1279,7 +1279,7 @@ export default function ProjectDetailPage() {
                     type="date"
                     value={phaseStartDate}
                     onChange={e => setPhaseStartDate(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200/70 dark:border-white/10 bg-slate-50 dark:bg-zinc-800 px-3 py-2 text-xs text-slate-700 dark:text-slate-200 outline-none focus:border-brand-sienna/60"
+                    className="w-full rounded-lg border border-slate-200/70 dark:border-white/10 bg-slate-50 dark:bg-white/4 px-3 py-2 text-xs text-slate-700 dark:text-slate-200 outline-none focus:border-brand-sienna/60 focus:ring-1 focus:ring-brand-sienna/20 transition-all"
                   />
                 </div>
                 <div>
@@ -1290,7 +1290,7 @@ export default function ProjectDetailPage() {
                     type="date"
                     value={phaseEndDate}
                     onChange={e => setPhaseEndDate(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200/70 dark:border-white/10 bg-slate-50 dark:bg-zinc-800 px-3 py-2 text-xs text-slate-700 dark:text-slate-200 outline-none focus:border-brand-sienna/60"
+                    className="w-full rounded-lg border border-slate-200/70 dark:border-white/10 bg-slate-50 dark:bg-white/4 px-3 py-2 text-xs text-slate-700 dark:text-slate-200 outline-none focus:border-brand-sienna/60 focus:ring-1 focus:ring-brand-sienna/20 transition-all"
                   />
                 </div>
               </div>
@@ -1306,7 +1306,7 @@ export default function ProjectDetailPage() {
                 onChange={e => setPhaseNote(e.target.value)}
                 rows={3}
                 placeholder="e.g. Design approved by stakeholders, ready to proceed..."
-                className="w-full rounded-xl border border-slate-200/70 dark:border-white/10 bg-slate-50 dark:bg-zinc-800 px-3 py-2 text-xs text-slate-700 dark:text-slate-200 outline-none focus:border-brand-sienna/60 resize-none placeholder:text-slate-300 dark:placeholder:text-slate-600"
+                className="w-full rounded-lg border border-slate-200/70 dark:border-white/10 bg-slate-50 dark:bg-zinc-800 px-3 py-2 text-xs text-slate-700 dark:text-slate-200 outline-none focus:border-brand-sienna/60 resize-none placeholder:text-slate-300 dark:placeholder:text-slate-600"
               />
             </div>
             <div className="flex gap-2 justify-end">
@@ -1594,7 +1594,7 @@ export default function ProjectDetailPage() {
               return (
                 <Fragment key={ph.key}>
                   <div
-                    className="relative flex-1 flex flex-col items-center justify-center px-2 py-2.5 rounded-xl text-center transition-all"
+                    className="relative flex-1 flex flex-col items-center justify-center px-2 py-2.5 rounded-lg text-center transition-all"
                     style={{
                       backgroundColor: isCurrent ? `${ph.color}34` : isPast ? `${ph.color}10` : "rgba(255,255,255,0.02)",
                       border: `2px solid ${isCurrent ? ph.color : isPast ? `${ph.color}35` : "rgba(255,255,255,0.06)"}`,

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -130,7 +130,7 @@ export default function ProjectsPage() {
             <button
               onClick={handleViewDetails}
               disabled={loading || matchedProjects.length === 0}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-bold transition-all glass-btn-primary"
+              className="flex items-center gap-2 px-5 py-2.5 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-bold transition-all glass-btn-primary"
             >
               Details
               <ArrowRight size={15} />

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -283,7 +283,7 @@ export default function ControlsPage() {
         {officeRosterReady ? (
           <ThreeOffice agents={agents} configuredAgents={configuredAgents} gatewayOk={telemetry.gatewayOk} />
         ) : (
-          <div className="h-[640px] w-full rounded-2xl overflow-hidden bg-[#f3f0e8] flex items-center justify-center text-xs font-semibold text-slate-400">
+          <div className="h-[640px] w-full rounded-xl overflow-hidden bg-[#f3f0e8] flex items-center justify-center text-xs font-semibold text-slate-400">
             Loading 3D office roster...
           </div>
         )}
@@ -315,7 +315,7 @@ export default function ControlsPage() {
                 <div
                   key={agent.id}
                   onClick={() => setSelectedAgent(isSelected ? null : agent.id)}
-                  className={`p-3.5 rounded-xl border cursor-pointer transition-all ${
+                  className={`p-3.5 rounded-lg border cursor-pointer transition-all ${
                     isSelected
                       ? 'bg-blue-50/50 dark:bg-blue-900/10 border-blue-400/70 ring-1 ring-blue-400/30'
                       : 'bg-white/50 dark:bg-white/3 border-slate-200/60 dark:border-white/8 hover:border-blue-300/60 dark:hover:border-blue-500/30'

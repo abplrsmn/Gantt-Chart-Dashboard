@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -65,7 +65,7 @@ function PersonCard({ name, email, jobTitle, department, isActive, isAdmin, empl
   department?: string | null; isActive: boolean; isAdmin?: boolean; employeeCode?: string | null;
 }) {
   return (
-    <div className={`flex items-start gap-3 p-3 rounded-xl border transition-all ${
+    <div className={`flex items-start gap-3 p-3 rounded-lg border transition-all ${
       isActive
         ? "bg-white dark:bg-zinc-900/60 border-slate-200/60 dark:border-white/8"
         : "bg-slate-50/50 dark:bg-white/2 border-slate-200/40 dark:border-white/5 opacity-60"
@@ -208,7 +208,7 @@ export default function TeamPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex items-center gap-1 p-1 rounded-xl bg-slate-100/80 dark:bg-white/6 border border-slate-200/60 dark:border-white/8 flex-wrap">
+      <div className="flex items-center gap-1 p-1 rounded-lg bg-slate-100/80 dark:bg-white/6 border border-slate-200/60 dark:border-white/8 flex-wrap">
         {([
           { key: "users",        label: "PIC",           count: users.length },
           { key: "stakeholders", label: "Stakeholders",  count: stakeholders.length },
@@ -246,7 +246,7 @@ export default function TeamPage() {
               value={unitSearch}
               onChange={e => setUnitSearch(e.target.value)}
               placeholder="Search unit or project..."
-              className="w-full rounded-xl border border-slate-200/70 dark:border-white/10 bg-white/70 dark:bg-zinc-900/60 pl-8 pr-3 py-2 text-[12px] outline-none text-slate-800 dark:text-white"
+              className="w-full rounded-lg border border-slate-200/70 dark:border-white/10 bg-white/70 dark:bg-zinc-900/60 pl-8 pr-3 py-2 text-[12px] outline-none text-slate-800 dark:text-white"
             />
           </label>
           {filteredUnits.length === 0 ? (
@@ -256,7 +256,7 @@ export default function TeamPage() {
               {filteredUnits.map(u => (
                 <div key={u.code} className="glass-card p-4 flex flex-col gap-3">
                   <div className="flex items-center gap-2.5">
-                    <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: "rgba(196,149,106,0.15)", color: "var(--brand-sand)" }}>
+                    <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: "rgba(196,149,106,0.15)", color: "var(--brand-sand)" }}>
                       <Building2 size={16} />
                     </div>
                     <div className="min-w-0">
@@ -272,7 +272,7 @@ export default function TeamPage() {
                       <div
                         key={p.id}
                         onClick={() => router.push(`/dashboard/projects/${p.id}`)}
-                        className="flex items-center gap-2.5 p-2.5 rounded-xl border border-slate-100 dark:border-white/6 hover:bg-slate-50 dark:hover:bg-white/5 cursor-pointer transition-colors"
+                        className="flex items-center gap-2.5 p-2.5 rounded-lg border border-slate-100 dark:border-white/6 hover:bg-slate-50 dark:hover:bg-white/5 cursor-pointer transition-colors"
                       >
                         <div className="flex-1 min-w-0">
                           <p className="text-[11px] font-semibold text-slate-700 dark:text-white truncate">{p.project_name}</p>
@@ -302,7 +302,7 @@ export default function TeamPage() {
               value={userSearch}
               onChange={e => setUserSearch(e.target.value)}
               placeholder="Search name, email, department..."
-              className="w-full rounded-xl border border-slate-200/70 dark:border-white/10 bg-white/70 dark:bg-zinc-900/60 pl-8 pr-3 py-2 text-[12px] outline-none text-slate-800 dark:text-white"
+              className="w-full rounded-lg border border-slate-200/70 dark:border-white/10 bg-white/70 dark:bg-zinc-900/60 pl-8 pr-3 py-2 text-[12px] outline-none text-slate-800 dark:text-white"
             />
           </label>
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -332,7 +332,7 @@ export default function TeamPage() {
               value={stakeholderSearch}
               onChange={e => setStakeholderSearch(e.target.value)}
               placeholder="Search name, email, department..."
-              className="w-full rounded-xl border border-slate-200/70 dark:border-white/10 bg-white/70 dark:bg-zinc-900/60 pl-8 pr-3 py-2 text-[12px] outline-none text-slate-800 dark:text-white"
+              className="w-full rounded-lg border border-slate-200/70 dark:border-white/10 bg-white/70 dark:bg-zinc-900/60 pl-8 pr-3 py-2 text-[12px] outline-none text-slate-800 dark:text-white"
             />
           </label>
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">

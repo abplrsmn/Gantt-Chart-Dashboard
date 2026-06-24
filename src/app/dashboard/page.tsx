@@ -327,7 +327,7 @@ export default function DashboardHome() {
                 const count = counts[i];
                 const pct = projects.length > 0 ? Math.round((count / projects.length) * 100) : 0;
                 return (
-                  <div key={item.label} onClick={item.onClick} className="px-3.5 py-2.5 rounded-xl border border-slate-100 dark:border-white/7 bg-slate-50/60 dark:bg-white/3 hover:bg-white dark:hover:bg-white/6 transition-colors cursor-pointer">
+                  <div key={item.label} onClick={item.onClick} className="px-3.5 py-2.5 rounded-lg border border-slate-100 dark:border-white/7 bg-slate-50/60 dark:bg-white/3 hover:bg-white dark:hover:bg-white/6 transition-colors cursor-pointer">
                     <div className="flex items-center gap-2.5 mb-1.5">
                       <span className="w-2.5 h-2.5 rounded-full shrink-0 shadow-sm" style={{ backgroundColor: item.color, boxShadow: `0 0 6px ${item.color}80` }} />
                       <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 flex-1">{item.label}</span>
@@ -351,7 +351,7 @@ export default function DashboardHome() {
 
         {/* Coming Soon */}
         <section className="glass-card p-5 flex flex-col items-center justify-center min-h-70">
-          <div className="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-white/6 flex items-center justify-center mb-3">
+          <div className="w-12 h-12 rounded-xl bg-slate-100 dark:bg-white/6 flex items-center justify-center mb-3">
             <AlertCircle size={22} className="text-slate-300 dark:text-slate-600" />
           </div>
           <p className="text-sm font-semibold text-slate-400 dark:text-slate-500">Coming Soon</p>
@@ -374,10 +374,10 @@ export default function DashboardHome() {
               <div
                 key={p.id}
                 onClick={() => router.push(`/dashboard/projects/${p.id}`)}
-                className="flex items-center justify-between p-4 rounded-xl bg-white/30 dark:bg-zinc-800/30 border border-transparent hover:border-slate-200/50 dark:hover:border-white/10 hover:bg-white/50 dark:hover:bg-zinc-800/50 transition-all cursor-pointer"
+                className="flex items-center justify-between p-4 rounded-lg bg-white/30 dark:bg-zinc-800/30 border border-transparent hover:border-slate-200/50 dark:hover:border-white/10 hover:bg-white/50 dark:hover:bg-zinc-800/50 transition-all cursor-pointer"
               >
                 <div className="flex items-center gap-3 overflow-hidden flex-1">
-                  <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0" style={{ background: "rgba(59,35,21,0.08)", color: "var(--brand-mahogany)" }}>
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: "rgba(59,35,21,0.08)", color: "var(--brand-mahogany)" }}>
                     <TrendingUp size={14} />
                   </div>
                   <div className="truncate pr-4">
@@ -426,7 +426,7 @@ export default function DashboardHome() {
           onMouseDown={e => { if (e.target === e.currentTarget) setShowCompleted(false); }}
         >
           <div
-            className="w-full max-w-md max-h-[72vh] flex flex-col overflow-hidden rounded-2xl border border-slate-200/80 dark:border-white/8 bg-white dark:bg-zinc-950 animate-modal-enter"
+            className="w-full max-w-md max-h-[72vh] flex flex-col overflow-hidden rounded-xl border border-slate-200/80 dark:border-white/8 bg-white dark:bg-zinc-950 animate-modal-enter"
             style={{ boxShadow: "0 24px 64px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.06)" }}
             onMouseDown={e => e.stopPropagation()}
           >
@@ -455,7 +455,7 @@ export default function DashboardHome() {
                   <div
                     key={p.id}
                     onClick={() => { setShowCompleted(false); router.push(`/dashboard/projects/${p.id}`); }}
-                    className="flex items-center gap-3 p-3 rounded-xl border border-slate-100 dark:border-white/6 hover:bg-slate-50 dark:hover:bg-white/5 cursor-pointer transition-colors"
+                    className="flex items-center gap-3 p-3 rounded-lg border border-slate-100 dark:border-white/6 hover:bg-slate-50 dark:hover:bg-white/5 cursor-pointer transition-colors"
                   >
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-semibold text-slate-800 dark:text-white truncate">{p.project_name}</p>

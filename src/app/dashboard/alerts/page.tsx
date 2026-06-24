@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -104,7 +104,7 @@ function AlertCard({ item, onClick }: { item: AlertItem; onClick: () => void }) 
   return (
     <div
       onClick={onClick}
-      className={`group flex items-center gap-4 px-4 py-3.5 rounded-xl border cursor-pointer transition-all hover:shadow-sm ${badge.bg} ${badge.border}`}
+      className={`group flex items-center gap-4 px-4 py-3.5 rounded-lg border cursor-pointer transition-all hover:shadow-sm ${badge.bg} ${badge.border}`}
     >
       {/* Priority dot */}
       <span className={`w-2 h-2 rounded-full shrink-0 ${pCfg.dot}`} />
@@ -205,7 +205,7 @@ export default function AlertsPage() {
 
 
       {/* Tab filter */}
-      <div className="flex items-center gap-1 p-1 rounded-xl bg-slate-100/80 dark:bg-white/6 border border-slate-200/60 dark:border-white/8 flex-wrap">
+      <div className="flex items-center gap-1 p-1 rounded-lg bg-slate-100/80 dark:bg-white/6 border border-slate-200/60 dark:border-white/8 flex-wrap">
         {TAB_CONFIG.map(({ key, label, icon: Icon, color }) => {
           const count = key === "all" ? allCount : counts[key as AlertCategory] ?? 0;
           return (
@@ -239,7 +239,7 @@ export default function AlertsPage() {
           value={search}
           onChange={e => setSearch(e.target.value)}
           placeholder="Search project, unit, phase..."
-          className="w-full rounded-xl border border-slate-200/70 dark:border-white/10 bg-white/70 dark:bg-zinc-900/60 pl-8 pr-3 py-2 text-[12px] outline-none text-slate-800 dark:text-white"
+          className="w-full rounded-lg border border-slate-200/70 dark:border-white/10 bg-white/70 dark:bg-zinc-900/60 pl-8 pr-3 py-2 text-[12px] outline-none text-slate-800 dark:text-white"
         />
       </label>
 
@@ -250,7 +250,7 @@ export default function AlertsPage() {
         </div>
       ) : filtered.length === 0 ? (
         <div className="glass-card p-12 flex flex-col items-center gap-3 text-center">
-          <div className="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-white/6 flex items-center justify-center">
+          <div className="w-12 h-12 rounded-xl bg-slate-100 dark:bg-white/6 flex items-center justify-center">
             <ShieldAlert size={22} className="text-slate-300 dark:text-slate-600" />
           </div>
           <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">

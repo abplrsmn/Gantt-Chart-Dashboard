@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useRef, useState } from "react";
 import {
@@ -299,7 +299,7 @@ export default function DateRangePicker({ value, onChange }: Props) {
       {/* ── Trigger ── */}
       <button
         onClick={handleOpen}
-        className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-sm transition-all whitespace-nowrap ${
+        className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm transition-all whitespace-nowrap ${
           open
             ? "border-brand-sienna/60 bg-brand-sienna/10 text-brand-sienna"
             : "border-slate-200/70 dark:border-white/10 bg-white/70 dark:bg-zinc-900/60 text-slate-600 dark:text-slate-300 hover:border-slate-300 dark:hover:border-white/20 hover:bg-white dark:hover:bg-zinc-900/80"
@@ -319,7 +319,7 @@ export default function DateRangePicker({ value, onChange }: Props) {
 
       {/* ── Panel — fixed position to avoid overflow ── */}
       <div
-        className="fixed z-[9999] rounded-2xl border border-slate-200/80 dark:border-white/8 shadow-2xl"
+        className="fixed z-[9999] rounded-xl border border-slate-200/80 dark:border-white/8 shadow-2xl"
         style={{
           top:          panelPos.top,
           left:         panelPos.left,
@@ -340,7 +340,7 @@ export default function DateRangePicker({ value, onChange }: Props) {
             {/* Start field — blocked when picking end date */}
             <div
               onClick={() => { if (step !== "end") { setStep("start"); setDraft(d => ({ ...d, end: "" })); } }}
-              className={`flex-1 rounded-xl border px-3 py-2 transition-all ${
+              className={`flex-1 rounded-lg border px-3 py-2 transition-all ${
                 step === "end"
                   ? "border-slate-100 dark:border-white/5 bg-slate-50/50 dark:bg-white/2 opacity-50 cursor-not-allowed"
                   : step === "start"
@@ -361,7 +361,7 @@ export default function DateRangePicker({ value, onChange }: Props) {
             {/* End field — inactive until start is picked */}
             <div
               onClick={() => { if (draftStart) setStep("end"); }}
-              className={`flex-1 rounded-xl border px-3 py-2 transition-all ${
+              className={`flex-1 rounded-lg border px-3 py-2 transition-all ${
                 !draftStart
                   ? "border-slate-100 dark:border-white/5 bg-slate-50/50 dark:bg-white/2 opacity-40 cursor-not-allowed"
                   : step === "end"

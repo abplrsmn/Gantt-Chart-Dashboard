@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -52,7 +52,7 @@ function DateInput({ value, onChange }: { value: string; onChange: (v: string) =
         type="date"
         value={value}
         onChange={e => onChange(e.target.value)}
-        className="w-full rounded-xl border border-slate-200/70 dark:border-white/10 bg-white dark:bg-zinc-900/60 pl-3 pr-10 py-2.5 text-[12px] text-slate-700 dark:text-slate-200 outline-none focus:border-brand-sienna/60 focus:ring-2 focus:ring-brand-sienna/15 transition-all cursor-pointer scheme-light dark:scheme-dark [&::-webkit-calendar-picker-indicator]:hidden"
+        className="w-full rounded-lg border border-slate-200/70 dark:border-white/10 bg-white dark:bg-zinc-900/60 pl-3 pr-10 py-2.5 text-[12px] text-slate-700 dark:text-slate-200 outline-none focus:border-brand-sienna/60 focus:ring-2 focus:ring-brand-sienna/15 transition-all cursor-pointer scheme-light dark:scheme-dark [&::-webkit-calendar-picker-indicator]:hidden"
       />
       <Calendar size={17} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-400 pointer-events-none" />
     </div>
@@ -171,7 +171,7 @@ export default function AddProjectModal({
   }
 
   const lbl    = "text-[10px] uppercase tracking-wide text-slate-400 dark:text-slate-500 mb-1 block";
-  const input  = "w-full rounded-xl border border-slate-200/70 dark:border-white/10 bg-white dark:bg-zinc-900/60 px-3 py-2 text-[12px] text-slate-700 dark:text-slate-200 outline-none focus:border-brand-sienna/60 focus:ring-2 focus:ring-brand-sienna/15 transition-all placeholder:text-slate-300 dark:placeholder:text-slate-600";
+  const input  = "w-full rounded-lg border border-slate-200/70 dark:border-white/10 bg-white dark:bg-zinc-900/60 px-3 py-2 text-[12px] text-slate-700 dark:text-slate-200 outline-none focus:border-brand-sienna/60 focus:ring-2 focus:ring-brand-sienna/15 transition-all placeholder:text-slate-300 dark:placeholder:text-slate-600";
   const select = input + " cursor-pointer";
 
   return createPortal(
@@ -181,7 +181,7 @@ export default function AddProjectModal({
       onMouseDown={e => { if (e.target === e.currentTarget) closeWithAnimation(); }}
     >
       <div
-        className={`relative w-full max-w-lg bg-white dark:bg-zinc-950 rounded-2xl border border-slate-200/80 dark:border-white/8 overflow-hidden ${exiting ? "animate-modal-exit" : "animate-modal-enter"}`}
+        className={`relative w-full max-w-lg bg-white dark:bg-zinc-950 rounded-xl border border-slate-200/80 dark:border-white/8 overflow-hidden ${exiting ? "animate-modal-exit" : "animate-modal-enter"}`}
         style={{ boxShadow: "0 24px 64px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.06)" }}
       >
         {/* Header */}
@@ -304,7 +304,7 @@ export default function AddProjectModal({
                       !usedPhaseIds.has(String(p.id)) || String(p.id) === entry.phase_id
                     ) ?? [];
                     return (
-                      <div key={idx} className="rounded-xl border border-slate-200/70 dark:border-white/8 overflow-hidden">
+                      <div key={idx} className="rounded-lg border border-slate-200/70 dark:border-white/8 overflow-hidden">
                         <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 dark:bg-white/3 border-b border-slate-200/60 dark:border-white/6">
                           <AnimatedDropdown
                             value={entry.phase_id}
@@ -352,11 +352,11 @@ export default function AddProjectModal({
           {/* Footer */}
           <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-slate-200/60 dark:border-white/8 bg-slate-50/50 dark:bg-white/2">
             <button type="button" onClick={closeWithAnimation}
-              className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/8 hover:text-slate-700 dark:hover:text-slate-200 transition-colors">
+              className="px-4 py-2 rounded-lg text-xs font-semibold text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/8 hover:text-slate-700 dark:hover:text-slate-200 transition-colors">
               Cancel
             </button>
             <button type="submit"
-              className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-white transition-all glass-btn-primary">
+              className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold text-white transition-all glass-btn-primary">
               <Plus size={12} />
               Add Project
             </button>

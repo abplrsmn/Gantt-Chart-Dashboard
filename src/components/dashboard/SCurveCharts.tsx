@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
 import {
@@ -153,7 +153,7 @@ interface TPayload { dataKey: string; value: number | null; color: string; name:
 function ChartTooltip({ active, payload, label }: { active?: boolean; payload?: TPayload[]; label?: string }) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="rounded-xl border border-slate-200 dark:border-white/10 px-3 py-2 shadow-xl bg-white/95 dark:bg-zinc-950/96 backdrop-blur-xl">
+    <div className="rounded-lg border border-slate-200 dark:border-white/10 px-3 py-2 shadow-xl bg-white/95 dark:bg-zinc-950/96 backdrop-blur-xl">
       <p className="text-[10px] font-bold text-slate-500 dark:text-white/50 mb-1">{label}</p>
       {payload.filter(p => p.value !== null).map(p => (
         <div key={p.dataKey} className="flex items-center gap-2 text-[11px]">
@@ -541,7 +541,7 @@ export default function SCurveCharts({ projects }: { projects: DBProject[] }) {
                 {/* Setup wizard — shown when no steps exist */}
                 {steps.length === 0 && (
                   <div className="flex items-center justify-center py-10 px-6">
-                    <div className="w-full max-w-sm bg-white dark:bg-zinc-900 rounded-2xl border border-slate-200/60 dark:border-white/10 shadow-lg p-6">
+                    <div className="w-full max-w-sm bg-white dark:bg-zinc-900 rounded-xl border border-slate-200/60 dark:border-white/10 shadow-lg p-6">
                       <p className="text-sm font-bold text-slate-800 dark:text-white mb-1">Setup S-Curve Steps</p>
                       <p className="text-[11px] text-slate-400 dark:text-slate-500 mb-4">Add all steps at once — you can edit later</p>
                       <div className="space-y-2 mb-4">
@@ -553,7 +553,7 @@ export default function SCurveCharts({ projects }: { projects: DBProject[] }) {
                               onChange={e => setSetupRows(prev => prev.map((r, ri) => ri === i ? e.target.value : r))}
                               onKeyDown={e => { if (e.key === "Enter" && i === setupRows.length - 1) setSetupRows(p => [...p, ""]); }}
                               placeholder={`Step ${LETTERS[i] ?? i + 1}...`}
-                              className="flex-1 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-zinc-800 px-3 py-2 text-[12px] text-slate-800 dark:text-white outline-none focus:border-amber-400 dark:focus:border-amber-500"
+                              className="flex-1 rounded-lg border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-zinc-800 px-3 py-2 text-[12px] text-slate-800 dark:text-white outline-none focus:border-amber-400 dark:focus:border-amber-500"
                             />
                             {setupRows.length > 1 && (
                               <button onClick={() => setSetupRows(p => p.filter((_, ri) => ri !== i))} className="text-slate-300 hover:text-rose-400 transition-colors shrink-0">
@@ -569,7 +569,7 @@ export default function SCurveCharts({ projects }: { projects: DBProject[] }) {
                       <button
                         onClick={createSetupSteps}
                         disabled={!setupRows.some(n => n.trim()) || setupSaving}
-                        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-amber-500 text-white text-[12px] font-bold hover:bg-amber-600 disabled:opacity-40 transition-colors"
+                        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-amber-500 text-white text-[12px] font-bold hover:bg-amber-600 disabled:opacity-40 transition-colors"
                       >
                         {setupSaving ? <Loader2 size={13} className="animate-spin" /> : null}
                         Start S-Curve →
@@ -705,7 +705,7 @@ export default function SCurveCharts({ projects }: { projects: DBProject[] }) {
                     <FakeSCurve />
                   </div>
                   <div className="absolute inset-0 flex items-center justify-center">
-                    <p className="text-[11px] text-slate-400 dark:text-slate-500 bg-white/80 dark:bg-zinc-900/80 px-4 py-2 rounded-xl backdrop-blur-sm">
+                    <p className="text-[11px] text-slate-400 dark:text-slate-500 bg-white/80 dark:bg-zinc-900/80 px-4 py-2 rounded-lg backdrop-blur-sm">
                       Enter plan values in the grid to generate the S-Curve
                     </p>
                   </div>
@@ -751,10 +751,10 @@ export default function SCurveCharts({ projects }: { projects: DBProject[] }) {
       {addStepOpen && typeof document !== "undefined" && createPortal(
         <div className="fixed inset-0 z-9999 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setAddStepOpen(false)} />
-          <div className="relative z-10 bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl border border-slate-200/60 dark:border-white/10 p-6 w-full max-w-sm mx-4">
+          <div className="relative z-10 bg-white dark:bg-zinc-900 rounded-xl shadow-2xl border border-slate-200/60 dark:border-white/10 p-6 w-full max-w-sm mx-4">
             <h3 className="font-bold text-slate-800 dark:text-white text-sm mb-4">Add Step</h3>
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-9 h-9 rounded-xl bg-amber-500/10 flex items-center justify-center text-[13px] font-bold text-amber-600 shrink-0">
+              <div className="w-9 h-9 rounded-lg bg-amber-500/10 flex items-center justify-center text-[13px] font-bold text-amber-600 shrink-0">
                 {LETTERS[Math.min(steps.length, 25)]}
               </div>
               <input
@@ -763,12 +763,12 @@ export default function SCurveCharts({ projects }: { projects: DBProject[] }) {
                 onChange={e => setStepName(e.target.value)}
                 onKeyDown={e => { if (e.key === "Enter") addStep(); if (e.key === "Escape") setAddStepOpen(false); }}
                 placeholder="e.g. PRELIMINARY, PEKERJAAN DINDING..."
-                className="flex-1 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-zinc-800 px-3 py-2 text-[12px] text-slate-800 dark:text-white outline-none focus:border-amber-400 dark:focus:border-amber-500"
+                className="flex-1 rounded-lg border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-zinc-800 px-3 py-2 text-[12px] text-slate-800 dark:text-white outline-none focus:border-amber-400 dark:focus:border-amber-500"
               />
             </div>
             <div className="flex gap-2">
-              <button onClick={() => setAddStepOpen(false)} className="flex-1 px-4 py-2 rounded-xl border border-slate-200 dark:border-white/10 text-[12px] font-semibold text-slate-500 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">Cancel</button>
-              <button onClick={addStep} disabled={!stepName.trim() || addingStep} className="flex-1 px-4 py-2 rounded-xl bg-amber-500 text-white text-[12px] font-bold hover:bg-amber-600 disabled:opacity-40 transition-colors flex items-center justify-center gap-2">
+              <button onClick={() => setAddStepOpen(false)} className="flex-1 px-4 py-2 rounded-lg border border-slate-200 dark:border-white/10 text-[12px] font-semibold text-slate-500 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">Cancel</button>
+              <button onClick={addStep} disabled={!stepName.trim() || addingStep} className="flex-1 px-4 py-2 rounded-lg bg-amber-500 text-white text-[12px] font-bold hover:bg-amber-600 disabled:opacity-40 transition-colors flex items-center justify-center gap-2">
                 {addingStep && <Loader2 size={12} className="animate-spin" />}
                 Add Step
               </button>
@@ -782,7 +782,7 @@ export default function SCurveCharts({ projects }: { projects: DBProject[] }) {
       {addTaskStep && typeof document !== "undefined" && createPortal(
         <div className="fixed inset-0 z-9999 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setAddTaskStep(null)} />
-          <div className="relative z-10 bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl border border-slate-200/60 dark:border-white/10 p-6 w-full max-w-md mx-4">
+          <div className="relative z-10 bg-white dark:bg-zinc-900 rounded-xl shadow-2xl border border-slate-200/60 dark:border-white/10 p-6 w-full max-w-md mx-4">
             <h3 className="font-bold text-slate-800 dark:text-white text-sm mb-1">Add Task</h3>
             <p className="text-[10px] text-slate-400 dark:text-slate-500 mb-4">
               Step: <span className="font-semibold text-amber-600">{steps.find(s => s.id === addTaskStep)?.letter} — {steps.find(s => s.id === addTaskStep)?.name}</span>
@@ -796,7 +796,7 @@ export default function SCurveCharts({ projects }: { projects: DBProject[] }) {
                   onChange={e => setTaskForm(f => ({ ...f, name: e.target.value }))}
                   onKeyDown={e => { if (e.key === "Escape") setAddTaskStep(null); }}
                   placeholder="Work item description..."
-                  className="w-full rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-zinc-800 px-3 py-2.5 text-[12px] text-slate-800 dark:text-white outline-none focus:border-amber-400 dark:focus:border-amber-500"
+                  className="w-full rounded-lg border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-zinc-800 px-3 py-2.5 text-[12px] text-slate-800 dark:text-white outline-none focus:border-amber-400 dark:focus:border-amber-500"
                 />
               </div>
               <div>
@@ -809,13 +809,13 @@ export default function SCurveCharts({ projects }: { projects: DBProject[] }) {
                   step="0.01"
                   min="0"
                   max="100"
-                  className="w-full rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-zinc-800 px-3 py-2.5 text-[12px] text-slate-800 dark:text-white outline-none focus:border-amber-400 dark:focus:border-amber-500"
+                  className="w-full rounded-lg border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-zinc-800 px-3 py-2.5 text-[12px] text-slate-800 dark:text-white outline-none focus:border-amber-400 dark:focus:border-amber-500"
                 />
               </div>
             </div>
             <div className="flex gap-2 mt-5">
-              <button onClick={() => setAddTaskStep(null)} className="flex-1 px-4 py-2 rounded-xl border border-slate-200 dark:border-white/10 text-[12px] font-semibold text-slate-500 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">Cancel</button>
-              <button onClick={addTask} disabled={!taskForm.name.trim() || addingTask} className="flex-1 px-4 py-2 rounded-xl bg-amber-500 text-white text-[12px] font-bold hover:bg-amber-600 disabled:opacity-40 transition-colors flex items-center justify-center gap-2">
+              <button onClick={() => setAddTaskStep(null)} className="flex-1 px-4 py-2 rounded-lg border border-slate-200 dark:border-white/10 text-[12px] font-semibold text-slate-500 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">Cancel</button>
+              <button onClick={addTask} disabled={!taskForm.name.trim() || addingTask} className="flex-1 px-4 py-2 rounded-lg bg-amber-500 text-white text-[12px] font-bold hover:bg-amber-600 disabled:opacity-40 transition-colors flex items-center justify-center gap-2">
                 {addingTask && <Loader2 size={12} className="animate-spin" />}
                 Add Task
               </button>

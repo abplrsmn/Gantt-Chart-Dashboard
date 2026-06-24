@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
 import {
@@ -84,7 +84,7 @@ interface TooltipPayload { dataKey: string; value: number | null; color: string;
 function ChartTooltip({ active, payload, label }: { active?: boolean; payload?: TooltipPayload[]; label?: string }) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="rounded-xl border border-slate-200 dark:border-white/10 px-3 py-2 shadow-xl bg-white/95 dark:bg-zinc-950/96 backdrop-blur-xl">
+    <div className="rounded-lg border border-slate-200 dark:border-white/10 px-3 py-2 shadow-xl bg-white/95 dark:bg-zinc-950/96 backdrop-blur-xl">
       <p className="text-[10px] font-bold text-slate-500 dark:text-white/50 mb-1">{label}</p>
       {payload.filter(p => p.value !== null).map(p => (
         <div key={p.dataKey} className="flex items-center gap-2 text-[11px]">
@@ -262,7 +262,7 @@ export default function PerformanceAnalysis({ projects }: { projects: Project[] 
   const actColor   = "#22c55e";
 
   return (
-    <div className="rounded-2xl border border-slate-200/60 dark:border-white/8 bg-white/60 dark:bg-zinc-900/50 backdrop-blur-sm p-4 overflow-hidden">
+    <div className="rounded-xl border border-slate-200/60 dark:border-white/8 bg-white/60 dark:bg-zinc-900/50 backdrop-blur-sm p-4 overflow-hidden">
 
       {/* ── Header ── */}
       <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-6">
@@ -312,7 +312,7 @@ export default function PerformanceAnalysis({ projects }: { projects: Project[] 
 
       ) : !hasTasks ? (
         /* ── Locked / blurred state ── */
-        <div className="relative rounded-xl overflow-hidden border border-slate-200/60 dark:border-white/10" style={{ minHeight: 320 }}>
+        <div className="relative rounded-lg overflow-hidden border border-slate-200/60 dark:border-white/10" style={{ minHeight: 320 }}>
           {/* Blurred chart backdrop */}
           <div className="absolute inset-0 pointer-events-none" style={{ filter: "blur(5px)", opacity: 0.45 }}>
             <FakeSCurve />
@@ -321,8 +321,8 @@ export default function PerformanceAnalysis({ projects }: { projects: Project[] 
           <div className="absolute inset-0 bg-white/60 dark:bg-zinc-900/60" />
           {/* CTA card */}
           <div className="relative z-10 flex items-center justify-center" style={{ minHeight: 320 }}>
-            <div className="text-center px-6 py-8 rounded-2xl border border-slate-200/60 dark:border-white/10 bg-white/90 dark:bg-zinc-900/90 backdrop-blur-xl shadow-2xl max-w-xs w-full mx-4">
-              <div className="w-12 h-12 rounded-xl bg-cyan-500/10 flex items-center justify-center mx-auto mb-3">
+            <div className="text-center px-6 py-8 rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/90 dark:bg-zinc-900/90 backdrop-blur-xl shadow-2xl max-w-xs w-full mx-4">
+              <div className="w-12 h-12 rounded-lg bg-cyan-500/10 flex items-center justify-center mx-auto mb-3">
                 <Activity size={22} className="text-cyan-500" />
               </div>
               <h4 className="text-sm font-bold text-slate-800 dark:text-white mb-1">Start S-Curve Analysis</h4>
@@ -331,7 +331,7 @@ export default function PerformanceAnalysis({ projects }: { projects: Project[] 
               </p>
               <button
                 onClick={openModal}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold glass-btn-primary text-white mx-auto"
+                className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-bold glass-btn-primary text-white mx-auto"
               >
                 <Plus size={14} /> Add Task
               </button>
@@ -344,7 +344,7 @@ export default function PerformanceAnalysis({ projects }: { projects: Project[] 
         <div className="flex flex-col gap-4">
 
           {/* Task list table */}
-          <div className="rounded-xl border border-slate-200/60 dark:border-white/10 overflow-hidden">
+          <div className="rounded-lg border border-slate-200/60 dark:border-white/10 overflow-hidden">
             <div
               className="grid text-[9px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 bg-slate-50 dark:bg-zinc-900/60 border-b border-slate-200/60 dark:border-white/8"
               style={{ gridTemplateColumns: "1fr 72px 110px 110px 96px 32px" }}
@@ -397,7 +397,7 @@ export default function PerformanceAnalysis({ projects }: { projects: Project[] 
 
           {/* S-curve chart */}
           {chartData.length > 0 && (
-            <div className="rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/40 dark:bg-zinc-950/30 overflow-hidden">
+            <div className="rounded-lg border border-slate-200/60 dark:border-white/10 bg-white/40 dark:bg-zinc-950/30 overflow-hidden">
               <ResponsiveContainer width="100%" height={280}>
                 <ComposedChart data={chartData} margin={{ top: 16, right: 16, bottom: 8, left: 0 }}>
                   <defs>
@@ -462,7 +462,7 @@ export default function PerformanceAnalysis({ projects }: { projects: Project[] 
             className="absolute inset-0 bg-black/40 backdrop-blur-sm"
             onClick={() => !saving && setShowModal(false)}
           />
-          <div className="relative z-10 w-full max-w-2xl bg-white dark:bg-zinc-900 rounded-2xl border border-slate-200/60 dark:border-white/10 shadow-2xl overflow-hidden">
+          <div className="relative z-10 w-full max-w-2xl bg-white dark:bg-zinc-900 rounded-xl border border-slate-200/60 dark:border-white/10 shadow-2xl overflow-hidden">
 
             {/* Modal header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200/60 dark:border-white/8">
@@ -505,26 +505,26 @@ export default function PerformanceAnalysis({ projects }: { projects: Project[] 
                     value={row.name}
                     onChange={e => setModalRows(prev => prev.map((r, i) => i === idx ? { ...r, name: e.target.value } : r))}
                     placeholder="Nama pekerjaan..."
-                    className="text-[12px] bg-white dark:bg-zinc-800 border border-slate-200/70 dark:border-white/10 rounded-lg px-2.5 py-1.5 outline-none focus:border-cyan-400 text-slate-700 dark:text-slate-200 placeholder:text-slate-300 dark:placeholder:text-slate-600"
+                    className="text-[12px] bg-white dark:bg-zinc-800 border border-slate-200/70 dark:border-white/10 rounded-lg px-2.5 py-1.5 outline-none focus:border-brand-sienna/60 focus:ring-1 focus:ring-brand-sienna/20 text-slate-700 dark:text-slate-200 placeholder:text-slate-300 dark:placeholder:text-slate-600"
                   />
                   <input
                     value={row.weight}
                     onChange={e => setModalRows(prev => prev.map((r, i) => i === idx ? { ...r, weight: e.target.value } : r))}
                     placeholder="0"
                     type="number" min="0" max="100" step="0.1"
-                    className="text-[12px] bg-white dark:bg-zinc-800 border border-slate-200/70 dark:border-white/10 rounded-lg px-2 py-1.5 outline-none focus:border-cyan-400 text-center font-mono text-slate-700 dark:text-slate-200"
+                    className="text-[12px] bg-slate-50 dark:bg-white/4 border border-slate-200/70 dark:border-white/10 rounded-lg px-2 py-1.5 outline-none focus:border-brand-sienna/60 focus:ring-1 focus:ring-brand-sienna/20 text-center font-mono text-slate-700 dark:text-slate-200"
                   />
                   <input
                     value={row.start}
                     onChange={e => setModalRows(prev => prev.map((r, i) => i === idx ? { ...r, start: e.target.value } : r))}
                     type="date"
-                    className="text-[12px] bg-white dark:bg-zinc-800 border border-slate-200/70 dark:border-white/10 rounded-lg px-2 py-1.5 outline-none focus:border-cyan-400 text-slate-700 dark:text-slate-200"
+                    className="text-[12px] bg-slate-50 dark:bg-white/4 border border-slate-200/70 dark:border-white/10 rounded-lg px-2 py-1.5 outline-none focus:border-brand-sienna/60 focus:ring-1 focus:ring-brand-sienna/20 text-slate-700 dark:text-slate-200"
                   />
                   <input
                     value={row.end}
                     onChange={e => setModalRows(prev => prev.map((r, i) => i === idx ? { ...r, end: e.target.value } : r))}
                     type="date"
-                    className="text-[12px] bg-white dark:bg-zinc-800 border border-slate-200/70 dark:border-white/10 rounded-lg px-2 py-1.5 outline-none focus:border-cyan-400 text-slate-700 dark:text-slate-200"
+                    className="text-[12px] bg-slate-50 dark:bg-white/4 border border-slate-200/70 dark:border-white/10 rounded-lg px-2 py-1.5 outline-none focus:border-brand-sienna/60 focus:ring-1 focus:ring-brand-sienna/20 text-slate-700 dark:text-slate-200"
                   />
                   <button
                     onClick={() => setModalRows(prev => prev.filter((_, i) => i !== idx))}

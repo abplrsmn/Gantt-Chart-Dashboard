@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -382,10 +382,14 @@ export default function ProjectGanttDB() {
 
       // Update drag date tooltip directly (no setState to avoid re-renders)
       if (dragTipRef.current) {
-        dragTipRef.current.style.left    = `${e.clientX + 12}px`;
-        dragTipRef.current.style.top     = `${e.clientY - 36}px`;
-        dragTipRef.current.style.display = "block";
-        dragTipRef.current.textContent   = `${format(newStart, "d MMM")} – ${format(newEnd, "d MMM yyyy")}`;
+        const isDark = document.documentElement.classList.contains("dark");
+        dragTipRef.current.style.left            = `${e.clientX + 12}px`;
+        dragTipRef.current.style.top             = `${e.clientY - 36}px`;
+        dragTipRef.current.style.display         = "block";
+        dragTipRef.current.style.backgroundColor = isDark ? "rgba(15,23,42,0.92)" : "rgba(255,255,255,0.96)";
+        dragTipRef.current.style.color           = isDark ? "#f1f5f9" : "#1e293b";
+        dragTipRef.current.style.border          = isDark ? "1px solid rgba(255,255,255,0.08)" : "1px solid rgba(148,163,184,0.3)";
+        dragTipRef.current.textContent           = `${format(newStart, "d MMM")} – ${format(newEnd, "d MMM yyyy")}`;
       }
     }
 
@@ -626,7 +630,7 @@ export default function ProjectGanttDB() {
     </div>
   );
   if (error) return (
-    <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 text-sm">❌ {error}</div>
+    <div className="p-4 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 text-sm">❌ {error}</div>
   );
 
   return (
@@ -646,7 +650,7 @@ export default function ProjectGanttDB() {
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Search project, phase, status..."
-              className="w-full rounded-xl border border-slate-200/70 dark:border-white/10 bg-white/70 dark:bg-zinc-900/60 pl-8 pr-3 py-2 text-[12px] outline-none text-slate-800 dark:text-white"
+              className="w-full rounded-lg border border-slate-200/70 dark:border-white/10 bg-white/70 dark:bg-zinc-900/60 pl-8 pr-3 py-2 text-[12px] outline-none text-slate-800 dark:text-white"
             />
           </label>
           <span
@@ -708,7 +712,7 @@ export default function ProjectGanttDB() {
         />
         <button
           onClick={() => setShowAddModal(true)}
-          className="shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-[11px] font-bold transition-all whitespace-nowrap border text-white glass-btn-primary"
+          className="shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-lg text-[11px] font-bold transition-all whitespace-nowrap border text-white glass-btn-primary"
         >
           <Plus size={13} />
           Add Project
@@ -729,7 +733,7 @@ export default function ProjectGanttDB() {
 
         {/* Tool mode selector */}
         <div className="flex items-center gap-2 shrink-0">
-        <div className="flex items-center gap-1 p-1 rounded-xl bg-slate-100/80 dark:bg-white/6 border border-slate-200/60 dark:border-white/8">
+        <div className="flex items-center gap-1 p-1 rounded-lg bg-slate-100/80 dark:bg-white/6 border border-slate-200/60 dark:border-white/8">
           {([
             { mode: "select", Icon: MousePointer2, title: "Select — click bar to open project" },
             { mode: "drag",   Icon: Move,          title: "Drag — move or resize phase bars" },
@@ -755,7 +759,7 @@ export default function ProjectGanttDB() {
       </div>
 
       {/* Gantt */}
-      <div className="rounded-2xl overflow-clip border border-slate-200/60 dark:border-white/8 bg-white/60 dark:bg-zinc-900/50 backdrop-blur-sm">
+      <div className="rounded-xl overflow-clip border border-slate-200/60 dark:border-white/8 bg-white/60 dark:bg-zinc-900/50 backdrop-blur-sm">
 
         {/* ── Sticky headers + top scrollbar ── */}
         <div className="sticky top-0 z-30 bg-white dark:bg-zinc-900 rounded-t-2xl border-b border-slate-200/60 dark:border-white/8">
@@ -936,7 +940,7 @@ export default function ProjectGanttDB() {
                       {/* Project range bar — visual track only, click navigates to detail */}
                       {projectRangeBar && (
                         <div
-                          className={`absolute rounded-xl border border-slate-300/60 bg-slate-200/50 dark:border-white/8 dark:bg-white/8 transition-colors ${toolMode === "select" ? "cursor-pointer hover:bg-slate-300/60 dark:hover:bg-white/12" : "cursor-default"}`}
+                          className={`absolute rounded-lg border border-slate-300/60 bg-slate-200/50 dark:border-white/8 dark:bg-white/8 transition-colors ${toolMode === "select" ? "cursor-pointer hover:bg-slate-300/60 dark:hover:bg-white/12" : "cursor-default"}`}
                           style={{
                             left:   `${(projectRangeBar.offsetPct / 100) * totalWidth}px`,
                             width:  `${Math.max(4, (projectRangeBar.widthPct / 100) * totalWidth)}px`,
@@ -972,7 +976,7 @@ export default function ProjectGanttDB() {
                           <div
                             key={seg.key}
                             data-drag-bar="true"
-                            className="absolute rounded-xl select-none"
+                            className="absolute rounded-lg select-none"
                             style={{
                               left:   `${left}px`,
                               width:  `${width}px`,
@@ -1036,7 +1040,7 @@ export default function ProjectGanttDB() {
       <div
         ref={dragTipRef}
         className="fixed z-9999 pointer-events-none px-2.5 py-1.5 rounded-lg text-[11px] font-semibold text-white shadow-lg"
-        style={{ display: "none", backgroundColor: "rgba(15,23,42,0.88)", backdropFilter: "blur(6px)", whiteSpace: "nowrap" }}
+        style={{ display: "none", backdropFilter: "blur(6px)", whiteSpace: "nowrap", boxShadow: "0 4px 12px rgba(0,0,0,0.15)" }}
       />
 
       {/* ── Bar tooltip — one source of truth for project/phase date ranges ── */}
@@ -1059,7 +1063,7 @@ export default function ProjectGanttDB() {
         return (
           <div className="fixed z-999 pointer-events-none" style={{ left, top, width: TIP_W }}>
             <div
-              className="rounded-xl border px-3 py-2.5 shadow-xl
+              className="rounded-lg border px-3 py-2.5 shadow-xl
                 bg-white dark:bg-zinc-900
                 border-slate-200 dark:border-zinc-700"
               style={{
@@ -1115,7 +1119,7 @@ export default function ProjectGanttDB() {
         return (
           <div className="fixed z-999 pointer-events-none" style={{ left, top, width: TIP_W }}>
             <div
-              className="rounded-xl border px-3 py-2.5 shadow-xl bg-white dark:bg-zinc-900"
+              className="rounded-lg border px-3 py-2.5 shadow-xl bg-white dark:bg-zinc-900"
               style={{ borderColor: "rgba(196,149,106,0.4)", boxShadow: "0 8px 24px rgba(0,0,0,0.12), 0 0 0 1px rgba(196,149,106,0.2)" }}
             >
               <div className="flex items-center gap-1.5 mb-1.5">
@@ -1160,9 +1164,9 @@ export default function ProjectGanttDB() {
         return (
           <div className="fixed inset-0 z-9999 flex items-center justify-center">
             <div className={`absolute inset-0 bg-black/50 backdrop-blur-md ${modalExiting ? "animate-backdrop-exit" : "animate-backdrop-enter"}`} onClick={cancel} />
-            <div className={`relative z-10 w-80 rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200/60 dark:border-white/10 shadow-2xl p-5 space-y-4 ${modalExiting ? "animate-modal-exit" : "animate-modal-enter"}`}>
+            <div className={`relative z-10 w-80 rounded-xl bg-white dark:bg-zinc-900 border border-slate-200/60 dark:border-white/10 shadow-2xl p-5 space-y-4 ${modalExiting ? "animate-modal-exit" : "animate-modal-enter"}`}>
               <div className="flex items-start gap-3">
-                <div className="shrink-0 w-9 h-9 rounded-xl bg-rose-500/10 flex items-center justify-center">
+                <div className="shrink-0 w-9 h-9 rounded-lg bg-rose-500/10 flex items-center justify-center">
                   <Trash2 size={16} className="text-rose-500" />
                 </div>
                 <div>
@@ -1230,9 +1234,9 @@ export default function ProjectGanttDB() {
 
         return (
           <div className="fixed inset-0 z-9999 flex items-center justify-center p-4 animate-backdrop-enter" style={{ backgroundColor: "rgba(0,0,0,0.45)", backdropFilter: "blur(6px)" }}>
-            <div className="w-full max-w-sm rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200/60 dark:border-white/10 shadow-2xl p-5 space-y-4 animate-modal-enter">
+            <div className="w-full max-w-sm rounded-xl bg-white dark:bg-zinc-900 border border-slate-200/60 dark:border-white/10 shadow-2xl p-5 space-y-4 animate-modal-enter">
               <div className="flex items-start gap-3">
-                <div className="shrink-0 w-9 h-9 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${phaseColor}20` }}>
+                <div className="shrink-0 w-9 h-9 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${phaseColor}20` }}>
                   <Move size={16} style={{ color: phaseColor }} />
                 </div>
                 <div>

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
@@ -732,5 +732,5 @@ export default function ThreeOffice({ agents, configuredAgents, gatewayOk }: Pro
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  return <div ref={mountRef} className="h-[640px] w-full rounded-2xl overflow-hidden bg-[#f3f0e8]" />;
+  return <div ref={mountRef} className="h-[640px] w-full rounded-xl overflow-hidden bg-[#f3f0e8]" />;
 }

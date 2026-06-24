@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { Users, ArrowLeft } from "lucide-react";
 import Link from "next/link";
@@ -23,7 +23,7 @@ export default function TeamDetailsPage() {
       </div>
 
       <div className="glass-card p-16 flex flex-col items-center justify-center text-center gap-4">
-        <div className="w-16 h-16 rounded-2xl bg-purple-500/10 text-purple-500 flex items-center justify-center">
+        <div className="w-16 h-16 rounded-xl bg-purple-500/10 text-purple-500 flex items-center justify-center">
           <Users size={32} />
         </div>
         <div>

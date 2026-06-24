@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { format, isValid } from "date-fns";
 import { useEffect, useRef, useState } from "react";
@@ -158,7 +158,7 @@ function InlineCell({
   const baseCls = `${className} ${saving ? "opacity-40" : ""}`;
 
   if (editing) {
-    const inputCls = "w-full bg-white dark:bg-zinc-800 border border-cyan-400 rounded px-1 py-0.5 text-[10px] outline-none ring-1 ring-cyan-400/40 min-w-[80px]";
+    const inputCls = "w-full bg-slate-50 dark:bg-white/4 border border-brand-sienna/60 rounded-lg px-1 py-0.5 text-[10px] outline-none ring-1 ring-brand-sienna/20 min-w-[80px] text-slate-700 dark:text-slate-200";
     return type === "text" ? (
       <textarea
         ref={taRef}
@@ -248,7 +248,7 @@ export default function ProjectSummaryMatrix({
   const COL_WIDTHS = [80, 288, ...Array(23).fill(112)];
 
   return (
-    <div className="rounded-2xl overflow-clip border border-slate-200/60 dark:border-white/8 bg-white/60 dark:bg-zinc-900/50 backdrop-blur-sm" style={{ overflowX: "clip" }}>
+    <div className="rounded-xl overflow-clip border border-slate-200/60 dark:border-white/8 bg-white/60 dark:bg-zinc-900/50 backdrop-blur-sm" style={{ overflowX: "clip" }}>
 
       {/* ── Sticky header section — page-level sticky, outside body scroll container ── */}
       <div className="sticky top-0 z-50 bg-white dark:bg-zinc-900 rounded-t-2xl shadow-sm">

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -147,7 +147,7 @@ function ProjectListContent() {
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Search project name, unit, stage…"
-            className="w-full rounded-xl border border-slate-200/70 dark:border-white/10 bg-white/70 dark:bg-zinc-900/60 pl-8 pr-3 py-2 text-sm outline-none text-slate-800 dark:text-white"
+            className="w-full rounded-lg border border-slate-200/70 dark:border-white/10 bg-white/70 dark:bg-zinc-900/60 pl-8 pr-3 py-2 text-sm outline-none text-slate-800 dark:text-white"
           />
         </div>
       </div>
@@ -162,7 +162,7 @@ function ProjectListContent() {
           <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">No projects found for this range.</p>
         </div>
       ) : (
-        <div className="rounded-2xl border border-slate-200/60 dark:border-white/8 bg-white/60 dark:bg-zinc-900/50 backdrop-blur-sm overflow-hidden">
+        <div className="rounded-xl border border-slate-200/60 dark:border-white/8 bg-white/60 dark:bg-zinc-900/50 backdrop-blur-sm overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>

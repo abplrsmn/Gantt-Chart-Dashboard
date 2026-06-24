@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState, useCallback } from "react";
 import { useRouter, useParams } from "next/navigation";
@@ -178,7 +178,7 @@ function LogEntry({ log }: { log: AuditLog }) {
       {/* Icon column */}
       <div className="flex flex-col items-center shrink-0">
         <div
-          className="w-8 h-8 rounded-xl flex items-center justify-center border shadow-sm"
+          className="w-8 h-8 rounded-lg flex items-center justify-center border shadow-sm"
           style={{ backgroundColor: `${cfg.color}18`, borderColor: `${cfg.color}40` }}
         >
           <Icon size={14} style={{ color: cfg.color }} />
@@ -302,7 +302,7 @@ export default function AuditLogPage() {
         <div className="flex-1 min-w-0" />
         <button
           onClick={fetchLogs}
-          className="p-2 rounded-xl bg-white/50 dark:bg-zinc-800/50 hover:bg-white dark:hover:bg-zinc-800 transition-colors shadow-sm shrink-0"
+          className="p-2 rounded-lg bg-white/50 dark:bg-zinc-800/50 hover:bg-white dark:hover:bg-zinc-800 transition-colors shadow-sm shrink-0"
           title="Refresh"
         >
           <RefreshCw size={13} className={`text-slate-500 ${loading ? "animate-spin" : ""}`} />
@@ -317,7 +317,7 @@ export default function AuditLogPage() {
           </div>
         ) : logs.length === 0 ? (
           <div className="flex flex-col items-center gap-3 py-16 text-center">
-            <div className="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-white/8 flex items-center justify-center">
+            <div className="w-12 h-12 rounded-xl bg-slate-100 dark:bg-white/8 flex items-center justify-center">
               <Inbox size={20} className="text-slate-400" />
             </div>
             <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">No logs yet</p>

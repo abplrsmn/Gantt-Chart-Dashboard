@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -221,7 +221,7 @@ function WeekCard({ week, weekKey, range, projectId }: WeekEntry & { projectId: 
 
   return (
     <>
-      <div className="rounded-xl border border-slate-200/70 dark:border-white/8 overflow-hidden">
+      <div className="rounded-lg border border-slate-200/70 dark:border-white/8 overflow-hidden">
         {/* Week header */}
         <div className="px-4 py-2.5 flex items-center gap-3" style={{ backgroundColor: "rgba(251,191,36,0.14)" }}>
           <span className="text-[10px] font-extrabold uppercase tracking-widest text-amber-700 dark:text-amber-400">Week {week}</span>
@@ -361,8 +361,8 @@ function WeekCard({ week, weekKey, range, projectId }: WeekEntry & { projectId: 
           >
             {isImage ? (
               /* ── Image lightbox ── */
-              <div className="relative max-w-4xl w-full animate-modal-enter overflow-hidden rounded-xl" onClick={e => e.stopPropagation()}>
-                <img src={lightbox.file_url} alt={lightbox.file_name} className="w-full max-h-[90vh] object-contain rounded-xl block" />
+              <div className="relative max-w-4xl w-full animate-modal-enter overflow-hidden rounded-lg" onClick={e => e.stopPropagation()}>
+                <img src={lightbox.file_url} alt={lightbox.file_name} className="w-full max-h-[90vh] object-contain rounded-lg block" />
                 <div className="absolute bottom-0 left-0 right-0 p-3 flex items-end justify-between gap-3">
                   <div>
                     <p className="text-white text-xs font-medium">{lightbox.file_name}</p>
@@ -384,7 +384,7 @@ function WeekCard({ week, weekKey, range, projectId }: WeekEntry & { projectId: 
               </div>
             ) : isPdf ? (
               /* ── PDF embed ── */
-              <div className="relative w-full max-w-4xl h-[88vh] bg-white dark:bg-zinc-900 rounded-2xl border border-slate-200/80 dark:border-white/8 overflow-hidden animate-modal-enter" style={{ boxShadow: "0 24px 64px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.06)" }} onClick={e => e.stopPropagation()}>
+              <div className="relative w-full max-w-4xl h-[88vh] bg-white dark:bg-zinc-900 rounded-xl border border-slate-200/80 dark:border-white/8 overflow-hidden animate-modal-enter" style={{ boxShadow: "0 24px 64px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.06)" }} onClick={e => e.stopPropagation()}>
                 <div className="flex items-center gap-3 px-4 py-3 border-b border-slate-200/60 dark:border-white/8">
                   <FileText size={14} className="text-red-500 shrink-0" />
                   <p className="text-xs font-bold text-slate-700 dark:text-white flex-1 truncate">{lightbox.file_name}</p>
@@ -408,7 +408,7 @@ function WeekCard({ week, weekKey, range, projectId }: WeekEntry & { projectId: 
               </div>
             ) : (
               /* ── Generic file preview card ── */
-              <div className="relative w-full max-w-sm bg-white dark:bg-zinc-900 rounded-2xl border border-slate-200/80 dark:border-white/8 overflow-hidden animate-modal-enter" style={{ boxShadow: "0 24px 64px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.06)" }} onClick={e => e.stopPropagation()}>
+              <div className="relative w-full max-w-sm bg-white dark:bg-zinc-900 rounded-xl border border-slate-200/80 dark:border-white/8 overflow-hidden animate-modal-enter" style={{ boxShadow: "0 24px 64px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.06)" }} onClick={e => e.stopPropagation()}>
                 <div className="flex items-center gap-3 px-5 py-4 border-b border-slate-200/60 dark:border-white/8">
                   <FileTypeIcon type={fileType} size={16} />
                   <p className="text-sm font-bold text-slate-800 dark:text-white flex-1 truncate">{lightbox.file_name}</p>
@@ -417,7 +417,7 @@ function WeekCard({ week, weekKey, range, projectId }: WeekEntry & { projectId: 
                   </button>
                 </div>
                 <div className="p-6 flex flex-col items-center gap-4">
-                  <div className="w-16 h-16 rounded-2xl bg-slate-100 dark:bg-white/6 flex items-center justify-center">
+                  <div className="w-16 h-16 rounded-xl bg-slate-100 dark:bg-white/6 flex items-center justify-center">
                     <FileTypeIcon type={fileType} size={32} />
                   </div>
                   <div className="text-center">
@@ -425,7 +425,7 @@ function WeekCard({ week, weekKey, range, projectId }: WeekEntry & { projectId: 
                     {lightbox.uploaded_by_name && <p className="text-[10px] text-slate-400 mt-1">Uploaded by {lightbox.uploaded_by_name}</p>}
                   </div>
                   <a href={lightbox.file_url} download={lightbox.file_name}
-                    className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-white text-xs font-semibold transition-colors"
+                    className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-white text-xs font-semibold transition-colors"
                     style={{ backgroundColor: "var(--brand-sienna)" }}>
                     <Download size={12} /> Download
                   </a>
@@ -454,9 +454,9 @@ function WeekCard({ week, weekKey, range, projectId }: WeekEntry & { projectId: 
           style={{ backgroundColor: "rgba(0,0,0,0.5)", backdropFilter: "blur(6px)" }}
           onMouseDown={e => { if (e.target === e.currentTarget) setDeleteConfirm(null); }}
         >
-          <div className="w-full max-w-sm rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200/60 dark:border-white/10 p-6 space-y-4 animate-modal-enter" style={{ boxShadow: "0 24px 64px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.06)" }}>
+          <div className="w-full max-w-sm rounded-xl bg-white dark:bg-zinc-900 border border-slate-200/60 dark:border-white/10 p-6 space-y-4 animate-modal-enter" style={{ boxShadow: "0 24px 64px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.06)" }}>
             <div className="flex items-start gap-3">
-              <div className="shrink-0 w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center">
+              <div className="shrink-0 w-10 h-10 rounded-lg bg-red-500/10 flex items-center justify-center">
                 <Trash2 size={18} className="text-red-500" />
               </div>
               <div>
