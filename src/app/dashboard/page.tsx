@@ -402,19 +402,16 @@ export default function DashboardHome() {
                     </div>
                   </div>
                 </div>
-                <div className="flex flex-col items-end shrink-0 pl-2 gap-1">
-                  {p.priority_name && (
+                {p.priority_name && (
+                  <div className="shrink-0 pl-2">
                     <span
                       className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded"
                       style={{ backgroundColor: `${p.priority_color}22`, color: p.priority_color || "#94a3b8" }}
                     >
                       {p.priority_name}
                     </span>
-                  )}
-                  <span className="text-xs font-bold text-slate-600 dark:text-gray-300">
-                    {p.overall_progress_pct ?? 0}%
-                  </span>
-                </div>
+                  </div>
+                )}
               </div>
             ))
           )}

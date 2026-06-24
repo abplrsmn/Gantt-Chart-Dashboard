@@ -48,18 +48,23 @@ type ProjectDetail = {
   brief_notes: string | null;
   design_brief: string | null;
   design_start: string | null;
+  design_approval_target: string | null;
   design_end: string | null;
+  design_duration_days: string | null;
   design_progress: string | null;
   working_drawing_status: string | null;
   design_notes: string | null;
   control_start: string | null;
+  aps_spk_target: string | null;
   control_end: string | null;
+  project_control_duration_days: string | null;
   control_progress: string | null;
   phase_contract_amount: string | null;
   control_notes: string | null;
   pm_start: string | null;
   pm_end: string | null;
   pm_actual_end: string | null;
+  pm_duration_days: string | null;
   pm_progress: string | null;
   deviation_days: string | null;
   current_site_progress: string | null;
@@ -179,6 +184,7 @@ function InlineField({
     !value ? "—"
     : fmt === "date" ? fmtDate(value)
     : fmt === "currency" ? fmtCurrency(value)
+    : fmt === "weeks" ? `${Math.round(Number(value) / 7)}w`
     : String(value);
 
   const wrapCls = fullWidth ? "col-span-2" : "";
@@ -196,7 +202,7 @@ function InlineField({
             rows={3}
             onChange={e => setDraft(e.target.value)}
             onBlur={commit}
-            onKeyDown={e => { if (e.key === "Escape") setEditing(false); if ((e.metaKey || e.ctrlKey) && e.key === "Enter") commit(); }}
+            onKeyDown={e => { if (e.key === "Escape") setEditing(false); if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); commit(); } }}
             className={inputCls + " resize-none"}
           />
         ) : (
@@ -217,11 +223,11 @@ function InlineField({
   return (
     <div className={`${readOnly ? "" : "group cursor-pointer"} ${wrapCls}`} onClick={startEdit}>
       {labelEl}
-      <div className="flex items-center gap-1">
-        <p className={`font-semibold ${fullWidth ? "text-[11px] leading-relaxed" : "text-xs"} ${displayVal === "—" ? "text-slate-400 dark:text-slate-500 italic" : "text-slate-700 dark:text-slate-200"} ${!readOnly ? "group-hover:text-amber-600 dark:group-hover:text-amber-400" : ""} transition-colors ${saving ? "opacity-50" : ""}`}>
+      <div className="flex items-center gap-1.5">
+        <p className={`font-semibold ${fullWidth ? "text-[11px] leading-relaxed" : "text-sm"} ${displayVal === "—" ? "text-slate-400 dark:text-slate-500 italic" : "text-slate-700 dark:text-slate-200"} ${!readOnly ? "group-hover:text-amber-600 dark:group-hover:text-amber-400 group-hover:underline group-hover:decoration-dashed group-hover:underline-offset-2 group-hover:decoration-amber-400/60" : ""} transition-colors ${saving ? "opacity-50" : ""}`}>
           {displayVal}
         </p>
-        {!readOnly && <Pencil size={9} className="text-slate-400 dark:text-slate-500 opacity-0 group-hover:opacity-60 transition-opacity shrink-0" />}
+        {!readOnly && <Pencil size={12} className="text-amber-500 dark:text-amber-400 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />}
       </div>
     </div>
   );
@@ -248,6 +254,7 @@ function NotesBox({ value, onSave, readOnly }: { value: string | null; onSave: (
         value={draft}
         onChange={e => setDraft(e.target.value)}
         onBlur={handleBlur}
+        onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleBlur(); } }}
         readOnly={readOnly}
         rows={3}
         placeholder={readOnly ? "—" : "Tulis notes..."}
@@ -316,8 +323,9 @@ function InlineText({
 type FieldDef = {
   label: string;
   key: keyof ProjectDetail;
-  format: "date" | "currency" | "text";
+  format: "date" | "currency" | "text" | "weeks";
   fullWidth?: boolean;
+  readonly?: boolean;
 };
 
 type PhaseDef = {
@@ -356,11 +364,13 @@ const PHASE_DEFS: PhaseDef[] = [
     startKey: "design_start", endKey: "design_end",
     phaseRowIdKey: "design_phase_row_id",
     fields: [
-      { label: "Start Design",    key: "design_start",           format: "date" },
-      { label: "Design Approval", key: "design_end",             format: "date" },
-      { label: "Design Brief",    key: "design_brief",           format: "text", fullWidth: true },
-      { label: "Working Drawing", key: "working_drawing_status", format: "text", fullWidth: true },
-      { label: "Notes",           key: "design_notes",           format: "text", fullWidth: true },
+      { label: "Start Design",             key: "design_start",            format: "date" },
+      { label: "Approval Target (+1M)",    key: "design_approval_target",  format: "date" },
+      { label: "Approval Real",            key: "design_end",              format: "date" },
+      { label: "Duration (+/-)",           key: "design_duration_days",    format: "text" },
+      { label: "Brief",                    key: "design_brief",            format: "text", fullWidth: true },
+      { label: "Working Drawing (+3W)",    key: "working_drawing_status",  format: "text", fullWidth: true },
+      { label: "Notes",                    key: "design_notes",            format: "text", fullWidth: true },
     ],
   },
   {
@@ -370,10 +380,12 @@ const PHASE_DEFS: PhaseDef[] = [
     startKey: "control_start", endKey: "control_end",
     phaseRowIdKey: "control_phase_row_id",
     fields: [
-      { label: "Tender Start",     key: "control_start",         format: "date" },
-      { label: "SPK Released",     key: "control_end",           format: "date" },
-      { label: "Contract Amount",  key: "phase_contract_amount", format: "currency", fullWidth: true },
-      { label: "Notes",            key: "control_notes",         format: "text",     fullWidth: true },
+      { label: "Tender Start",             key: "control_start",                  format: "date" },
+      { label: "SPK Released Target (+3W)", key: "aps_spk_target",               format: "date",     readonly: true },
+      { label: "SPK Released Real",        key: "control_end",                    format: "date" },
+      { label: "Duration (+/-)",           key: "project_control_duration_days",  format: "text" },
+      { label: "Contract Amount",          key: "phase_contract_amount",          format: "currency", fullWidth: true },
+      { label: "Notes",                    key: "control_notes",                  format: "text",     fullWidth: true },
     ],
   },
   {
@@ -383,12 +395,13 @@ const PHASE_DEFS: PhaseDef[] = [
     startKey: "pm_start", endKey: "pm_end",
     phaseRowIdKey: "pm_phase_row_id",
     fields: [
-      { label: "Commence Date",    key: "pm_start",              format: "date" },
-      { label: "End Contract",     key: "pm_end",                format: "date" },
-      { label: "Completion Date",  key: "pm_actual_end",         format: "date" },
-      { label: "Deviation Days",   key: "deviation_days",        format: "text" },
-      { label: "Site Progress",    key: "current_site_progress", format: "text" },
-      { label: "Notes",            key: "pm_notes",              format: "text", fullWidth: true },
+      { label: "START",                  key: "pm_start",              format: "date" },
+      { label: "END",                    key: "pm_end",                format: "date" },
+      { label: "Completion Real Date",   key: "pm_actual_end",         format: "date" },
+      { label: "Duration (weeks)",       key: "pm_duration_days",      format: "weeks", readonly: true },
+      { label: "+/- Deviation Days",     key: "deviation_days",        format: "text" },
+      { label: "Progress %",            key: "current_site_progress", format: "text" },
+      { label: "Notes",                  key: "pm_notes",              format: "text", fullWidth: true },
     ],
   },
   {
@@ -435,6 +448,7 @@ function PhaseCard({
   const [newTaskAssignee,   setNewTaskAssignee]   = useState("");
   const [newTaskAssignedBy, setNewTaskAssignedBy] = useState("");
   const [addingTask,        setAddingTask]        = useState(false);
+  const [showAddTask,       setShowAddTask]       = useState(false);
   const [uploadingFile,     setUploadingFile]     = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -446,6 +460,7 @@ function PhaseCard({
       setNewTaskInput("");
       setNewTaskAssignee("");
       setNewTaskAssignedBy("");
+      setShowAddTask(false);
     }
     finally { setAddingTask(false); }
   }
@@ -513,7 +528,7 @@ function PhaseCard({
               value={project[f.key] as string | null}
               format={f.format}
               fullWidth={f.fullWidth}
-              readOnly={isLocked}
+              readOnly={isLocked || !!f.readonly}
               onSave={v => onSave(f.key, v)}
             />
           ))}
@@ -526,15 +541,39 @@ function PhaseCard({
             <p className="text-[9px] uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1.5">Notes</p>
             <NotesBox
               value={project[f.key] as string | null}
-              readOnly={isLocked}
+              readOnly={isLocked || !!f.readonly}
               onSave={v => onSave(f.key, v)}
             />
           </div>
         ))}
 
-        {/* ── Sub-Tasks ── */}
+        {/* ── Weekly Progress button (PM phase only) ── */}
+        {ph.key === "pm" && isCurrent && (
+          <div className="pt-3 border-t border-slate-200/40 dark:border-white/6">
+            <a
+              href={`/dashboard/projects/${project.id}/weekly-progress`}
+              className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl border border-slate-200 dark:border-white/10 bg-white/60 dark:bg-zinc-900/40 text-slate-600 dark:text-slate-300 hover:border-amber-400/60 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-amber-50/50 dark:hover:bg-amber-900/10 transition-all text-xs font-semibold"
+            >
+              <Camera size={13} />
+              Weekly Progress
+            </a>
+          </div>
+        )}
+
+        {/* ── Sub-Tasks (hidden for PM phase) ── */}
+        {ph.key !== "pm" && (
         <div className="pt-3 border-t border-slate-200/40 dark:border-white/6">
-          <p className="text-[9px] uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-2">Sub-Tasks</p>
+          <div className="flex items-center gap-2 mb-2">
+            <p className="text-[9px] uppercase tracking-widest text-slate-400 dark:text-slate-500">Sub-Tasks</p>
+            {!isLocked && phaseRowId && (
+              <button
+                onClick={() => { setNewTaskInput(""); setNewTaskAssignee(""); setNewTaskAssignedBy(""); setShowAddTask(true); }}
+                className="flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-white/8 text-slate-500 dark:text-slate-400 hover:bg-amber-50 hover:text-amber-600 dark:hover:bg-amber-500/10 dark:hover:text-amber-400 transition-colors"
+              >
+                <Plus size={11} /> Add
+              </button>
+            )}
+          </div>
           {tasks.length > 0 && (
             <div className="space-y-1 mb-2">
               {tasks.map(t => {
@@ -587,51 +626,83 @@ function PhaseCard({
           {tasks.length === 0 && (
             <p className="text-[10px] italic text-slate-400 dark:text-slate-500 mb-2">No sub-tasks</p>
           )}
-          {!isLocked && phaseRowId && (
-            <div className="space-y-2 pt-2 border-t border-dashed border-slate-200/50 dark:border-white/6 mt-2">
-              <div>
-                <p className="text-[9px] uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1">Nama Sub-Task</p>
-                <input
-                  value={newTaskInput}
-                  onChange={e => setNewTaskInput(e.target.value)}
-                  onKeyDown={e => { if (e.key === "Enter") handleTaskAdd(); }}
-                  placeholder="Tulis nama sub-task..."
-                  className="w-full text-xs px-3 py-2 rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-zinc-800 text-slate-700 dark:text-slate-200 placeholder:text-slate-300 dark:placeholder:text-slate-600 outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20 transition-all"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <p className="text-[9px] uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1">Assignee</p>
-                  <input
-                    value={newTaskAssignee}
-                    onChange={e => setNewTaskAssignee(e.target.value)}
-                    placeholder="Nama assignee..."
-                    className="w-full text-xs px-3 py-2 rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-zinc-800 text-slate-700 dark:text-slate-200 placeholder:text-slate-300 dark:placeholder:text-slate-600 outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20 transition-all"
-                  />
-                </div>
-                <div>
-                  <p className="text-[9px] uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1">Assigned By</p>
-                  <input
-                    value={newTaskAssignedBy}
-                    onChange={e => setNewTaskAssignedBy(e.target.value)}
-                    placeholder="Nama yang assign..."
-                    className="w-full text-xs px-3 py-2 rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-zinc-800 text-slate-700 dark:text-slate-200 placeholder:text-slate-300 dark:placeholder:text-slate-600 outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20 transition-all"
-                  />
-                </div>
-              </div>
-              <button
-                onClick={handleTaskAdd}
-                disabled={addingTask || !newTaskInput.trim()}
-                className="w-full flex items-center justify-center gap-1.5 text-xs font-medium py-2 px-3 rounded-lg bg-amber-500 hover:bg-amber-600 disabled:opacity-40 text-white transition-colors"
+
+          {showAddTask && typeof document !== "undefined" && createPortal(
+            <div
+              className="fixed inset-0 z-9999 flex items-center justify-center p-4 animate-backdrop-enter"
+              style={{ backgroundColor: "rgba(0,0,0,0.45)", backdropFilter: "blur(6px)" }}
+              onMouseDown={e => { if (e.target === e.currentTarget) setShowAddTask(false); }}
+            >
+              <div
+                className="w-full max-w-sm rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200/60 dark:border-white/10 p-6 space-y-4 animate-modal-enter"
+                style={{ boxShadow: "0 24px 64px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.06)" }}
+                onMouseDown={e => e.stopPropagation()}
               >
-                {addingTask ? <Loader2 size={12} className="animate-spin" /> : <Plus size={12} />}
-                Tambah Sub-Task
-              </button>
-            </div>
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-bold text-slate-800 dark:text-white">Add Sub-Task</p>
+                  <button onClick={() => setShowAddTask(false)} className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 dark:hover:bg-white/8 transition-colors">
+                    <X size={14} />
+                  </button>
+                </div>
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-[10px] uppercase tracking-widest text-slate-400 mb-1.5 block">Nama Sub-Task <span className="text-red-400">*</span></label>
+                    <input
+                      autoFocus
+                      value={newTaskInput}
+                      onChange={e => setNewTaskInput(e.target.value)}
+                      onKeyDown={e => { if (e.key === "Enter" && newTaskInput.trim()) handleTaskAdd(); }}
+                      placeholder="Tulis nama sub-task..."
+                      className="w-full text-xs px-3 py-2 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-zinc-800 text-slate-700 dark:text-slate-200 placeholder:text-slate-300 outline-none focus:border-amber-600/60 transition-all"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-[10px] uppercase tracking-widest text-slate-400 mb-1.5 block">Assignee</label>
+                      <input
+                        value={newTaskAssignee}
+                        onChange={e => setNewTaskAssignee(e.target.value)}
+                        placeholder="Nama assignee..."
+                        className="w-full text-xs px-3 py-2 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-zinc-800 text-slate-700 dark:text-slate-200 placeholder:text-slate-300 outline-none focus:border-amber-600/60 transition-all"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] uppercase tracking-widest text-slate-400 mb-1.5 block">Assigned By</label>
+                      <input
+                        value={newTaskAssignedBy}
+                        onChange={e => setNewTaskAssignedBy(e.target.value)}
+                        placeholder="Nama yang assign..."
+                        className="w-full text-xs px-3 py-2 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-zinc-800 text-slate-700 dark:text-slate-200 placeholder:text-slate-300 outline-none focus:border-amber-600/60 transition-all"
+                      />
+                    </div>
+                  </div>
+                </div>
+                <div className="flex gap-2 justify-end pt-1">
+                  <button
+                    onClick={() => setShowAddTask(false)}
+                    className="px-4 py-1.5 rounded-lg text-xs font-semibold text-slate-500 hover:bg-slate-100 dark:hover:bg-white/8 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleTaskAdd}
+                    disabled={addingTask || !newTaskInput.trim()}
+                    className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-bold text-white disabled:opacity-40 transition-colors"
+                    style={{ backgroundColor: "#7c3d12" }}
+                  >
+                    {addingTask ? <Loader2 size={11} className="animate-spin" /> : <Plus size={11} />}
+                    Add
+                  </button>
+                </div>
+              </div>
+            </div>,
+            document.body
           )}
         </div>
+        )} {/* end sub-tasks (non-PM only) */}
 
-        {/* ── Documents ── */}
+        {/* ── Documents (hidden for PM phase) ── */}
+        {ph.key !== "pm" && (
         <div className="pt-3 border-t border-slate-200/40 dark:border-white/6">
           <div className="flex items-center gap-2 mb-2">
             <p className="text-[9px] uppercase tracking-widest text-slate-400">Documents</p>
@@ -678,6 +749,7 @@ function PhaseCard({
             <p className="text-[10px] italic text-slate-400 dark:text-slate-500">No documents yet</p>
           )}
         </div>
+        )} {/* end documents (non-PM only) */}
       </div>
       </div>
       </div>
@@ -722,8 +794,10 @@ export default function ProjectDetailPage() {
   const [unitOptions, setUnitOptions] = useState<{ id: number; code: string; name: string }[]>([]);
   const [showUnitPicker, setShowUnitPicker] = useState(false);
   const unitBtnRef = useRef<HTMLButtonElement>(null);
-  const [phaseNoteModal, setPhaseNoteModal] = useState<{ nextPhase: typeof PHASE_DEFS[number] } | null>(null);
-  const [phaseNote, setPhaseNote] = useState("");
+  const [phaseNoteModal, setPhaseNoteModal] = useState<{ nextPhase: typeof PHASE_DEFS[number]; needsDates: boolean } | null>(null);
+  const [phaseNote, setPhaseNote]           = useState("");
+  const [phaseStartDate, setPhaseStartDate] = useState("");
+  const [phaseEndDate, setPhaseEndDate]     = useState("");
   // Notes modal for priority/status changes
   const [changeReasonModal, setChangeReasonModal] = useState<{
     type: "status" | "priority";
@@ -935,13 +1009,6 @@ export default function ProjectDetailPage() {
           Back
         </button>
         <div className="ml-auto flex items-center gap-2">
-          <button
-            onClick={() => router.push(`/dashboard/projects/${id}/weekly-progress`)}
-            className="shrink-0 flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/60 dark:bg-zinc-900/50 text-slate-500 dark:text-slate-400 hover:border-slate-300 dark:hover:border-white/20 hover:bg-white dark:hover:bg-zinc-900/80 transition-all text-xs font-semibold"
-          >
-            <Camera size={13} />
-            Weekly Progress
-          </button>
           <button
             onClick={() => router.push(`/dashboard/projects/${id}/audit`)}
             className="shrink-0 flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/60 dark:bg-zinc-900/50 text-slate-500 dark:text-slate-400 hover:border-slate-300 dark:hover:border-white/20 hover:bg-white dark:hover:bg-zinc-900/80 transition-all text-xs font-semibold"
@@ -1194,16 +1261,47 @@ export default function ProjectDetailPage() {
                   Proceed to {phaseNoteModal.nextPhase.label}?
                 </p>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                  Tambahkan catatan alasan sebelum melanjutkan ke fase berikutnya.
+                  {phaseNoteModal.needsDates
+                    ? "Set phase dates and add notes before continuing."
+                    : "Add a reason before continuing to the next phase."}
                 </p>
               </div>
             </div>
+
+            {/* Date inputs — only when phase has no dates yet */}
+            {phaseNoteModal.needsDates && (
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[10px] uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1.5 block">
+                    Start Date <span className="text-red-400">*</span>
+                  </label>
+                  <input
+                    type="date"
+                    value={phaseStartDate}
+                    onChange={e => setPhaseStartDate(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200/70 dark:border-white/10 bg-slate-50 dark:bg-zinc-800 px-3 py-2 text-xs text-slate-700 dark:text-slate-200 outline-none focus:border-brand-sienna/60"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1.5 block">
+                    End Date <span className="text-red-400">*</span>
+                  </label>
+                  <input
+                    type="date"
+                    value={phaseEndDate}
+                    onChange={e => setPhaseEndDate(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200/70 dark:border-white/10 bg-slate-50 dark:bg-zinc-800 px-3 py-2 text-xs text-slate-700 dark:text-slate-200 outline-none focus:border-brand-sienna/60"
+                  />
+                </div>
+              </div>
+            )}
+
             <div>
               <label className="text-[10px] uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1.5 block">
                 Note / Reason <span className="text-red-400">*</span>
               </label>
               <textarea
-                autoFocus
+                autoFocus={!phaseNoteModal.needsDates}
                 value={phaseNote}
                 onChange={e => setPhaseNote(e.target.value)}
                 rows={3}
@@ -1219,11 +1317,32 @@ export default function ProjectDetailPage() {
                 Cancel
               </button>
               <button
-                disabled={!phaseNote.trim()}
+                disabled={!phaseNote.trim() || (phaseNoteModal.needsDates && (!phaseStartDate || !phaseEndDate))}
                 onClick={async () => {
-                  const { nextPhase } = phaseNoteModal;
+                  const { nextPhase, needsDates } = phaseNoteModal;
                   setPhaseNoteModal(null);
-                  setProject(prev => prev ? { ...prev, current_phase_code: nextPhase.phaseCode, current_phase_name: nextPhase.label } : prev);
+                  setProject(prev => prev ? {
+                    ...prev,
+                    current_phase_code: nextPhase.phaseCode,
+                    current_phase_name: nextPhase.label,
+                    ...(needsDates ? {
+                      [nextPhase.startKey]: phaseStartDate,
+                      [nextPhase.endKey]:   phaseEndDate,
+                    } : {}),
+                  } : prev);
+                  // Save dates first if they were missing
+                  if (needsDates) {
+                    await Promise.all([
+                      fetch(`/api/projects/${id}`, {
+                        method: "PATCH", headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ field: nextPhase.startKey, value: phaseStartDate, action_type: "field_updated" }),
+                      }),
+                      fetch(`/api/projects/${id}`, {
+                        method: "PATCH", headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ field: nextPhase.endKey, value: phaseEndDate, action_type: "field_updated" }),
+                      }),
+                    ]);
+                  }
                   await fetch(`/api/projects/${id}`, {
                     method: "PATCH",
                     headers: { "Content-Type": "application/json" },
@@ -1442,7 +1561,15 @@ export default function ProjectDetailPage() {
             if (!nextPhase) return null;
             return (
               <button
-                onClick={() => { setPhaseNote(""); setPhaseNoteModal({ nextPhase }); }}
+                onClick={() => {
+                  const startVal = project[nextPhase.startKey as keyof typeof project] as string | null | undefined;
+                  const endVal   = project[nextPhase.endKey   as keyof typeof project] as string | null | undefined;
+                  const needsDates = !startVal || !endVal;
+                  setPhaseNote("");
+                  setPhaseStartDate(startVal ? String(startVal).split("T")[0] : "");
+                  setPhaseEndDate(endVal   ? String(endVal).split("T")[0]   : "");
+                  setPhaseNoteModal({ nextPhase, needsDates });
+                }}
                 className="ml-auto shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold text-white transition-all"
                 style={{ backgroundColor: nextPhase.color }}
               >
@@ -1537,7 +1664,7 @@ export default function ProjectDetailPage() {
 
       {/* ── S-Curve ────────────────────────────────────────────────────── */}
       {scProject && (
-        <SCurveCharts projects={[scProject]} hidePhaseDetails />
+        <SCurveCharts projects={[scProject]} />
       )}
 
 

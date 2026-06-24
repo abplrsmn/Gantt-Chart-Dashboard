@@ -415,11 +415,13 @@ function ProjectWeeklySection({ project, selectedWeekKey }: { project: ProjectMe
   // Sub-tasks state
   const [tasks,            setTasks]            = useState<SubTask[]>([]);
   const [phaseRowId,       setPhaseRowId]       = useState<string | null>(null);
+  const [phaseIdToLabel,   setPhaseIdToLabel]   = useState<Record<string, string>>({});
   const [loadingTasks,     setLoadingTasks]     = useState(false);
   const [newTaskInput,     setNewTaskInput]     = useState("");
   const [newTaskAssignee,  setNewTaskAssignee]  = useState("");
   const [newTaskAssignedBy,setNewTaskAssignedBy]= useState("");
   const [addingTask,       setAddingTask]       = useState(false);
+  const [showAddTask,      setShowAddTask]      = useState(false);
 
   const weekEntry = weeks.find(w => w.weekKey === selectedWeekKey);
 
@@ -432,9 +434,20 @@ function ProjectWeeklySection({ project, selectedWeekKey }: { project: ProjectMe
       fetch(`/api/projects/${project.id}`).then(r => r.json()),
     ]).then(([tasksRes, detailRes]) => {
       if (tasksRes.success) setTasks(tasksRes.data);
-      if (detailRes.success && project.current_phase_code) {
-        const key = PHASE_ROW_ID_MAP[project.current_phase_code];
-        setPhaseRowId(key ? (detailRes.data.project[key] ?? null) : null);
+      if (detailRes.success) {
+        const p = detailRes.data.project;
+        if (project.current_phase_code) {
+          const key = PHASE_ROW_ID_MAP[project.current_phase_code];
+          setPhaseRowId(key ? (p[key] ?? null) : null);
+        }
+        const labelMap: Record<string, string> = {
+          [p.brief_phase_row_id]:   "Operational Brief",
+          [p.design_phase_row_id]:  "Design",
+          [p.control_phase_row_id]: "Project Control",
+          [p.pm_phase_row_id]:      "Project Management",
+          [p.handover_phase_row_id]:"Handover",
+        };
+        setPhaseIdToLabel(labelMap);
       }
     }).catch(() => {}).finally(() => setLoadingTasks(false));
   }, [expanded, project.id, project.current_phase_code]);
@@ -456,7 +469,7 @@ function ProjectWeeklySection({ project, selectedWeekKey }: { project: ProjectMe
       const json = await res.json();
       if (json.success) {
         setTasks(prev => [...prev, json.data]);
-        setNewTaskInput(""); setNewTaskAssignee(""); setNewTaskAssignedBy("");
+        setNewTaskInput(""); setNewTaskAssignee(""); setNewTaskAssignedBy(""); setShowAddTask(false);
       }
     } finally { setAddingTask(false); }
   }
@@ -562,66 +575,53 @@ function ProjectWeeklySection({ project, selectedWeekKey }: { project: ProjectMe
               </div>
             ) : (
               <>
-                {tasks.length > 0 && (
-                  <div className="space-y-1 mb-3">
-                    {tasks.map(t => {
-                      const done = Number(t.progress_pct) >= 100;
-                      return (
-                        <div key={t.id} className="flex items-center gap-2 group py-1.5 px-2 rounded-lg hover:bg-slate-50 dark:hover:bg-white/4 transition-colors">
-                          <button onClick={() => handleTaskToggle(t.id, !done)} className="shrink-0 text-slate-400 hover:text-amber-500 transition-colors">
-                            {done ? <CheckSquare size={15} className="text-amber-500" /> : <Square size={15} />}
-                          </button>
-                          <div className="flex-1 min-w-0">
-                            <p className={`text-xs leading-snug ${done ? "line-through text-slate-400 dark:text-slate-600" : "text-slate-700 dark:text-slate-200"}`}>{t.title}</p>
-                            {(t.raw_assignee_name || t.raw_assigned_by_name) && (
-                              <div className="flex items-center gap-2 mt-0.5 text-[10px] text-slate-400">
-                                {t.raw_assignee_name && <span>{t.raw_assignee_name}</span>}
-                                {t.raw_assigned_by_name && <span className="text-slate-300 dark:text-slate-600">by {t.raw_assigned_by_name}</span>}
-                              </div>
-                            )}
+                {tasks.length > 0 && (() => {
+                  const PHASE_ORDER = ["Operational Brief", "Design", "Project Control", "Project Management", "Handover"];
+                  const grouped: Record<string, SubTask[]> = {};
+                  for (const t of tasks) {
+                    const label = (t.phase_id && phaseIdToLabel[t.phase_id]) || "Other";
+                    (grouped[label] = grouped[label] ?? []).push(t);
+                  }
+                  const sortedGroups = Object.entries(grouped).sort(([a], [b]) => {
+                    const ai = PHASE_ORDER.indexOf(a), bi = PHASE_ORDER.indexOf(b);
+                    return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+                  });
+                  return (
+                    <div className="space-y-3 mb-3">
+                      {sortedGroups.map(([phase, phaseTasks]) => (
+                        <div key={phase}>
+                          <p className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 mb-1 px-2">{phase}</p>
+                          <div className="space-y-0.5">
+                            {phaseTasks.map(t => {
+                              const done = Number(t.progress_pct) >= 100;
+                              return (
+                                <div key={t.id} className="flex items-center gap-2 group py-1.5 px-2 rounded-lg hover:bg-slate-50 dark:hover:bg-white/4 transition-colors">
+                                  <button onClick={() => handleTaskToggle(t.id, !done)} className="shrink-0 text-slate-400 hover:text-amber-500 transition-colors">
+                                    {done ? <CheckSquare size={15} className="text-amber-500" /> : <Square size={15} />}
+                                  </button>
+                                  <div className="flex-1 min-w-0">
+                                    <p className={`text-xs leading-snug ${done ? "line-through text-slate-400 dark:text-slate-600" : "text-slate-700 dark:text-slate-200"}`}>{t.title}</p>
+                                    {(t.raw_assignee_name || t.raw_assigned_by_name) && (
+                                      <div className="flex items-center gap-2 mt-0.5 text-[10px] text-slate-400">
+                                        {t.raw_assignee_name && <span>{t.raw_assignee_name}</span>}
+                                        {t.raw_assigned_by_name && <span className="text-slate-300 dark:text-slate-600">by {t.raw_assigned_by_name}</span>}
+                                      </div>
+                                    )}
+                                  </div>
+                                  <button onClick={() => handleTaskDelete(t.id)} className="opacity-0 group-hover:opacity-60 hover:opacity-100! text-slate-400 hover:text-rose-500 transition-all shrink-0">
+                                    <Trash2 size={14} />
+                                  </button>
+                                </div>
+                              );
+                            })}
                           </div>
-                          <button onClick={() => handleTaskDelete(t.id)} className="opacity-0 group-hover:opacity-60 hover:opacity-100! text-slate-400 hover:text-rose-500 transition-all shrink-0">
-                            <Trash2 size={14} />
-                          </button>
                         </div>
-                      );
-                    })}
-                  </div>
-                )}
+                      ))}
+                    </div>
+                  );
+                })()}
                 {tasks.length === 0 && <p className="text-[10px] italic text-slate-400 dark:text-slate-500 mb-3">No sub-tasks yet</p>}
 
-                {/* Add form */}
-                <div className="space-y-2 pt-2 border-t border-dashed border-slate-200/50 dark:border-white/6">
-                  <input
-                    value={newTaskInput}
-                    onChange={e => setNewTaskInput(e.target.value)}
-                    onKeyDown={e => { if (e.key === "Enter") handleTaskAdd(); }}
-                    placeholder="Nama sub-task..."
-                    className="w-full text-xs px-3 py-2 rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-zinc-800 text-slate-700 dark:text-slate-200 placeholder:text-slate-300 dark:placeholder:text-slate-600 outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20 transition-all"
-                  />
-                  <div className="grid grid-cols-2 gap-2">
-                    <input
-                      value={newTaskAssignee}
-                      onChange={e => setNewTaskAssignee(e.target.value)}
-                      placeholder="Assignee..."
-                      className="w-full text-xs px-3 py-2 rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-zinc-800 text-slate-700 dark:text-slate-200 placeholder:text-slate-300 dark:placeholder:text-slate-600 outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20 transition-all"
-                    />
-                    <input
-                      value={newTaskAssignedBy}
-                      onChange={e => setNewTaskAssignedBy(e.target.value)}
-                      placeholder="Assigned by..."
-                      className="w-full text-xs px-3 py-2 rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-zinc-800 text-slate-700 dark:text-slate-200 placeholder:text-slate-300 dark:placeholder:text-slate-600 outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20 transition-all"
-                    />
-                  </div>
-                  <button
-                    onClick={handleTaskAdd}
-                    disabled={addingTask || !newTaskInput.trim()}
-                    className="w-full flex items-center justify-center gap-1.5 text-xs font-medium py-2 px-3 rounded-lg bg-amber-500 hover:bg-amber-600 disabled:opacity-40 text-white transition-colors"
-                  >
-                    {addingTask ? <Loader2 size={12} className="animate-spin" /> : <Plus size={12} />}
-                    Tambah Sub-Task
-                  </button>
-                </div>
               </>
             )}
           </div>

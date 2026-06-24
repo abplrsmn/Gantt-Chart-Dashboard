@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { X, Plus, Trash2, Calendar } from "lucide-react";
+import AnimatedDropdown from "./AnimatedDropdown";
 
 type Option = { id: number; code?: string; name: string; color?: string };
 type Options = {
@@ -214,21 +215,23 @@ export default function AddProjectModal({
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className={lbl}>Unit</label>
-                <select value={form.unit_name} onChange={e => set("unit_name", e.target.value)} className={select}>
-                  <option value="">— Select unit</option>
-                  {options?.units.map(u => (
-                    <option key={u.id} value={u.name}>{u.name}</option>
-                  ))}
-                </select>
+                <AnimatedDropdown
+                  value={form.unit_name}
+                  options={[{ value: "", label: "— Select unit" }, ...(options?.units.map(u => ({ value: u.name, label: u.name })) ?? [])]}
+                  onChange={v => set("unit_name", v)}
+                  placeholder="— Select unit"
+                  className="w-full"
+                />
               </div>
               <div>
                 <label className={lbl}>Priority</label>
-                <select value={form.priority_id} onChange={e => set("priority_id", e.target.value)} className={select}>
-                  <option value="">— Select priority</option>
-                  {options?.priorities.map(p => (
-                    <option key={p.id} value={p.id}>{p.name}</option>
-                  ))}
-                </select>
+                <AnimatedDropdown
+                  value={form.priority_id}
+                  options={[{ value: "", label: "— Select priority" }, ...(options?.priorities.map(p => ({ value: String(p.id), label: p.name, color: p.color })) ?? [])]}
+                  onChange={v => set("priority_id", v)}
+                  placeholder="— Select priority"
+                  className="w-full"
+                />
               </div>
             </div>
 
@@ -252,12 +255,13 @@ export default function AddProjectModal({
             {/* Current Phase + its dates */}
             <div>
               <label className={lbl}>Current Phase</label>
-              <select value={form.current_phase_id} onChange={e => set("current_phase_id", e.target.value)} className={select}>
-                <option value="">— Select current phase</option>
-                {options?.phases.map(p => (
-                  <option key={p.id} value={p.id}>{p.name}</option>
-                ))}
-              </select>
+              <AnimatedDropdown
+                value={form.current_phase_id}
+                options={[{ value: "", label: "— Select current phase" }, ...(options?.phases.map(p => ({ value: String(p.id), label: p.name })) ?? [])]}
+                onChange={v => set("current_phase_id", v)}
+                placeholder="— Select current phase"
+                className="w-full"
+              />
               {phaseDateLabels && (
                 <div className="grid grid-cols-2 gap-3 mt-3">
                   <div>
@@ -301,17 +305,14 @@ export default function AddProjectModal({
                     ) ?? [];
                     return (
                       <div key={idx} className="rounded-xl border border-slate-200/70 dark:border-white/8 overflow-hidden">
-                        <div className="flex items-center gap-2 px-3 py-2.5 bg-slate-50 dark:bg-white/3 border-b border-slate-200/60 dark:border-white/6">
-                          <select
+                        <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 dark:bg-white/3 border-b border-slate-200/60 dark:border-white/6">
+                          <AnimatedDropdown
                             value={entry.phase_id}
-                            onChange={e => updatePhaseEntry(idx, "phase_id", e.target.value)}
-                            className="flex-1 text-[12px] font-semibold bg-transparent outline-none text-slate-600 dark:text-slate-300 cursor-pointer"
-                          >
-                            <option value="">— Select phase</option>
-                            {phaseOptions.map(p => (
-                              <option key={p.id} value={p.id}>{p.name}</option>
-                            ))}
-                          </select>
+                            options={[{ value: "", label: "— Select phase" }, ...phaseOptions.map(p => ({ value: String(p.id), label: p.name }))]}
+                            onChange={v => updatePhaseEntry(idx, "phase_id", v)}
+                            placeholder="— Select phase"
+                            className="flex-1"
+                          />
                           <button type="button" onClick={() => removePhaseEntry(idx)} className="p-1 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors">
                             <Trash2 size={14} />
                           </button>

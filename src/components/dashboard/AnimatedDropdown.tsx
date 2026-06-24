@@ -41,6 +41,7 @@ export default function AnimatedDropdown({
     <div ref={ref} className={`relative ${className}`}>
       {/* Trigger */}
       <button
+        type="button"
         onClick={() => !disabled && setOpen(o => !o)}
         disabled={disabled}
         className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-sm font-medium transition-all whitespace-nowrap select-none ${
@@ -79,6 +80,7 @@ export default function AnimatedDropdown({
             const active = opt.value === value;
             return (
               <button
+                type="button"
                 key={opt.value}
                 onClick={() => { onChange(opt.value); setOpen(false); }}
                 className={`w-full flex items-center gap-2.5 px-3 py-1.5 text-[12px] font-medium transition-all ${

@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { useRouter, useParams } from "next/navigation";
 import { format, eachWeekOfInterval, addDays, parseISO, isValid } from "date-fns";
 import { ArrowLeft, Camera, Plus, Trash2, Check, FileText, FileSpreadsheet, FileType2, Presentation, Download, ExternalLink, X } from "lucide-react";
+import AnimatedDropdown from "@/components/dashboard/AnimatedDropdown";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Photo = {
@@ -136,7 +137,6 @@ function WeekCard({ week, weekKey, range, projectId }: WeekEntry & { projectId: 
   const [deleteConfirm, setDeleteConfirm] = useState<Photo | null>(null);
   const [replacing, setReplacing]       = useState(false);
   const [progress, setProgress]     = useState<WeekProgress>({ plan_pct: 0, actual_pct: 0, status: "Not started" });
-  const [editStatus, setEditStatus] = useState(false);
   const fileRef    = useRef<HTMLInputElement>(null);
   const replaceRef = useRef<HTMLInputElement>(null);
 
@@ -323,37 +323,17 @@ function WeekCard({ week, weekKey, range, projectId }: WeekEntry & { projectId: 
             </div>
           </div>
 
-          {/* Status — editable dropdown */}
+          {/* Status — animated dropdown */}
           <div className="flex items-center gap-2">
-            {editStatus ? (
-              <select
-                autoFocus
-                value={progress.status}
-                onChange={e => { saveProgress({ status: e.target.value }); setEditStatus(false); }}
-                onBlur={() => setEditStatus(false)}
-                className="text-[10px] font-semibold rounded-full px-2.5 py-1 border border-brand-sienna/40 bg-white dark:bg-zinc-900 text-slate-700 dark:text-slate-200 outline-none cursor-pointer"
-              >
-                {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
-            ) : (
-              <button
-                onClick={() => setEditStatus(true)}
-                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold transition-all hover:ring-2 hover:ring-brand-sienna/30 ${
-                  progress.status === "On progress"   ? "bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400"
-                  : progress.status === "Completed"   ? "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-                  : progress.status === "Not started" ? "bg-slate-100 dark:bg-white/5 text-slate-400"
-                  :                                     "bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400"
-                }`}
-              >
-                <span className={`w-1.5 h-1.5 rounded-full ${
-                  progress.status === "On progress"   ? "bg-blue-500"
-                  : progress.status === "Completed"   ? "bg-emerald-500"
-                  : progress.status === "Not started" ? "bg-slate-400"
-                  :                                     "bg-amber-500"
-                }`} />
-                {progress.status}
-              </button>
-            )}
+            <AnimatedDropdown
+              value={progress.status}
+              options={STATUS_OPTIONS.map(s => ({
+                value: s,
+                label: s,
+                color: s === "On progress" ? "#3b82f6" : s === "Completed" ? "#22c55e" : s === "Delayed" ? "#f59e0b" : "#94a3b8",
+              }))}
+              onChange={v => saveProgress({ status: v })}
+            />
           </div>
         </div>
       </div>

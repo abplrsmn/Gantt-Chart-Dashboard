@@ -79,7 +79,7 @@ export async function GET() {
         ) AS brief_pic,
 
         ds.start_design_date          AS design_start,
-        (ds.start_design_date + INTERVAL '1 month')::date AS design_approval_target,
+        COALESCE(ds.design_approval_target, (ds.start_design_date + INTERVAL '1 month')::date) AS design_approval_target,
         ds.design_approval_date       AS design_end,
         ds.progress_pct               AS design_progress,
         ds.design_duration_days,

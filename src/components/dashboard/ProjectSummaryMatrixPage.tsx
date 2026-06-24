@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Search } from "lucide-react";
+import { Search, TableProperties } from "lucide-react";
 import ProjectSummaryMatrix from "./ProjectSummaryMatrix";
 import AnimatedDropdown from "./AnimatedDropdown";
 
@@ -103,7 +103,13 @@ export default function ProjectSummaryMatrixPage() {
 
   return (
     <div className="space-y-4 pb-6 animate-page-enter">
-      {/* Toolbar: Back | Search | Filters */}
+      {/* Page title */}
+      <div className="flex items-center gap-2 mb-3 mt-2">
+        <TableProperties size={16} className="text-teal-500 shrink-0" />
+        <h2 className="text-lg font-bold text-slate-800 dark:text-white">Summary</h2>
+      </div>
+
+      {/* Toolbar: Search | Filters */}
       <div className="flex items-center gap-3 mb-4">
 
         {/* Search — grows to fill middle */}
