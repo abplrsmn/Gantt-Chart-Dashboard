@@ -231,10 +231,13 @@ export default function SCurveCharts({ projects }: { projects: DBProject[] }) {
   const projectId = selectedProject?.id ?? null;
 
   // ── Weeks ─────────────────────────────────────────────────────────────────────
+  const hasPmDates = !!(parseDate(selectedProject?.pm_start) && parseDate(selectedProject?.pm_end));
+
   const weeks = useMemo(() => {
     if (!selectedProject) return [];
-    const start = parseDate(selectedProject.pm_start) ?? parseDate(selectedProject.start_date);
-    const end   = parseDate(selectedProject.pm_end)   ?? parseDate(selectedProject.end_date);
+    // Strictly require PM phase dates — no fallback to start_date/end_date
+    const start = parseDate(selectedProject.pm_start);
+    const end   = parseDate(selectedProject.pm_end);
     if (!start || !end || start > end) return [];
     return generateWeeks(start, end);
   }, [selectedProject]);
@@ -307,27 +310,82 @@ export default function SCurveCharts({ projects }: { projects: DBProject[] }) {
     }
   }
 
-  // ── Setup wizard (bulk add steps when none exist) ────────────────────────────
-  const [setupRows, setSetupRows] = useState<string[]>(["", "", ""]);
+  // ── Setup wizard (bulk add steps + tasks when none exist) ───────────────────
+  type SetupTask = { name: string; weight: string };
+  type SetupRow  = { name: string; tasks: SetupTask[] };
+  const [setupRows, setSetupRows] = useState<SetupRow[]>([
+    { name: "Step 1", tasks: [] },
+    { name: "Step 2", tasks: [] },
+    { name: "Step 3", tasks: [] },
+  ]);
   const [setupSaving, setSetupSaving] = useState(false);
 
+  function setSetupStepName(i: number, v: string) {
+    setSetupRows(p => p.map((r, ri) => ri === i ? { ...r, name: v } : r));
+  }
+  function addSetupTask(i: number) {
+    setSetupRows(p => p.map((r, ri) => ri === i ? { ...r, tasks: [...r.tasks, { name: "", weight: "" }] } : r));
+  }
+  function setSetupTask(si: number, ti: number, field: keyof SetupTask, v: string) {
+    setSetupRows(p => p.map((r, ri) => ri === si
+      ? { ...r, tasks: r.tasks.map((t, tii) => tii === ti ? { ...t, [field]: v } : t) }
+      : r));
+  }
+  function removeSetupTask(si: number, ti: number) {
+    setSetupRows(p => p.map((r, ri) => ri === si ? { ...r, tasks: r.tasks.filter((_, tii) => tii !== ti) } : r));
+  }
+
   async function createSetupSteps() {
-    const names = setupRows.filter(n => n.trim());
-    if (!names.length || !projectId) return;
+    const valid = setupRows.filter(r => r.name.trim());
+    if (!valid.length || !projectId) return;
     setSetupSaving(true);
     try {
       const created: SStep[] = [];
-      for (const name of names) {
+      for (const row of valid) {
         const res = await fetch(`/api/projects/${projectId}/scurve-steps`, {
           method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name }),
+          body: JSON.stringify({ name: row.name.trim() }),
         });
         const j = await res.json();
-        if (j.success) created.push({ ...j.data, tasks: [] });
+        if (!j.success) continue;
+        const step: SStep = { ...j.data, tasks: [] };
+        for (const t of row.tasks.filter(t => t.name.trim())) {
+          const tr = await fetch(`/api/projects/${projectId}/scurve-tasks`, {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ stepId: step.id, name: t.name.trim(), bobot: parseFloat(t.weight) || 0 }),
+          });
+          const tj = await tr.json();
+          if (tj.success) step.tasks.push({ ...tj.data, weeklyPlan: {}, weeklyActual: {} });
+        }
+        created.push(step);
       }
       setSteps(created);
     } finally {
       setSetupSaving(false);
+    }
+  }
+
+  // ── Auto-distribute weights equally across all tasks ──────────────────────────
+  const [autoWeighting, setAutoWeighting] = useState(false);
+  async function autoDistributeWeights() {
+    if (!projectId) return;
+    const allTasks = steps.flatMap(s => s.tasks);
+    if (!allTasks.length) return;
+    const equal = parseFloat((100 / allTasks.length).toFixed(4));
+    setAutoWeighting(true);
+    try {
+      await Promise.all(allTasks.map(t =>
+        fetch(`/api/projects/${projectId}/scurve-tasks/${t.id}`, {
+          method: "PATCH", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ bobot: equal }),
+        })
+      ));
+      setSteps(prev => prev.map(s => ({
+        ...s,
+        tasks: s.tasks.map(t => ({ ...t, bobot: equal })),
+      })));
+    } finally {
+      setAutoWeighting(false);
     }
   }
 
@@ -356,11 +414,51 @@ export default function SCurveCharts({ projects }: { projects: DBProject[] }) {
     }
   }
 
-  async function deleteStep(stepId: string) {
+  async function deleteStep(stepId: string, stepName: string) {
     if (!projectId) return;
-    // Optimistic
+    if (!window.confirm(`Delete step "${stepName}" and all its tasks? This cannot be undone.`)) return;
     setSteps(prev => prev.filter(s => s.id !== stepId));
     await fetch(`/api/projects/${projectId}/scurve-steps/${stepId}`, { method: "DELETE" });
+  }
+
+  // ── Inline step name editing ──────────────────────────────────────────────────
+  const [editingStepId, setEditingStepId]     = useState<string | null>(null);
+  const [stepNameDraft, setStepNameDraft]     = useState("");
+
+  async function commitStepName(stepId: string) {
+    const name = stepNameDraft.trim();
+    setEditingStepId(null);
+    if (!name || !projectId) return;
+    setSteps(prev => prev.map(s => s.id === stepId ? { ...s, name } : s));
+    await fetch(`/api/projects/${projectId}/scurve-steps/${stepId}`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+    });
+  }
+
+  // ── Inline task field editing ─────────────────────────────────────────────────
+  const [editingTaskField, setEditingTaskField] = useState<{ taskId: string; field: "name" | "bobot" } | null>(null);
+  const [taskFieldDraft, setTaskFieldDraft]     = useState("");
+
+  async function commitTaskField(stepId: string, taskId: string, field: "name" | "bobot") {
+    setEditingTaskField(null);
+    if (!projectId) return;
+    const raw = taskFieldDraft.trim();
+    if (!raw) return;
+    if (field === "name") {
+      setSteps(prev => prev.map(s => s.id === stepId ? { ...s, tasks: s.tasks.map(t => t.id === taskId ? { ...t, name: raw } : t) } : s));
+      await fetch(`/api/projects/${projectId}/scurve-tasks/${taskId}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: raw }),
+      });
+    } else {
+      const bobot = parseFloat(raw) || 0;
+      setSteps(prev => prev.map(s => s.id === stepId ? { ...s, tasks: s.tasks.map(t => t.id === taskId ? { ...t, bobot } : t) } : s));
+      await fetch(`/api/projects/${projectId}/scurve-tasks/${taskId}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ bobot }),
+      });
+    }
   }
 
   // ── Add Task modal ────────────────────────────────────────────────────────────
@@ -397,9 +495,9 @@ export default function SCurveCharts({ projects }: { projects: DBProject[] }) {
     }
   }
 
-  async function deleteTask(stepId: string, taskId: string) {
+  async function deleteTask(stepId: string, taskId: string, taskName: string) {
     if (!projectId) return;
-    // Optimistic
+    if (!window.confirm(`Delete task "${taskName}"?`)) return;
     setSteps(prev => prev.map(s => s.id === stepId ? { ...s, tasks: s.tasks.filter(t => t.id !== taskId) } : s));
     await fetch(`/api/projects/${projectId}/scurve-tasks/${taskId}`, { method: "DELETE" });
   }
@@ -436,7 +534,7 @@ export default function SCurveCharts({ projects }: { projects: DBProject[] }) {
 
   // ── Chart ─────────────────────────────────────────────────────────────────────
   const chartData = useMemo(() => {
-    const pmStart = parseDate(selectedProject?.pm_start) ?? parseDate(selectedProject?.start_date) ?? undefined;
+    const pmStart = parseDate(selectedProject?.pm_start) ?? undefined;
     return buildChartData(steps, weeks, pmStart);
   }, [steps, weeks, selectedProject]);
   const hasChart  = chartData.some(p => p.plan > 0);
@@ -475,13 +573,18 @@ export default function SCurveCharts({ projects }: { projects: DBProject[] }) {
                 Weight {totalBobot.toFixed(2)}%
               </span>
             )}
-            {/* Add Step */}
-            <button
-              onClick={() => { setStepName(""); setAddStepOpen(true); }}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold bg-amber-500 text-white hover:bg-amber-600 transition-colors"
-            >
-              <Plus size={12} /> Add Step
-            </button>
+            {/* Auto Weights */}
+            {steps.some(s => s.tasks.length > 0) && (
+              <button
+                onClick={autoDistributeWeights}
+                disabled={autoWeighting}
+                title="Distribute 100% equally across all tasks"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold border border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-300 hover:border-teal-400 hover:text-teal-600 dark:hover:text-teal-400 transition-colors disabled:opacity-40"
+              >
+                {autoWeighting ? <Loader2 size={11} className="animate-spin" /> : <span className="text-[10px]">∑</span>}
+                Auto Weights
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -498,9 +601,28 @@ export default function SCurveCharts({ projects }: { projects: DBProject[] }) {
             <div className="flex items-center justify-center p-12 gap-2 text-slate-400 text-sm">
               <Loader2 size={16} className="animate-spin" /> Loading...
             </div>
-          ) : weeks.length === 0 ? (
-            <div className="p-12 text-center text-sm text-slate-400 dark:text-slate-500">
-              No timeline found. Set PM Start / End dates in Project Details.
+          ) : !parseDate(selectedProject.pm_start) || !parseDate(selectedProject.pm_end) ? (
+            <div className="relative overflow-hidden" style={{ height: 320 }}>
+              {/* Blurred fake chart */}
+              <div className="absolute inset-0 pointer-events-none opacity-30" style={{ filter: "blur(4px)" }}>
+                <FakeSCurve />
+              </div>
+              {/* Dark overlay */}
+              <div className="absolute inset-0 bg-white/60 dark:bg-zinc-950/60 backdrop-blur-sm" />
+              {/* Message */}
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-center px-6">
+                <div className="w-11 h-11 rounded-lg bg-amber-500/15 flex items-center justify-center">
+                  <svg className="w-5 h-5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-slate-700 dark:text-slate-100">Set PM Phase dates to enable S-Curve</p>
+                  <p className="text-xs text-slate-400 dark:text-slate-500 mt-1 max-w-xs">
+                    Open <span className="font-semibold text-amber-500">Project Details</span>, go to <span className="font-semibold text-amber-500">Phase Progress → PM</span>, and fill in the Start &amp; End dates.
+                  </p>
+                </div>
+              </div>
             </div>
           ) : (
             <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-zinc-700">
@@ -541,34 +663,80 @@ export default function SCurveCharts({ projects }: { projects: DBProject[] }) {
                 {/* Setup wizard — shown when no steps exist */}
                 {steps.length === 0 && (
                   <div className="flex items-center justify-center py-10 px-6">
-                    <div className="w-full max-w-sm bg-white dark:bg-zinc-900 rounded-xl border border-slate-200/60 dark:border-white/10 shadow-lg p-6">
+                    <div className="w-full max-w-lg bg-white dark:bg-zinc-900 rounded-xl border border-slate-200/60 dark:border-white/10 shadow-lg p-6 max-h-[50vh] flex flex-col">
                       <p className="text-sm font-bold text-slate-800 dark:text-white mb-1">Setup S-Curve Steps</p>
-                      <p className="text-[11px] text-slate-400 dark:text-slate-500 mb-4">Add all steps at once — you can edit later</p>
-                      <div className="space-y-2 mb-4">
-                        {setupRows.map((name, i) => (
-                          <div key={i} className="flex items-center gap-2">
-                            <span className="text-[11px] font-bold text-amber-500 w-5 shrink-0">{LETTERS[i] ?? "?"}</span>
-                            <input
-                              value={name}
-                              onChange={e => setSetupRows(prev => prev.map((r, ri) => ri === i ? e.target.value : r))}
-                              onKeyDown={e => { if (e.key === "Enter" && i === setupRows.length - 1) setSetupRows(p => [...p, ""]); }}
-                              placeholder={`Step ${LETTERS[i] ?? i + 1}...`}
-                              className="flex-1 rounded-lg border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-zinc-800 px-3 py-2 text-[12px] text-slate-800 dark:text-white outline-none focus:border-amber-400 dark:focus:border-amber-500"
-                            />
-                            {setupRows.length > 1 && (
-                              <button onClick={() => setSetupRows(p => p.filter((_, ri) => ri !== i))} className="text-slate-300 hover:text-rose-400 transition-colors shrink-0">
-                                <Trash2 size={13} />
-                              </button>
+                      <p className="text-[11px] text-slate-400 dark:text-slate-500 mb-4">Add steps and tasks at once — you can edit later</p>
+
+                      <div className="space-y-3 mb-4 overflow-y-auto flex-1 scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-zinc-700 pr-1">
+                        {setupRows.map((row, si) => (
+                          <div key={si} className="rounded-lg border border-slate-200 dark:border-white/8 overflow-hidden">
+                            {/* Step name row */}
+                            <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 dark:bg-zinc-800/60">
+                              <span className="text-[11px] font-bold text-amber-500 w-5 shrink-0">{LETTERS[si] ?? "?"}</span>
+                              <input
+                                value={row.name}
+                                onChange={e => setSetupStepName(si, e.target.value)}
+                                onKeyDown={e => { if (e.key === "Enter" && si === setupRows.length - 1) setSetupRows(p => [...p, { name: `Step ${p.length + 1}`, tasks: [] }]); }}
+                                placeholder={`Step ${si + 1}`}
+                                className="flex-1 bg-transparent text-sm font-semibold text-slate-800 dark:text-white outline-none placeholder:text-slate-300 dark:placeholder:text-slate-600"
+                              />
+                              {setupRows.length > 1 && (
+                                <button onClick={() => setSetupRows(p => p.filter((_, ri) => ri !== si))} className="text-slate-300 hover:text-rose-400 transition-colors shrink-0">
+                                  <Trash2 size={12} />
+                                </button>
+                              )}
+                            </div>
+
+                            {/* Tasks under this step */}
+                            {row.tasks.length > 0 && (
+                              <div className="divide-y divide-slate-100 dark:divide-white/5">
+                                {row.tasks.map((task, ti) => (
+                                  <div key={ti} className="flex items-center gap-2 px-3 py-2.5 pl-8">
+                                    <span className="text-[10px] text-slate-300 dark:text-slate-600 shrink-0">{si + 1}.{ti + 1}</span>
+                                    <input
+                                      value={task.name}
+                                      onChange={e => setSetupTask(si, ti, "name", e.target.value)}
+                                      placeholder="Task name"
+                                      className="flex-1 bg-transparent text-[13px] text-slate-700 dark:text-slate-200 outline-none placeholder:text-slate-300 dark:placeholder:text-slate-600"
+                                    />
+                                    <input
+                                      value={task.weight}
+                                      onChange={e => setSetupTask(si, ti, "weight", e.target.value)}
+                                      placeholder="Weight %"
+                                      inputMode="decimal"
+                                      className="w-24 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/8 rounded px-2 py-1 text-[13px] text-right text-slate-700 dark:text-slate-200 outline-none focus:border-amber-400"
+                                    />
+                                    <button onClick={() => removeSetupTask(si, ti)} className="text-slate-300 hover:text-rose-400 transition-colors shrink-0">
+                                      <Trash2 size={12} />
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
                             )}
+
+                            {/* Add task link */}
+                            <div className="px-3 pb-2 pl-8">
+                              <button
+                                onClick={() => addSetupTask(si)}
+                                className="flex items-center gap-1.5 text-[12px] font-semibold text-slate-400 hover:text-amber-500 transition-colors mt-1"
+                              >
+                                <Plus size={12} /> Add task
+                              </button>
+                            </div>
                           </div>
                         ))}
                       </div>
-                      <button onClick={() => setSetupRows(p => [...p, ""])} className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-400 hover:text-amber-600 dark:hover:text-amber-400 transition-colors mb-4">
-                        <Plus size={12} /> Add Row
+
+                      <button
+                        onClick={() => setSetupRows(p => [...p, { name: `Step ${p.length + 1}`, tasks: [] }])}
+                        className="flex items-center justify-center gap-2 w-full py-2.5 rounded-lg border border-dashed border-slate-300 dark:border-white/10 text-[13px] font-semibold text-slate-400 hover:text-amber-500 hover:border-amber-400 dark:hover:border-amber-500/50 transition-colors mb-4 mt-1"
+                      >
+                        <Plus size={13} /> Add Step
                       </button>
+
                       <button
                         onClick={createSetupSteps}
-                        disabled={!setupRows.some(n => n.trim()) || setupSaving}
+                        disabled={!setupRows.some(r => r.name.trim()) || setupSaving}
                         className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-amber-500 text-white text-[12px] font-bold hover:bg-amber-600 disabled:opacity-40 transition-colors"
                       >
                         {setupSaving ? <Loader2 size={13} className="animate-spin" /> : null}
@@ -594,7 +762,21 @@ export default function SCurveCharts({ projects }: { projects: DBProject[] }) {
                             {isCollapsed ? <ChevronRight size={12} /> : <ChevronDown size={12} />}
                           </button>
                           <span className="text-[11px] font-bold text-amber-600 dark:text-amber-400 w-5 shrink-0">{step.letter}</span>
-                          <span className="text-[11px] font-bold text-slate-700 dark:text-slate-100 flex-1 truncate uppercase tracking-wide">{step.name}</span>
+                          {editingStepId === step.id ? (
+                            <input
+                              autoFocus
+                              value={stepNameDraft}
+                              onChange={e => setStepNameDraft(e.target.value)}
+                              onBlur={() => commitStepName(step.id)}
+                              onKeyDown={e => { if (e.key === "Enter") commitStepName(step.id); if (e.key === "Escape") setEditingStepId(null); }}
+                              className="flex-1 bg-white/10 dark:bg-white/5 border border-amber-400/60 rounded px-1.5 text-[11px] font-bold text-slate-800 dark:text-white outline-none uppercase tracking-wide"
+                            />
+                          ) : (
+                            <span
+                              onClick={() => { setEditingStepId(step.id); setStepNameDraft(step.name); }}
+                              className="text-[11px] font-bold text-slate-700 dark:text-slate-100 flex-1 truncate uppercase tracking-wide cursor-text hover:text-amber-600 dark:hover:text-amber-400 transition-colors"
+                            >{step.name}</span>
+                          )}
                           {stepBobot > 0 && <span className="text-[9px] font-bold text-slate-500 dark:text-slate-400 shrink-0 w-12 text-right">{stepBobot.toFixed(2)}</span>}
                           <button
                             onClick={() => { setTaskForm({ name: "", unit: "", vol: "", weight: "" }); setAddTaskStep(step.id); }}
@@ -602,8 +784,8 @@ export default function SCurveCharts({ projects }: { projects: DBProject[] }) {
                           >
                             <Plus size={9} /> Task
                           </button>
-                          <button onClick={() => deleteStep(step.id)} className="opacity-0 group-hover/step:opacity-100 text-slate-300 hover:text-rose-500 dark:text-white/20 dark:hover:text-rose-400 transition-all shrink-0">
-                            <Trash2 size={10} />
+                          <button onClick={() => deleteStep(step.id, step.name)} className="opacity-0 group-hover/step:opacity-100 text-slate-400 hover:text-rose-500 dark:text-white/30 dark:hover:text-rose-400 transition-all shrink-0">
+                            <Trash2 size={13} />
                           </button>
                         </div>
                         {weeks.map((_, wi) => (
@@ -617,10 +799,39 @@ export default function SCurveCharts({ projects }: { projects: DBProject[] }) {
                           <div key={task.id} className="flex border-b border-slate-200/40 dark:border-white/5 hover:bg-slate-50/40 dark:hover:bg-white/1.5 group/task">
                             <div className="shrink-0 border-r border-slate-200/60 dark:border-white/8 flex items-center gap-2 px-2 h-10" style={{ width: LEFT_W }}>
                               <span className="text-[9px] text-slate-400 w-8 shrink-0 text-center">{si + 1}.{ti + 1}</span>
-                              <span className="text-[11px] text-slate-700 dark:text-slate-200 flex-1 truncate">{task.name}</span>
-                              <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300 w-14 text-right shrink-0">{task.bobot.toFixed(2)}</span>
-                              <button onClick={() => deleteTask(step.id, task.id)} className="opacity-0 group-hover/task:opacity-100 text-slate-300 hover:text-rose-500 dark:text-white/20 dark:hover:text-rose-400 transition-all shrink-0 ml-0.5">
-                                <Trash2 size={9} />
+                              {editingTaskField?.taskId === task.id && editingTaskField.field === "name" ? (
+                                <input
+                                  autoFocus
+                                  value={taskFieldDraft}
+                                  onChange={e => setTaskFieldDraft(e.target.value)}
+                                  onBlur={() => commitTaskField(step.id, task.id, "name")}
+                                  onKeyDown={e => { if (e.key === "Enter") commitTaskField(step.id, task.id, "name"); if (e.key === "Escape") setEditingTaskField(null); }}
+                                  className="flex-1 bg-white/10 dark:bg-white/5 border border-amber-400/60 rounded px-1.5 text-[11px] text-slate-800 dark:text-white outline-none"
+                                />
+                              ) : (
+                                <span
+                                  onClick={() => { setEditingTaskField({ taskId: task.id, field: "name" }); setTaskFieldDraft(task.name); }}
+                                  className="text-[11px] text-slate-700 dark:text-slate-200 flex-1 truncate cursor-text hover:text-amber-600 dark:hover:text-amber-400 transition-colors"
+                                >{task.name}</span>
+                              )}
+                              {editingTaskField?.taskId === task.id && editingTaskField.field === "bobot" ? (
+                                <input
+                                  autoFocus
+                                  value={taskFieldDraft}
+                                  inputMode="decimal"
+                                  onChange={e => setTaskFieldDraft(e.target.value)}
+                                  onBlur={() => commitTaskField(step.id, task.id, "bobot")}
+                                  onKeyDown={e => { if (e.key === "Enter") commitTaskField(step.id, task.id, "bobot"); if (e.key === "Escape") setEditingTaskField(null); }}
+                                  className="w-14 bg-white/10 dark:bg-white/5 border border-amber-400/60 rounded px-1.5 text-[10px] font-bold text-right text-slate-800 dark:text-white outline-none"
+                                />
+                              ) : (
+                                <span
+                                  onClick={() => { setEditingTaskField({ taskId: task.id, field: "bobot" }); setTaskFieldDraft(String(task.bobot)); }}
+                                  className="text-[10px] font-bold text-slate-600 dark:text-slate-300 w-14 text-right shrink-0 cursor-text hover:text-amber-600 dark:hover:text-amber-400 transition-colors"
+                                >{task.bobot.toFixed(2)}</span>
+                              )}
+                              <button onClick={() => deleteTask(step.id, task.id, task.name)} className="opacity-0 group-hover/task:opacity-100 text-slate-400 hover:text-rose-500 dark:text-white/30 dark:hover:text-rose-400 transition-all shrink-0 ml-0.5">
+                                <Trash2 size={13} />
                               </button>
                             </div>
                             {weeks.map((w, wi) => {
@@ -697,7 +908,7 @@ export default function SCurveCharts({ projects }: { projects: DBProject[] }) {
           )}
 
           {/* ── S-Curve Chart ─────────────────────────────────────────────────── */}
-          {!loading && weeks.length > 0 && (
+          {!loading && hasPmDates && weeks.length > 0 && (
             <div className="border-t border-slate-200/60 dark:border-white/8 relative" style={{ height: 240 }}>
               {!hasChart ? (
                 <>

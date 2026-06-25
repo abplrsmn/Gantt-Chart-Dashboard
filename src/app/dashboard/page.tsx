@@ -57,9 +57,9 @@ export default function DashboardHome() {
         fetch("/api/master/people", { cache: "no-store" }),
       ]);
 
-      const projectsData = await projectsRes.json();
-      const usersData = await usersRes.json();
-      const peopleData = await peopleRes.json();
+      const projectsData = projectsRes.ok ? await projectsRes.json() : { success: false };
+      const usersData    = usersRes.ok    ? await usersRes.json()    : { success: false };
+      const peopleData   = peopleRes.ok   ? await peopleRes.json()   : { success: false };
 
       if (projectsData.success) {
         setProjects(projectsData.data);

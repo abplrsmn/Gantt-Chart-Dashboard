@@ -549,10 +549,10 @@ function PhaseCard({
 
         {/* ── Weekly Progress button (PM phase only) ── */}
         {ph.key === "pm" && isCurrent && (
-          <div className="pt-3 border-t border-slate-200/40 dark:border-white/6">
+          <div className="pt-3 border-t border-slate-200/40 dark:border-white/6 flex justify-center">
             <a
               href={`/dashboard/projects/${project.id}/weekly-progress`}
-              className="flex items-center justify-center gap-2 w-full py-2.5 rounded-lg border border-slate-200 dark:border-white/10 bg-white/60 dark:bg-zinc-900/40 text-slate-600 dark:text-slate-300 hover:border-amber-400/60 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-amber-50/50 dark:hover:bg-amber-900/10 transition-all text-xs font-semibold"
+              className="inline-flex items-center gap-2 px-5 py-2 rounded-lg border border-slate-200 dark:border-white/10 bg-white/60 dark:bg-zinc-900/40 text-slate-600 dark:text-slate-300 hover:border-amber-400/60 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-amber-50/50 dark:hover:bg-amber-900/10 transition-all text-xs font-semibold"
             >
               <Camera size={13} />
               Weekly Progress
@@ -1663,8 +1663,22 @@ export default function ProjectDetailPage() {
       </div>
 
       {/* ── S-Curve ────────────────────────────────────────────────────── */}
-      {scProject && (
+      {project.current_phase_code === "project_management" && scProject ? (
         <SCurveCharts projects={[scProject]} />
+      ) : (
+        <div className="glass-card p-8 flex flex-col items-center justify-center gap-3 text-center min-h-40 border-dashed opacity-60">
+          <div className="w-10 h-10 rounded-lg bg-teal-500/10 flex items-center justify-center">
+            <svg className="w-5 h-5 text-teal-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3 17l4-8 4 4 4-6 4 10" />
+            </svg>
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">S-Curve</p>
+            <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
+              Available when project reaches <span className="font-medium text-teal-500">Project Management</span> phase
+            </p>
+          </div>
+        </div>
       )}
 
 

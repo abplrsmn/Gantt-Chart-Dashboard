@@ -366,8 +366,8 @@ export default function ProjectReportPage() {
 
             {/* Timeline */}
             {(project.start_date || project.end_date) && (
-              <div className="flex items-start gap-2.5">
-                <CalendarRange size={13} className="text-slate-400 mt-0.5 shrink-0" />
+              <div className="flex items-start gap-2.5 sm:justify-end sm:text-right">
+                <CalendarRange size={13} className="text-slate-400 mt-0.5 shrink-0 sm:order-last" />
                 <div>
                   <p className="text-[9px] uppercase tracking-widest text-slate-400 font-semibold mb-0.5">Timeline</p>
                   <p className="text-sm text-slate-700 dark:text-slate-200">{fmtFull(project.start_date)}{project.end_date ? ` – ${fmtFull(project.end_date)}` : ""}</p>
@@ -396,13 +396,13 @@ export default function ProjectReportPage() {
               </div>
             )}
 
-            {/* Stakeholders */}
+            {/* Stakeholders — right aligned */}
             {stakeList.length > 0 && (
-              <div className="flex items-start gap-2.5">
-                <Users size={13} className="text-slate-400 mt-0.5 shrink-0" />
+              <div className="flex items-start gap-2.5 sm:justify-end sm:text-right">
+                <Users size={13} className="text-slate-400 mt-0.5 shrink-0 sm:order-last" />
                 <div>
                   <p className="text-[9px] uppercase tracking-widest text-slate-400 font-semibold mb-1">Stakeholders</p>
-                  <div className="flex flex-wrap gap-1.5">
+                  <div className="flex flex-wrap gap-1.5 sm:justify-end">
                     {stakeList.map(s => (
                       <span key={s.id} className="text-[11px] px-2 py-0.5 rounded-full bg-slate-100 dark:bg-white/8 text-slate-600 dark:text-slate-300">
                         {s.raw_person_name ?? s.full_name}

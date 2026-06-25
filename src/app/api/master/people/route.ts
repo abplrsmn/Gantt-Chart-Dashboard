@@ -5,9 +5,11 @@ export const dynamic = "force-dynamic";
 
 export async function GET() {
   const pool = getDbPool();
-  const client = await pool.connect();
+  let client;
   try {
-    await client.query(`ALTER TABLE master_people ADD COLUMN IF NOT EXISTS phone_number varchar(50)`);
+    client = await pool.connect();
+    // one-time migration guard — safe to run repeatedly
+    try { await client.query(`ALTER TABLE master_people ADD COLUMN IF NOT EXISTS phone_number varchar(50)`); } catch { /* already exists */ }
     const { rows } = await client.query(
       `SELECT id, employee_code, full_name, nickname, department, job_title, email, phone_number, is_active FROM master_people ORDER BY full_name`
     );
@@ -15,7 +17,7 @@ export async function GET() {
   } catch (err) {
     return NextResponse.json({ success: false, error: String(err) }, { status: 500 });
   } finally {
-    client.release();
+    client?.release();
   }
 }
 
