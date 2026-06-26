@@ -129,18 +129,14 @@ function buildChartData(steps: SStep[], weeks: string[], pmStart?: Date): ChartP
   const lastActualIdx = weekTotals.reduceRight((found, v, i) => found === -1 && v > 0 ? i : found, -1);
   const hasAnyActual = lastActualIdx >= 0;
   let cumPlan = 0, cumActual = 0;
-  // Use actual pm_start as origin label so chart starts from the real project date
-  const originDate = pmStart ?? addDays(parseISO(weeks[0]), -7);
-  const originLabel = format(originDate, "d MMM");
-  const points: ChartPoint[] = [{ label: originLabel, plan: 0, actual: hasAnyActual ? 0 : null }];
+  const points: ChartPoint[] = [{ label: "", plan: 0, actual: hasAnyActual ? 0 : null }];
   for (let i = 0; i < weeks.length; i++) {
     const w = weeks[i];
     cumPlan = Math.min(100, cumPlan + (weeklyPlan[w] ?? 0));
     cumActual = Math.min(100, cumActual + weekTotals[i]);
     points.push({
-      label: format(parseISO(w), "d MMM"),
+      label: i === 0 && pmStart ? format(pmStart, "d MMM") : format(parseISO(w), "d MMM"),
       plan: Number(cumPlan.toFixed(2)),
-      // Stop actual line after the last week with data
       actual: hasAnyActual && i <= lastActualIdx ? Number(cumActual.toFixed(2)) : null,
     });
   }
@@ -193,7 +189,7 @@ function FakeSCurve() {
 
 // ─── Constants ─────────────────────────────────────────────────────────────────
 
-const CELL_W = 64;
+const CELL_W = 48;
 const LEFT_W = 300;
 
 // ─── Main Component ────────────────────────────────────────────────────────────
@@ -935,7 +931,7 @@ export default function SCurveCharts({ projects }: { projects: DBProject[] }) {
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.15)" />
-                    <XAxis dataKey="label" tick={{ fontSize: 8, fill: "currentColor" }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
+                    <XAxis dataKey="label" tick={{ fontSize: 8, fill: "currentColor" }} tickLine={false} axisLine={false} interval="preserveStartEnd" padding={{ left: 40, right: 8 }} />
                     <YAxis domain={[0, 100]} tick={{ fontSize: 8, fill: "currentColor" }} tickLine={false} axisLine={false} tickFormatter={(v: number) => `${v}%`} width={34} />
                     <Tooltip content={<ChartTooltip />} />
                     <Area type="monotone" dataKey="plan" name="Planned Target" stroke="#3b82f6" strokeWidth={2} strokeDasharray="6 3" fill="url(#planGradSC)" dot={false} connectNulls />

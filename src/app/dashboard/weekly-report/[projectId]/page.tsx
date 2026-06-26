@@ -140,12 +140,11 @@ function buildChartData(steps: SStep[], weeks: string[], pmStart?: Date): ChartP
   const lastIdx = totals.reduceRight((f, v, i) => f === -1 && v > 0 ? i : f, -1);
   const hasActual = lastIdx >= 0;
   let cp = 0, ca = 0;
-  const origin = pmStart ?? addDays(parseISO(weeks[0]), -7);
-  const pts: ChartPoint[] = [{ label: format(origin, "d MMM"), plan: 0, actual: hasActual ? 0 : null }];
+  const pts: ChartPoint[] = [{ label: "", plan: 0, actual: hasActual ? 0 : null }];
   for (let i = 0; i < weeks.length; i++) {
     cp = Math.min(100, cp + (plan[weeks[i]] ?? 0));
     ca = Math.min(100, ca + totals[i]);
-    pts.push({ label: format(parseISO(weeks[i]), "d MMM"), plan: Number(cp.toFixed(2)), actual: hasActual && i <= lastIdx ? Number(ca.toFixed(2)) : null });
+    pts.push({ label: i === 0 && pmStart ? format(pmStart, "d MMM") : format(parseISO(weeks[i]), "d MMM"), plan: Number(cp.toFixed(2)), actual: hasActual && i <= lastIdx ? Number(ca.toFixed(2)) : null });
   }
   return pts;
 }
@@ -257,7 +256,7 @@ export default function ProjectReportPage() {
 
   const chartData = useMemo(() => {
     const pmStart = project?.pm_start ? parseISO(project.pm_start) : undefined;
-    return buildChartData(scSteps, scWeeks, pmStart);
+    return buildChartData(scSteps, scWeeks, pmStart && isValid(pmStart) ? pmStart : undefined);
   }, [scSteps, scWeeks, project]);
 
   const currentWeekIdx = weeks.findIndex(w => w.weekKey === selectedWeekKey);
@@ -591,7 +590,7 @@ export default function ProjectReportPage() {
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.15)" />
-              <XAxis dataKey="label" tick={{ fontSize: 10, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
+              <XAxis dataKey="label" tick={{ fontSize: 10, fill: "#94a3b8" }} axisLine={false} tickLine={false} padding={{ left: 40, right: 8 }} />
               <YAxis tickFormatter={(v: number) => `${v}%`} tick={{ fontSize: 10, fill: "#94a3b8" }} axisLine={false} tickLine={false} domain={[0, 100]} width={36} />
               <Tooltip
                 contentStyle={{ background: "rgba(15,23,42,0.9)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, fontSize: 11 }}
