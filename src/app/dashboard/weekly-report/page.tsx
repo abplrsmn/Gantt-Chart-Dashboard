@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { format, addDays, parseISO, isValid, getISOWeek, getISOWeekYear, startOfISOWeek, eachWeekOfInterval } from "date-fns";
 import { BarChart2, Search, CalendarRange, ArrowRight, Camera, MapPin, User } from "lucide-react";
+import { PHASE_COLORS, DEFAULT_PHASE_COLOR } from "@/lib/phases";
 
 type ProjectMeta = {
   id: string;
@@ -30,13 +31,6 @@ type ProjectMeta = {
   [key: string]: unknown;
 };
 
-const PHASE_COLORS: Record<string, string> = {
-  operational_brief:  "#64748b",
-  design:             "#3b82f6",
-  project_control:    "#f59e0b",
-  project_management: "#14b8a6",
-  handover:           "#22c55e",
-};
 
 function nowWIB(): Date {
   const utc = Date.now() + new Date().getTimezoneOffset() * 60_000;
@@ -208,7 +202,7 @@ export default function WeeklyReportPage() {
               <button
                 key={p.id}
                 onClick={() => goToProject(p.id)}
-                className="group text-left rounded-xl border border-slate-200/70 dark:border-white/8 bg-white/80 dark:bg-zinc-900/60 hover:border-brand-sienna/40 hover:shadow-lg hover:shadow-brand-sienna/5 dark:hover:border-white/20 transition-all duration-200 overflow-hidden flex flex-col"
+                className="group text-left rounded-xl border border-slate-200/70 dark:border-white/8 bg-white/80 dark:bg-zinc-900/60 overflow-hidden flex flex-col card-hover cursor-pointer"
               >
                 {/* Phase color bar */}
                 <div className="h-1.5 w-full shrink-0" style={{ backgroundColor: phaseColor }} />
@@ -218,12 +212,12 @@ export default function WeeklyReportPage() {
                   {/* Name + arrow */}
                   <div className="flex items-start justify-between gap-2 mb-2">
                     <div className="min-w-0">
-                      <p className="text-sm font-bold text-slate-800 dark:text-white leading-snug truncate group-hover:text-brand-sienna transition-colors">
+                      <p className="text-sm font-bold text-slate-800 dark:text-white leading-snug truncate">
                         {p.project_name}
                       </p>
                       <p className="text-[10px] font-mono text-slate-400 dark:text-slate-500 mt-0.5">{p.project_code}</p>
                     </div>
-                    <ArrowRight size={14} className="text-slate-300 dark:text-slate-600 group-hover:text-brand-sienna group-hover:translate-x-0.5 transition-all shrink-0 mt-0.5" />
+                    <ArrowRight size={14} className="text-slate-300 dark:text-slate-600 transition-all shrink-0 mt-0.5" />
                   </div>
 
                   {/* Pills */}

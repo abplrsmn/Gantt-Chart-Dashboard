@@ -106,7 +106,7 @@ export default function ProjectSummaryMatrixPage() {
       {/* Page title */}
       <div className="flex items-center gap-2 mb-3 mt-2">
         <TableProperties size={16} className="text-teal-500 shrink-0" />
-        <h2 className="text-lg font-bold text-slate-800 dark:text-white">Summary</h2>
+        <h2 className="text-lg font-bold text-slate-800 dark:text-white">Summary Matrix</h2>
       </div>
 
       {/* Toolbar: Search | Filters */}

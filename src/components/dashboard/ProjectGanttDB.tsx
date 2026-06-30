@@ -7,6 +7,7 @@ import { differenceInCalendarDays, format, addDays, isValid, startOfWeek, endOfW
 import { Search, ArrowRight, MousePointer2, Move, Trash2, Plus, CalendarRange } from "lucide-react";
 import DateRangePicker from "./DateRangePicker";
 import AnimatedDropdown from "./AnimatedDropdown";
+import { PHASE_LIST } from "@/lib/phases";
 import QuickMenu from "./QuickMenu";
 import AddProjectModal from "./AddProjectModal";
 
@@ -29,13 +30,11 @@ function dateRangeKey(): string {
 // ─── Types ────────────────────────────────────────────────────────────────────
 type PhaseKey = "brief" | "design" | "control" | "pm" | "handover";
 
-const PHASES: { key: PhaseKey; label: string; color: string }[] = [
-  { key: "brief",    label: "Operational Brief",  color: "#64748b" },
-  { key: "design",   label: "Design",             color: "#3b82f6" },
-  { key: "control",  label: "Project Control",    color: "#f59e0b" },
-  { key: "pm",       label: "Project Management", color: "#14b8a6" },
-  { key: "handover", label: "Handover",           color: "#22c55e" },
-];
+const PHASES: { key: PhaseKey; label: string; color: string }[] = PHASE_LIST.map(p => ({
+  key: p.key as PhaseKey,
+  label: p.label,
+  color: p.color,
+}));
 
 const PRIORITY_CONFIG: Record<string, { label: string; color: string; dot: string }> = {
   CRITICAL: { label: "Critical", color: "#ef4444", dot: "bg-red-500" },
@@ -637,7 +636,7 @@ export default function ProjectGanttDB() {
     <div className="space-y-3 relative" style={{ overflowX: "clip" }} ref={containerRef}>
       <div className="flex items-center gap-2 mb-3 mt-2">
         <CalendarRange size={16} className="text-amber-500" />
-        <h2 className="text-lg font-bold text-slate-800 dark:text-white">Projects</h2>
+        <h2 className="text-lg font-bold text-slate-800 dark:text-white">Project Gantt</h2>
       </div>
 
       {/* Controls: search + ongoing badge + details | datepicker | phase | priority | unit */}
@@ -787,7 +786,7 @@ export default function ProjectGanttDB() {
                   {monthGroups.map((mg, i) => (
                     <div
                       key={i}
-                      className="text-center text-[10px] font-semibold text-slate-500 dark:text-slate-400 py-2 border-r border-slate-200/40 dark:border-white/6 overflow-hidden"
+                      className="text-center text-[10px] font-semibold text-slate-500 dark:text-slate-400 py-2 border-r border-slate-300/60 dark:border-white/15 overflow-hidden"
                       style={{ width: `${mg.colSpan * WEEK_W}px`, minWidth: 0 }}
                     >
                       {mg.label}
@@ -807,8 +806,8 @@ export default function ProjectGanttDB() {
                         key={i}
                         className={`text-center text-[9px] py-1 border-r shrink-0 flex flex-col items-center justify-center gap-px ${
                           isLastOfMonth
-                            ? "border-slate-300/60 dark:border-white/12"
-                            : "border-slate-100/70 dark:border-white/5"
+                            ? "border-slate-400/60 dark:border-white/20"
+                            : "border-slate-200/80 dark:border-white/10"
                         } ${wc.isFirstOfMonth ? "font-bold text-slate-500 dark:text-slate-300" : "text-slate-400 dark:text-slate-500"}`}
                         style={{ width: `${WEEK_W}px` }}
                       >
@@ -931,7 +930,7 @@ export default function ProjectGanttDB() {
                         return (
                           <div
                             key={i}
-                            className={`absolute top-0 bottom-0 border-r ${isLastOfMonth ? "border-slate-300/50 dark:border-white/10" : "border-slate-100/60 dark:border-white/4"}`}
+                            className={`absolute top-0 bottom-0 border-r ${isLastOfMonth ? "border-slate-400/60 dark:border-white/20" : "border-slate-200/80 dark:border-white/10"}`}
                             style={{ left: `${i * WEEK_W}px`, width: `${WEEK_W}px` }}
                           />
                         );

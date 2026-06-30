@@ -2,8 +2,8 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { differenceInCalendarDays, format, formatDistanceToNow } from "date-fns";
-import { ShieldAlert, AlertTriangle, Clock, Sparkles, ArrowRight, Search } from "lucide-react";
+import { differenceInCalendarDays, format } from "date-fns";
+import { ShieldAlert, AlertTriangle, Clock, ArrowRight, Search } from "lucide-react";
 
 type Project = {
   id: string;
@@ -20,7 +20,7 @@ type Project = {
   status_label: string | null;
 };
 
-type AlertCategory = "overdue" | "soon" | "urgent" | "new";
+type AlertCategory = "overdue" | "soon" | "urgent";
 type Tab = "all" | AlertCategory;
 
 type AlertItem = {
@@ -40,7 +40,6 @@ const PRIORITY_CONFIG: Record<string, { color: string; dot: string }> = {
 
 const TAB_CONFIG: { key: Tab; label: string; icon: React.ElementType; color: string; emptyLabel: string }[] = [
   { key: "all",     label: "All",           icon: ShieldAlert,   color: "text-slate-500",  emptyLabel: "No alerts right now" },
-  { key: "new",     label: "New Projects",  icon: Sparkles,      color: "text-teal-500",   emptyLabel: "No new projects recently" },
   { key: "soon",    label: "Due in 7 days", icon: Clock,         color: "text-amber-500",  emptyLabel: "Nothing due in 7 days" },
   { key: "urgent",  label: "Due in 3 days", icon: Clock,         color: "text-orange-500", emptyLabel: "Nothing due in 3 days" },
   { key: "overdue", label: "Overdue",       icon: AlertTriangle, color: "text-red-500",    emptyLabel: "No overdue projects" },
@@ -66,17 +65,9 @@ function buildAlerts(projects: Project[]): AlertItem[] {
       }
     }
 
-    // New projects — independent from deadline alerts, only for in-progress projects
-    if (p.created_at && progress < 100) {
-      const created = new Date(p.created_at);
-      if (differenceInCalendarDays(today, created) <= 7) {
-        alerts.push({ project: p, category: "new", createdAgo: formatDistanceToNow(created, { addSuffix: true }) });
-      }
-    }
   }
 
-  // Sort: overdue (most days first) → urgent → soon → new (most recent first)
-  const ORDER: AlertCategory[] = ["overdue", "urgent", "soon", "new"];
+  const ORDER: AlertCategory[] = ["overdue", "urgent", "soon"];
   alerts.sort((a, b) => {
     const oi = ORDER.indexOf(a.category) - ORDER.indexOf(b.category);
     if (oi !== 0) return oi;
@@ -89,14 +80,13 @@ function buildAlerts(projects: Project[]): AlertItem[] {
 }
 
 function AlertCard({ item, onClick }: { item: AlertItem; onClick: () => void }) {
-  const { project: p, category, daysOverdue, daysLeft, createdAgo } = item;
+  const { project: p, category, daysOverdue, daysLeft } = item;
   const pCfg = PRIORITY_CONFIG[p.priority_code ?? ""] ?? { color: "#94a3b8", dot: "bg-slate-400" };
 
   const badge = {
     overdue: { bg: "bg-red-50 dark:bg-red-500/10",    text: "text-red-600 dark:text-red-400",    border: "border-red-200/60 dark:border-red-500/20", icon: <AlertTriangle size={11} />, label: `Overdue ${daysOverdue}d` },
     urgent:  { bg: "bg-orange-50 dark:bg-orange-500/10", text: "text-orange-600 dark:text-orange-400", border: "border-orange-200/60 dark:border-orange-500/20", icon: <Clock size={11} />, label: `Due in ${daysLeft}d` },
     soon:    { bg: "bg-amber-50 dark:bg-amber-500/10", text: "text-amber-600 dark:text-amber-400", border: "border-amber-200/60 dark:border-amber-500/20", icon: <Clock size={11} />, label: `Due in ${daysLeft}d` },
-    new:     { bg: "bg-teal-50 dark:bg-teal-500/10",  text: "text-teal-600 dark:text-teal-400",  border: "border-teal-200/60 dark:border-teal-500/20",  icon: <Sparkles size={11} />, label: "New" },
   }[category];
 
   const progress = Number(p.overall_progress_pct ?? 0);
@@ -104,7 +94,7 @@ function AlertCard({ item, onClick }: { item: AlertItem; onClick: () => void }) 
   return (
     <div
       onClick={onClick}
-      className={`group flex items-center gap-4 px-4 py-3.5 rounded-lg border cursor-pointer transition-all hover:shadow-sm ${badge.bg} ${badge.border}`}
+      className={`group flex items-center gap-4 px-4 py-3.5 rounded-lg border cursor-pointer card-hover ${badge.bg} ${badge.border}`}
     >
       {/* Priority dot */}
       <span className={`w-2 h-2 rounded-full shrink-0 ${pCfg.dot}`} />
@@ -128,10 +118,7 @@ function AlertCard({ item, onClick }: { item: AlertItem; onClick: () => void }) 
           {p.current_phase_name && (
             <span className="text-[10px] text-slate-400 dark:text-slate-500">{p.current_phase_name}</span>
           )}
-          {category === "new" && p.created_at && (
-            <span className="text-[10px] text-slate-400 dark:text-slate-500">Created {createdAgo}</span>
-          )}
-          {(category === "overdue" || category === "urgent" || category === "soon") && p.end_date && (
+          {p.end_date && (
             <span className="text-[10px] text-slate-400 dark:text-slate-500">
               End: {format(new Date(p.end_date), "dd MMM yyyy")}
             </span>
@@ -157,7 +144,7 @@ export default function AlertsPage() {
   const [loading, setLoading]   = useState(true);
   const [tab, setTab]           = useState<Tab>(() => {
     const t = searchParams.get("tab");
-    return (["all", "overdue", "urgent", "soon", "new"].includes(t ?? "") ? t : "all") as Tab;
+    return (["all", "overdue", "urgent", "soon"].includes(t ?? "") ? t : "all") as Tab;
   });
   const [search, setSearch] = useState("");
 
@@ -190,16 +177,17 @@ export default function AlertsPage() {
     overdue: alerts.filter(a => a.category === "overdue").length,
     urgent:  alerts.filter(a => a.category === "urgent").length,
     soon:    alerts.filter(a => a.category === "soon").length,
-    new:     alerts.filter(a => a.category === "new").length,
   };
   const allCount = new Set(alerts.map(a => a.project.id)).size;
   return (
     <div className="space-y-4 pb-6 animate-page-enter">
 
       {/* Header */}
-      <div className="flex items-center gap-2 mb-3 mt-2">
-        <ShieldAlert size={16} className="text-red-500" />
-        <h2 className="text-lg font-bold text-slate-800 dark:text-white">Live Alerts</h2>
+      <div className="flex items-center justify-between gap-2 mb-3 mt-2">
+        <div className="flex items-center gap-2">
+          <ShieldAlert size={16} className="text-red-500" />
+          <h2 className="text-lg font-bold text-slate-800 dark:text-white">Live Alerts</h2>
+        </div>
       </div>
 
 
@@ -239,7 +227,7 @@ export default function AlertsPage() {
           value={search}
           onChange={e => setSearch(e.target.value)}
           placeholder="Search project, unit, phase..."
-          className="w-full rounded-lg border border-slate-200/70 dark:border-white/10 bg-white/70 dark:bg-zinc-900/60 pl-8 pr-3 py-2 text-[12px] outline-none text-slate-800 dark:text-white"
+          className="w-full rounded-lg border border-slate-200/70 dark:border-white/10 bg-white/70 dark:bg-zinc-900/60 pl-8 pr-3 py-2 text-xs outline-none text-slate-800 dark:text-white"
         />
       </label>
 

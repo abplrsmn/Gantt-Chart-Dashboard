@@ -1,14 +1,14 @@
 ﻿"use client";
 
 import { useEffect, useState, useCallback, useMemo } from "react";
-import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import {
-  AlertCircle, AlertTriangle, CheckCircle2, TrendingUp, Users, Clock,
-  Loader2, LayoutList, Building2, Home, X,
-  Sparkles, UserCircle2,
+  AlertTriangle, CheckCircle2, TrendingUp, Users,
+  Loader2, LayoutList, Building2, Home,
+  Sparkles, UserCircle2, Layers,
 } from "lucide-react";
 import { Doughnut } from "react-chartjs-2";
+import { PHASE_LIST, DEFAULT_PHASE_COLOR } from "@/lib/phases";
 import {
   Chart as ChartJS, ArcElement, Tooltip, Legend,
 } from "chart.js";
@@ -42,12 +42,13 @@ export default function DashboardHome() {
   const router = useRouter();
   const [projects, setProjects] = useState<DBProject[]>([]);
   const [loading, setLoading] = useState(true);
+  const [barMounted, setBarMounted] = useState(false);
+  const [donutHover, setDonutHover] = useState<{ label: string; count: number; color: string } | null>(null);
   const [lastSynced, setLastSynced] = useState<Date | null>(null);
   const [userCount, setUserCount] = useState(0);
   const [userActiveCount, setUserActiveCount] = useState(0);
   const [stakeholderCount, setStakeholderCount] = useState(0);
   const [stakeholderActiveCount, setStakeholderActiveCount] = useState(0);
-  const [showCompleted, setShowCompleted] = useState(false);
 
   const fetchDashboardData = useCallback(async () => {
     try {
@@ -77,6 +78,7 @@ export default function DashboardHome() {
       console.error("Failed to fetch dashboard data", err);
     } finally {
       setLoading(false);
+      setTimeout(() => setBarMounted(true), 50);
     }
   }, []);
 
@@ -142,9 +144,33 @@ export default function DashboardHome() {
     [projects]
   );
 
+  const phaseDistribution = useMemo(() => {
+    const phaseMap = new Map<string, number>();
+    for (const p of activeProjects) {
+      const phase = p.current_phase_name || "Other";
+      phaseMap.set(phase, (phaseMap.get(phase) ?? 0) + 1);
+    }
+    const entries = [...phaseMap.entries()];
+    entries.sort((a, b) => {
+      const ai = PHASE_LIST.findIndex(ph => a[0].toLowerCase().includes(ph.shortLabel.toLowerCase()));
+      const bi = PHASE_LIST.findIndex(ph => b[0].toLowerCase().includes(ph.shortLabel.toLowerCase()));
+      if (ai === -1 && bi === -1) return b[1] - a[1];
+      if (ai === -1) return 1;
+      if (bi === -1) return -1;
+      return ai - bi;
+    });
+    const max = Math.max(...entries.map(e => e[1]), 1);
+    return entries.map(([name, count]) => ({
+      name,
+      count,
+      pct: Math.round((count / max) * 100),
+      color: PHASE_LIST.find(ph => name.toLowerCase().includes(ph.shortLabel.toLowerCase()))?.color ?? DEFAULT_PHASE_COLOR,
+    }));
+  }, [activeProjects]);
+
 
   const DONUT_ITEMS = [
-    { label: "Completed", color: "#22c55e", onClick: () => setShowCompleted(true) },
+    { label: "Completed", color: "#22c55e", onClick: () => router.push("/dashboard/projects/list?tab=completed") },
     { label: "Overdue",   color: "#f43f5e", onClick: () => router.push("/dashboard/alerts?tab=overdue") },
     { label: "On Track",  color: "#6B3A2A", onClick: () => router.push("/dashboard/projects/list") },
   ] as const;
@@ -202,7 +228,7 @@ export default function DashboardHome() {
           <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Active Projects</p>
         </div>
 
-        <div onClick={() => setShowCompleted(true)} className="glass-card flex-1 min-w-0 p-5 flex flex-col justify-between overflow-hidden relative min-h-27 cursor-pointer card-hover">
+        <div onClick={() => router.push("/dashboard/projects/list?tab=completed")} className="glass-card flex-1 min-w-0 p-5 flex flex-col justify-between overflow-hidden relative min-h-27 cursor-pointer card-hover">
           <div className="flex justify-between items-start mb-2">
             <span className="text-3xl font-bold text-slate-800 dark:text-white">
               {loading ? "..." : completedProjects.length}
@@ -266,9 +292,8 @@ export default function DashboardHome() {
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
         {/* Overall Performance */}
         <section className="glass-card p-5">
-          <div className="flex items-center gap-2.5 mb-4">
-            <div className="w-1 h-4 rounded-full shrink-0" style={{ background: "var(--brand-espresso)" }} />
-            <h3 className="text-base font-bold text-slate-700 dark:text-slate-200">Project Status Overview</h3>
+          <div className="section-title">
+            <h3>Status Snapshot</h3>
           </div>
           <div className="flex flex-col sm:flex-row items-center gap-6">
             {/* Chart with center text overlay */}
@@ -286,33 +311,31 @@ export default function DashboardHome() {
                         if (!elements.length) return;
                         DONUT_ITEMS[elements[0].index]?.onClick();
                       },
+                      onHover: (_e, elements) => {
+                        if (!elements.length) { setDonutHover(null); return; }
+                        const idx = elements[0].index;
+                        const counts = [completedProjects.length, overdueProjects.length, Math.max(0, activeProjects.length - overdueProjects.length)];
+                        setDonutHover({ label: DONUT_ITEMS[idx].label, count: counts[idx], color: DONUT_ITEMS[idx].color });
+                      },
                       plugins: {
                         legend: { display: false },
-                        tooltip: {
-                          backgroundColor: "rgba(15,23,42,0.88)",
-                          titleColor: "#f1f5f9",
-                          bodyColor: "#94a3b8",
-                          borderColor: "rgba(255,255,255,0.10)",
-                          borderWidth: 1,
-                          padding: { top: 9, bottom: 9, left: 13, right: 13 },
-                          cornerRadius: 10,
-                          boxPadding: 6,
-                          boxWidth: 9,
-                          boxHeight: 9,
-                          titleFont: { family: "'Inter', ui-sans-serif, sans-serif", weight: "bold" as const, size: 12 },
-                          bodyFont:  { family: "'Inter', ui-sans-serif, sans-serif", size: 11 },
-                          callbacks: {
-                            title: () => "",
-                            label: (ctx) => `  ${ctx.label}: ${ctx.raw} projects`,
-                          },
-                        },
+                        tooltip: { enabled: false },
                       },
                     }}
                   />
                   {/* Center label */}
-                  <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none select-none">
-                    <span className="text-3xl font-black text-slate-800 dark:text-white leading-none">{projects.length}</span>
-                    <span className="text-[9px] font-bold uppercase tracking-[0.18em] text-slate-400 mt-1">Projects</span>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none select-none transition-all duration-200">
+                    {donutHover ? (
+                      <>
+                        <span className="text-3xl font-black leading-none transition-all duration-200" style={{ color: donutHover.color }}>{donutHover.count}</span>
+                        <span className="text-[9px] font-bold uppercase tracking-[0.15em] mt-1 transition-all duration-200" style={{ color: donutHover.color }}>{donutHover.label}</span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="text-3xl font-black text-slate-800 dark:text-white leading-none">{projects.length}</span>
+                        <span className="text-[9px] font-bold uppercase tracking-[0.18em] text-slate-400 mt-1">Projects</span>
+                      </>
+                    )}
                   </div>
                 </>
               ) : (
@@ -327,16 +350,19 @@ export default function DashboardHome() {
                 const count = counts[i];
                 const pct = projects.length > 0 ? Math.round((count / projects.length) * 100) : 0;
                 return (
-                  <div key={item.label} onClick={item.onClick} className="px-3.5 py-2.5 rounded-lg border border-slate-100 dark:border-white/7 bg-slate-50/60 dark:bg-white/3 hover:bg-white dark:hover:bg-white/6 transition-colors cursor-pointer">
-                    <div className="flex items-center gap-2.5 mb-1.5">
-                      <span className="w-2.5 h-2.5 rounded-full shrink-0 shadow-sm" style={{ backgroundColor: item.color, boxShadow: `0 0 6px ${item.color}80` }} />
-                      <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 flex-1">{item.label}</span>
-                      <span className="text-sm font-black" style={{ color: item.color }}>{count}</span>
-                      <span className="text-[10px] font-medium text-slate-400 dark:text-slate-500 w-8 text-right">{pct}%</span>
+                  <div key={item.label}>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
+                        <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-300">{item.label}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11px] font-bold" style={{ color: item.color }}>{count}</span>
+                        <span className="text-[10px] text-slate-400 dark:text-slate-500 w-8 text-right">{pct}%</span>
+                      </div>
                     </div>
-                    {/* Mini progress bar */}
-                    <div className="h-1 rounded-full bg-slate-200 dark:bg-white/8 overflow-hidden">
-                      <div className="h-full rounded-full transition-all duration-700" style={{ width: `${pct}%`, backgroundColor: item.color, opacity: 0.75 }} />
+                    <div className="h-2 rounded-full bg-slate-100 dark:bg-white/8 overflow-hidden">
+                      <div className="h-full rounded-full transition-all duration-700 ease-out" style={{ width: barMounted ? `${pct}%` : "0%", backgroundColor: item.color, opacity: 0.8 }} />
                     </div>
                   </div>
                 );
@@ -349,22 +375,51 @@ export default function DashboardHome() {
           </div>
         </section>
 
-        {/* Coming Soon */}
-        <section className="glass-card p-5 flex flex-col items-center justify-center min-h-70">
-          <div className="w-12 h-12 rounded-xl bg-slate-100 dark:bg-white/6 flex items-center justify-center mb-3">
-            <AlertCircle size={22} className="text-slate-300 dark:text-slate-600" />
+        {/* Phase Distribution */}
+        <section className="glass-card p-5">
+          <div className="section-title">
+            <h3>Phase Distribution</h3>
           </div>
-          <p className="text-sm font-semibold text-slate-400 dark:text-slate-500">Coming Soon</p>
-          <p className="text-[11px] text-slate-300 dark:text-slate-600 mt-1">This section is under construction</p>
+
+          {loading ? (
+            <div className="flex justify-center py-12">
+              <div className="w-5 h-5 border-2 border-brand-sienna/40 border-t-brand-sienna rounded-full animate-spin" />
+            </div>
+          ) : phaseDistribution.length === 0 ? (
+            <p className="text-xs text-slate-400 dark:text-slate-500 text-center py-12">No active projects.</p>
+          ) : (
+            <div className="flex flex-col gap-3">
+              {phaseDistribution.map(({ name, count, pct, color }) => (
+                <div key={name}>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
+                      <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-300">{name}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] font-bold" style={{ color }}>{count}</span>
+                      <span className="text-[10px] text-slate-400 dark:text-slate-500 w-12 text-right">
+                        {activeProjects.length > 0 ? Math.round((count / activeProjects.length) * 100) : 0}%
+                      </span>
+                    </div>
+                  </div>
+                  <div className="h-2 rounded-full bg-slate-100 dark:bg-white/8 overflow-hidden">
+                    <div
+                      className="h-full rounded-full transition-all duration-700 ease-out"
+                      style={{ width: barMounted ? `${pct}%` : "0%", backgroundColor: color, opacity: 0.8 }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </section>
       </div>
 
       {/* Active Projects list */}
       <section className="glass-card p-5">
-        <div className="flex items-center gap-2.5 mb-3">
-          <div className="w-1 h-4 rounded-full shrink-0" style={{ background: "var(--brand-espresso)" }} />
-          <LayoutList size={14} style={{ color: "var(--brand-espresso)" }} />
-          <h3 className="text-base font-bold text-slate-700 dark:text-slate-200">Active Projects</h3>
+        <div className="section-title">
+          <h3>Active Projects</h3>
         </div>
         <div className="space-y-2 max-h-105 overflow-y-auto overflow-x-hidden pr-1 scrollbar-border min-w-0">
           {activeProjects.length === 0 ? (
@@ -374,7 +429,7 @@ export default function DashboardHome() {
               <div
                 key={p.id}
                 onClick={() => router.push(`/dashboard/projects/${p.id}`)}
-                className="flex items-center justify-between p-4 rounded-lg bg-white/30 dark:bg-zinc-800/30 border border-transparent hover:border-slate-200/50 dark:hover:border-white/10 hover:bg-white/50 dark:hover:bg-zinc-800/50 transition-all cursor-pointer"
+                className="flex items-center justify-between p-4 rounded-lg bg-white/30 dark:bg-zinc-800/30 border border-transparent cursor-pointer card-hover"
               >
                 <div className="flex items-center gap-3 overflow-hidden flex-1">
                   <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: "rgba(59,35,21,0.08)", color: "var(--brand-mahogany)" }}>
@@ -418,76 +473,6 @@ export default function DashboardHome() {
         </div>
       </section>
 
-      {/* Completed Projects Modal */}
-      {showCompleted && typeof document !== "undefined" && createPortal(
-        <div
-          className="fixed inset-0 z-9998 flex items-center justify-center p-4 animate-backdrop-enter"
-          style={{ backgroundColor: "rgba(0,0,0,0.45)", backdropFilter: "blur(6px)" }}
-          onMouseDown={e => { if (e.target === e.currentTarget) setShowCompleted(false); }}
-        >
-          <div
-            className="w-full max-w-md max-h-[72vh] flex flex-col overflow-hidden rounded-xl border border-slate-200/80 dark:border-white/8 bg-white dark:bg-zinc-950 animate-modal-enter"
-            style={{ boxShadow: "0 24px 64px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.06)" }}
-            onMouseDown={e => e.stopPropagation()}
-          >
-            {/* Modal header */}
-            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200/60 dark:border-white/8 shrink-0">
-              <div className="flex items-center gap-2">
-                <CheckCircle2 size={15} className="text-green-500" />
-                <h3 className="text-sm font-bold text-slate-800 dark:text-white">Completed Projects</h3>
-                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-green-100 dark:bg-green-500/15 text-green-600 dark:text-green-400">
-                  {completedProjects.length}
-                </span>
-              </div>
-              <button
-                onClick={() => setShowCompleted(false)}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/8 transition-colors"
-              >
-                <X size={15} />
-              </button>
-            </div>
-            {/* Modal list */}
-            <div className="overflow-y-auto flex-1 p-3 space-y-1.5 scrollbar-border">
-              {completedProjects.length === 0 ? (
-                <p className="text-xs text-slate-400 text-center py-8">No completed projects yet.</p>
-              ) : (
-                completedProjects.map(p => (
-                  <div
-                    key={p.id}
-                    onClick={() => { setShowCompleted(false); router.push(`/dashboard/projects/${p.id}`); }}
-                    className="flex items-center gap-3 p-3 rounded-lg border border-slate-100 dark:border-white/6 hover:bg-slate-50 dark:hover:bg-white/5 cursor-pointer transition-colors"
-                  >
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-semibold text-slate-800 dark:text-white truncate">{p.project_name}</p>
-                      <div className="flex items-center gap-2 mt-1 flex-wrap">
-                        {p.unit_code && (
-                          <span className="text-[10px] font-medium text-slate-400 dark:text-slate-500">{p.unit_code}</span>
-                        )}
-                        {p.current_phase_name && (
-                          <span className="text-[10px] text-slate-400 dark:text-slate-500">{p.current_phase_name}</span>
-                        )}
-                        {p.status_label && (
-                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded text-white uppercase" style={{ backgroundColor: p.status_color || "#22c55e" }}>
-                            {p.status_label}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex flex-col items-end gap-1 shrink-0">
-                      <span className="text-xs font-bold text-green-500">{p.overall_progress_pct ?? 0}%</span>
-                      {p.priority_name && (
-                        <span className="text-[9px] font-bold uppercase" style={{ color: p.priority_color || "#94a3b8" }}>
-                          {p.priority_name}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-        </div>
-      , document.body)}
     </div>
   );
 }

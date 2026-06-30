@@ -93,7 +93,7 @@ export default function ProjectsPage() {
 
   return (
     <div className="space-y-6 pb-6 animate-page-enter">
-      <div className="flex items-center gap-2 mt-2">
+      <div className="flex items-center gap-2 mb-3 mt-2">
         <FolderOpen size={16} className="text-cyan-500" />
         <h2 className="text-lg font-bold text-slate-800 dark:text-white">Projects</h2>
       </div>
@@ -156,7 +156,7 @@ export default function ProjectsPage() {
           ].map(s => (
             <div key={s.label} className="glass-card p-4">
               <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">{s.label}</p>
+              <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">{s.label}</p>
             </div>
           ))}
         </div>

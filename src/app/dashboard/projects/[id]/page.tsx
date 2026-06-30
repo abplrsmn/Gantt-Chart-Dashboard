@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useEffect, useMemo, useRef, useState, Fragment } from "react";
+import { useEffect, useMemo, useRef, useState, Fragment, Suspense } from "react";
 import { createPortal } from "react-dom";
 import { useRouter, useParams, useSearchParams } from "next/navigation";
 import { format } from "date-fns";
@@ -760,11 +760,22 @@ function PhaseCard({
 
 // ─── Main page ────────────────────────────────────────────────────────────────
 export default function ProjectDetailPage() {
+  return (
+    <Suspense>
+      <ProjectDetailContent />
+    </Suspense>
+  );
+}
+
+function ProjectDetailContent() {
   const router = useRouter();
   const { id } = useParams<{ id: string }>();
   const searchParams = useSearchParams();
-  const backTo = searchParams.get("from") === "summary"
+  const fromParam = searchParams.get("from");
+  const backTo = fromParam === "summary"
     ? "/dashboard/projects/summary-matrix"
+    : fromParam === "completed"
+    ? "/dashboard/projects/list?tab=completed"
     : "/dashboard/projects/gantt";
 
   const [project, setProject] = useState<ProjectDetail | null>(null);
@@ -1002,7 +1013,7 @@ export default function ProjectDetailPage() {
       {/* ── Header ─────────────────────────────────────────────────────── */}
       <div className="flex items-center gap-3">
         <button
-          onClick={() => router.push(backTo)}
+          onClick={() => fromParam === "completed" ? router.back() : router.push(backTo)}
           className="flex items-center gap-1.5 px-3 py-2 text-sm font-semibold text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors shrink-0"
         >
           <ArrowLeft size={15} />
@@ -1496,7 +1507,7 @@ export default function ProjectDetailPage() {
                   defaultValue={project.address ?? ""}
                   onBlur={e => { const v = e.target.value.trim() || null; if (v !== (project.address ?? null)) patchField("address", v); }}
                   placeholder="Add address..."
-                  className="w-full resize-none text-xs px-2.5 py-1.5 rounded-lg border border-dashed border-slate-200/70 dark:border-white/8 bg-transparent text-slate-700 dark:text-slate-300 placeholder:text-slate-300 dark:placeholder:text-slate-600 outline-none focus:border-brand-sienna/50 focus:ring-1 focus:ring-brand-sienna/20 transition-all"
+                  className="w-full resize-none text-xs bg-transparent text-slate-700 dark:text-slate-300 placeholder:text-slate-300 dark:placeholder:text-slate-600 outline-none border-none py-0.5 leading-relaxed"
                 />
               </div>
             </div>
@@ -1531,7 +1542,7 @@ export default function ProjectDetailPage() {
                     onChange={e => setNewStakeholder(e.target.value)}
                     onKeyDown={e => { if (e.key === "Enter") addStakeholder(); }}
                     placeholder="Add stakeholder..."
-                    className="flex-1 text-xs px-2.5 py-1.5 rounded-lg border border-dashed border-slate-200/70 dark:border-white/8 bg-transparent text-slate-700 dark:text-slate-300 placeholder:text-slate-300 dark:placeholder:text-slate-600 outline-none focus:border-brand-sienna/50 focus:ring-1 focus:ring-brand-sienna/20 transition-all"
+                    className="flex-1 text-xs bg-transparent text-slate-700 dark:text-slate-300 placeholder:text-slate-300 dark:placeholder:text-slate-600 outline-none border-none py-0.5"
                   />
                   <button
                     onClick={addStakeholder}

@@ -11,6 +11,7 @@ import {
   ArrowLeft, Camera, CalendarRange, ChevronLeft, ChevronRight,
   MapPin, User, Users, Building2, TrendingUp, CheckSquare, Square, ExternalLink,
 } from "lucide-react";
+import { PHASE_LIST, PHASE_COLORS, DEFAULT_PHASE_COLOR } from "@/lib/phases";
 import {
   ComposedChart, Area, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Legend,
@@ -69,18 +70,7 @@ type ChartPoint = { label: string; plan: number; actual: number | null };
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
-const PHASE_STEPS = [
-  { code: "operational_brief",  label: "Brief",    color: "#64748b" },
-  { code: "design",             label: "Design",   color: "#3b82f6" },
-  { code: "project_control",    label: "Control",  color: "#f59e0b" },
-  { code: "project_management", label: "PM",       color: "#14b8a6" },
-  { code: "handover",           label: "Handover", color: "#22c55e" },
-] as const;
-
-const PHASE_COLORS: Record<string, string> = {
-  operational_brief: "#64748b", design: "#3b82f6",
-  project_control: "#f59e0b", project_management: "#14b8a6", handover: "#22c55e",
-};
+const PHASE_STEPS = PHASE_LIST.map(p => ({ code: p.code, label: p.shortLabel, color: p.color }));
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -288,7 +278,7 @@ export default function ProjectReportPage() {
     </div>
   );
 
-  const phaseColor = PHASE_COLORS[project.current_phase_code ?? ""] ?? "#94a3b8";
+  const phaseColor = PHASE_COLORS[project.current_phase_code ?? ""] ?? DEFAULT_PHASE_COLOR;
   const pics       = people.filter(p => p.role_code === "pic");
   const stakeList  = people.filter(p => p.role_code === "stakeholder");
   const variance   = weekProg ? Number((weekProg.actual_pct - weekProg.plan_pct).toFixed(2)) : 0;
@@ -489,8 +479,8 @@ export default function ProjectReportPage() {
         <div className="glass-card overflow-hidden">
           {/* Week nav header */}
           <div className="flex items-center gap-3 px-5 py-3 border-b border-slate-100 dark:border-white/6">
-            <Camera size={14} className="text-amber-500 shrink-0" />
-            <span className="text-sm font-semibold text-slate-700 dark:text-slate-200 flex-1">Weekly Progress</span>
+            <div className="w-1 h-4 rounded-full shrink-0" style={{ background: "var(--brand-espresso)" }} />
+            <span className="text-base font-bold text-slate-700 dark:text-slate-200 flex-1">Weekly Progress</span>
             <div className="flex items-center gap-1.5">
               <button
                 onClick={() => { const w = weeks[currentWeekIdx - 1]; if (w) setSelectedWeekVal(toWeekVal(w.monday)); }}

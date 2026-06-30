@@ -125,16 +125,32 @@ h1, h2, h3, h4, h5, h6 {
   @apply rounded-xl text-slate-800 transition-colors duration-300;
 }
 
+/* Standardized section title inside glass-card: accent bar + title */
+.section-title {
+  @apply flex items-center gap-2.5 mb-4;
+}
+.section-title::before {
+  content: "";
+  @apply block w-1 h-4 rounded-full shrink-0;
+  background: var(--brand-espresso);
+}
+.section-title h3 {
+  @apply text-base font-bold text-slate-700;
+}
+.dark .section-title h3 {
+  @apply text-slate-200;
+}
+
 .card-hover {
   will-change: transform, box-shadow;
   transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 .card-hover:hover {
   transform: translateY(-3px) scale(1.015);
-  box-shadow: 0 12px 32px -4px rgba(0, 0, 0, 0.15), 0 4px 12px -2px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 8px 20px -4px rgba(0, 0, 0, 0.08), 0 2px 8px -2px rgba(0, 0, 0, 0.04);
 }
 .dark .card-hover:hover {
-  box-shadow: 0 12px 32px -4px rgba(0, 0, 0, 0.45), 0 4px 12px -2px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 8px 20px -4px rgba(0, 0, 0, 0.28), 0 2px 8px -2px rgba(0, 0, 0, 0.16);
 }
 
 .dark .glass-card {

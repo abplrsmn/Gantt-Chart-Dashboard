@@ -2,8 +2,9 @@
 
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, Search } from "lucide-react";
+import { ArrowLeft, ArrowRight, Search } from "lucide-react";
 import { format } from "date-fns";
+import { PHASE_COLORS, DEFAULT_PHASE_COLOR } from "@/lib/phases";
 
 type DBProject = {
   id: string;
@@ -58,16 +59,13 @@ const PRIORITY_COLORS: Record<string, string> = {
   CRITICAL: "#ef4444", HIGH: "#f97316", MID: "#eab308", LOW: "#22c55e",
 };
 
-const PHASE_COLORS: Record<string, string> = {
-  operational_brief: "#64748b", design: "#3b82f6",
-  project_control: "#f59e0b", project_management: "#14b8a6", handover: "#22c55e",
-};
 
 function ProjectListContent() {
   const router = useRouter();
   const params = useSearchParams();
-  const startParam = params.get("start") ?? "";
-  const endParam   = params.get("end")   ?? "";
+  const startParam    = params.get("start") ?? "";
+  const endParam      = params.get("end")   ?? "";
+  const tabParam      = params.get("tab")   ?? "";
 
   const [projects, setProjects] = useState<DBProject[]>([]);
   const [loading, setLoading]   = useState(true);
@@ -85,8 +83,12 @@ function ProjectListContent() {
   const rangeEnd   = useMemo(() => toDate(endParam),   [endParam]);
 
   const filtered = useMemo(() => {
+    const completedOnly = tabParam === "completed"
+      ? projects.filter(p => Number(p.overall_progress_pct ?? 0) >= 95)
+      : projects;
+
     const inRange = (rangeStart && rangeEnd)
-      ? projects.filter(p => {
+      ? completedOnly.filter(p => {
           const projectStart = toDate(p.start_date);
           const projectEnd   = toDate(p.end_date);
 
@@ -115,7 +117,7 @@ function ProjectListContent() {
             return phStart <= rangeEnd && phEnd >= rangeStart;
           });
         })
-      : projects;
+      : completedOnly;
 
     const q = search.trim().toLowerCase();
     return q
@@ -123,7 +125,7 @@ function ProjectListContent() {
           [p.project_name, p.project_code, p.unit_code, p.unit_name, p.current_phase_name, p.status_label]
             .join(" ").toLowerCase().includes(q))
       : inRange;
-  }, [projects, search, rangeStart, rangeEnd]);
+  }, [projects, search, rangeStart, rangeEnd, tabParam]);
 
   return (
     <div className="space-y-4 pb-8 animate-page-enter">
@@ -137,6 +139,12 @@ function ProjectListContent() {
           <ArrowLeft size={15} />
           Back
         </button>
+        {tabParam === "completed" && (
+          <h2 className="text-lg font-bold text-slate-800 dark:text-white">Completed Projects</h2>
+        )}
+        {!tabParam && (
+          <h2 className="text-lg font-bold text-slate-800 dark:text-white">All Projects</h2>
+        )}
       </div>
 
       {/* Search */}
@@ -174,63 +182,56 @@ function ProjectListContent() {
                   <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-slate-400 whitespace-nowrap">Periode</th>
                   <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-slate-400 whitespace-nowrap">PIC</th>
                   <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-slate-400">Priority</th>
-                  <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-slate-400 w-20">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100/80 dark:divide-white/4">
                 {filtered.map((p, idx) => {
                   const pColor = p.priority_color ?? PRIORITY_COLORS[p.priority_code ?? ""] ?? "#94a3b8";
-                  const phaseColor = PHASE_COLORS[p.current_phase_code ?? ""] ?? "#64748b";
+                  const phaseColor = PHASE_COLORS[p.current_phase_code ?? ""] ?? DEFAULT_PHASE_COLOR;
                   const nameParts = p.project_name.split(" - ");
                   const displayName = nameParts.length > 1 ? nameParts.slice(1).join(" - ") : p.project_name;
 
                   return (
-                    <tr key={p.id} className="hover:bg-slate-50/60 dark:hover:bg-white/3 transition-colors">
-                      <td className="px-4 py-3 text-[11px] text-slate-400">{idx + 1}</td>
+                    <tr key={p.id} onClick={() => router.push(`/dashboard/projects/${p.id}${tabParam === "completed" ? "?from=completed" : ""}`)} className="group card-hover hover:bg-slate-50/80 dark:hover:bg-white/4 cursor-pointer">
+                      <td className="px-4 py-3 text-xs text-slate-400">{idx + 1}</td>
 
                       <td className="px-4 py-3 max-w-xs">
-                        <p className="text-[12px] font-semibold text-slate-800 dark:text-white line-clamp-2 leading-snug">
+                        <p className="text-sm font-semibold text-slate-800 dark:text-white line-clamp-2 leading-snug">
                           {displayName}
                         </p>
                       </td>
 
                       <td className="px-4 py-3 whitespace-nowrap">
                         {p.unit_code
-                          ? <span className="text-[11px] font-medium text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-white/8 px-2 py-0.5 rounded">{p.unit_code}</span>
-                          : <span className="text-[11px] text-slate-400">—</span>}
+                          ? <span className="text-xs font-medium text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-white/8 px-2 py-0.5 rounded">{p.unit_code}</span>
+                          : <span className="text-xs text-slate-400">—</span>}
                       </td>
 
                       <td className="px-4 py-3 whitespace-nowrap">
                         {p.current_phase_name
                           ? <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ backgroundColor: `${phaseColor}18`, color: phaseColor }}>{p.current_phase_name}</span>
-                          : <span className="text-[11px] text-slate-400">—</span>}
+                          : <span className="text-xs text-slate-400">—</span>}
                       </td>
 
                       <td className="px-4 py-3 whitespace-nowrap">
                         {p.start_date && p.end_date
-                          ? <span className="text-[10px] text-slate-500 dark:text-slate-400">{format(new Date(p.start_date), "MMM yy")} → {format(new Date(p.end_date), "MMM yy")}</span>
-                          : <span className="text-[11px] text-slate-400">—</span>}
+                          ? <span className="text-xs text-slate-400 dark:text-slate-500">{format(new Date(p.start_date), "MMM yy")} → {format(new Date(p.end_date), "MMM yy")}</span>
+                          : <span className="text-xs text-slate-400">—</span>}
                       </td>
 
                       <td className="px-4 py-3 whitespace-nowrap">
                         {getCurrentPic(p)
-                          ? <span className="text-[11px] text-slate-600 dark:text-slate-300">{getCurrentPic(p)}</span>
-                          : <span className="text-[11px] text-slate-400">—</span>}
+                          ? <span className="text-xs text-slate-600 dark:text-slate-300">{getCurrentPic(p)}</span>
+                          : <span className="text-xs text-slate-400">—</span>}
                       </td>
 
                       <td className="px-4 py-3 whitespace-nowrap">
-                        {p.priority_name
-                          ? <span className="text-[10px] font-bold uppercase" style={{ color: pColor }}>{p.priority_name}</span>
-                          : <span className="text-[11px] text-slate-400">—</span>}
-                      </td>
-
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        <button
-                          onClick={() => router.push(`/dashboard/projects/${p.id}`)}
-                          className="px-3 py-1 rounded-lg bg-amber-800/10 text-amber-800 dark:text-amber-400 text-[11px] font-bold hover:bg-amber-800 hover:text-white transition-all shadow-sm"
-                        >
-                          Details
-                        </button>
+                        <div className="flex items-center justify-between gap-3">
+                          {p.priority_name
+                            ? <span className="text-[10px] font-bold uppercase" style={{ color: pColor }}>{p.priority_name}</span>
+                            : <span className="text-xs text-slate-400">—</span>}
+                          <ArrowRight size={13} className="text-slate-300 dark:text-slate-600 opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all shrink-0" />
+                        </div>
                       </td>
 
                     </tr>
