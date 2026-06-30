@@ -11,6 +11,7 @@ import {
   Camera, Trash2, Loader2, X, Plus, Upload, CheckSquare, Square
 } from "lucide-react";
 import SCurveCharts from "@/components/dashboard/SCurveCharts";
+import AnimatedDropdown from "@/components/dashboard/AnimatedDropdown";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type ProjectDetail = {
@@ -795,6 +796,7 @@ function ProjectDetailContent() {
   }
   const [newStakeholder, setNewStakeholder] = useState("");
   const [addingStakeholder, setAddingStakeholder] = useState(false);
+  const [masterPeople, setMasterPeople] = useState<{ id: number; full_name: string; job_title: string | null }[]>([]);
 
   const [showStatusPicker, setShowStatusPicker] = useState(false);
   const statusBtnRef = useRef<HTMLButtonElement>(null);
@@ -829,6 +831,10 @@ function ProjectDetailContent() {
           setUnitOptions((d.units ?? []).map((u: { id: number; code: string; name: string }) => ({ id: u.id, code: u.code, name: u.name })));
         }
       })
+      .catch(() => {});
+    fetch("/api/master/people")
+      .then(r => r.json())
+      .then(d => { if (d.success) setMasterPeople(d.data); })
       .catch(() => {});
   }, []);
 
@@ -874,14 +880,15 @@ function ProjectDetailContent() {
     }
   }
 
-  async function addStakeholder() {
-    if (!newStakeholder.trim()) return;
+  async function addStakeholder(nameOverride?: string) {
+    const name = (nameOverride ?? newStakeholder).trim();
+    if (!name) return;
     setAddingStakeholder(true);
     try {
       const res = await fetch(`/api/projects/${id}/people`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ raw_person_name: newStakeholder.trim(), role_code: "stakeholder" }),
+        body: JSON.stringify({ raw_person_name: name, role_code: "stakeholder" }),
       });
       const data = await res.json();
       if (data.success) {
@@ -1536,21 +1543,18 @@ function ProjectDetailContent() {
                 )}
                 {/* Add stakeholder inline */}
                 <div className="flex items-center gap-1.5">
-                  <input
-                    type="text"
-                    value={newStakeholder}
-                    onChange={e => setNewStakeholder(e.target.value)}
-                    onKeyDown={e => { if (e.key === "Enter") addStakeholder(); }}
-                    placeholder="Add stakeholder..."
-                    className="flex-1 text-xs bg-transparent text-slate-700 dark:text-slate-300 placeholder:text-slate-300 dark:placeholder:text-slate-600 outline-none border-none py-0.5"
+                  <AnimatedDropdown
+                    value=""
+                    placeholder={addingStakeholder ? "Adding…" : "Add stakeholder…"}
+                    disabled={addingStakeholder}
+                    options={masterPeople
+                      .filter(mp => !people.some(p => p.role_code === "stakeholder" && (p.full_name === mp.full_name || p.raw_person_name === mp.full_name)))
+                      .map(mp => ({ value: mp.full_name, label: mp.full_name }))
+                    }
+                    onChange={v => { if (v) addStakeholder(v); }}
+                    minWidth={180}
+                    dropUp
                   />
-                  <button
-                    onClick={addStakeholder}
-                    disabled={addingStakeholder || !newStakeholder.trim()}
-                    className="p-1.5 rounded-lg bg-slate-100 dark:bg-white/8 text-slate-500 hover:bg-slate-200 dark:hover:bg-white/12 disabled:opacity-40 transition-colors"
-                  >
-                    {addingStakeholder ? <Loader2 size={11} className="animate-spin" /> : <Plus size={11} />}
-                  </button>
                 </div>
               </div>
             </div>

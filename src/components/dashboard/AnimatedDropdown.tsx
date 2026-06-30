@@ -18,11 +18,12 @@ interface Props {
   align?: "left" | "right";
   minWidth?: number;
   disabled?: boolean;
+  dropUp?: boolean;
 }
 
 export default function AnimatedDropdown({
   value, options, onChange, placeholder = "Select…",
-  className = "", align = "left", minWidth = 160, disabled = false,
+  className = "", align = "left", minWidth = 160, disabled = false, dropUp = false,
 }: Props) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -65,13 +66,14 @@ export default function AnimatedDropdown({
         className="absolute z-50 mt-1.5 rounded-lg border border-slate-200 dark:border-white/10 shadow-xl overflow-hidden bg-white dark:bg-zinc-950/97"
         style={{
           ...(align === "right" ? { right: 0 } : { left: 0 }),
+          ...(dropUp ? { bottom: "calc(100% + 6px)" } : { top: "calc(100% + 6px)" }),
           minWidth: `${minWidth}px`,
           backdropFilter: "blur(20px)",
           boxShadow: "0 8px 32px rgba(0,0,0,0.12), 0 0 0 1px rgba(0,0,0,0.05)",
-          transformOrigin: "top",
+          transformOrigin: dropUp ? "bottom" : "top",
           transition: "opacity 0.18s ease, transform 0.18s cubic-bezier(0.34,1.4,0.64,1)",
           opacity: open ? 1 : 0,
-          transform: open ? "scale(1) translateY(0)" : "scale(0.95) translateY(-6px)",
+          transform: open ? "scale(1) translateY(0)" : `scale(0.95) translateY(${dropUp ? "6px" : "-6px"})`,
           pointerEvents: open ? "auto" : "none",
         }}
       >
