@@ -248,6 +248,8 @@ export default function ProjectGanttDB() {
   const [loading, setLoading]         = useState(true);
   const [error, setError]             = useState<string | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [successToast, setSuccessToast] = useState<string | null>(null);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [search, setSearch]     = useState("");
   const [userRole, setUserRole]             = useState<string>("");
   const [priorityFilter, setPriorityFilter] = useState(() => {
@@ -1274,8 +1276,29 @@ export default function ProjectGanttDB() {
       {showAddModal && (
         <AddProjectModal
           onClose={() => setShowAddModal(false)}
-          onSuccess={() => { setLoading(true); loadProjects(); }}
+          onSuccess={(name) => {
+            setLoading(true);
+            loadProjects();
+            setSuccessToast(name);
+            if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+            toastTimerRef.current = setTimeout(() => setSuccessToast(null), 4000);
+          }}
         />
+      )}
+
+      {/* Project created toast */}
+      {createPortal(
+        <div
+          className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-9999 transition-all duration-300 ${
+            successToast ? "opacity-100 translate-y-0" : "opacity-0 translate-y-3 pointer-events-none"
+          }`}
+        >
+          <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-emerald-600 text-white shadow-2xl text-sm font-semibold">
+            <span className="text-base leading-none">✓</span>
+            <span>Project <span className="font-bold">&ldquo;{successToast}&rdquo;</span> created</span>
+          </div>
+        </div>,
+        document.body
       )}
 
     </div>

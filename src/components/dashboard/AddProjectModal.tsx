@@ -40,7 +40,7 @@ const EMPTY: FormState = {
   start_date: "", end_date: "", summary_brief: "",
 };
 
-function DateInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+function DateInput({ value, onChange, min, max }: { value: string; onChange: (v: string) => void; min?: string; max?: string }) {
   const ref = useRef<HTMLInputElement>(null);
   return (
     <div
@@ -51,6 +51,8 @@ function DateInput({ value, onChange }: { value: string; onChange: (v: string) =
         ref={ref}
         type="date"
         value={value}
+        min={min}
+        max={max}
         onChange={e => onChange(e.target.value)}
         className="w-full rounded-lg border border-slate-200/70 dark:border-white/10 bg-white dark:bg-zinc-900/60 pl-3 pr-10 py-2.5 text-[12px] text-slate-700 dark:text-slate-200 outline-none focus:border-brand-sienna/60 focus:ring-2 focus:ring-brand-sienna/15 transition-all cursor-pointer scheme-light dark:scheme-dark [&::-webkit-calendar-picker-indicator]:hidden"
       />
@@ -64,7 +66,7 @@ export default function AddProjectModal({
   onSuccess,
 }: {
   onClose:   () => void;
-  onSuccess: () => void;
+  onSuccess: (projectName: string) => void;
 }) {
   const [options,     setOptions]     = useState<Options | null>(null);
   const [form,        setForm]        = useState<FormState>(EMPTY);
@@ -166,13 +168,16 @@ export default function AddProjectModal({
       }),
     })
       .then(r => r.json())
-      .then(data => { if (data.success) onSuccess(); })
+      .then(data => { if (data.success) onSuccess(data.data?.project_name ?? form.project_name.trim()); })
       .catch(() => {});
   }
 
-  const lbl    = "text-[10px] uppercase tracking-wide text-slate-400 dark:text-slate-500 mb-1 block";
-  const input  = "w-full rounded-lg border border-slate-200/70 dark:border-white/10 bg-white dark:bg-zinc-900/60 px-3 py-2 text-[12px] text-slate-700 dark:text-slate-200 outline-none focus:border-brand-sienna/60 focus:ring-2 focus:ring-brand-sienna/15 transition-all placeholder:text-slate-300 dark:placeholder:text-slate-600";
-  const select = input + " cursor-pointer";
+  const lbl   = "text-[10px] uppercase tracking-wide text-slate-400 dark:text-slate-500 mb-1 block";
+  const input = "w-full rounded-lg border border-slate-200/70 dark:border-white/10 bg-white dark:bg-zinc-900/60 px-3 py-2 text-[12px] text-slate-700 dark:text-slate-200 outline-none focus:border-brand-sienna/60 focus:ring-2 focus:ring-brand-sienna/15 transition-all placeholder:text-slate-300 dark:placeholder:text-slate-600";
+
+  // Phase date constraints — restricted to the project's overall date range
+  const phaseMin = form.start_date || undefined;
+  const phaseMax = form.end_date   || undefined;
 
   return createPortal(
     <div
@@ -243,11 +248,11 @@ export default function AddProjectModal({
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-[10px] text-slate-400 mb-1 block">Start Date</label>
-                  <DateInput value={form.start_date} onChange={v => set("start_date", v)} />
+                  <DateInput value={form.start_date} onChange={v => set("start_date", v)} max={form.end_date || undefined} />
                 </div>
                 <div>
                   <label className="text-[10px] text-slate-400 mb-1 block">End Date</label>
-                  <DateInput value={form.end_date} onChange={v => set("end_date", v)} />
+                  <DateInput value={form.end_date} onChange={v => set("end_date", v)} min={form.start_date || undefined} />
                 </div>
               </div>
             </div>
@@ -266,11 +271,11 @@ export default function AddProjectModal({
                 <div className="grid grid-cols-2 gap-3 mt-3">
                   <div>
                     <label className="text-[10px] text-slate-400 mb-1 block">{phaseDateLabels.start}</label>
-                    <DateInput value={form.phase_start} onChange={v => set("phase_start", v)} />
+                    <DateInput value={form.phase_start} onChange={v => set("phase_start", v)} min={phaseMin} max={phaseMax} />
                   </div>
                   <div>
                     <label className="text-[10px] text-slate-400 mb-1 block">{phaseDateLabels.end}</label>
-                    <DateInput value={form.phase_end} onChange={v => set("phase_end", v)} />
+                    <DateInput value={form.phase_end} onChange={v => set("phase_end", v)} min={phaseMin} max={phaseMax} />
                   </div>
                 </div>
               )}
@@ -320,11 +325,11 @@ export default function AddProjectModal({
                         <div className="grid grid-cols-2 gap-3 p-3">
                           <div>
                             <label className="text-[10px] text-slate-400 mb-1 block">{labels?.start ?? "Start"}</label>
-                            <input type="date" value={entry.start} onChange={e => updatePhaseEntry(idx, "start", e.target.value)} className={input} />
+                            <input type="date" value={entry.start} min={phaseMin} max={phaseMax} onChange={e => updatePhaseEntry(idx, "start", e.target.value)} className={input} />
                           </div>
                           <div>
                             <label className="text-[10px] text-slate-400 mb-1 block">{labels?.end ?? "End"}</label>
-                            <input type="date" value={entry.end} onChange={e => updatePhaseEntry(idx, "end", e.target.value)} className={input} />
+                            <input type="date" value={entry.end} min={phaseMin} max={phaseMax} onChange={e => updatePhaseEntry(idx, "end", e.target.value)} className={input} />
                           </div>
                         </div>
                       </div>

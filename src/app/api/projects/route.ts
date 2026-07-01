@@ -132,14 +132,6 @@ export async function POST(req: Request) {
       }
     }
 
-    const changedBy = user?.fullName ?? user?.email ?? "System";
-    await client.query(
-      `INSERT INTO project_change_logs
-         (project_id, entity_type, change_summary, changed_by_name, action_type, created_at)
-       VALUES ($1, 'project', $2, $3, 'project_created', NOW())`,
-      [projectId, `Project "${newProject.project_name}" created`, changedBy]
-    );
-
     return NextResponse.json({ success: true, data: newProject }, { status: 201 });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
