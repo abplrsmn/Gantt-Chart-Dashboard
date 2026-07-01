@@ -59,7 +59,10 @@ export default function AnimatedDropdown({
         !panelRef.current?.contains(e.target as Node)
       ) setOpen(false);
     };
-    const closeScroll = () => setOpen(false);
+    const closeScroll = (e: Event) => {
+      if (panelRef.current?.contains(e.target as Node)) return;
+      setOpen(false);
+    };
     document.addEventListener("mousedown", close);
     document.addEventListener("scroll", closeScroll, true);
     return () => {
@@ -84,12 +87,12 @@ export default function AnimatedDropdown({
       className="rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-zinc-950"
     >
       <div className="py-1.5 max-h-64 overflow-y-auto">
-        {options.map(opt => {
+        {options.map((opt, idx) => {
           const active = opt.value === value;
           return (
             <button
               type="button"
-              key={opt.value}
+              key={`${opt.value}-${idx}`}
               onClick={() => { onChange(opt.value); setOpen(false); }}
               className={`w-full flex items-center gap-2.5 px-3 py-1.5 text-[12px] font-medium transition-all ${
                 active

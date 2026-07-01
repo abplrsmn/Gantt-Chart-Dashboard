@@ -49,7 +49,6 @@ export async function GET() {
         sl.progress_variance AS scurve_progress_variance,
         p.start_date,
         p.end_date,
-        p.created_at,
         mp_phase.phase_name   AS current_phase_name,
         mp_phase.phase_code   AS current_phase_code,
         ms.status_label       AS status_label,
@@ -71,11 +70,12 @@ export async function GET() {
         ob.budget_capex               AS budget_capex,
         ob.notes                      AS brief_notes,
         (
-          SELECT string_agg(DISTINCT COALESCE(NULLIF(pp.raw_person_name, ''), NULLIF(pp.raw_organization_name, '')), ', ')
+          SELECT string_agg(DISTINCT COALESCE(NULLIF(mp.full_name, ''), NULLIF(pp.raw_person_name, ''), NULLIF(pp.raw_organization_name, '')), ', ')
           FROM project_people pp
+          LEFT JOIN master_people mp ON mp.id = pp.person_id
           WHERE pp.project_id = p.id
             AND (pp.phase_id = ob.id OR pp.phase_id = ob.phase_id)
-            AND COALESCE(NULLIF(pp.raw_person_name, ''), NULLIF(pp.raw_organization_name, '')) IS NOT NULL
+            AND COALESCE(NULLIF(mp.full_name, ''), NULLIF(pp.raw_person_name, ''), NULLIF(pp.raw_organization_name, '')) IS NOT NULL
         ) AS brief_pic,
 
         ds.start_design_date          AS design_start,
@@ -87,11 +87,12 @@ export async function GET() {
         ds.working_drawing_status,
         ds.notes                      AS design_notes,
         (
-          SELECT string_agg(DISTINCT COALESCE(NULLIF(pp.raw_person_name, ''), NULLIF(pp.raw_organization_name, '')), ', ')
+          SELECT string_agg(DISTINCT COALESCE(NULLIF(mp.full_name, ''), NULLIF(pp.raw_person_name, ''), NULLIF(pp.raw_organization_name, '')), ', ')
           FROM project_people pp
+          LEFT JOIN master_people mp ON mp.id = pp.person_id
           WHERE pp.project_id = p.id
             AND (pp.phase_id = ds.id OR pp.phase_id = ds.phase_id)
-            AND COALESCE(NULLIF(pp.raw_person_name, ''), NULLIF(pp.raw_organization_name, '')) IS NOT NULL
+            AND COALESCE(NULLIF(mp.full_name, ''), NULLIF(pp.raw_person_name, ''), NULLIF(pp.raw_organization_name, '')) IS NOT NULL
         ) AS design_pic,
 
         pc.tender_start_date          AS control_start,
@@ -102,11 +103,12 @@ export async function GET() {
         pc.phase_contract_amount,
         pc.notes                      AS control_notes,
         (
-          SELECT string_agg(DISTINCT COALESCE(NULLIF(pp.raw_person_name, ''), NULLIF(pp.raw_organization_name, '')), ', ')
+          SELECT string_agg(DISTINCT COALESCE(NULLIF(mp.full_name, ''), NULLIF(pp.raw_person_name, ''), NULLIF(pp.raw_organization_name, '')), ', ')
           FROM project_people pp
+          LEFT JOIN master_people mp ON mp.id = pp.person_id
           WHERE pp.project_id = p.id
             AND (pp.phase_id = pc.id OR pp.phase_id = pc.phase_id)
-            AND COALESCE(NULLIF(pp.raw_person_name, ''), NULLIF(pp.raw_organization_name, '')) IS NOT NULL
+            AND COALESCE(NULLIF(mp.full_name, ''), NULLIF(pp.raw_person_name, ''), NULLIF(pp.raw_organization_name, '')) IS NOT NULL
         ) AS control_pic,
 
         pm.commence_date              AS pm_start,
@@ -118,11 +120,12 @@ export async function GET() {
         pm.current_site_progress,
         pm.notes                      AS pm_remarks,
         (
-          SELECT string_agg(DISTINCT COALESCE(NULLIF(pp.raw_person_name, ''), NULLIF(pp.raw_organization_name, '')), ', ')
+          SELECT string_agg(DISTINCT COALESCE(NULLIF(mp.full_name, ''), NULLIF(pp.raw_person_name, ''), NULLIF(pp.raw_organization_name, '')), ', ')
           FROM project_people pp
+          LEFT JOIN master_people mp ON mp.id = pp.person_id
           WHERE pp.project_id = p.id
             AND (pp.phase_id = pm.id OR pp.phase_id = pm.phase_id)
-            AND COALESCE(NULLIF(pp.raw_person_name, ''), NULLIF(pp.raw_organization_name, '')) IS NOT NULL
+            AND COALESCE(NULLIF(mp.full_name, ''), NULLIF(pp.raw_person_name, ''), NULLIF(pp.raw_organization_name, '')) IS NOT NULL
         ) AS pm_pic,
 
         hv.bast_1_date                AS handover_start,
@@ -131,11 +134,12 @@ export async function GET() {
         hv.actual_phase_completion_date,
         hv.notes                      AS handover_notes,
         (
-          SELECT string_agg(DISTINCT COALESCE(NULLIF(pp.raw_person_name, ''), NULLIF(pp.raw_organization_name, '')), ', ')
+          SELECT string_agg(DISTINCT COALESCE(NULLIF(mp.full_name, ''), NULLIF(pp.raw_person_name, ''), NULLIF(pp.raw_organization_name, '')), ', ')
           FROM project_people pp
+          LEFT JOIN master_people mp ON mp.id = pp.person_id
           WHERE pp.project_id = p.id
             AND (pp.phase_id = hv.id OR pp.phase_id = hv.phase_id)
-            AND COALESCE(NULLIF(pp.raw_person_name, ''), NULLIF(pp.raw_organization_name, '')) IS NOT NULL
+            AND COALESCE(NULLIF(mp.full_name, ''), NULLIF(pp.raw_person_name, ''), NULLIF(pp.raw_organization_name, '')) IS NOT NULL
         ) AS handover_pic,
 
         -- Phase advance notes (from proceed-to-next-phase confirmation dialog)

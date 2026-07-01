@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
 import {
   Plus, Pencil, Trash2, X, Eye, EyeOff, Check,
-  AlertCircle, Database,
+  AlertCircle, Database, UserCog, Users,
 } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -18,12 +18,12 @@ type Phase    = { id: number; phase_code: string; phase_name: string };
 
 type Tab = "units" | "priorities" | "statuses" | "users" | "stakeholders" | "phases";
 
-const TABS: { key: Tab; label: string }[] = [
+const TABS: { key: Tab; label: string; icon?: React.ElementType }[] = [
   { key: "units",        label: "Units" },
   { key: "priorities",   label: "Priorities" },
   { key: "statuses",     label: "Statuses" },
-  { key: "users",        label: "User Accounts" },
-  { key: "stakeholders", label: "Stakeholders" },
+  { key: "users",        label: "User Accounts", icon: UserCog },
+  { key: "stakeholders", label: "Stakeholders",  icon: Users },
   { key: "phases",       label: "Phases" },
 ];
 
@@ -423,7 +423,7 @@ function UsersSection({ onAddReady }: SectionProps) {
   const [data, setData] = useState<User[]>([]);
   const [modal, setModal] = useState<null | "add" | User>(null);
   const [deleting, setDeleting] = useState<User | null>(null);
-  const [form, setForm] = useState({ full_name: "", email: "", password: "", is_admin: false, department: "", job_title: "", employee_code: "", is_active: true });
+  const [form, setForm] = useState({ full_name: "", email: "", password: "", is_admin: false, department: "", job_title: "", is_active: true });
   const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -434,12 +434,12 @@ function UsersSection({ onAddReady }: SectionProps) {
   useEffect(() => { load(); }, [load]);
 
   const openAdd = () => {
-    setForm({ full_name: "", email: "", password: "", is_admin: false, department: "", job_title: "", employee_code: "", is_active: true });
+    setForm({ full_name: "", email: "", password: "", is_admin: false, department: "", job_title: "", is_active: true });
     setModal("add");
   };
   useEffect(() => { onAddReady(openAdd); }, [onAddReady]); // eslint-disable-line
   const openEdit = (u: User) => {
-    setForm({ full_name: u.full_name || "", email: u.email, password: "", is_admin: u.is_admin, department: u.department || "", job_title: u.job_title || "", employee_code: u.employee_code || "", is_active: u.is_active });
+    setForm({ full_name: u.full_name || "", email: u.email, password: "", is_admin: u.is_admin, department: u.department || "", job_title: u.job_title || "", is_active: u.is_active });
     setModal(u);
   };
 
@@ -447,7 +447,7 @@ function UsersSection({ onAddReady }: SectionProps) {
     setLoading(true);
     const isEdit = modal !== "add";
     const body = isEdit
-      ? { full_name: form.full_name, is_admin: form.is_admin, is_active: form.is_active, ...(form.password ? { password: form.password } : {}), department: form.department, job_title: form.job_title, employee_code: form.employee_code }
+      ? { full_name: form.full_name, is_admin: form.is_admin, is_active: form.is_active, ...(form.password ? { password: form.password } : {}), department: form.department, job_title: form.job_title }
       : form;
     await fetch(isEdit ? `/api/master/users/${(modal as User).id}` : "/api/master/users", {
       method: isEdit ? "PATCH" : "POST",
@@ -459,6 +459,13 @@ function UsersSection({ onAddReady }: SectionProps) {
 
   return (
     <>
+      <div className="flex items-start gap-3 px-5 py-3.5 bg-purple-50/60 dark:bg-purple-500/8 border-b border-purple-100 dark:border-purple-500/15">
+        <UserCog size={14} className="text-purple-500 mt-0.5 shrink-0" />
+        <div>
+          <p className="text-xs font-semibold text-purple-700 dark:text-purple-300">User Accounts</p>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Akun dengan akses login ke dashboard.</p>
+        </div>
+      </div>
       <TableShell heads={["Name", "Email", "Role", "Status"]} empty={!data.length}>
         {data.map(u => (
           <tr key={u.id}>
@@ -507,9 +514,6 @@ function UsersSection({ onAddReady }: SectionProps) {
               <input className={inputCls} value={form.job_title} onChange={e => setForm(f => ({ ...f, job_title: e.target.value }))} placeholder="e.g. Project Manager" />
             </Field>
           </div>
-          <Field label="Employee Code">
-            <input className={inputCls} value={form.employee_code} onChange={e => setForm(f => ({ ...f, employee_code: e.target.value }))} placeholder="e.g. EMP-001" />
-          </Field>
           {/* Role selector */}
           <div className="pt-1 space-y-2">
             <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">Access Level</p>
@@ -549,7 +553,7 @@ function StakeholdersSection({ onAddReady }: SectionProps) {
   const [data, setData] = useState<Person[]>([]);
   const [modal, setModal] = useState<null | "add" | Person>(null);
   const [deleting, setDeleting] = useState<Person | null>(null);
-  const [form, setForm] = useState({ full_name: "", email: "", phone_number: "", nickname: "", department: "", job_title: "", employee_code: "", is_active: true });
+  const [form, setForm] = useState({ full_name: "", email: "", phone_number: "", nickname: "", department: "", job_title: "", is_active: true });
   const [loading, setLoading] = useState(false);
 
   const load = useCallback(async () => {
@@ -558,10 +562,10 @@ function StakeholdersSection({ onAddReady }: SectionProps) {
   }, []);
   useEffect(() => { load(); }, [load]);
 
-  const openAdd  = () => { setForm({ full_name: "", email: "", phone_number: "", nickname: "", department: "", job_title: "", employee_code: "", is_active: true }); setModal("add"); };
+  const openAdd  = () => { setForm({ full_name: "", email: "", phone_number: "", nickname: "", department: "", job_title: "", is_active: true }); setModal("add"); };
   useEffect(() => { onAddReady(openAdd); }, [onAddReady]); // eslint-disable-line
   const openEdit = (p: Person) => {
-    setForm({ full_name: p.full_name, email: p.email || "", phone_number: p.phone_number || "", nickname: p.nickname || "", department: p.department || "", job_title: p.job_title || "", employee_code: p.employee_code || "", is_active: p.is_active });
+    setForm({ full_name: p.full_name, email: p.email || "", phone_number: p.phone_number || "", nickname: p.nickname || "", department: p.department || "", job_title: p.job_title || "", is_active: p.is_active });
     setModal(p);
   };
 
@@ -578,6 +582,13 @@ function StakeholdersSection({ onAddReady }: SectionProps) {
 
   return (
     <>
+      <div className="flex items-start gap-3 px-5 py-3.5 bg-sky-50/60 dark:bg-sky-500/8 border-b border-sky-100 dark:border-sky-500/15">
+        <Users size={14} className="text-sky-500 mt-0.5 shrink-0" />
+        <div>
+          <p className="text-xs font-semibold text-sky-700 dark:text-sky-300">Stakeholders</p>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Tidak memiliki akses login. Digunakan sebagai referensi PIC di fase project.</p>
+        </div>
+      </div>
       <TableShell heads={["Name", "Email", "Phone", "Department", "Job Title", "Status"]} empty={!data.length}>
         {data.map(p => (
           <tr key={p.id}>
@@ -622,9 +633,6 @@ function StakeholdersSection({ onAddReady }: SectionProps) {
               <input className={inputCls} value={form.job_title} onChange={e => setForm(f => ({ ...f, job_title: e.target.value }))} placeholder="e.g. Site Supervisor" />
             </Field>
           </div>
-          <Field label="Employee Code">
-            <input className={inputCls} value={form.employee_code} onChange={e => setForm(f => ({ ...f, employee_code: e.target.value }))} placeholder="e.g. EMP-002" />
-          </Field>
           {modal !== "add" && (
             <label className="flex items-center gap-2 cursor-pointer select-none pt-1">
               <input type="checkbox" checked={form.is_active} onChange={e => setForm(f => ({ ...f, is_active: e.target.checked }))} className="rounded accent-brand-sienna" />
@@ -735,12 +743,13 @@ export default function MasterSetupPage() {
               <button
                 key={t.key}
                 onClick={() => { setTab(t.key); addFnRef.current = null; }}
-                className={`shrink-0 px-4 py-3.5 text-xs font-semibold border-b-2 transition-all duration-200 whitespace-nowrap ${
+                className={`shrink-0 flex items-center gap-1.5 px-4 py-3.5 text-xs font-semibold border-b-2 transition-all duration-200 whitespace-nowrap ${
                   tab === t.key
                     ? "border-brand-sienna text-brand-mahogany dark:text-brand-sand bg-brand-cream/40 dark:bg-brand-sienna/10"
                     : "border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-white/4"
                 }`}
               >
+                {t.icon && <t.icon size={12} />}
                 {t.label}
               </button>
             ))}

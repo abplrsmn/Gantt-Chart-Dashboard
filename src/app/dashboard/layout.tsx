@@ -20,7 +20,7 @@ function getUserIdFromCookie(): string {
   return match ? match[1].trim() : "default";
 }
 
-type AlertProject = { id: string; end_date: string | null; overall_progress_pct: string | null; created_at?: string | null };
+type AlertProject = { id: string; end_date: string | null; overall_progress_pct: string | null };
 type ToastState   = { visible: boolean; count: number };
 
 function playPing() {
@@ -151,7 +151,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       if (Number(p.overall_progress_pct ?? 0) >= 100) return [];
       const end = p.end_date ? new Date(p.end_date) : null;
       if (end && Math.ceil((end.getTime() - today.getTime()) / 86_400_000) <= 7) return [p.id];
-      if (p.created_at && Math.floor((today.getTime() - new Date(p.created_at).getTime()) / 86_400_000) <= 7) return [p.id];
       return [];
     });
   }

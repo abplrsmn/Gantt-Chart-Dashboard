@@ -12,7 +12,6 @@ import { PHASE_LIST, DEFAULT_PHASE_COLOR } from "@/lib/phases";
 import {
   Chart as ChartJS, ArcElement, Tooltip, Legend,
 } from "chart.js";
-import toast, { Toaster } from "react-hot-toast";
 
 ChartJS.register(ArcElement, Tooltip, Legend);
 
@@ -35,7 +34,6 @@ type DBProject = {
   unit_name: string | null;
   pm_end: string | null;
   handover_progress: number | null;
-  created_at: string | null;
 };
 
 export default function DashboardHome() {
@@ -122,15 +120,6 @@ export default function DashboardHome() {
     [activeProjects, today]
   );
 
-  const newProjects = useMemo(
-    () => projects.filter((p) => {
-      if (!p.created_at || (p.overall_progress_pct ?? 0) >= 100) return false;
-      const age = today - new Date(p.created_at).getTime();
-      return age >= 0 && age <= 7 * DAY_MS;
-    }),
-    [projects, today]
-  );
-
   const completedProjects = useMemo(
     () =>
       projects
@@ -191,9 +180,38 @@ export default function DashboardHome() {
     };
   }, [activeProjects, overdueProjects, completedProjects]);
 
+  const donutCounts = useMemo(
+    () => [completedProjects.length, overdueProjects.length, Math.max(0, activeProjects.length - overdueProjects.length)],
+    [completedProjects.length, overdueProjects.length, activeProjects.length]
+  );
+
+  const donutChartOptions = useMemo(() => ({
+    maintainAspectRatio: true,
+    cutout: "72%",
+    animation: { animateRotate: true, animateScale: false, duration: 700 },
+    layout: { padding: 18 },
+    onClick: (_e: unknown, elements: { index: number }[]) => {
+      if (!elements.length) return;
+      DONUT_ITEMS[elements[0].index]?.onClick();
+    },
+    onHover: (_e: unknown, elements: { index: number }[]) => {
+      if (!elements.length) { setDonutHover(prev => prev === null ? null : null); return; }
+      const idx = elements[0].index;
+      setDonutHover(prev =>
+        prev?.label === DONUT_ITEMS[idx].label && prev?.count === donutCounts[idx]
+          ? prev
+          : { label: DONUT_ITEMS[idx].label, count: donutCounts[idx], color: DONUT_ITEMS[idx].color }
+      );
+    },
+    plugins: {
+      legend: { display: false },
+      tooltip: { enabled: false },
+    },
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [donutCounts]);
+
   return (
     <div className="space-y-6 pb-6 animate-page-enter">
-      <Toaster position="top-right" />
 
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-3 mt-2">
         <div className="flex items-center gap-2">
@@ -302,26 +320,7 @@ export default function DashboardHome() {
                 <>
                   <Doughnut
                     data={donutData}
-                    options={{
-                      maintainAspectRatio: true,
-                      cutout: "72%",
-                      animation: { animateRotate: true, animateScale: false, duration: 700 },
-                      layout: { padding: 18 },
-                      onClick: (_e, elements) => {
-                        if (!elements.length) return;
-                        DONUT_ITEMS[elements[0].index]?.onClick();
-                      },
-                      onHover: (_e, elements) => {
-                        if (!elements.length) { setDonutHover(null); return; }
-                        const idx = elements[0].index;
-                        const counts = [completedProjects.length, overdueProjects.length, Math.max(0, activeProjects.length - overdueProjects.length)];
-                        setDonutHover({ label: DONUT_ITEMS[idx].label, count: counts[idx], color: DONUT_ITEMS[idx].color });
-                      },
-                      plugins: {
-                        legend: { display: false },
-                        tooltip: { enabled: false },
-                      },
-                    }}
+                    options={donutChartOptions}
                   />
                   {/* Center label */}
                   <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none select-none transition-all duration-200">

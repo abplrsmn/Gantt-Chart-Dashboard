@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { differenceInCalendarDays, format, addDays, isValid, startOfWeek, endOfWeek, addWeeks, startOfMonth, endOfMonth } from "date-fns";
-import { Search, ArrowRight, MousePointer2, Move, Trash2, Plus, CalendarRange } from "lucide-react";
+import { Search, ArrowRight, MousePointer2, Move, Trash2, Plus, CalendarRange, CheckCircle2, X as XIcon } from "lucide-react";
 import DateRangePicker from "./DateRangePicker";
 import AnimatedDropdown from "./AnimatedDropdown";
 import { PHASE_LIST } from "@/lib/phases";
@@ -1286,16 +1286,27 @@ export default function ProjectGanttDB() {
         />
       )}
 
-      {/* Project created toast */}
+      {/* Project created toast — matches layout alert toast style */}
       {createPortal(
-        <div
-          className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-9999 transition-all duration-300 ${
-            successToast ? "opacity-100 translate-y-0" : "opacity-0 translate-y-3 pointer-events-none"
-          }`}
-        >
-          <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-emerald-600 text-white shadow-2xl text-sm font-semibold">
-            <span className="text-base leading-none">✓</span>
-            <span>Project <span className="font-bold">&ldquo;{successToast}&rdquo;</span> created</span>
+        <div className={`fixed top-4 right-4 z-9999 transition-all duration-300 ${
+          successToast ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-2 pointer-events-none"
+        }`}>
+          <div className="flex items-start gap-3 px-4 py-3 rounded-xl border shadow-xl backdrop-blur-md bg-white/90 dark:bg-zinc-900/90 border-emerald-200/60 dark:border-emerald-500/30 min-w-64 max-w-80">
+            <div className="shrink-0 w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center mt-0.5">
+              <CheckCircle2 size={15} className="text-emerald-500" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[12px] font-bold text-slate-800 dark:text-white">Project Created</p>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 truncate">
+                &ldquo;{successToast}&rdquo; has been added
+              </p>
+            </div>
+            <button
+              onClick={() => setSuccessToast(null)}
+              className="shrink-0 p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/10 transition-colors"
+            >
+              <XIcon size={13} />
+            </button>
           </div>
         </div>,
         document.body

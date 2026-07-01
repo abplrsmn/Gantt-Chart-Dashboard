@@ -152,7 +152,7 @@ function toInputValue(fmt: FieldDef["format"], raw: string | null): string {
 
 // ─── InlineField ──────────────────────────────────────────────────────────────
 function InlineField({
-  label, value, format: fmt, fullWidth, onSave, readOnly,
+  label, value, format: fmt, fullWidth, onSave, readOnly, min, max,
 }: {
   label: string;
   value: string | null;
@@ -160,6 +160,8 @@ function InlineField({
   fullWidth?: boolean;
   onSave: (raw: string | null) => Promise<void>;
   readOnly?: boolean;
+  min?: string;
+  max?: string;
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
@@ -211,11 +213,25 @@ function InlineField({
             ref={inputRef}
             type={fmt === "date" ? "date" : "text"}
             value={draft}
-            onChange={e => setDraft(e.target.value)}
+            min={fmt === "date" ? min : undefined}
+            max={fmt === "date" ? max : undefined}
+            onChange={e => {
+              if (fmt === "date") {
+                const v = e.target.value;
+                if (min && v && v < min) return;
+                if (max && v && v > max) return;
+              }
+              setDraft(e.target.value);
+            }}
             onBlur={commit}
             onKeyDown={e => { if (e.key === "Escape") setEditing(false); if (e.key === "Enter") commit(); }}
             className={inputCls}
           />
+        )}
+        {fmt === "date" && (min || max) && (
+          <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">
+            {min && max ? `${fmtDate(min)} – ${fmtDate(max)}` : min ? `From ${fmtDate(min)}` : `Until ${fmtDate(max!)}`}
+          </p>
         )}
       </div>
     );
@@ -420,6 +436,51 @@ const PHASE_DEFS: PhaseDef[] = [
   },
 ];
 
+// Shift a YYYY-MM-DD string by ±N days without UTC-offset distortion
+function shiftDay(dateStr: string, delta: number): string {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const dt = new Date(y, m - 1, d + delta);
+  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`;
+}
+
+// Actual-completion keys are exempt — they record reality, not plans
+const UNCONSTRAINED_KEYS = new Set<keyof ProjectDetail>(["pm_actual_end", "actual_phase_completion_date"]);
+
+function dateFieldConstraint(
+  key: keyof ProjectDetail,
+  project: ProjectDetail,
+): { min?: string; max?: string } {
+  if (UNCONSTRAINED_KEYS.has(key)) return {};
+  const d10 = (v: string | null | undefined) => (v ? String(v).slice(0, 10) : "");
+  const projectStart = d10(project.start_date) || undefined;
+  const projectEnd   = d10(project.end_date)   || undefined;
+  if (key === "start_date") return { max: projectEnd };
+  if (key === "end_date")   return { min: projectStart };
+  const phaseDef = PHASE_DEFS.find(p => p.startKey === key || p.endKey === key);
+  if (!phaseDef) return {};
+  const phaseId = phaseDef.phaseId;
+  const isStart = phaseDef.startKey === key;
+  const allPhases = PHASE_DEFS.map(p => ({
+    id:    p.phaseId,
+    start: d10(project[p.startKey] as string | null),
+    end:   d10(project[p.endKey]   as string | null),
+  }));
+  // Nearest preceding phase with end or start date (end preferred)
+  const before = [...allPhases].filter(p => p.id < phaseId).reverse().find(p => p.end || p.start);
+  // Nearest following phase with a start date
+  const after  = allPhases.find(p => p.id > phaseId && p.start);
+  // Phases must not share dates: use day-after for min, day-before for max
+  const prevBound = before ? shiftDay(before.end || before.start, +1) : undefined;
+  const nextBound = after  ? shiftDay(after.start, -1)                : undefined;
+  if (isStart) {
+    const thisEnd = d10(project[phaseDef.endKey] as string | null);
+    return { min: prevBound || projectStart, max: thisEnd || nextBound || projectEnd };
+  } else {
+    const thisStart = d10(project[phaseDef.startKey] as string | null);
+    return { min: thisStart || prevBound || projectStart, max: nextBound || projectEnd };
+  }
+}
+
 function PhaseCard({
   ph, project, isCurrent, isPast, people, onSave,
   phaseRowId, tasks, attachments,
@@ -522,19 +583,46 @@ function PhaseCard({
       <div className="px-4 py-3 bg-white/40 dark:bg-zinc-900/30 space-y-3">
         {/* ── Date/field grid ── */}
         <div className="grid grid-cols-2 gap-x-6 gap-y-3">
-          {ph.fields.filter(f => f.label !== "Notes").map(f => (
-            <InlineField
-              key={f.key as string}
-              label={f.label}
-              value={project[f.key] as string | null}
-              format={f.format}
-              fullWidth={f.fullWidth}
-              readOnly={isLocked || !!f.readonly}
-              onSave={v => onSave(f.key, v)}
-            />
-          ))}
+          {ph.fields.filter(f => f.label !== "Notes").map(f => {
+            const c = f.format === "date" ? dateFieldConstraint(f.key, project) : {};
+            return (
+              <InlineField
+                key={f.key as string}
+                label={f.label}
+                value={project[f.key] as string | null}
+                format={f.format}
+                fullWidth={f.fullWidth}
+                readOnly={isLocked || !!f.readonly}
+                min={c.min}
+                max={c.max}
+                onSave={v => onSave(f.key, v)}
+              />
+            );
+          })}
 
         </div>
+
+        {/* ── PIC ── */}
+        {phasePeople.length > 0 && (
+          <div className="pt-2 border-t border-slate-200/40 dark:border-white/6">
+            <p className="text-[9px] uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1.5">PIC</p>
+            <div className="flex flex-wrap gap-1.5">
+              {phasePeople.map(p => {
+                const name = p.full_name || p.raw_person_name || "—";
+                return (
+                  <span
+                    key={p.id}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold bg-slate-100 dark:bg-white/8 text-slate-700 dark:text-slate-200 border border-slate-200/60 dark:border-white/10"
+                  >
+                    <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: ph.color }} />
+                    {name}
+                    {p.job_title && <span className="text-slate-400 dark:text-slate-500 font-normal">· {p.job_title}</span>}
+                  </span>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Notes */}
         {ph.fields.filter(f => f.label === "Notes").map(f => (
@@ -811,6 +899,25 @@ function ProjectDetailContent() {
   const [phaseNote, setPhaseNote]           = useState("");
   const [phaseStartDate, setPhaseStartDate] = useState("");
   const [phaseEndDate, setPhaseEndDate]     = useState("");
+
+  const phaseModalConstraints = useMemo<{ dateMin?: string; dateMax?: string }>(() => {
+    if (!phaseNoteModal?.needsDates || !project) return {};
+    const d10 = (v: string | null | undefined) => (v ? String(v).slice(0, 10) : "");
+    const nextPhaseId = phaseNoteModal.nextPhase.phaseId;
+    const allPhases = PHASE_DEFS.map(p => ({
+      id:    p.phaseId,
+      start: d10(project[p.startKey] as string | null),
+      end:   d10(project[p.endKey]   as string | null),
+    }));
+    const before = [...allPhases].filter(p => p.id < nextPhaseId).reverse().find(p => p.end || p.start);
+    const after  = allPhases.find(p => p.id > nextPhaseId && p.start);
+    const prevBound = before ? shiftDay(before.end || before.start, +1) : undefined;
+    const nextBound = after  ? shiftDay(after.start, -1)                : undefined;
+    return {
+      dateMin: prevBound || d10(project.start_date) || undefined,
+      dateMax: nextBound || d10(project.end_date)   || undefined,
+    };
+  }, [phaseNoteModal, project]);
   // Notes modal for priority/status changes
   const [changeReasonModal, setChangeReasonModal] = useState<{
     type: "status" | "priority";
@@ -1287,32 +1394,52 @@ function ProjectDetailContent() {
             </div>
 
             {/* Date inputs — only when phase has no dates yet */}
-            {phaseNoteModal.needsDates && (
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-[10px] uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1.5 block">
-                    Start Date <span className="text-red-400">*</span>
-                  </label>
-                  <input
-                    type="date"
-                    value={phaseStartDate}
-                    onChange={e => setPhaseStartDate(e.target.value)}
-                    className="w-full rounded-lg border border-slate-200/70 dark:border-white/10 bg-slate-50 dark:bg-white/4 px-3 py-2 text-xs text-slate-700 dark:text-slate-200 outline-none focus:border-brand-sienna/60 focus:ring-1 focus:ring-brand-sienna/20 transition-all"
-                  />
+            {phaseNoteModal.needsDates && (() => {
+              const { dateMin, dateMax } = phaseModalConstraints;
+              return (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[10px] uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1.5 block">
+                      Start Date <span className="text-red-400">*</span>
+                    </label>
+                    <input
+                      type="date"
+                      value={phaseStartDate}
+                      min={dateMin}
+                      max={phaseEndDate || dateMax}
+                      onChange={e => {
+                        const v = e.target.value;
+                        if (dateMin && v && v < dateMin) return;
+                        if (v && (phaseEndDate || dateMax) && v > (phaseEndDate || dateMax)!) return;
+                        setPhaseStartDate(v);
+                      }}
+                      className="w-full rounded-lg border border-slate-200/70 dark:border-white/10 bg-slate-50 dark:bg-white/4 px-3 py-2 text-xs text-slate-700 dark:text-slate-200 outline-none focus:border-brand-sienna/60 focus:ring-1 focus:ring-brand-sienna/20 transition-all"
+                    />
+                    {dateMin && <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1">From {fmtDate(dateMin)}</p>}
+                  </div>
+                  <div>
+                    <label className="text-[10px] uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1.5 block">
+                      End Date <span className="text-red-400">*</span>
+                    </label>
+                    <input
+                      type="date"
+                      value={phaseEndDate}
+                      min={phaseStartDate || dateMin}
+                      max={dateMax}
+                      onChange={e => {
+                        const v = e.target.value;
+                        const lo = phaseStartDate || dateMin;
+                        if (lo && v && v < lo) return;
+                        if (dateMax && v && v > dateMax) return;
+                        setPhaseEndDate(v);
+                      }}
+                      className="w-full rounded-lg border border-slate-200/70 dark:border-white/10 bg-slate-50 dark:bg-white/4 px-3 py-2 text-xs text-slate-700 dark:text-slate-200 outline-none focus:border-brand-sienna/60 focus:ring-1 focus:ring-brand-sienna/20 transition-all"
+                    />
+                    {dateMax && <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1">Until {fmtDate(dateMax)}</p>}
+                  </div>
                 </div>
-                <div>
-                  <label className="text-[10px] uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1.5 block">
-                    End Date <span className="text-red-400">*</span>
-                  </label>
-                  <input
-                    type="date"
-                    value={phaseEndDate}
-                    onChange={e => setPhaseEndDate(e.target.value)}
-                    className="w-full rounded-lg border border-slate-200/70 dark:border-white/10 bg-slate-50 dark:bg-white/4 px-3 py-2 text-xs text-slate-700 dark:text-slate-200 outline-none focus:border-brand-sienna/60 focus:ring-1 focus:ring-brand-sienna/20 transition-all"
-                  />
-                </div>
-              </div>
-            )}
+              );
+            })()}
 
             <div>
               <label className="text-[10px] uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1.5 block">
@@ -1465,6 +1592,7 @@ function ProjectDetailContent() {
                     label=""
                     value={project.start_date}
                     format="date"
+                    max={dateFieldConstraint("start_date", project).max}
                     onSave={v => patchField("start_date", v)}
                   />
                 </div>
@@ -1474,6 +1602,7 @@ function ProjectDetailContent() {
                     label=""
                     value={project.end_date}
                     format="date"
+                    min={dateFieldConstraint("end_date", project).min}
                     onSave={v => patchField("end_date", v)}
                   />
                 </div>

@@ -22,6 +22,36 @@ const PHASE_DATE_LABELS: Record<string, { start: string; end: string }> = {
 
 type PhaseEntry = { phase_id: string; start: string; end: string };
 
+// Returns { minDate, maxDate } for a given phase, based on other phases' dates.
+// Phases are sequential by ID (1=Operational Brief … 5=Handover).
+function shiftDay(dateStr: string, delta: number): string {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const dt = new Date(y, m - 1, d + delta);
+  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`;
+}
+
+function phaseConstraints(
+  targetPhaseId: string,
+  allPhases: { id: number; start: string; end: string }[],
+  projectStart: string,
+  projectEnd: string,
+): { min: string | undefined; max: string | undefined } {
+  const tid = Number(targetPhaseId);
+  if (!tid) return { min: projectStart || undefined, max: projectEnd || undefined };
+
+  const sorted = [...allPhases].sort((a, b) => a.id - b.id);
+
+  // Nearest preceding phase that has an end date
+  const before = sorted.filter(p => p.id < tid && p.end).at(-1);
+  // Nearest following phase that has a start date
+  const after  = sorted.filter(p => p.id > tid && p.start)[0];
+
+  return {
+    min: before?.end ? shiftDay(before.end, +1) : projectStart || undefined,
+    max: after?.start ? shiftDay(after.start, -1) : projectEnd || undefined,
+  };
+}
+
 type FormState = {
   project_name:     string;
   unit_name:        string;
@@ -95,6 +125,11 @@ export default function AddProjectModal({
     return () => document.removeEventListener("keydown", h);
   }, [onClose]);
 
+  useEffect(() => {
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = ""; };
+  }, []);
+
   function set(key: keyof FormState, value: string) {
     if (key === "current_phase_id") {
       setForm(f => ({ ...f, current_phase_id: value, phase_start: "", phase_end: "" }));
@@ -122,8 +157,11 @@ export default function AddProjectModal({
     setPhaseDates(prev => prev.filter((_, i) => i !== idx));
   }
 
-  // Phases not yet added
-  const usedPhaseIds = new Set(phaseDates.map(e => e.phase_id));
+  // Phases not yet added (exclude current phase + already-added phase entries)
+  const usedPhaseIds = new Set([
+    ...phaseDates.map(e => e.phase_id),
+    ...(form.current_phase_id ? [form.current_phase_id] : []),
+  ]);
   const availablePhases = options?.phases.filter(p => !usedPhaseIds.has(String(p.id))) ?? [];
 
   async function handleSubmit(e: { preventDefault(): void }) {
@@ -175,9 +213,11 @@ export default function AddProjectModal({
   const lbl   = "text-[10px] uppercase tracking-wide text-slate-400 dark:text-slate-500 mb-1 block";
   const input = "w-full rounded-lg border border-slate-200/70 dark:border-white/10 bg-white dark:bg-zinc-900/60 px-3 py-2 text-[12px] text-slate-700 dark:text-slate-200 outline-none focus:border-brand-sienna/60 focus:ring-2 focus:ring-brand-sienna/15 transition-all placeholder:text-slate-300 dark:placeholder:text-slate-600";
 
-  // Phase date constraints — restricted to the project's overall date range
-  const phaseMin = form.start_date || undefined;
-  const phaseMax = form.end_date   || undefined;
+  // All phases consolidated for cross-phase constraint calculation
+  const allPhasesForConstraints = [
+    ...(form.current_phase_id ? [{ id: Number(form.current_phase_id), start: form.phase_start, end: form.phase_end }] : []),
+    ...phaseDates.filter(e => e.phase_id).map(e => ({ id: Number(e.phase_id), start: e.start, end: e.end })),
+  ];
 
   return createPortal(
     <div
@@ -267,18 +307,21 @@ export default function AddProjectModal({
                 placeholder="— Select current phase"
                 className="w-full"
               />
-              {phaseDateLabels && (
-                <div className="grid grid-cols-2 gap-3 mt-3">
-                  <div>
-                    <label className="text-[10px] text-slate-400 mb-1 block">{phaseDateLabels.start}</label>
-                    <DateInput value={form.phase_start} onChange={v => set("phase_start", v)} min={phaseMin} max={phaseMax} />
+              {phaseDateLabels && (() => {
+                const cc = phaseConstraints(form.current_phase_id, allPhasesForConstraints, form.start_date, form.end_date);
+                return (
+                  <div className="grid grid-cols-2 gap-3 mt-3">
+                    <div>
+                      <label className="text-[10px] text-slate-400 mb-1 block">{phaseDateLabels.start}</label>
+                      <DateInput value={form.phase_start} onChange={v => set("phase_start", v)} min={cc.min} max={form.phase_end || cc.max} />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-slate-400 mb-1 block">{phaseDateLabels.end}</label>
+                      <DateInput value={form.phase_end} onChange={v => set("phase_end", v)} min={form.phase_start || cc.min} max={cc.max} />
+                    </div>
                   </div>
-                  <div>
-                    <label className="text-[10px] text-slate-400 mb-1 block">{phaseDateLabels.end}</label>
-                    <DateInput value={form.phase_end} onChange={v => set("phase_end", v)} min={phaseMin} max={phaseMax} />
-                  </div>
-                </div>
-              )}
+                );
+              })()}
             </div>
 
             {/* Phase Dates — multiple */}
@@ -322,16 +365,21 @@ export default function AddProjectModal({
                             <Trash2 size={14} />
                           </button>
                         </div>
-                        <div className="grid grid-cols-2 gap-3 p-3">
-                          <div>
-                            <label className="text-[10px] text-slate-400 mb-1 block">{labels?.start ?? "Start"}</label>
-                            <input type="date" value={entry.start} min={phaseMin} max={phaseMax} onChange={e => updatePhaseEntry(idx, "start", e.target.value)} className={input} />
-                          </div>
-                          <div>
-                            <label className="text-[10px] text-slate-400 mb-1 block">{labels?.end ?? "End"}</label>
-                            <input type="date" value={entry.end} min={phaseMin} max={phaseMax} onChange={e => updatePhaseEntry(idx, "end", e.target.value)} className={input} />
-                          </div>
-                        </div>
+                        {(() => {
+                          const ec = phaseConstraints(entry.phase_id, allPhasesForConstraints, form.start_date, form.end_date);
+                          return (
+                            <div className="grid grid-cols-2 gap-3 p-3">
+                              <div>
+                                <label className="text-[10px] text-slate-400 mb-1 block">{labels?.start ?? "Start"}</label>
+                                <input type="date" value={entry.start} min={ec.min} max={entry.end || ec.max} onChange={e => updatePhaseEntry(idx, "start", e.target.value)} className={input} />
+                              </div>
+                              <div>
+                                <label className="text-[10px] text-slate-400 mb-1 block">{labels?.end ?? "End"}</label>
+                                <input type="date" value={entry.end} min={entry.start || ec.min} max={ec.max} onChange={e => updatePhaseEntry(idx, "end", e.target.value)} className={input} />
+                              </div>
+                            </div>
+                          );
+                        })()}
                       </div>
                     );
                   })}

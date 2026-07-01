@@ -11,7 +11,6 @@ type Project = {
   project_code: string;
   unit_code: string | null;
   end_date: string | null;
-  created_at: string | null;
   overall_progress_pct: string | null;
   current_phase_name: string | null;
   priority_name: string | null;
@@ -28,7 +27,6 @@ type AlertItem = {
   category: AlertCategory;
   daysOverdue?: number;   // overdue: positive = days past
   daysLeft?: number;      // near deadline: days remaining
-  createdAgo?: string;    // new: human-readable
 };
 
 const PRIORITY_CONFIG: Record<string, { color: string; dot: string }> = {
