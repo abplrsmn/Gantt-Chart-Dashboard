@@ -829,6 +829,7 @@ export default function ProjectGanttDB() {
         <div
           ref={bodyRef}
           className="overflow-x-auto no-scrollbar relative bg-white dark:bg-zinc-900"
+          style={{ maxHeight: "calc(100vh - 290px)", overflowY: "auto" }}
           onScroll={onBodyScroll}
           onMouseLeave={() => setTooltip(null)}
         >

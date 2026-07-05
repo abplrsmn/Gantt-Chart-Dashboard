@@ -289,7 +289,7 @@ export default function ProjectSummaryMatrix({
       </div>
 
       {/* ── Body — horizontal scroll only, page handles vertical ── */}
-      <div ref={bodyRef} className="overflow-x-auto no-scrollbar" onScroll={onBodyScroll}>
+      <div ref={bodyRef} className="overflow-x-auto no-scrollbar" style={{ maxHeight: "calc(100vh - 290px)", overflowY: "auto" }} onScroll={onBodyScroll}>
         <table className="w-full border-separate border-spacing-0 text-[10px] text-slate-700 dark:text-slate-200" style={{ minWidth: innerWidth }}>
           <colgroup>{COL_WIDTHS.map((w, i) => <col key={i} style={{ width: w, minWidth: w }} />)}</colgroup>
           <tbody>
