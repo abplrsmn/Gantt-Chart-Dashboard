@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { differenceInCalendarDays, format } from "date-fns";
 import { ShieldAlert, AlertTriangle, Clock, ArrowRight, Search } from "lucide-react";
@@ -136,6 +136,14 @@ function AlertCard({ item, onClick }: { item: AlertItem; onClick: () => void }) 
 }
 
 export default function AlertsPage() {
+  return (
+    <Suspense fallback={<div className="flex justify-center py-20"><div className="w-5 h-5 border-2 border-brand-sienna/40 border-t-brand-sienna rounded-full animate-spin" /></div>}>
+      <AlertsContent />
+    </Suspense>
+  );
+}
+
+function AlertsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [projects, setProjects] = useState<Project[]>([]);

@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Users, Mail, Briefcase, Shield, Building2, Search } from "lucide-react";
 
@@ -119,6 +119,14 @@ function DepartmentGroup({ dept, children, count }: { dept: string; children: Re
 }
 
 export default function TeamPage() {
+  return (
+    <Suspense fallback={<div className="flex justify-center py-20"><div className="w-5 h-5 border-2 border-brand-sienna/40 border-t-brand-sienna rounded-full animate-spin" /></div>}>
+      <TeamContent />
+    </Suspense>
+  );
+}
+
+function TeamContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [tab, setTab] = useState<Tab>(() => {
