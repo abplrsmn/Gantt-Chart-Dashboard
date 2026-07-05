@@ -829,11 +829,25 @@ export default function ProjectGanttDB() {
         <div
           ref={bodyRef}
           className="overflow-x-auto no-scrollbar relative bg-white dark:bg-zinc-900"
-          style={{ maxHeight: "calc(100vh - 290px)", overflowY: "auto" }}
+          style={{ height: "calc(100vh - 270px)", overflowY: "auto" }}
           onScroll={onBodyScroll}
           onMouseLeave={() => setTooltip(null)}
         >
-          <div style={{ minWidth: `${240 + totalWidth}px` }} className="relative">
+          <div style={{ minWidth: `${240 + totalWidth}px` }} className="relative h-full">
+
+            {/* Full-height week grid — fills empty area below last project row */}
+            <div className="absolute top-0 bottom-0 pointer-events-none" style={{ left: 240, width: totalWidth }}>
+              {weekCols.map((_wc, i) => {
+                const isLastOfMonth = i < weekCols.length - 1 && weekCols[i + 1].isFirstOfMonth;
+                return (
+                  <div
+                    key={i}
+                    className={`absolute top-0 bottom-0 border-r ${isLastOfMonth ? "border-slate-400/60 dark:border-white/20" : "border-slate-200/80 dark:border-white/10"}`}
+                    style={{ left: i * WEEK_W, width: WEEK_W }}
+                  />
+                );
+              })}
+            </div>
 
             {/* Date range overlay block — full height, behind rows */}
             {rangeRulers && (
