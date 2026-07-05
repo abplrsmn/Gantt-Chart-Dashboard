@@ -2,7 +2,7 @@ import ProjectGanttDB from "@/components/dashboard/ProjectGanttDB";
 
 export default function ProjectGanttPage() {
   return (
-    <div className="space-y-4 pb-6 animate-page-enter">
+    <div className="animate-page-enter flex flex-col" style={{ height: "calc(100vh - 76px)" }}>
       <ProjectGanttDB />
     </div>
   );

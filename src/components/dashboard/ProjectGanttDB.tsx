@@ -635,14 +635,14 @@ export default function ProjectGanttDB() {
   );
 
   return (
-    <div className="space-y-3 relative" style={{ overflowX: "clip" }} ref={containerRef}>
-      <div className="flex items-center gap-2 mb-3 mt-2">
+    <div className="flex flex-col gap-3 flex-1 min-h-0 relative" style={{ overflowX: "clip" }} ref={containerRef}>
+      <div className="flex items-center gap-2 mt-2 shrink-0">
         <CalendarRange size={16} className="text-amber-500" />
         <h2 className="text-lg font-bold text-slate-800 dark:text-white">Project Gantt</h2>
       </div>
 
       {/* Controls: search + ongoing badge + details | datepicker | phase | priority | unit */}
-      <div className="flex flex-wrap gap-2 items-center">
+      <div className="shrink-0 flex flex-wrap gap-2 items-center">
         {/* Search + ongoing count + details button */}
         <div className="flex items-center gap-2 flex-1 min-w-48">
           <label className="relative flex-1">
@@ -722,7 +722,7 @@ export default function ProjectGanttDB() {
       </div>
 
       {/* Legend + tool mode selector on the same row */}
-      <div className="flex items-center justify-between gap-4">
+      <div className="shrink-0 flex items-center justify-between gap-4">
         <div className="flex flex-wrap gap-x-4 gap-y-1 items-center">
           {PHASES.map(ph => (
             <div key={ph.key} className="flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400">
@@ -760,10 +760,10 @@ export default function ProjectGanttDB() {
       </div>
 
       {/* Gantt */}
-      <div className="rounded-xl overflow-clip border border-slate-200/60 dark:border-white/8 bg-white/60 dark:bg-zinc-900/50 backdrop-blur-sm">
+      <div className="flex-1 min-h-0 flex flex-col rounded-xl overflow-clip border border-slate-200/60 dark:border-white/8 bg-white/60 dark:bg-zinc-900/50 backdrop-blur-sm">
 
         {/* ── Sticky headers + top scrollbar ── */}
-        <div className="sticky top-0 z-30 bg-white dark:bg-zinc-900 rounded-t-2xl border-b border-slate-200/60 dark:border-white/8">
+        <div className="shrink-0 sticky top-0 z-30 bg-white dark:bg-zinc-900 rounded-t-2xl border-b border-slate-200/60 dark:border-white/8">
 
           {/* Top scrollbar strip — inside sticky so it stays visible while scrolling down */}
           <div
@@ -828,12 +828,11 @@ export default function ProjectGanttDB() {
         {/* ── Scrollable body ── */}
         <div
           ref={bodyRef}
-          className="overflow-x-auto no-scrollbar relative bg-white dark:bg-zinc-900"
-          style={{ height: "calc(100vh - 270px)", overflowY: "auto" }}
+          className="flex-1 min-h-0 overflow-x-auto overflow-y-auto no-scrollbar relative bg-white dark:bg-zinc-900"
           onScroll={onBodyScroll}
           onMouseLeave={() => setTooltip(null)}
         >
-          <div style={{ minWidth: `${240 + totalWidth}px` }} className="relative h-full">
+          <div style={{ minWidth: `${240 + totalWidth}px` }} className="relative min-h-full">
 
             {/* Full-height week grid — fills empty area below last project row */}
             <div className="absolute top-0 bottom-0 pointer-events-none" style={{ left: 240, width: totalWidth }}>
