@@ -47,6 +47,8 @@ export default function DashboardHome() {
   const [userActiveCount, setUserActiveCount] = useState(0);
   const [stakeholderCount, setStakeholderCount] = useState(0);
   const [stakeholderActiveCount, setStakeholderActiveCount] = useState(0);
+  const [rangeStart, setRangeStart] = useState("");
+  const [rangeEnd, setRangeEnd] = useState("");
 
   const fetchDashboardData = useCallback(async () => {
     try {
@@ -84,53 +86,65 @@ export default function DashboardHome() {
     fetchDashboardData();
   }, [fetchDashboardData]);
 
-  const today = Date.now();
+  const todayMidnight = useMemo(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; }, []);
+
+  const rangeFilteredProjects = useMemo(() => {
+    if (!rangeStart && !rangeEnd) return projects;
+    const rs = rangeStart ? new Date(rangeStart) : null;
+    const re = rangeEnd   ? new Date(rangeEnd)   : null;
+    return projects.filter((p) => {
+      const s = p.start_date ? new Date(p.start_date) : null;
+      const e = p.end_date   ? new Date(p.end_date)   : null;
+      if (rs && e && e < rs) return false;
+      if (re && s && s > re) return false;
+      return true;
+    });
+  }, [projects, rangeStart, rangeEnd]);
 
   const activeProjects = useMemo(
-    () => projects.filter((p) => (p.overall_progress_pct ?? 0) < 95),
-    [projects]
+    () => rangeFilteredProjects.filter((p) => (p.overall_progress_pct ?? 0) < 100),
+    [rangeFilteredProjects]
   );
 
   const overdueProjects = useMemo(
     () =>
       activeProjects.filter((p) => {
-        const end = p.pm_end || p.end_date;
-        return end ? new Date(end).getTime() < today : false;
+        return p.end_date ? new Date(p.end_date) < todayMidnight : false;
       }),
-    [activeProjects, today]
+    [activeProjects, todayMidnight]
   );
 
   const urgentProjects = useMemo(
     () => activeProjects.filter((p) => {
       const end = p.end_date ? new Date(p.end_date).getTime() : null;
       if (!end) return false;
-      const diff = end - today;
+      const diff = end - todayMidnight.getTime();
       return diff >= 0 && diff <= 3 * DAY_MS;
     }),
-    [activeProjects, today]
+    [activeProjects, todayMidnight]
   );
 
   const soonProjects = useMemo(
     () => activeProjects.filter((p) => {
       const end = p.end_date ? new Date(p.end_date).getTime() : null;
       if (!end) return false;
-      const diff = end - today;
+      const diff = end - todayMidnight.getTime();
       return diff > 3 * DAY_MS && diff <= 7 * DAY_MS;
     }),
-    [activeProjects, today]
+    [activeProjects, todayMidnight]
   );
 
   const completedProjects = useMemo(
     () =>
-      projects
-        .filter((p) => (p.overall_progress_pct ?? 0) >= 95)
+      rangeFilteredProjects
+        .filter((p) => (p.overall_progress_pct ?? 0) >= 100)
         .sort((a, b) => (b.overall_progress_pct ?? 0) - (a.overall_progress_pct ?? 0)),
-    [projects]
+    [rangeFilteredProjects]
   );
 
   const uniqueUnits = useMemo(
-    () => [...new Set(projects.map((p) => p.unit_code).filter(Boolean))],
-    [projects]
+    () => [...new Set(rangeFilteredProjects.map((p) => p.unit_code).filter(Boolean))],
+    [rangeFilteredProjects]
   );
 
   const phaseDistribution = useMemo(() => {
@@ -218,13 +232,37 @@ export default function DashboardHome() {
           <Home size={16} className="text-amber-500" />
           <h2 className="text-lg font-bold text-slate-800 dark:text-white">Dashboard Overview</h2>
         </div>
-        <div className="flex items-center gap-1.5 text-[11px]">
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Date range picker */}
+          <div className="flex items-center gap-1.5 text-[11px]">
+            <input
+              type="date"
+              value={rangeStart}
+              onChange={e => setRangeStart(e.target.value)}
+              className="rounded-lg border border-slate-200/70 dark:border-white/10 bg-white/70 dark:bg-zinc-900/60 px-2 py-1.5 text-[11px] text-slate-700 dark:text-slate-200 outline-none"
+            />
+            <span className="text-slate-400 text-[10px]">—</span>
+            <input
+              type="date"
+              value={rangeEnd}
+              onChange={e => setRangeEnd(e.target.value)}
+              className="rounded-lg border border-slate-200/70 dark:border-white/10 bg-white/70 dark:bg-zinc-900/60 px-2 py-1.5 text-[11px] text-slate-700 dark:text-slate-200 outline-none"
+            />
+            {(rangeStart || rangeEnd) && (
+              <button
+                onClick={() => { setRangeStart(""); setRangeEnd(""); }}
+                className="text-[10px] font-semibold text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 px-1.5 py-1 rounded hover:bg-slate-100 dark:hover:bg-white/8 transition-colors"
+              >
+                Clear
+              </button>
+            )}
+          </div>
           {loading ? (
-            <span className="text-blue-500 flex items-center gap-1.5 font-medium">
+            <span className="text-blue-500 flex items-center gap-1.5 font-medium text-[11px]">
               <Loader2 size={11} className="animate-spin" /> Loading...
             </span>
           ) : (
-            <span className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400 font-medium">
+            <span className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400 font-medium text-[11px]">
               <CheckCircle2 size={11} className="text-green-500" />
               Synced {lastSynced?.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
             </span>
@@ -316,7 +354,7 @@ export default function DashboardHome() {
           <div className="flex flex-col sm:flex-row items-center gap-6">
             {/* Chart with center text overlay */}
             <div className="relative w-56 h-56 shrink-0 cursor-pointer">
-              {projects.length > 0 ? (
+              {rangeFilteredProjects.length > 0 ? (
                 <>
                   <Doughnut
                     data={donutData}
@@ -331,7 +369,7 @@ export default function DashboardHome() {
                       </>
                     ) : (
                       <>
-                        <span className="text-3xl font-black text-slate-800 dark:text-white leading-none">{projects.length}</span>
+                        <span className="text-3xl font-black text-slate-800 dark:text-white leading-none">{rangeFilteredProjects.length}</span>
                         <span className="text-[9px] font-bold uppercase tracking-[0.18em] text-slate-400 mt-1">Projects</span>
                       </>
                     )}
@@ -347,7 +385,7 @@ export default function DashboardHome() {
               {DONUT_ITEMS.map((item, i) => {
                 const counts = [completedProjects.length, overdueProjects.length, Math.max(0, activeProjects.length - overdueProjects.length)];
                 const count = counts[i];
-                const pct = projects.length > 0 ? Math.round((count / projects.length) * 100) : 0;
+                const pct = rangeFilteredProjects.length > 0 ? Math.round((count / rangeFilteredProjects.length) * 100) : 0;
                 return (
                   <div key={item.label}>
                     <div className="flex items-center justify-between mb-1.5">
@@ -368,7 +406,7 @@ export default function DashboardHome() {
               })}
               <div className="flex items-center justify-between px-1 pt-1">
                 <span className="text-[9px] font-bold uppercase tracking-widest text-slate-400">Total</span>
-                <span className="text-sm font-black text-slate-700 dark:text-slate-200">{projects.length} projects</span>
+                <span className="text-sm font-black text-slate-700 dark:text-slate-200">{rangeFilteredProjects.length} projects</span>
               </div>
             </div>
           </div>

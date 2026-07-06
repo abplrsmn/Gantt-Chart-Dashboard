@@ -12,6 +12,7 @@ export async function GET() {
     // can dominate runtime for this kind of dashboard read (seconds vs ms),
     // so keep it off for the pooled session before running the query.
     await client.query("SET jit = off");
+    try { await client.query(`ALTER TABLE project_phases ADD COLUMN IF NOT EXISTS aps_date date`); } catch { /* already exists */ }
 
     const { rows } = await client.query(`
       WITH scurve_periods AS (
@@ -98,6 +99,7 @@ export async function GET() {
         pc.tender_start_date          AS control_start,
         (pc.tender_start_date + INTERVAL '21 days')::date AS aps_spk_target,
         pc.aps_spk_released_date      AS control_end,
+        pc.aps_date                   AS aps_date,
         pc.progress_pct               AS control_progress,
         pc.project_control_duration_days,
         pc.phase_contract_amount,
@@ -153,6 +155,9 @@ export async function GET() {
          WHERE cl.project_id = p.id AND cl.action_type = 'phase_advanced' AND cl.new_value = '3'
          ORDER BY cl.created_at DESC LIMIT 1) AS design_advance_note,
 
+        pa_contract.file_url          AS contract_file_url,
+        pa_contract.file_name         AS contract_file_name,
+
         (SELECT SUBSTRING(cl.change_summary FROM POSITION(':' IN cl.change_summary) + 2)
          FROM project_change_logs cl
          WHERE cl.project_id = p.id AND cl.action_type = 'phase_advanced' AND cl.new_value = '4'
@@ -177,6 +182,11 @@ export async function GET() {
       LEFT JOIN project_phases pc  ON pc.project_id = p.id AND pc.phase_id = 3
       LEFT JOIN project_phases pm  ON pm.project_id = p.id AND pm.phase_id = 4
       LEFT JOIN project_phases hv  ON hv.project_id = p.id AND hv.phase_id = 5
+      LEFT JOIN LATERAL (
+        SELECT file_url, file_name FROM project_attachments
+        WHERE project_id = p.id AND source_message_id = 'contract'
+        ORDER BY created_at DESC LIMIT 1
+      ) pa_contract ON true
 
       ORDER BY mpr.level ASC NULLS LAST, p.project_code
     `);
