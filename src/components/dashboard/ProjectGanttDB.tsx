@@ -635,7 +635,7 @@ export default function ProjectGanttDB() {
   );
 
   return (
-    <div className="flex flex-col gap-3 flex-1 min-h-0 relative" style={{ overflowX: "clip" }} ref={containerRef}>
+    <div className="flex flex-col gap-3 flex-1 min-h-0 relative" style={{ overflow: "clip" }} ref={containerRef}>
       <div className="flex items-center gap-2 mt-2 shrink-0">
         <CalendarRange size={16} className="text-amber-500" />
         <h2 className="text-lg font-bold text-slate-800 dark:text-white">Project Gantt</h2>
