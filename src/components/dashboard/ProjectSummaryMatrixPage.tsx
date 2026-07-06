@@ -102,15 +102,15 @@ export default function ProjectSummaryMatrixPage() {
   const hasFilter = phaseFilter !== "ALL" || prioFilter !== "ALL" || picFilter !== "ALL" || search;
 
   return (
-    <div className="space-y-4 pb-6 animate-page-enter">
+    <div className="flex flex-col gap-3 flex-1 min-h-0" style={{ overflow: "clip" }}>
       {/* Page title */}
-      <div className="flex items-center gap-2 mb-3 mt-2">
+      <div className="flex items-center gap-2 mt-2 shrink-0">
         <TableProperties size={16} className="text-teal-500 shrink-0" />
         <h2 className="text-lg font-bold text-slate-800 dark:text-white">Summary Matrix</h2>
       </div>
 
       {/* Toolbar: Search | Filters */}
-      <div className="flex items-center gap-3 mb-4">
+      <div className="shrink-0 flex items-center gap-3">
 
         {/* Search — grows to fill middle */}
         <div className="flex-1 flex justify-center">
@@ -143,7 +143,7 @@ export default function ProjectSummaryMatrixPage() {
         </div>
       </div>
 
-      <ProjectSummaryMatrix projects={filteredProjects} />
+      <ProjectSummaryMatrix projects={filteredProjects} className="flex-1 min-h-0" />
     </div>
   );
 }

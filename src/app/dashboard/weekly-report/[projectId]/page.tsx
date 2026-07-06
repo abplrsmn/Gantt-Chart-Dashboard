@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, Suspense } from "react";
 import { createPortal } from "react-dom";
 import { useRouter, useParams, useSearchParams } from "next/navigation";
 import {
@@ -166,6 +166,14 @@ function SectionHeader({ icon: Icon, title }: { icon: React.ElementType; title: 
 // ── Page ─────────────────────────────────────────────────────────────────────
 
 export default function ProjectReportPage() {
+  return (
+    <Suspense fallback={<div className="flex justify-center py-20"><div className="w-5 h-5 border-2 border-brand-sienna/40 border-t-brand-sienna rounded-full animate-spin" /></div>}>
+      <ProjectReportContent />
+    </Suspense>
+  );
+}
+
+function ProjectReportContent() {
   const router       = useRouter();
   const params       = useParams();
   const searchParams = useSearchParams();

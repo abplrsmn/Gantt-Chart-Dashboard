@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const body = await req.json();
-  const { full_name, email, nickname, department, job_title, employee_code, phone_number, is_active } = body;
+  const { full_name, email, nickname, department, job_title, phone_number, is_active } = body;
   if (!full_name?.trim())
     return NextResponse.json({ success: false, error: "full_name is required" }, { status: 400 });
 
@@ -14,10 +14,9 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const client = await pool.connect();
   try {
     const { rows } = await client.query(
-      `UPDATE master_people SET employee_code=$1, full_name=$2, nickname=$3, department=$4, job_title=$5, email=$6, phone_number=$7, is_active=$8
-       WHERE id=$9 RETURNING *`,
+      `UPDATE master_people SET full_name=$1, nickname=$2, department=$3, job_title=$4, email=$5, phone_number=$6, is_active=$7
+       WHERE id=$8 RETURNING *`,
       [
-        employee_code?.trim() || null,
         full_name.trim(),
         nickname?.trim() || null,
         department?.trim() || null,

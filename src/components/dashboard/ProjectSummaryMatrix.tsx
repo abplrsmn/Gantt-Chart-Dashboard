@@ -42,6 +42,7 @@ type SummaryProject = {
 
 interface Props {
   projects: SummaryProject[];
+  className?: string;
 }
 
 function toDate(val: string | null | undefined): Date | null {
@@ -196,6 +197,7 @@ function InlineCell({
 
 export default function ProjectSummaryMatrix({
   projects: initialProjects,
+  className = "",
 }: Props) {
   const router = useRouter();
   const [projects, setProjects] = useState<SummaryProject[]>(initialProjects);
@@ -248,7 +250,7 @@ export default function ProjectSummaryMatrix({
   const COL_WIDTHS = [80, 288, ...Array(23).fill(112)];
 
   return (
-    <div className="rounded-xl overflow-clip border border-slate-200/60 dark:border-white/8 bg-white/60 dark:bg-zinc-900/50 backdrop-blur-sm" style={{ overflowX: "clip" }}>
+    <div className={`flex flex-col rounded-xl border border-slate-200/60 dark:border-white/8 bg-white/60 dark:bg-zinc-900/50 backdrop-blur-sm ${className}`} style={{ overflow: "clip" }}>
 
       {/* ── Sticky header section — page-level sticky, outside body scroll container ── */}
       <div className="sticky top-0 z-50 bg-white dark:bg-zinc-900 rounded-t-2xl shadow-sm">
@@ -289,7 +291,7 @@ export default function ProjectSummaryMatrix({
       </div>
 
       {/* ── Body — horizontal scroll only, page handles vertical ── */}
-      <div ref={bodyRef} className="overflow-x-auto no-scrollbar" style={{ maxHeight: "calc(100vh - 290px)", overflowY: "auto" }} onScroll={onBodyScroll}>
+      <div ref={bodyRef} className="flex-1 min-h-0 overflow-x-auto overflow-y-auto no-scrollbar" onScroll={onBodyScroll}>
         <table className="w-full border-separate border-spacing-0 text-[10px] text-slate-700 dark:text-slate-200" style={{ minWidth: innerWidth }}>
           <colgroup>{COL_WIDTHS.map((w, i) => <col key={i} style={{ width: w, minWidth: w }} />)}</colgroup>
           <tbody>
