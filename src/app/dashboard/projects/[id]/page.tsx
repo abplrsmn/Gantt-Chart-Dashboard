@@ -11,6 +11,7 @@ import {
   Camera, Trash2, Loader2, X, Plus, Upload, CheckSquare, Square
 } from "lucide-react";
 import SCurveCharts from "@/components/dashboard/SCurveCharts";
+import ScurveImportModal from "@/components/dashboard/ScurveImportModal";
 import AnimatedDropdown from "@/components/dashboard/AnimatedDropdown";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -875,6 +876,7 @@ function ProjectDetailContent() {
   const [tasks, setTasks]           = useState<TaskRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState<string | null>(null);
+  const [showImportModal, setShowImportModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [exitingConfirm,    setExitingConfirm]    = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -1809,8 +1811,25 @@ function ProjectDetailContent() {
       </div>
 
       {/* ── S-Curve ────────────────────────────────────────────────────── */}
+      {showImportModal && (
+        <ScurveImportModal
+          projectId={project.id}
+          baseYear={project.pm_start ? new Date(project.pm_start).getFullYear() : new Date().getFullYear()}
+          onImported={() => { window.location.reload(); }}
+          onClose={() => setShowImportModal(false)}
+        />
+      )}
       {project.current_phase_code === "project_management" && scProject ? (
-        <SCurveCharts projects={[scProject]} />
+        <div className="relative">
+          <button
+            onClick={() => setShowImportModal(true)}
+            className="absolute top-4 right-4 z-10 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold bg-green-500/10 hover:bg-green-500/20 text-green-600 dark:text-green-400 border border-green-500/20 hover:border-green-500/40 transition-all"
+          >
+            <Upload size={12} />
+            Import Excel
+          </button>
+          <SCurveCharts projects={[scProject]} />
+        </div>
       ) : (
         <div className="glass-card p-8 flex flex-col items-center justify-center gap-3 text-center min-h-40 border-dashed opacity-60">
           <div className="w-10 h-10 rounded-lg bg-teal-500/10 flex items-center justify-center">
