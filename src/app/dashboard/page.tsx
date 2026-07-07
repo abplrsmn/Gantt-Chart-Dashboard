@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { Doughnut } from "react-chartjs-2";
 import { PHASE_LIST, DEFAULT_PHASE_COLOR } from "@/lib/phases";
+import DateRangePicker, { DateRange } from "@/components/dashboard/DateRangePicker";
 import {
   Chart as ChartJS, ArcElement, Tooltip, Legend,
 } from "chart.js";
@@ -47,8 +48,7 @@ export default function DashboardHome() {
   const [userActiveCount, setUserActiveCount] = useState(0);
   const [stakeholderCount, setStakeholderCount] = useState(0);
   const [stakeholderActiveCount, setStakeholderActiveCount] = useState(0);
-  const [rangeStart, setRangeStart] = useState("");
-  const [rangeEnd, setRangeEnd] = useState("");
+  const [dateRange, setDateRange] = useState<DateRange>({ start: "", end: "" });
 
   const fetchDashboardData = useCallback(async () => {
     try {
@@ -89,9 +89,9 @@ export default function DashboardHome() {
   const todayMidnight = useMemo(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; }, []);
 
   const rangeFilteredProjects = useMemo(() => {
-    if (!rangeStart && !rangeEnd) return projects;
-    const rs = rangeStart ? new Date(rangeStart) : null;
-    const re = rangeEnd   ? new Date(rangeEnd)   : null;
+    if (!dateRange.start && !dateRange.end) return projects;
+    const rs = dateRange.start ? new Date(dateRange.start) : null;
+    const re = dateRange.end   ? new Date(dateRange.end)   : null;
     return projects.filter((p) => {
       const s = p.start_date ? new Date(p.start_date) : null;
       const e = p.end_date   ? new Date(p.end_date)   : null;
@@ -99,7 +99,7 @@ export default function DashboardHome() {
       if (re && s && s > re) return false;
       return true;
     });
-  }, [projects, rangeStart, rangeEnd]);
+  }, [projects, dateRange]);
 
   const activeProjects = useMemo(
     () => rangeFilteredProjects.filter((p) => (p.overall_progress_pct ?? 0) < 100),
@@ -233,30 +233,7 @@ export default function DashboardHome() {
           <h2 className="text-lg font-bold text-slate-800 dark:text-white">Dashboard Overview</h2>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          {/* Date range picker */}
-          <div className="flex items-center gap-1.5 text-[11px]">
-            <input
-              type="date"
-              value={rangeStart}
-              onChange={e => setRangeStart(e.target.value)}
-              className="rounded-lg border border-slate-200/70 dark:border-white/10 bg-white/70 dark:bg-zinc-900/60 px-2 py-1.5 text-[11px] text-slate-700 dark:text-slate-200 outline-none"
-            />
-            <span className="text-slate-400 text-[10px]">—</span>
-            <input
-              type="date"
-              value={rangeEnd}
-              onChange={e => setRangeEnd(e.target.value)}
-              className="rounded-lg border border-slate-200/70 dark:border-white/10 bg-white/70 dark:bg-zinc-900/60 px-2 py-1.5 text-[11px] text-slate-700 dark:text-slate-200 outline-none"
-            />
-            {(rangeStart || rangeEnd) && (
-              <button
-                onClick={() => { setRangeStart(""); setRangeEnd(""); }}
-                className="text-[10px] font-semibold text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 px-1.5 py-1 rounded hover:bg-slate-100 dark:hover:bg-white/8 transition-colors"
-              >
-                Clear
-              </button>
-            )}
-          </div>
+          <DateRangePicker value={dateRange} onChange={setDateRange} />
           {loading ? (
             <span className="text-blue-500 flex items-center gap-1.5 font-medium text-[11px]">
               <Loader2 size={11} className="animate-spin" /> Loading...
