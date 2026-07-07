@@ -13,6 +13,7 @@ export async function GET() {
     // so keep it off for the pooled session before running the query.
     await client.query("SET jit = off");
     try { await client.query(`ALTER TABLE project_phases ADD COLUMN IF NOT EXISTS aps_date date`); } catch { /* already exists */ }
+    try { await client.query(`ALTER TABLE project_phases ADD COLUMN IF NOT EXISTS tender_finish_target date`); } catch { /* already exists */ }
 
     const { rows } = await client.query(`
       WITH scurve_periods AS (
@@ -97,7 +98,7 @@ export async function GET() {
         ) AS design_pic,
 
         pc.tender_start_date          AS control_start,
-        (pc.tender_start_date + INTERVAL '21 days')::date AS aps_spk_target,
+        COALESCE(pc.tender_finish_target, (pc.tender_start_date + INTERVAL '21 days')::date) AS aps_spk_target,
         pc.aps_spk_released_date      AS control_end,
         pc.aps_date                   AS aps_date,
         pc.progress_pct               AS control_progress,

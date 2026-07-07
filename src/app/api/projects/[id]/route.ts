@@ -33,6 +33,7 @@ const FIELD_MAP: Record<string, FieldMap> = {
   design_brief:                 { table: "project_phases", column: "brief_text",                     phaseId: 2 },
   control_start:                { table: "project_phases", column: "tender_start_date",              phaseId: 3 },
   control_end:                  { table: "project_phases", column: "aps_spk_released_date",          phaseId: 3 },
+  aps_spk_target:               { table: "project_phases", column: "tender_finish_target",            phaseId: 3 },
   aps_date:                     { table: "project_phases", column: "aps_date",                       phaseId: 3 },
   project_control_duration_days:{ table: "project_phases", column: "project_control_duration_days",  phaseId: 3 },
   phase_contract_amount:        { table: "project_phases", column: "phase_contract_amount",          phaseId: 3 },

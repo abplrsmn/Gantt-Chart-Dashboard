@@ -376,16 +376,14 @@ export default function ProjectSummaryMatrix({
                 <td className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2">
                   <InlineCell value={project.design_start} type="date" projectId={project.id} field="design_start" onSaved={(f, v) => onSaved(project.id, f, v)} className="font-mono whitespace-nowrap" />
                 </td>
-                {/* Design Approval — Target (calculated, readonly) */}
-                <td className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2 font-mono text-slate-400 dark:text-slate-500 whitespace-nowrap text-[10px]">
-                  {fmtSummaryDate(project.design_approval_target)}
+                <td className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2">
+                  <InlineCell value={project.design_approval_target} type="date" projectId={project.id} field="design_approval_target" onSaved={(f, v) => onSaved(project.id, f, v)} className="font-mono whitespace-nowrap" />
                 </td>
-                {/* Design Approval — Real (editable) */}
                 <td className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2">
                   <InlineCell value={project.design_end} type="date" projectId={project.id} field="design_end" onSaved={(f, v) => onSaved(project.id, f, v)} className="font-mono whitespace-nowrap" />
                 </td>
-                <td className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2 font-mono text-center">
-                  {fmtSummaryDuration(project.design_duration_days)}
+                <td className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2">
+                  <InlineCell value={project.design_duration_days != null ? String(project.design_duration_days) : null} type="text" projectId={project.id} field="design_duration_days" onSaved={(f, v) => onSaved(project.id, f, v)} className="font-mono text-center whitespace-nowrap" />
                 </td>
                 <td className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2 whitespace-pre-wrap">
                   <InlineCell value={project.design_brief} type="text" projectId={project.id} field="design_brief" onSaved={(f, v) => onSaved(project.id, f, v)} />
@@ -396,16 +394,14 @@ export default function ProjectSummaryMatrix({
                 <td className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2">
                   <InlineCell value={project.control_start} type="date" projectId={project.id} field="control_start" onSaved={(f, v) => onSaved(project.id, f, v)} className="font-mono whitespace-nowrap" />
                 </td>
-                {/* APS/SPK Target (calculated, readonly) */}
-                <td className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2 font-mono text-slate-400 dark:text-slate-500 whitespace-nowrap text-[10px]">
-                  {fmtSummaryDate(project.aps_spk_target)}
+                <td className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2">
+                  <InlineCell value={project.aps_spk_target} type="date" projectId={project.id} field="aps_spk_target" onSaved={(f, v) => onSaved(project.id, f, v)} className="font-mono whitespace-nowrap" />
                 </td>
-                {/* APS/SPK Real (editable) */}
                 <td className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2">
                   <InlineCell value={project.control_end} type="date" projectId={project.id} field="control_end" onSaved={(f, v) => onSaved(project.id, f, v)} className="font-mono whitespace-nowrap" />
                 </td>
-                <td className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2 font-mono text-center">
-                  {fmtSummaryDuration(project.project_control_duration_days)}
+                <td className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2">
+                  <InlineCell value={project.project_control_duration_days != null ? String(project.project_control_duration_days) : null} type="text" projectId={project.id} field="project_control_duration_days" onSaved={(f, v) => onSaved(project.id, f, v)} className="font-mono text-center whitespace-nowrap" />
                 </td>
                 {/* APS date */}
                 <td className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2">
@@ -427,10 +423,8 @@ export default function ProjectSummaryMatrix({
                   <InlineCell value={project.phase_contract_amount} type="money" projectId={project.id} field="phase_contract_amount" onSaved={(f, v) => onSaved(project.id, f, v)} className="font-mono text-right whitespace-nowrap" />
                 </td>
                 {/* PROJECT: +/- (deviation) */}
-                <td className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2 font-mono text-center text-[10px]">
-                  <span className={Number(project.deviation_days) < 0 ? "text-red-500" : Number(project.deviation_days) > 0 ? "text-emerald-600" : "text-slate-400"}>
-                    {fmtSummaryDuration(project.deviation_days)}
-                  </span>
+                <td className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2">
+                  <InlineCell value={project.deviation_days != null ? String(project.deviation_days) : null} type="text" projectId={project.id} field="deviation_days" onSaved={(f, v) => onSaved(project.id, f, v)} className="font-mono text-center whitespace-nowrap" />
                 </td>
                 {/* PROJECT: START */}
                 <td className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2">
@@ -444,15 +438,13 @@ export default function ProjectSummaryMatrix({
                 <td className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2">
                   <InlineCell value={project.pm_actual_end} type="date" projectId={project.id} field="pm_actual_end" onSaved={(f, v) => onSaved(project.id, f, v)} className="font-mono whitespace-nowrap" />
                 </td>
-                {/* duration: month (weeks) */}
-                <td className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2 font-mono text-center text-[10px] text-slate-500 dark:text-slate-400">
+                {/* duration: month (weeks) — calculated from pm_start/pm_end, display only */}
+                <td className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2 font-mono text-center text-[10px]">
                   {project.pm_duration_days ? `${Math.round(Number(project.pm_duration_days) / 7)}w` : "—"}
                 </td>
                 {/* duration: +/- (deviation days) */}
-                <td className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2 font-mono text-center text-[10px]">
-                  <span className={Number(project.deviation_days) < 0 ? "text-red-500" : Number(project.deviation_days) > 0 ? "text-emerald-600" : "text-slate-400"}>
-                    {fmtSummaryDuration(project.deviation_days)}
-                  </span>
+                <td className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2">
+                  <InlineCell value={project.deviation_days != null ? String(project.deviation_days) : null} type="text" projectId={project.id} field="deviation_days" onSaved={(f, v) => onSaved(project.id, f, v)} className="font-mono text-center whitespace-nowrap" />
                 </td>
                 {/* progress ss % */}
                 <td className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2 whitespace-pre-wrap">
