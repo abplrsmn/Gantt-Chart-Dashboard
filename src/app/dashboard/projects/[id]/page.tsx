@@ -1820,14 +1820,16 @@ function ProjectDetailContent() {
         />
       )}
       {project.current_phase_code === "project_management" && scProject ? (
-        <div className="relative">
-          <button
-            onClick={() => setShowImportModal(true)}
-            className="absolute top-4 right-4 z-10 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold bg-green-500/10 hover:bg-green-500/20 text-green-600 dark:text-green-400 border border-green-500/20 hover:border-green-500/40 transition-all"
-          >
-            <Upload size={12} />
-            Import Excel
-          </button>
+        <div>
+          <div className="flex justify-end mb-2">
+            <button
+              onClick={() => setShowImportModal(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold bg-green-500/10 hover:bg-green-500/20 text-green-600 dark:text-green-400 border border-green-500/20 hover:border-green-500/40 transition-all"
+            >
+              <Upload size={12} />
+              Import Excel
+            </button>
+          </div>
           <SCurveCharts projects={[scProject]} />
         </div>
       ) : (
