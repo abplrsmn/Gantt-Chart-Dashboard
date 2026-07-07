@@ -154,6 +154,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   let client;
   try {
     client = await pool.connect();
+    try { await client.query(`ALTER TABLE project_phases ADD COLUMN IF NOT EXISTS aps_date date`); } catch { /* already exists */ }
+    try { await client.query(`ALTER TABLE project_phases ADD COLUMN IF NOT EXISTS tender_finish_target date`); } catch { /* already exists */ }
     const [projectRes, peopleRes, logsRes, attachmentsRes, tasksRes] = await Promise.all([
       client.query(`
         SELECT
@@ -189,8 +191,9 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
           ds.notes                    AS design_notes,
 
           pc.tender_start_date        AS control_start,
-          (pc.tender_start_date + INTERVAL '21 days')::date AS aps_spk_target,
+          COALESCE(pc.tender_finish_target, (pc.tender_start_date + INTERVAL '21 days')::date) AS aps_spk_target,
           pc.aps_spk_released_date    AS control_end,
+          pc.aps_date                 AS aps_date,
           pc.project_control_duration_days,
           pc.progress_pct             AS control_progress,
           pc.phase_contract_amount,
