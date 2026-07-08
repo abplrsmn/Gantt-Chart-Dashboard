@@ -28,11 +28,8 @@ function timingSafeEqual(a: Uint8Array, b: Uint8Array): boolean {
   return diff === 0;
 }
 
-// NextAuth v5 session cookie names
-const NEXTAUTH_COOKIE_NAMES = ["authjs.session-token", "__Secure-authjs.session-token"];
-
 function hasNextAuthSession(request: NextRequest): boolean {
-  return NEXTAUTH_COOKIE_NAMES.some(name => !!request.cookies.get(name)?.value);
+  return request.cookies.getAll().some(c => c.name.includes("authjs.session-token") && !!c.value);
 }
 
 async function isValidAuthToken(token: string | undefined): Promise<boolean> {
