@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
-  Home, Users, AlertTriangle, Server, CalendarRange,
+  Home, Users, AlertTriangle, CalendarRange,
   Bell, X, Database, BarChart2, ShieldAlert, SunMoon, LogOut, Settings, TableProperties,
 } from "lucide-react";
 import { useTheme } from "@/components/ThemeProvider";
@@ -195,7 +195,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { icon: <BarChart2 size={16} />,        label: "Report",        path: "/dashboard/weekly-report" },
     { icon: <Users size={16} />,            label: "Team",          path: "/dashboard/team" },
     { icon: <ShieldAlert size={16} />,      label: "Alerts",        path: "/dashboard/alerts", badge: alertCount },
-    { icon: <Server size={16} />,           label: "Controls",      path: "/dashboard/controls" },
     { icon: <Database size={16} />,         label: "Master Setup",  path: "/dashboard/master" },
   ];
 
