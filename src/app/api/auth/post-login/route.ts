@@ -3,7 +3,7 @@ import { auth } from "@/auth"
 
 export async function GET(request: Request) {
   const session = await auth()
-  const base = new URL(request.url).origin
+  const base = process.env.AUTH_URL ?? new URL(request.url).origin
 
   if (!session?.user) {
     return NextResponse.redirect(new URL("/", base))
