@@ -60,7 +60,7 @@ function LoginForm() {
   const handleGoogle = async () => {
     setGoogleLoading(true);
     setError("");
-    await signIn("google", { callbackUrl: "/dashboard" });
+    await signIn("google", { callbackUrl: "/api/auth/post-login" });
   };
 
   return (
