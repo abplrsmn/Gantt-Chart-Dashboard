@@ -11,14 +11,20 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   ],
   callbacks: {
     async signIn({ user }) {
+      console.log("[auth] signIn called, email:", user.email)
       if (!user.email) return false
-      // Only allow emails registered in master_acc
-      const pool = getDbPool()
-      const { rows } = await pool.query(
-        `SELECT id FROM master_acc WHERE lower(email) = lower($1) AND is_active = true LIMIT 1`,
-        [user.email]
-      )
-      return rows.length > 0
+      try {
+        const pool = getDbPool()
+        const { rows } = await pool.query(
+          `SELECT id FROM master_acc WHERE lower(email) = lower($1) AND is_active = true LIMIT 1`,
+          [user.email]
+        )
+        console.log("[auth] DB result rows:", rows.length)
+        return rows.length > 0
+      } catch (err) {
+        console.error("[auth] signIn DB error:", err)
+        return false
+      }
     },
 
     async jwt({ token, user }) {
