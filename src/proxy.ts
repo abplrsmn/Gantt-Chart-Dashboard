@@ -29,6 +29,13 @@ function timingSafeEqual(a: Uint8Array, b: Uint8Array): boolean {
   return diff === 0;
 }
 
+// NextAuth v5 session cookie names
+const NEXTAUTH_COOKIE_NAMES = ["authjs.session-token", "__Secure-authjs.session-token"];
+
+function hasNextAuthSession(request: NextRequest): boolean {
+  return NEXTAUTH_COOKIE_NAMES.some(name => !!request.cookies.get(name)?.value);
+}
+
 async function isValidAuthToken(token: string | undefined): Promise<boolean> {
   if (!token) return false;
 
@@ -72,7 +79,7 @@ export async function proxy(request: NextRequest) {
   if (!needsAuth) return NextResponse.next();
 
   const authCookie = request.cookies.get(AUTH_COOKIE_NAME)?.value;
-  const isAuthed = await isValidAuthToken(authCookie);
+  const isAuthed = await isValidAuthToken(authCookie) || hasNextAuthSession(request);
 
   if (!isAuthed) {
     if (pathname.startsWith("/api/")) {
@@ -82,6 +89,7 @@ export async function proxy(request: NextRequest) {
   }
 
   // PM users can only access /dashboard/projects/*
+  // (Google SSO users without user_role cookie are treated as pm until session enriches)
   if (pathname.startsWith("/dashboard") && !pathname.startsWith("/dashboard/projects")) {
     const role = request.cookies.get("user_role")?.value;
     if (role === "pm") {
