@@ -10,8 +10,7 @@ export async function GET(request: Request) {
   }
 
   const role = session.user.role
-  const targetPath = role === "pm" ? "/dashboard/projects/gantt" : "/dashboard"
-  const response = NextResponse.redirect(new URL(targetPath, base))
+  const response = NextResponse.redirect(new URL("/dashboard", base))
 
   if (role) {
     response.cookies.set("user_role", role, { httpOnly: false, sameSite: "lax", path: "/" })
