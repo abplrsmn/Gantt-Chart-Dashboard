@@ -29,7 +29,8 @@ function timingSafeEqual(a: Uint8Array, b: Uint8Array): boolean {
 }
 
 function hasNextAuthSession(request: NextRequest): boolean {
-  return request.cookies.getAll().some(c => c.name.includes("authjs.session-token") && !!c.value);
+  const cookieHeader = request.headers.get("cookie") ?? ""
+  return cookieHeader.includes("authjs.session-token=")
 }
 
 async function isValidAuthToken(token: string | undefined): Promise<boolean> {
