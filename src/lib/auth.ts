@@ -143,3 +143,27 @@ export async function getAuthUserFromCookie(): Promise<AuthUser | null> {
   if (!token) return null;
   return decodeToken(token);
 }
+
+// Works for both Google SSO (NextAuth session) and email/password (custom cookie)
+export async function getAuthUser(): Promise<AuthUser | null> {
+  // Try existing custom cookie first
+  const fromCookie = await getAuthUserFromCookie();
+  if (fromCookie) return fromCookie;
+
+  // Fall back to NextAuth Google session
+  try {
+    const { auth } = await import("@/auth");
+    const session = await auth();
+    if (!session?.user?.accId) return null;
+    return {
+      accId:    session.user.accId,
+      personId: null,
+      email:    session.user.email,
+      isAdmin:  session.user.isAdmin,
+      role:     session.user.role,
+      fullName: session.user.fullName,
+    };
+  } catch {
+    return null;
+  }
+}
