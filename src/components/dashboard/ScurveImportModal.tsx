@@ -37,7 +37,6 @@ const ID_MONTHS: Record<string, number> = {
 function parsePeriodDate(header: string, year: number, prevDate: Date | null): Date | null {
   if (!header || typeof header !== "string") return null;
   const clean = header.trim().toLowerCase();
-  // Match "15-26 feb", "27-6 mar", "7-14 mar"
   const m = clean.match(/^(\d+)[–\-](\d+)\s+([a-z]+)/);
   if (!m) return null;
   const startDay = parseInt(m[1]);
@@ -45,17 +44,26 @@ function parsePeriodDate(header: string, year: number, prevDate: Date | null): D
   const monthKey = m[3].slice(0, 3);
   const monthIdx = ID_MONTHS[monthKey];
   if (monthIdx === undefined) return null;
-
-  // If startDay > endDay the period spans a month boundary → start is in the previous month
   if (startDay > endDay) {
     const prevMonth = monthIdx === 0 ? 11 : monthIdx - 1;
     const prevYear = monthIdx === 0 ? year - 1 : year;
     return new Date(prevYear, prevMonth, startDay);
   }
-  // Start and end in same month
-  // Use prevDate's year if we've crossed into a new year
   const useYear = prevDate && monthIdx < prevDate.getMonth() ? year + 1 : year;
   return new Date(useYear, monthIdx, startDay);
+}
+
+function parseDateCell(cell: unknown): Date | null {
+  if (cell instanceof Date && !isNaN(cell.getTime())) return cell;
+  // Excel date serial (days since 1900-01-01, with 1900 leap-year bug offset)
+  if (typeof cell === "number" && cell > 40000) {
+    return new Date(Math.round((cell - 25569) * 86400000));
+  }
+  if (typeof cell === "string") {
+    const d = new Date(cell);
+    if (!isNaN(d.getTime())) return d;
+  }
+  return null;
 }
 
 function toISODate(d: Date): string {
@@ -64,7 +72,9 @@ function toISODate(d: Date): string {
 
 // ─── Excel parser ─────────────────────────────────────────────────────────────
 
-const SKIP_TITLES = new Set([
+const SKIP_KEYWORDS_NEW = ["sub total", "total", "grand total", "rencana", "realisasi", "kumulatif"];
+
+const SKIP_TITLES_OLD = new Set([
   "bobot rencana", "bobot rencana kumulatif",
   "bobot realisasi kumulatif", "keterangan",
 ]);
@@ -75,24 +85,145 @@ function parseExcel(file: File, baseYear: number): Promise<ParsedData> {
     reader.onload = (e) => {
       try {
         const data = new Uint8Array(e.target!.result as ArrayBuffer);
-        const wb = XLSX.read(data, { type: "array" });
+        // cellDates: true → date cells come as JS Date objects (not serial numbers)
+        const wb = XLSX.read(data, { type: "array", cellDates: true });
         const ws = wb.Sheets[wb.SheetNames[0]];
-        // Convert to 2D array (raw values)
-        const rows: (string | number | null)[][] = XLSX.utils.sheet_to_json(ws, {
+        const rows: unknown[][] = XLSX.utils.sheet_to_json(ws, {
           header: 1,
           defval: null,
           raw: true,
-        }) as (string | number | null)[][];
+        }) as unknown[][];
 
         const warnings: string[] = [];
 
-        // ── Find the date header row ──────────────────────────────────────────
-        // It's the row where column C+ contains date-range strings like "15-26 Feb"
+        // ── Detect new format: find any row with a cell exactly equal to "BOBOT" ──
+        let headerRowIdx = -1;
+        let bobotCol = -1;
+
+        for (let r = 0; r < rows.length; r++) {
+          const row = rows[r] as unknown[];
+          for (let c = 0; c < row.length; c++) {
+            if (String(row[c] ?? "").trim().toLowerCase() === "bobot") {
+              headerRowIdx = r;
+              bobotCol = c;
+              break;
+            }
+          }
+          if (headerRowIdx !== -1) break;
+        }
+
+        if (headerRowIdx !== -1) {
+          // ── NEW FORMAT: TIME SCHEDULE style ───────────────────────────────
+          const periodStartCol = bobotCol + 1;
+          const headerRow = rows[headerRowIdx] as unknown[];
+          const periodCount = headerRow.length - periodStartCol;
+
+          const periodLabels = Array.from({ length: periodCount }, (_, i) =>
+            String(headerRow[periodStartCol + i] ?? `P${i + 1}`).trim()
+          );
+
+          // Start dates: first row after header where period cols contain dates
+          const periodDates: Date[] = [];
+          for (let r = headerRowIdx + 1; r < Math.min(headerRowIdx + 6, rows.length); r++) {
+            const row = rows[r] as unknown[];
+            const firstDate = parseDateCell(row[periodStartCol]);
+            if (firstDate) {
+              for (let c = 0; c < periodCount; c++) {
+                const d = parseDateCell(row[periodStartCol + c]);
+                periodDates.push(d ?? new Date(firstDate.getTime() + c * 7 * 86400000));
+              }
+              break;
+            }
+          }
+
+          if (periodDates.length === 0) {
+            const base = new Date(baseYear, 0, 1);
+            for (let i = 0; i < periodCount; i++) periodDates.push(new Date(base.getTime() + i * 7 * 86400000));
+            warnings.push("Tanggal periode tidak ditemukan — pakai sequential dates.");
+          }
+
+          // REALISASI row: scan from bottom, find col0 === "realisasi"
+          const actualsPerPeriod: number[] = new Array(periodCount).fill(0);
+          let foundActuals = false;
+          for (let r = rows.length - 1; r >= headerRowIdx + 1; r--) {
+            const row = rows[r] as unknown[];
+            if (String(row[0] ?? "").trim().toLowerCase() === "realisasi") {
+              for (let c = 0; c < periodCount; c++) {
+                const v = Number(row[periodStartCol + c] ?? 0);
+                actualsPerPeriod[c] = isNaN(v) ? 0 : v;
+              }
+              foundActuals = true;
+              break;
+            }
+          }
+          if (!foundActuals) warnings.push("Baris 'REALISASI' tidak ditemukan — actual values akan 0.");
+
+          // Task rows
+          const tasks: ImportTask[] = [];
+          const plannedPerPeriod: number[] = new Array(periodCount).fill(0);
+
+          for (let r = headerRowIdx + 1; r < rows.length; r++) {
+            const row = rows[r] as unknown[];
+            const col0 = String(row[0] ?? "").trim();
+            const col1 = String(row[1] ?? "").trim();
+            const col2 = String(row[2] ?? "").trim();
+
+            if (!col0 && !col1) continue;
+
+            const combined = (col0 + " " + col1 + " " + col2).toLowerCase();
+            if (SKIP_KEYWORDS_NEW.some(kw => combined.includes(kw))) continue;
+
+            const bobot = Number(row[bobotCol] ?? 0);
+            if (isNaN(bobot) || bobot <= 0) continue;
+
+            const title = col1 || col0;
+            const planned: number[] = [];
+            for (let c = 0; c < periodCount; c++) {
+              const v = Number(row[periodStartCol + c] ?? 0);
+              const safe = isNaN(v) ? 0 : v;
+              planned.push(safe);
+              plannedPerPeriod[c] += safe;
+            }
+
+            tasks.push({
+              title,
+              weight_pct: bobot,
+              periods: periodDates.map((d, ci) => ({
+                period_order: ci + 1,
+                period_start: toISODate(d),
+                planned_weight: planned[ci],
+                actual_weight: 0,
+              })),
+            });
+          }
+
+          if (tasks.length === 0) {
+            reject(new Error("Tidak ada task yang ditemukan. Pastikan kolom BOBOT ada dan bernilai > 0."));
+            return;
+          }
+
+          // Distribute actuals proportionally
+          for (let ci = 0; ci < periodCount; ci++) {
+            const totalActual = actualsPerPeriod[ci];
+            if (totalActual === 0) continue;
+            const totalPlanned = plannedPerPeriod[ci];
+            for (const task of tasks) {
+              const p = task.periods[ci];
+              if (!p || totalPlanned === 0 || p.planned_weight === 0) continue;
+              p.actual_weight = parseFloat(((totalActual * p.planned_weight) / totalPlanned).toFixed(4));
+            }
+          }
+
+          resolve({ tasks, periodLabels, warnings });
+          return;
+        }
+
+        // ── OLD FORMAT: date-range strings in first 10 rows ──────────────────
         let dateRowIdx = -1;
-        let dataColStart = 2; // default: col index where data starts
+        let dataColStart = 2;
 
         for (let r = 0; r < Math.min(10, rows.length); r++) {
-          const row = rows[r];
+          const row = rows[r] as unknown[];
           let dateColCount = 0;
           for (let c = 2; c < row.length; c++) {
             const cell = String(row[c] ?? "").trim();
@@ -100,7 +231,6 @@ function parseExcel(file: File, baseYear: number): Promise<ParsedData> {
           }
           if (dateColCount >= 2) {
             dateRowIdx = r;
-            // Find first data column
             for (let c = 0; c < row.length; c++) {
               if (/\d+[-–]\d+\s+[a-zA-Z]+/.test(String(row[c] ?? "").trim())) {
                 dataColStart = c;
@@ -112,90 +242,75 @@ function parseExcel(file: File, baseYear: number): Promise<ParsedData> {
         }
 
         if (dateRowIdx === -1) {
-          // Fallback: look for "M1", "M2" style headers and use column index as period
           warnings.push("Tidak menemukan baris tanggal — pakai urutan kolom sebagai periode.");
           dateRowIdx = 1;
         }
 
-        // ── Parse period dates ────────────────────────────────────────────────
-        const dateRow = rows[dateRowIdx] ?? [];
-        const periodDates: (Date | null)[] = [];
+        const dateRow = (rows[dateRowIdx] ?? []) as unknown[];
+        const periodDatesOld: (Date | null)[] = [];
         let prevDate: Date | null = null;
 
         for (let c = dataColStart; c < dateRow.length; c++) {
           const cell = String(dateRow[c] ?? "").trim();
           const d = parsePeriodDate(cell, baseYear, prevDate);
-          periodDates.push(d);
+          periodDatesOld.push(d);
           if (d) prevDate = d;
         }
 
-        // Fill null dates sequentially (7-day increments from last known)
         let lastKnown: Date | null = null;
-        for (let i = 0; i < periodDates.length; i++) {
-          if (periodDates[i]) { lastKnown = periodDates[i]; continue; }
+        for (let i = 0; i < periodDatesOld.length; i++) {
+          if (periodDatesOld[i]) { lastKnown = periodDatesOld[i]; continue; }
           if (lastKnown) {
             const next: Date = new Date(lastKnown);
             next.setDate(next.getDate() + 7);
-            periodDates[i] = next;
+            periodDatesOld[i] = next;
             lastKnown = next;
           }
         }
 
         const periodLabels = dateRow.slice(dataColStart).map(c => String(c ?? "").trim());
 
-        // ── Find "Bobot Realisasi" row ────────────────────────────────────────
-        let actualsRow: (string | number | null)[] | null = null;
+        let actualsRow: unknown[] | null = null;
         for (let r = rows.length - 1; r >= dateRowIdx + 1; r--) {
-          const title = String(rows[r][0] ?? rows[r][1] ?? "").trim().toLowerCase();
-          if (title === "bobot realisasi") {
-            actualsRow = rows[r];
-            break;
-          }
+          const row = rows[r] as unknown[];
+          const title = String(row[0] ?? row[1] ?? "").trim().toLowerCase();
+          if (title === "bobot realisasi") { actualsRow = row; break; }
         }
 
-        // actuals per period column (index relative to dataColStart)
-        const actualsPerPeriod: number[] = periodDates.map((_, ci) => {
+        const actualsPerPeriodOld: number[] = periodDatesOld.map((_, ci) => {
           if (!actualsRow) return 0;
           const v = Number(actualsRow[dataColStart + ci] ?? 0);
           return isNaN(v) ? 0 : v;
         });
 
-        // ── Parse task rows ───────────────────────────────────────────────────
         const tasks: ImportTask[] = [];
-        const plannedPerPeriod: number[] = new Array(periodDates.length).fill(0); // totals for distributing actuals
+        const plannedPerPeriodOld: number[] = new Array(periodDatesOld.length).fill(0);
 
         for (let r = dateRowIdx + 1; r < rows.length; r++) {
-          const row = rows[r];
+          const row = rows[r] as unknown[];
           const nameRaw = String(row[0] ?? row[1] ?? "").trim();
           if (!nameRaw) continue;
-
           const nameLower = nameRaw.toLowerCase();
-          // Skip summary rows and section headers
-          if (SKIP_TITLES.has(nameLower)) continue;
-          if (/^tahap\s*\d+/i.test(nameRaw)) continue;
-          if (nameLower.startsWith("bobot")) continue;
+          if (SKIP_TITLES_OLD.has(nameLower)) continue;
+          if (/^tahap\s*\d+/i.test(nameRaw) || nameLower.startsWith("bobot")) continue;
 
-          const bobotRaw = row[dataColStart - 1] ?? row[1] ?? null;
-          const bobot = Number(bobotRaw);
-          if (isNaN(bobot) || bobot <= 0) continue; // skip rows without a valid bobot
+          const bobot = Number(row[dataColStart - 1] ?? row[1] ?? null);
+          if (isNaN(bobot) || bobot <= 0) continue;
 
-          // Planned weights per period
-          const planned: number[] = periodDates.map((_, ci) => {
+          const planned: number[] = periodDatesOld.map((_, ci) => {
             const v = Number(row[dataColStart + ci] ?? 0);
             return isNaN(v) ? 0 : v;
           });
-
-          // Accumulate planned per period for actual distribution
-          planned.forEach((v, ci) => { plannedPerPeriod[ci] += v; });
+          planned.forEach((v, ci) => { plannedPerPeriodOld[ci] += v; });
 
           tasks.push({
             title: nameRaw,
             weight_pct: bobot,
-            periods: periodDates.map((d, ci) => ({
+            periods: periodDatesOld.map((d, ci) => ({
               period_order: ci + 1,
               period_start: d ? toISODate(d) : toISODate(new Date(baseYear, 0, 1 + ci * 7)),
               planned_weight: planned[ci],
-              actual_weight: 0, // filled below
+              actual_weight: 0,
             })),
           });
         }
@@ -205,27 +320,22 @@ function parseExcel(file: File, baseYear: number): Promise<ParsedData> {
           return;
         }
 
-        // ── Distribute actuals proportionally by planned_weight per period ───
-        for (let ci = 0; ci < periodDates.length; ci++) {
-          const totalActual = actualsPerPeriod[ci];
+        for (let ci = 0; ci < periodDatesOld.length; ci++) {
+          const totalActual = actualsPerPeriodOld[ci];
           if (totalActual === 0) continue;
-          const totalPlanned = plannedPerPeriod[ci];
-
+          const totalPlanned = plannedPerPeriodOld[ci];
           for (const task of tasks) {
             const p = task.periods[ci];
             if (!p) continue;
             if (totalPlanned > 0 && p.planned_weight > 0) {
               p.actual_weight = parseFloat(((totalActual * p.planned_weight) / totalPlanned).toFixed(4));
             } else if (totalPlanned === 0) {
-              // No planned in period — give equally to all tasks
               p.actual_weight = parseFloat((totalActual / tasks.length).toFixed(4));
             }
           }
         }
 
-        if (actualsRow === null) {
-          warnings.push("Baris 'Bobot Realisasi' tidak ditemukan — actual values akan 0.");
-        }
+        if (!actualsRow) warnings.push("Baris 'Bobot Realisasi' tidak ditemukan — actual values akan 0.");
 
         resolve({ tasks, periodLabels, warnings });
       } catch (err) {
@@ -325,7 +435,7 @@ export default function ScurveImportModal({ projectId, baseYear, onImported, onC
             ) : (
               <>
                 <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Klik untuk pilih file Excel</p>
-                <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1">.xlsx atau .xls · Format: Keterangan | Bobot(%) | M1 | M2 | ...</p>
+                <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1">.xlsx atau .xls · Format Time Schedule (kolom BOBOT) atau format periode (M1/M2...)</p>
               </>
             )}
           </div>
