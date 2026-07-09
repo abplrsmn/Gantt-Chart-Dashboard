@@ -557,7 +557,7 @@ function StakeholdersSection({ onAddReady }: SectionProps) {
   const [loading, setLoading] = useState(false);
 
   const load = useCallback(async () => {
-    const j = await safeFetch("/api/master/people");
+    const j = await safeFetch("/api/master/people?stakeholders_only=1");
     if (j?.success) setData(j.data);
   }, []);
   useEffect(() => { load(); }, [load]);

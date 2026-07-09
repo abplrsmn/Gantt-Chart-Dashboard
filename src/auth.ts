@@ -12,7 +12,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   ],
   callbacks: {
     async signIn({ user }) {
-      console.log("[auth] signIn called, email:", user.email)
       if (!user.email) return false
       try {
         const pool = getDbPool()
@@ -20,10 +19,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           `SELECT id FROM master_acc WHERE lower(email) = lower($1) AND is_active = true LIMIT 1`,
           [user.email]
         )
-        console.log("[auth] DB result rows:", rows.length)
         return rows.length > 0
-      } catch (err) {
-        console.error("[auth] signIn DB error:", err)
+      } catch {
         return false
       }
     },

@@ -144,7 +144,6 @@ function deriveWindowFromPhaseDates(row: ProjectManagementSummaryRow) {
   };
 }
 
-
 function mapRow(row: ProjectManagementSummaryRow, phase: GanttCapexPhase): GanttCapexProject {
   const unit = String(row.unit_code || row.unit_name || 'UNKNOWN').trim().toUpperCase();
   const currentSiteProgress = row.current_site_progress || undefined;

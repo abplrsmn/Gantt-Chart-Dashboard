@@ -76,8 +76,6 @@ export async function proxy(request: NextRequest) {
   if (!needsAuth) return NextResponse.next();
 
   const authCookie = request.cookies.get(AUTH_COOKIE_NAME)?.value;
-  const allCookies = request.cookies.getAll().map(c => c.name);
-  console.log("[proxy]", pathname, "cookies:", allCookies);
   const isAuthed = await isValidAuthToken(authCookie) || hasNextAuthSession(request);
 
   if (!isAuthed) {
