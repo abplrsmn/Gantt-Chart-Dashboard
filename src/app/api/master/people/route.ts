@@ -11,7 +11,11 @@ export async function GET() {
     // one-time migration guard — safe to run repeatedly
     try { await client.query(`ALTER TABLE master_people ADD COLUMN IF NOT EXISTS phone_number varchar(50)`); } catch { /* already exists */ }
     const { rows } = await client.query(
-      `SELECT id, full_name, nickname, department, job_title, email, phone_number, is_active FROM master_people ORDER BY full_name`
+      `SELECT p.id, p.full_name, p.nickname, p.department, p.job_title, p.email, p.phone_number, p.is_active
+       FROM master_people p
+       LEFT JOIN master_acc a ON a.person_id = p.id
+       WHERE a.id IS NULL
+       ORDER BY p.full_name`
     );
     return NextResponse.json({ success: true, data: rows });
   } catch (err) {
