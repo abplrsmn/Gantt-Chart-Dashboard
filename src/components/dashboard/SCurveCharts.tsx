@@ -100,12 +100,12 @@ function parseApiSteps(data: {
       vol: t.vol,
       bobot: t.bobot,
       weeklyPlan: Object.fromEntries(t.weeks.map(w => [w.week_date, w.plan_pct])),
-      weeklyActual: Object.fromEntries(t.weeks.map(w => [w.week_date, w.actual_pct !== 0 ? w.actual_pct : w.plan_pct])),
+      weeklyActual: Object.fromEntries(t.weeks.map(w => [w.week_date, w.actual_pct])),
     })),
   }));
 }
 
-// Auto-distribute each task's bobot linearly across all weeks
+// Use per-week plan data from DB if available; fall back to uniform distribution
 function calcWeeklyPlan(steps: SStep[], weeks: string[]): Record<string, number> {
   const n = weeks.length;
   if (!n) return {};
@@ -113,8 +113,13 @@ function calcWeeklyPlan(steps: SStep[], weeks: string[]): Record<string, number>
   for (const w of weeks) result[w] = 0;
   for (const step of steps) {
     for (const task of step.tasks) {
-      const perWeek = task.bobot / n;
-      for (const w of weeks) result[w] += perWeek;
+      const hasPerWeekPlan = Object.keys(task.weeklyPlan).length > 0;
+      if (hasPerWeekPlan) {
+        for (const w of weeks) result[w] += task.weeklyPlan[w] ?? 0;
+      } else {
+        const perWeek = task.bobot / n;
+        for (const w of weeks) result[w] += perWeek;
+      }
     }
   }
   return result;

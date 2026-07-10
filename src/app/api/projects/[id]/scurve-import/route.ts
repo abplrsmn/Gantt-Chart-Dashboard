@@ -3,25 +3,26 @@ import { getDbPool } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
-type ImportPeriod = {
-  period_order: number;
-  period_start: string; // YYYY-MM-DD
-  planned_weight: number;
-  actual_weight: number;
+type ImportWeek = {
+  week_date: string;
+  plan_pct: number;
+  actual_pct: number;
 };
 
-type ImportTask = {
-  title: string;
-  weight_pct: number;
-  periods: ImportPeriod[];
+type ImportStep = {
+  letter: string;
+  name: string;
+  bobot: number;
+  weeks: ImportWeek[];
 };
 
+// POST — replace all scurve data with imported steps
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const body = await req.json() as { tasks: ImportTask[] };
+  const body = await req.json() as { steps: ImportStep[] };
 
-  if (!Array.isArray(body.tasks) || body.tasks.length === 0) {
-    return NextResponse.json({ success: false, error: "tasks array required" }, { status: 400 });
+  if (!Array.isArray(body.steps) || body.steps.length === 0) {
+    return NextResponse.json({ success: false, error: "steps array required" }, { status: 400 });
   }
 
   const pool = getDbPool();
@@ -30,49 +31,55 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     client = await pool.connect();
     await client.query("BEGIN");
 
-    // Delete existing s_curve tasks (and their periods via cascade or manual delete)
-    const existingTasks = await client.query(
-      `SELECT id FROM project_tasks WHERE project_id = $1 AND item_type = 's_curve'`,
-      [id]
-    );
-    const taskIds = existingTasks.rows.map(r => r.id);
-    if (taskIds.length > 0) {
-      await client.query(
-        `DELETE FROM project_task_progress_periods WHERE project_task_id = ANY($1::bigint[])`,
-        [taskIds]
-      );
-      await client.query(
-        `DELETE FROM project_tasks WHERE id = ANY($1::bigint[]) AND project_id = $2`,
-        [taskIds, id]
-      );
-    }
+    // Wipe existing scurve data for project (cascade handles tasks + weeks)
+    await client.query(`DELETE FROM scurve_steps WHERE project_id = $1`, [id]);
 
-    // Insert new tasks + periods
-    for (let i = 0; i < body.tasks.length; i++) {
-      const t = body.tasks[i];
-      const { rows: inserted } = await client.query(
-        `INSERT INTO project_tasks (project_id, title, weight_pct, progress_pct, item_order, item_type)
-         VALUES ($1, $2, $3, 0, $4, 's_curve')
-         RETURNING id`,
-        [id, t.title.trim(), t.weight_pct, i]
-      );
-      const taskId = inserted[0].id;
+    for (let i = 0; i < body.steps.length; i++) {
+      const step = body.steps[i];
 
-      for (const p of t.periods) {
-        if (p.planned_weight === 0 && p.actual_weight === 0) continue;
+      const { rows: [stepRow] } = await client.query(
+        `INSERT INTO scurve_steps (project_id, letter, name, step_order)
+         VALUES ($1, $2, $3, $4) RETURNING id`,
+        [id, step.letter, step.name, i]
+      );
+
+      const { rows: [taskRow] } = await client.query(
+        `INSERT INTO scurve_tasks (step_id, project_id, name, unit, vol, bobot, task_order)
+         VALUES ($1, $2, $3, '', '', $4, 0) RETURNING id`,
+        [stepRow.id, id, step.name, step.bobot]
+      );
+
+      for (const week of step.weeks) {
+        if (week.plan_pct === 0 && week.actual_pct === 0) continue;
         await client.query(
-          `INSERT INTO project_task_progress_periods
-             (project_task_id, period_order, period_start, planned_weight, actual_weight)
-           VALUES ($1, $2, $3, $4, $5)`,
-          [taskId, p.period_order, p.period_start, p.planned_weight, p.actual_weight]
+          `INSERT INTO scurve_task_weeks (task_id, week_date, plan_pct, actual_pct)
+           VALUES ($1, $2, $3, $4)`,
+          [taskRow.id, week.week_date, week.plan_pct, week.actual_pct]
         );
       }
     }
 
     await client.query("COMMIT");
-    return NextResponse.json({ success: true, imported: body.tasks.length });
+    return NextResponse.json({ success: true, imported: body.steps.length });
   } catch (err: unknown) {
     await client?.query("ROLLBACK").catch(() => {});
+    const msg = err instanceof Error ? err.message : String(err);
+    return NextResponse.json({ success: false, error: msg }, { status: 500 });
+  } finally {
+    client?.release();
+  }
+}
+
+// DELETE — wipe all scurve data for project
+export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const pool = getDbPool();
+  let client;
+  try {
+    client = await pool.connect();
+    await client.query(`DELETE FROM scurve_steps WHERE project_id = $1`, [id]);
+    return NextResponse.json({ success: true });
+  } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     return NextResponse.json({ success: false, error: msg }, { status: 500 });
   } finally {

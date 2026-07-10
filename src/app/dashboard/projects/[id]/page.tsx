@@ -877,6 +877,8 @@ function ProjectDetailContent() {
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState<string | null>(null);
   const [showImportModal, setShowImportModal] = useState(false);
+  const [deleteScurveStep, setDeleteScurveStep] = useState<0 | 1 | 2>(0); // 0=hidden 1=first 2=second
+  const [deletingScurve, setDeletingScurve] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [exitingConfirm,    setExitingConfirm]    = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -1819,9 +1821,72 @@ function ProjectDetailContent() {
           onClose={() => setShowImportModal(false)}
         />
       )}
+      {/* Delete S-Curve double-confirmation popup */}
+      {deleteScurveStep > 0 && (
+        <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-white/10 w-full max-w-sm p-6 flex flex-col gap-4">
+            {deleteScurveStep === 1 ? (
+              <>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-rose-100 dark:bg-rose-950/50 flex items-center justify-center shrink-0">
+                    <Trash2 size={18} className="text-rose-500" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-slate-800 dark:text-white text-sm">Hapus Data S-Curve?</p>
+                    <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">Semua steps, tasks, dan progress mingguan akan dihapus.</p>
+                  </div>
+                </div>
+                <div className="flex gap-2 justify-end">
+                  <button onClick={() => setDeleteScurveStep(0)} className="px-4 py-2 rounded-lg text-[12px] text-slate-500 hover:bg-slate-100 dark:hover:bg-white/6 transition-colors">Batal</button>
+                  <button onClick={() => setDeleteScurveStep(2)} className="px-4 py-2 rounded-lg text-[12px] font-semibold bg-rose-500 hover:bg-rose-600 text-white transition-colors">Ya, Hapus</button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-rose-100 dark:bg-rose-950/50 flex items-center justify-center shrink-0">
+                    <Trash2 size={18} className="text-rose-600" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-rose-600 dark:text-rose-400 text-sm">Ini tidak bisa dibatalkan</p>
+                    <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">Konfirmasi terakhir — data S-Curve akan hilang permanen.</p>
+                  </div>
+                </div>
+                <div className="flex gap-2 justify-end">
+                  <button onClick={() => setDeleteScurveStep(0)} disabled={deletingScurve} className="px-4 py-2 rounded-lg text-[12px] text-slate-500 hover:bg-slate-100 dark:hover:bg-white/6 transition-colors disabled:opacity-40">Batal</button>
+                  <button
+                    disabled={deletingScurve}
+                    onClick={async () => {
+                      setDeletingScurve(true);
+                      try {
+                        await fetch(`/api/projects/${project.id}/scurve-import`, { method: "DELETE" });
+                        setDeleteScurveStep(0);
+                        window.location.reload();
+                      } finally {
+                        setDeletingScurve(false);
+                      }
+                    }}
+                    className="px-4 py-2 rounded-lg text-[12px] font-semibold bg-rose-600 hover:bg-rose-700 text-white transition-colors disabled:opacity-40 flex items-center gap-1.5"
+                  >
+                    {deletingScurve ? <><Loader2 size={12} className="animate-spin" /> Menghapus…</> : <><Trash2 size={12} /> Hapus Sekarang</>}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
       {project.current_phase_code === "project_management" && scProject ? (
         <div>
-          <div className="flex justify-end mb-2">
+          <div className="flex items-center justify-end gap-2 mb-2">
+            <button
+              onClick={() => setDeleteScurveStep(1)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/20 hover:border-rose-500/40 transition-all"
+            >
+              <Trash2 size={12} />
+              Hapus S-Curve
+            </button>
             <button
               onClick={() => setShowImportModal(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold bg-green-500/10 hover:bg-green-500/20 text-green-600 dark:text-green-400 border border-green-500/20 hover:border-green-500/40 transition-all"
