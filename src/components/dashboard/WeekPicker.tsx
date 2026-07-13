@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   addMonths, subMonths, format, startOfMonth, endOfMonth,
   startOfWeek, endOfWeek, addDays, isSameMonth, isSameDay,
@@ -61,6 +62,7 @@ export default function WeekPicker({ value, onChange }: Props) {
   const [isDark, setIsDark]     = useState(false);
 
   const containerRef = useRef<HTMLDivElement>(null);
+  const panelRef     = useRef<HTMLDivElement>(null);
 
   const selectedMonday = weekValueToMonday(value);
 
@@ -73,10 +75,11 @@ export default function WeekPicker({ value, onChange }: Props) {
     return () => obs.disconnect();
   }, []);
 
-  // Close on outside click
+  // Close on outside click (panel is portaled to body, so check both refs)
   useEffect(() => {
     const h = (e: MouseEvent) => {
-      if (!containerRef.current?.contains(e.target as Node)) {
+      const t = e.target as Node;
+      if (!containerRef.current?.contains(t) && !panelRef.current?.contains(t)) {
         setOpen(false);
         setMode("calendar");
       }
@@ -89,7 +92,9 @@ export default function WeekPicker({ value, onChange }: Props) {
     if (!containerRef.current) return;
     const rect = containerRef.current.getBoundingClientRect();
     let top  = rect.bottom + 8;
-    let left = rect.left;
+    // Right-align the panel to the trigger so it never runs off the right edge.
+    let left = rect.right - PANEL_W;
+    if (left < 8) left = rect.left;
     if (left + PANEL_W > window.innerWidth - 16) left = window.innerWidth - PANEL_W - 16;
     if (top + PANEL_H > window.innerHeight - 16) top = rect.top - PANEL_H - 8;
     setPanelPos({ top: Math.max(8, top), left: Math.max(8, left) });
@@ -147,9 +152,11 @@ export default function WeekPicker({ value, onChange }: Props) {
         <span className="text-[12px] font-medium">{labelText}</span>
       </button>
 
-      {/* ── Panel — fixed position, matches DateRangePicker animation ── */}
+      {/* ── Panel — portaled to body, fixed position, matches DateRangePicker animation ── */}
+      {typeof document !== "undefined" && createPortal(
       <div
-        className="fixed z-[9999] rounded-xl border border-slate-200/80 dark:border-white/8 shadow-2xl"
+        ref={panelRef}
+        className="fixed z-9999 rounded-xl border border-slate-200/80 dark:border-white/8 shadow-2xl"
         style={{
           top:          panelPos.top,
           left:         panelPos.left,
@@ -290,7 +297,9 @@ export default function WeekPicker({ value, onChange }: Props) {
             This Week
           </button>
         </div>
-      </div>
+      </div>,
+      document.body
+      )}
     </div>
   );
 }
