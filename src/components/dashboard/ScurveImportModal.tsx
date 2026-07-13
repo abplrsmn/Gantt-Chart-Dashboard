@@ -1,22 +1,29 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Upload, X, FileSpreadsheet, Check, Loader2, AlertTriangle } from "lucide-react";
+import { Upload, X, FileSpreadsheet, Check, Loader2, AlertTriangle, ChevronDown, ChevronRight } from "lucide-react";
 import * as XLSX from "xlsx";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type ImportWeek = {
-  week_date: string;   // YYYY-MM-DD (Monday of the period)
-  plan_pct: number;    // planned weight contribution this week
-  actual_pct: number;  // actual weight contribution this week
+  week_date: string;
+  plan_pct: number;
+  actual_pct: number;
+};
+
+type ImportTask = {
+  name: string;
+  unit: string;
+  vol: string;
+  bobot: number;
+  weeks: ImportWeek[];
 };
 
 type ImportStep = {
-  letter: string;      // A, B, C…
-  name: string;        // section title
-  bobot: number;       // total weight %
-  weeks: ImportWeek[];
+  letter: string;
+  name: string;       // "A - PRELIMINARY"
+  tasks: ImportTask[];
 };
 
 type ParsedData = {
@@ -70,7 +77,7 @@ const LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
 // ─── Excel parser ─────────────────────────────────────────────────────────────
 
-const SKIP_KEYWORDS = ["sub total", "total", "grand total", "rencana", "realisasi", "kumulatif", "deviasi"];
+const STOP_KEYWORDS = ["rencana", "realisasi", "kumulatif", "deviasi"];
 
 function parseExcel(file: File, baseYear: number): Promise<ParsedData> {
   return new Promise((resolve, reject) => {
@@ -86,7 +93,7 @@ function parseExcel(file: File, baseYear: number): Promise<ParsedData> {
 
         const warnings: string[] = [];
 
-        // ── Detect new format: find "BOBOT" column header ─────────────────────
+        // ── Detect new format: find "BOBOT" column header anywhere ───────────
         let headerRowIdx = -1;
         let bobotCol = -1;
 
@@ -101,7 +108,7 @@ function parseExcel(file: File, baseYear: number): Promise<ParsedData> {
         }
 
         if (headerRowIdx !== -1) {
-          // ── NEW FORMAT: TIME SCHEDULE style → parse as A-Q steps ─────────
+          // ── NEW FORMAT: TIME SCHEDULE style ───────────────────────────────
           const periodStartCol = bobotCol + 1;
           const headerRow = rows[headerRowIdx] as unknown[];
           const periodCount = headerRow.length - periodStartCol;
@@ -110,7 +117,7 @@ function parseExcel(file: File, baseYear: number): Promise<ParsedData> {
             String(headerRow[periodStartCol + i] ?? `P${i + 1}`).trim()
           );
 
-          // Period start dates from first row after header containing date values
+          // Start dates from first row after header containing date values
           const periodDates: Date[] = [];
           for (let r = headerRowIdx + 1; r < Math.min(headerRowIdx + 6, rows.length); r++) {
             const row = rows[r] as unknown[];
@@ -130,60 +137,8 @@ function parseExcel(file: File, baseYear: number): Promise<ParsedData> {
             warnings.push("Tanggal periode tidak ditemukan — pakai sequential dates.");
           }
 
-          // Collect sections A-Q
-          type Section = { name: string; bobot: number; periods: number[] };
-          const sectionsMap = new Map<string, Section>();
-          const sectionOrder: string[] = [];
-          let currentLetter: string | null = null;
-
-          for (let r = headerRowIdx + 1; r < rows.length; r++) {
-            const row = rows[r] as unknown[];
-            const col0 = String(row[0] ?? "").trim();
-            const col1 = String(row[1] ?? "").trim();
-            const col4 = String(row[4] ?? "").trim();
-
-            // Stop at summary rows or duplicate section table
-            const col0lower = col0.toLowerCase();
-            if (SKIP_KEYWORDS.some(kw => col0lower.startsWith(kw))) break;
-
-            // Uppercase single letter → new section
-            if (/^[A-Z]$/.test(col0)) {
-              if (sectionsMap.has(col0)) break; // second occurrence = separate table
-              currentLetter = col0;
-              sectionOrder.push(col0);
-              const bobot = Number(row[bobotCol] ?? 0);
-              const periods = Array.from({ length: periodCount }, (_, c) => {
-                const v = Number(row[periodStartCol + c] ?? 0);
-                return isNaN(v) ? 0 : v;
-              });
-              sectionsMap.set(col0, { name: col1 || col0, bobot: isNaN(bobot) ? 0 : bobot, periods });
-            }
-
-            // SUB TOTAL row → update bobot for that section
-            if (col4.toUpperCase().startsWith("SUB TOTAL") && col4.length > 9) {
-              const letter = col4.replace(/SUB TOTAL\s*/i, "").trim();
-              const sec = sectionsMap.get(letter);
-              if (sec) {
-                const sb = Number(row[bobotCol] ?? 0);
-                if (!isNaN(sb) && sb > 0) sec.bobot = sb;
-              }
-            }
-
-            // Numbered or lowercase sub-item → accumulate period values into current section
-            if (currentLetter && (/^\d+$/.test(col0) || /^[a-z]$/.test(col0))) {
-              const sec = sectionsMap.get(currentLetter);
-              if (sec) {
-                for (let c = 0; c < periodCount; c++) {
-                  const v = Number(row[periodStartCol + c] ?? 0);
-                  if (!isNaN(v)) sec.periods[c] += v;
-                }
-              }
-            }
-          }
-
-          // REALISASI actuals (per period, from bottom)
+          // REALISASI actuals (scan from bottom)
           const actualsPerPeriod: number[] = new Array(periodCount).fill(0);
-          let foundActuals = false;
           for (let r = rows.length - 1; r >= headerRowIdx + 1; r--) {
             const row = rows[r] as unknown[];
             if (String(row[0] ?? "").trim().toLowerCase() === "realisasi") {
@@ -191,54 +146,112 @@ function parseExcel(file: File, baseYear: number): Promise<ParsedData> {
                 const v = Number(row[periodStartCol + c] ?? 0);
                 actualsPerPeriod[c] = isNaN(v) ? 0 : v;
               }
-              foundActuals = true;
               break;
             }
           }
-          if (!foundActuals) warnings.push("Baris 'REALISASI' tidak ditemukan — actual values akan 0.");
 
-          // Build steps
-          const steps: ImportStep[] = [];
-          const plannedPerPeriod: number[] = new Array(periodCount).fill(0);
+          // Collect steps and their tasks
+          type RawTask = { name: string; unit: string; vol: string; bobot: number; periods: number[] };
+          type RawSection = { letter: string; name: string; tasks: RawTask[] };
+          const sections: RawSection[] = [];
+          const seenLetters = new Set<string>();
+          let currentSection: RawSection | null = null;
 
-          for (const letter of sectionOrder) {
-            const sec = sectionsMap.get(letter)!;
-            if (sec.bobot <= 0 && sec.periods.every(v => v === 0)) continue;
-            for (let c = 0; c < periodCount; c++) plannedPerPeriod[c] += sec.periods[c];
-            steps.push({
-              letter,
-              name: `${letter} - ${sec.name}`,
-              bobot: sec.bobot,
-              weeks: periodDates.map((d, ci) => ({
-                week_date: toISODate(d),
-                plan_pct: sec.periods[ci],
-                actual_pct: 0,
-              })),
-            });
+          for (let r = headerRowIdx + 1; r < rows.length; r++) {
+            const row = rows[r] as unknown[];
+            const col0 = String(row[0] ?? "").trim();
+            const col1 = String(row[1] ?? "").trim();
+            const col2 = String(row[2] ?? "").trim();  // UNIT
+            const col3 = String(row[3] ?? "").trim();  // VOL
+
+            // Stop at RENCANA/REALISASI summary rows
+            if (STOP_KEYWORDS.some(kw => col0.toLowerCase().startsWith(kw))) break;
+
+            const readPeriods = (): number[] =>
+              Array.from({ length: periodCount }, (_, c) => {
+                const v = Number(row[periodStartCol + c] ?? 0);
+                return isNaN(v) ? 0 : v;
+              });
+
+            const bobot = (() => {
+              const v = Number(row[bobotCol] ?? 0);
+              return isNaN(v) ? 0 : v;
+            })();
+
+            // Uppercase single letter → new section
+            if (/^[A-Z]$/.test(col0)) {
+              if (seenLetters.has(col0)) break; // second occurrence = separate table
+              seenLetters.add(col0);
+              currentSection = { letter: col0, name: col1, tasks: [] };
+              sections.push(currentSection);
+
+              // If section header has its own bobot → create a "section-level" task
+              if (bobot > 0) {
+                currentSection.tasks.push({
+                  name: col1, unit: "", vol: "", bobot, periods: readPeriods(),
+                });
+              }
+            }
+
+            // Numbered sub-item (1, 2, 3…) → create task under current section
+            if (/^\d+$/.test(col0) && currentSection) {
+              currentSection.tasks.push({
+                name: col1 || col0,
+                unit: col2,
+                vol: col3,
+                bobot,
+                periods: bobot > 0 ? readPeriods() : [],
+              });
+            }
+            // Lowercase sub-items (a, b, c…) are specification details → skip
           }
 
-          if (steps.length === 0) {
-            reject(new Error("Tidak ada step yang ditemukan. Pastikan format Excel TIME SCHEDULE sudah benar."));
+          if (sections.length === 0) {
+            reject(new Error("Tidak ada section (A, B, C…) yang ditemukan. Pastikan format Excel TIME SCHEDULE sudah benar."));
             return;
           }
 
-          // Distribute REALISASI proportionally
-          for (let ci = 0; ci < periodCount; ci++) {
-            const totalActual = actualsPerPeriod[ci];
-            if (totalActual === 0) continue;
-            const totalPlanned = plannedPerPeriod[ci];
-            for (const step of steps) {
-              const w = step.weeks[ci];
-              if (!w || totalPlanned === 0 || w.plan_pct === 0) continue;
-              w.actual_pct = parseFloat(((totalActual * w.plan_pct) / totalPlanned).toFixed(4));
+          // Compute total planned per period (for distributing REALISASI actuals)
+          const plannedPerPeriod: number[] = new Array(periodCount).fill(0);
+          for (const sec of sections) {
+            for (const task of sec.tasks) {
+              if (task.bobot > 0) {
+                for (let c = 0; c < periodCount; c++) plannedPerPeriod[c] += task.periods[c] ?? 0;
+              }
             }
           }
+
+          // Build ImportStep[]
+          const steps: ImportStep[] = sections.map(sec => ({
+            letter: sec.letter,
+            name: `${sec.letter} - ${sec.name}`,
+            tasks: sec.tasks.map(task => {
+              const weeks: ImportWeek[] = [];
+              if (task.bobot > 0) {
+                for (let c = 0; c < periodCount; c++) {
+                  const plan = task.periods[c] ?? 0;
+                  const ta = actualsPerPeriod[c];
+                  const tp = plannedPerPeriod[c];
+                  const actual = (ta > 0 && tp > 0 && plan > 0)
+                    ? parseFloat(((ta * plan) / tp).toFixed(4))
+                    : 0;
+                  if (plan > 0 || actual > 0) {
+                    weeks.push({ week_date: toISODate(periodDates[c]), plan_pct: plan, actual_pct: actual });
+                  }
+                }
+              }
+              return { name: task.name, unit: task.unit, vol: task.vol, bobot: task.bobot, weeks };
+            }),
+          }));
+
+          if (actualsPerPeriod.every(v => v === 0))
+            warnings.push("Baris 'REALISASI' tidak ditemukan atau semua 0 — actual values akan 0.");
 
           resolve({ steps, periodLabels, warnings });
           return;
         }
 
-        // ── OLD FORMAT: date-range strings in first 10 rows → steps ──────────
+        // ── OLD FORMAT: date-range strings in first 10 rows ──────────────────
         let dateRowIdx = -1;
         let dataColStart = 2;
 
@@ -284,7 +297,8 @@ function parseExcel(file: File, baseYear: number): Promise<ParsedData> {
         });
 
         const SKIP_OLD = new Set(["bobot rencana", "bobot rencana kumulatif", "bobot realisasi kumulatif", "keterangan"]);
-        const rawTasks: { name: string; bobot: number; planned: number[] }[] = [];
+        type OldTask = { name: string; bobot: number; planned: number[] };
+        const rawTasks: OldTask[] = [];
         const ppp: number[] = new Array(oldDates.length).fill(0);
 
         for (let r = dateRowIdx + 1; r < rows.length; r++) {
@@ -302,30 +316,21 @@ function parseExcel(file: File, baseYear: number): Promise<ParsedData> {
 
         if (rawTasks.length === 0) { reject(new Error("Tidak ada task yang ditemukan. Pastikan format Excel sesuai.")); return; }
 
-        const steps: ImportStep[] = rawTasks.map((t, idx) => ({
+        const stepsOld: ImportStep[] = rawTasks.map((t, idx) => ({
           letter: LETTERS[Math.min(idx, 25)],
           name: t.name,
-          bobot: t.bobot,
-          weeks: oldDates.map((d, ci) => ({
-            week_date: d ? toISODate(d) : toISODate(new Date(baseYear, 0, 1 + ci * 7)),
-            plan_pct: t.planned[ci],
-            actual_pct: 0,
-          })),
+          tasks: [{
+            name: t.name, unit: "", vol: "", bobot: t.bobot,
+            weeks: oldDates.map((d, ci) => {
+              const ta = actualsOld[ci]; const tp = ppp[ci];
+              const actual = ta > 0 ? (tp > 0 ? parseFloat(((ta * t.planned[ci]) / tp).toFixed(4)) : parseFloat((ta / rawTasks.length).toFixed(4))) : 0;
+              return { week_date: d ? toISODate(d) : toISODate(new Date(baseYear, 0, 1 + ci * 7)), plan_pct: t.planned[ci], actual_pct: actual };
+            }).filter(w => w.plan_pct > 0 || w.actual_pct > 0),
+          }],
         }));
 
-        // Distribute actuals
-        for (let ci = 0; ci < oldDates.length; ci++) {
-          const ta = actualsOld[ci]; if (ta === 0) continue;
-          for (let si = 0; si < steps.length; si++) {
-            const w = steps[si].weeks[ci]; if (!w) continue;
-            const tp = ppp[ci];
-            if (tp > 0 && w.plan_pct > 0) w.actual_pct = parseFloat(((ta * w.plan_pct) / tp).toFixed(4));
-            else if (tp === 0) w.actual_pct = parseFloat((ta / steps.length).toFixed(4));
-          }
-        }
-
         if (!actualsRowOld) warnings.push("Baris 'Bobot Realisasi' tidak ditemukan — actual values akan 0.");
-        resolve({ steps, periodLabels: periodLabelsOld, warnings });
+        resolve({ steps: stepsOld, periodLabels: periodLabelsOld, warnings });
       } catch (err) {
         reject(err);
       }
@@ -351,12 +356,13 @@ export default function ScurveImportModal({ projectId, baseYear, onImported, onC
   const [parseError, setParseError] = useState<string>("");
   const [importing, setImporting] = useState(false);
   const [done, setDone] = useState(false);
+  const [expandedSteps, setExpandedSteps] = useState<Set<string>>(new Set());
   const year = baseYear ?? new Date().getFullYear();
 
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    setFileName(file.name); setParseError(""); setParsed(null);
+    setFileName(file.name); setParseError(""); setParsed(null); setExpandedSteps(new Set());
     try {
       const result = await parseExcel(file, year);
       setParsed(result);
@@ -386,11 +392,23 @@ export default function ScurveImportModal({ projectId, baseYear, onImported, onC
     }
   }
 
-  const totalWeight = parsed?.steps.reduce((s, t) => s + t.bobot, 0) ?? 0;
+  function toggleStep(letter: string) {
+    setExpandedSteps(prev => {
+      const next = new Set(prev);
+      next.has(letter) ? next.delete(letter) : next.add(letter);
+      return next;
+    });
+  }
+
+  const totalWeight = parsed?.steps.reduce((s, step) =>
+    s + step.tasks.reduce((ts, t) => ts + t.bobot, 0), 0) ?? 0;
+
+  const totalTasks = parsed?.steps.reduce((s, step) => s + step.tasks.length, 0) ?? 0;
+  const activeTasks = parsed?.steps.reduce((s, step) => s + step.tasks.filter(t => t.bobot > 0).length, 0) ?? 0;
 
   return (
     <div className="fixed inset-0 z-200 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-white/10 w-full max-w-4xl max-h-[90vh] flex flex-col">
+      <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-white/10 w-full max-w-5xl max-h-[90vh] flex flex-col">
 
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-white/10">
@@ -398,7 +416,7 @@ export default function ScurveImportModal({ projectId, baseYear, onImported, onC
             <FileSpreadsheet size={20} className="text-green-500" />
             <div>
               <h2 className="font-semibold text-slate-800 dark:text-white text-sm">Import S-Curve dari Excel</h2>
-              <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">Steps (A, B, C…) + Bobot Rencana & Realisasi</p>
+              <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">Steps A–Q · Tasks dengan Unit & Vol · Rencana & Realisasi</p>
             </div>
           </div>
           <button onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/6 transition-colors">
@@ -421,7 +439,7 @@ export default function ScurveImportModal({ projectId, baseYear, onImported, onC
             ) : (
               <>
                 <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Klik untuk pilih file Excel</p>
-                <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1">.xlsx atau .xls · Format Time Schedule (kolom BOBOT, sections A–Q) atau format periode (M1/M2…)</p>
+                <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1">.xlsx atau .xls · Format Time Schedule (kolom BOBOT, sections A–Q, unit & vol per task)</p>
               </>
             )}
           </div>
@@ -441,41 +459,76 @@ export default function ScurveImportModal({ projectId, baseYear, onImported, onC
           {/* Preview */}
           {parsed && (
             <div className="space-y-3">
-              <p className="text-[11px] font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-500">
-                Preview — {parsed.steps.length} steps · Total bobot {totalWeight.toFixed(2)}%
-                {Math.abs(totalWeight - 100) > 0.5 && <span className="ml-2 text-amber-500">(≠ 100%)</span>}
-              </p>
-              <div className="overflow-auto rounded-xl border border-slate-200 dark:border-white/10 max-h-72">
-                <table className="w-full text-[11px] border-separate border-spacing-0">
-                  <thead className="sticky top-0 bg-slate-50 dark:bg-zinc-800">
-                    <tr>
-                      <th className="text-left px-3 py-2 border-b border-slate-200 dark:border-white/10 font-semibold text-slate-600 dark:text-slate-300 min-w-48">Step</th>
-                      <th className="text-right px-3 py-2 border-b border-slate-200 dark:border-white/10 font-semibold text-slate-600 dark:text-slate-300 w-20">Bobot (%)</th>
-                      {parsed.periodLabels.slice(0, 13).map((l, i) => (
-                        <th key={i} className="text-right px-2 py-2 border-b border-slate-200 dark:border-white/10 font-semibold text-slate-500 dark:text-slate-400 w-16 whitespace-nowrap">{l || `P${i + 1}`}</th>
-                      ))}
-                      {parsed.periodLabels.length > 13 && <th className="text-right px-2 py-2 border-b border-slate-200 dark:border-white/10 text-slate-400">+{parsed.periodLabels.length - 13} lagi</th>}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {parsed.steps.map((step, si) => (
-                      <tr key={si} className="odd:bg-white even:bg-slate-50 dark:odd:bg-zinc-950 dark:even:bg-zinc-900">
-                        <td className="px-3 py-1.5 border-b border-slate-100 dark:border-white/6 text-slate-700 dark:text-slate-200 font-medium">{step.name}</td>
-                        <td className="px-3 py-1.5 border-b border-slate-100 dark:border-white/6 text-right font-mono text-slate-700 dark:text-slate-200">{step.bobot.toFixed(2)}</td>
-                        {step.weeks.slice(0, 13).map((w, wi) => (
-                          <td key={wi} className="px-2 py-1.5 border-b border-slate-100 dark:border-white/6 text-right font-mono text-slate-500 dark:text-slate-400">
-                            {w.plan_pct > 0 ? <span className="text-blue-600 dark:text-blue-400">{w.plan_pct.toFixed(2)}</span> : "·"}
-                            {w.actual_pct > 0 && <span className="block text-[9px] text-green-600 dark:text-green-400">{w.actual_pct.toFixed(2)}</span>}
-                          </td>
-                        ))}
-                        {step.weeks.length > 13 && <td className="px-2 py-1.5 border-b border-slate-100 dark:border-white/6 text-slate-300 text-center">…</td>}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div className="flex items-center gap-4">
+                <p className="text-[11px] font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-500">
+                  Preview — {parsed.steps.length} steps · {activeTasks} tasks aktif · {totalTasks} total tasks · Bobot {totalWeight.toFixed(2)}%
+                  {Math.abs(totalWeight - 100) > 0.5 && <span className="ml-2 text-amber-500">(≠ 100%)</span>}
+                </p>
               </div>
+
+              <div className="rounded-xl border border-slate-200 dark:border-white/10 overflow-hidden">
+                {parsed.steps.map((step) => {
+                  const stepBobot = step.tasks.reduce((s, t) => s + t.bobot, 0);
+                  const activePeriods = step.tasks.flatMap(t => t.weeks).filter(w => w.plan_pct > 0);
+                  const hasActuals = step.tasks.some(t => t.weeks.some(w => w.actual_pct > 0));
+                  const expanded = expandedSteps.has(step.letter);
+
+                  return (
+                    <div key={step.letter} className="border-b border-slate-100 dark:border-white/6 last:border-b-0">
+                      {/* Step row */}
+                      <button
+                        onClick={() => toggleStep(step.letter)}
+                        className="w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-slate-50 dark:hover:bg-white/4 transition-colors"
+                      >
+                        {expanded ? <ChevronDown size={13} className="text-slate-400 shrink-0" /> : <ChevronRight size={13} className="text-slate-400 shrink-0" />}
+                        <span className="w-6 text-[11px] font-bold text-slate-500 dark:text-slate-400">{step.letter}</span>
+                        <span className="flex-1 text-[12px] font-semibold text-slate-700 dark:text-slate-200 truncate">{step.name.replace(/^[A-Z] - /, "")}</span>
+                        <span className="text-[11px] font-mono text-blue-600 dark:text-blue-400 w-16 text-right">{stepBobot.toFixed(2)}%</span>
+                        <span className="text-[10px] text-slate-400 dark:text-slate-500 w-24 text-right">{step.tasks.filter(t => t.bobot > 0).length} task aktif</span>
+                        {hasActuals && <span className="text-[10px] text-green-500 w-12 text-right">actual ✓</span>}
+                        <span className="text-[10px] text-slate-300 dark:text-slate-600 w-20 text-right">{activePeriods.length} period entries</span>
+                      </button>
+
+                      {/* Expanded tasks */}
+                      {expanded && (
+                        <div className="bg-slate-50/50 dark:bg-zinc-950/30 border-t border-slate-100 dark:border-white/6">
+                          <table className="w-full text-[11px]">
+                            <thead>
+                              <tr className="border-b border-slate-100 dark:border-white/6">
+                                <th className="text-left px-8 py-1.5 font-semibold text-slate-400 dark:text-slate-500">Task</th>
+                                <th className="text-center px-2 py-1.5 font-semibold text-slate-400 dark:text-slate-500 w-14">Unit</th>
+                                <th className="text-center px-2 py-1.5 font-semibold text-slate-400 dark:text-slate-500 w-16">Vol</th>
+                                <th className="text-right px-3 py-1.5 font-semibold text-slate-400 dark:text-slate-500 w-20">Bobot (%)</th>
+                                <th className="text-right px-3 py-1.5 font-semibold text-slate-400 dark:text-slate-500 w-24">Aktif Minggu</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {step.tasks.map((task, ti) => (
+                                <tr key={ti} className="border-b border-slate-100 dark:border-white/4 last:border-b-0 hover:bg-slate-50 dark:hover:bg-white/3">
+                                  <td className="px-8 py-1 text-slate-600 dark:text-slate-300">{task.name}</td>
+                                  <td className="px-2 py-1 text-center text-slate-400 dark:text-slate-500">{task.unit || "—"}</td>
+                                  <td className="px-2 py-1 text-center text-slate-400 dark:text-slate-500">{task.vol || "—"}</td>
+                                  <td className={`px-3 py-1 text-right font-mono ${task.bobot > 0 ? "text-blue-600 dark:text-blue-400 font-semibold" : "text-slate-300 dark:text-slate-600"}`}>
+                                    {task.bobot > 0 ? task.bobot.toFixed(2) : "—"}
+                                  </td>
+                                  <td className="px-3 py-1 text-right text-slate-400 dark:text-slate-500">
+                                    {task.weeks.length > 0 ? (
+                                      <span>{task.weeks.length} minggu{task.weeks.some(w => w.actual_pct > 0) ? <span className="ml-1 text-green-500">+actual</span> : ""}</span>
+                                    ) : "—"}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
               <p className="text-[10px] text-slate-400 dark:text-slate-500">
-                Biru = planned · Hijau (kecil) = actual · Import akan <strong>mengganti</strong> semua data S-Curve yang ada.
+                Klik step untuk lihat tasks · Biru = bobot aktif · Hijau = ada data actual · Import akan <strong>mengganti</strong> semua data S-Curve yang ada.
               </p>
             </div>
           )}
