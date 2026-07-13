@@ -36,6 +36,14 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   let client;
   try {
     client = await pool.connect();
+
+    // Ensure columns can hold full precision (older installs used NUMERIC(7,3),
+    // which rounded 0.31452 → 0.315 and displayed as 0.32). Idempotent no-op if
+    // already widened. Run outside the transaction to avoid holding locks on fail.
+    await client.query(`ALTER TABLE scurve_tasks      ALTER COLUMN bobot      TYPE NUMERIC(9,5)`).catch(() => {});
+    await client.query(`ALTER TABLE scurve_task_weeks ALTER COLUMN plan_pct   TYPE NUMERIC(9,5)`).catch(() => {});
+    await client.query(`ALTER TABLE scurve_task_weeks ALTER COLUMN actual_pct TYPE NUMERIC(9,5)`).catch(() => {});
+
     await client.query("BEGIN");
 
     // Wipe existing scurve data for project (cascade handles tasks + weeks)
