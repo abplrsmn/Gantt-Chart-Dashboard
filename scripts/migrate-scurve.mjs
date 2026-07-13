@@ -39,7 +39,7 @@ CREATE TABLE IF NOT EXISTS scurve_tasks (
   name        TEXT NOT NULL,
   unit        VARCHAR(50),
   vol         VARCHAR(50),
-  bobot       NUMERIC(7,3) DEFAULT 0,
+  bobot       NUMERIC(9,5) DEFAULT 0,
   task_order  INT NOT NULL DEFAULT 0,
   created_at  TIMESTAMPTZ DEFAULT NOW(),
   updated_at  TIMESTAMPTZ DEFAULT NOW()
@@ -49,10 +49,16 @@ CREATE TABLE IF NOT EXISTS scurve_task_weeks (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   task_id     UUID NOT NULL REFERENCES scurve_tasks(id) ON DELETE CASCADE,
   week_date   DATE NOT NULL,
-  plan_pct    NUMERIC(7,3) DEFAULT 0,
-  actual_pct  NUMERIC(7,3) DEFAULT 0,
+  plan_pct    NUMERIC(9,5) DEFAULT 0,
+  actual_pct  NUMERIC(9,5) DEFAULT 0,
   UNIQUE(task_id, week_date)
 );
+
+-- Widen precision on existing installs so full-precision weekly values are
+-- kept (2-decimal storage summed to 99.92% instead of 100%). Idempotent.
+ALTER TABLE scurve_tasks      ALTER COLUMN bobot      TYPE NUMERIC(9,5);
+ALTER TABLE scurve_task_weeks ALTER COLUMN plan_pct   TYPE NUMERIC(9,5);
+ALTER TABLE scurve_task_weeks ALTER COLUMN actual_pct TYPE NUMERIC(9,5);
 `;
 
 const client = await pool.connect();

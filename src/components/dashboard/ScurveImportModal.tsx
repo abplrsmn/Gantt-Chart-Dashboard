@@ -222,10 +222,11 @@ function parseExcel(file: File, baseYear: number): Promise<ParsedData> {
               tasks: sec.tasks.map(task => {
                 const weeks: ImportWeek[] = [];
                 for (let c = 0; c < periodCount; c++) {
-                  // Round to 2 decimals to match Excel's displayed value exactly
-                  // (raw 0.31452 → Excel shows 0.31; storing full precision made
-                  // NUMERIC(7,3) round to 0.315 which then displays as 0.32).
-                  const val = Math.round((task.periods[c] ?? 0) * 100) / 100;
+                  // Store the full-precision value (like Excel) and let the grid
+                  // display round to 2 decimals. The DB column is NUMERIC(9,5), so
+                  // the weekly values still sum to 100% (rounding to 2dp at import
+                  // dropped the cumulative to 99.92%).
+                  const val = task.periods[c] ?? 0;
                   if (val > 0) {
                     weeks.push({ week_date: toISODate(periodDates[c]), plan_pct: val, actual_pct: val });
                   }
