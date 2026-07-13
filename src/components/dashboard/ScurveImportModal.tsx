@@ -349,8 +349,16 @@ export default function ScurveImportModal({ projectId, baseYear, onImported, onC
   const [parseError, setParseError] = useState<string>("");
   const [importing, setImporting] = useState(false);
   const [done, setDone] = useState(false);
+  const [exiting, setExiting] = useState(false);
   const [expandedSteps, setExpandedSteps] = useState<Set<string>>(new Set());
   const year = baseYear ?? new Date().getFullYear();
+
+  // Play the exit animation, then unmount (matches the Delete-project modal).
+  function handleClose() {
+    if (exiting) return;
+    setExiting(true);
+    setTimeout(() => onClose(), 200);
+  }
 
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -377,7 +385,7 @@ export default function ScurveImportModal({ projectId, baseYear, onImported, onC
       const json = await res.json();
       if (!json.success) throw new Error(json.error ?? "Import gagal");
       setDone(true);
-      setTimeout(() => { onImported(); onClose(); }, 1200);
+      setTimeout(() => { setExiting(true); setTimeout(() => { onImported(); onClose(); }, 200); }, 1200);
     } catch (err) {
       setParseError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -400,8 +408,12 @@ export default function ScurveImportModal({ projectId, baseYear, onImported, onC
   const activeTasks = parsed?.steps.reduce((s, step) => s + step.tasks.filter(t => t.bobot > 0).length, 0) ?? 0;
 
   return (
-    <div className="fixed inset-0 z-200 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-white/10 w-full max-w-5xl max-h-[90vh] flex flex-col">
+    <div
+      className={`fixed inset-0 z-200 flex items-center justify-center p-4 ${exiting ? "animate-backdrop-exit" : "animate-backdrop-enter"}`}
+      style={{ backgroundColor: "rgba(0,0,0,0.5)", backdropFilter: "blur(6px)" }}
+      onMouseDown={e => { if (e.target === e.currentTarget) handleClose(); }}
+    >
+      <div className={`bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-white/10 w-full max-w-5xl max-h-[90vh] flex flex-col ${exiting ? "animate-modal-exit" : "animate-modal-enter"}`}>
 
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-white/10">
@@ -412,7 +424,7 @@ export default function ScurveImportModal({ projectId, baseYear, onImported, onC
               <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">Steps A–Q · Tasks dengan Unit & Vol · Rencana & Realisasi</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/6 transition-colors">
+          <button onClick={handleClose} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/6 transition-colors">
             <X size={16} />
           </button>
         </div>
@@ -539,7 +551,7 @@ export default function ScurveImportModal({ projectId, baseYear, onImported, onC
             Ganti file
           </button>
           <div className="flex items-center gap-3">
-            <button onClick={onClose} className="px-4 py-2 rounded-lg text-[12px] text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/6 transition-colors">
+            <button onClick={handleClose} className="px-4 py-2 rounded-lg text-[12px] text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/6 transition-colors">
               Batal
             </button>
             <button
