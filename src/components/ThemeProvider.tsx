@@ -22,6 +22,9 @@ function applyThemeClass(theme: "light" | "dark") {
   const root = document.documentElement;
   root.classList.remove("light", "dark");
   root.classList.add(theme);
+  // Mirror the resolved theme into a cookie so the server can set the initial
+  // <html> class during SSR — prevents the white flash without an inline script.
+  document.cookie = `theme=${theme}; path=/; max-age=31536000; SameSite=Lax`;
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {

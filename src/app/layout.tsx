@@ -1,6 +1,6 @@
 ﻿import type { Metadata } from "next";
 import { Inter } from "next/font/google";
-import Script from "next/script";
+import { cookies } from "next/headers";
 import "./globals.css";
 import { ThemeProvider } from "@/components/ThemeProvider";
 
@@ -15,20 +15,22 @@ export const metadata: Metadata = {
   description: "Aryaduta Group Project Management Dashboard",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Resolved theme is persisted in a cookie by ThemeProvider; set the initial
+  // <html> class from it during SSR so there's no white flash and no inline
+  // script (React 19 warns on inline scripts rendered by components).
+  const cookieStore = await cookies();
+  const resolvedTheme = cookieStore.get("theme")?.value === "light" ? "light" : "dark";
+
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" className={resolvedTheme} suppressHydrationWarning>
       <body
         className={`${inter.variable} antialiased bg-slab-bg dark:bg-slate-900 text-slate-900 dark:text-white transition-colors duration-500`}
       >
-        {/* Theme-init: injected into initial HTML, runs before paint to prevent white flash */}
-        <Script id="theme-init" strategy="beforeInteractive">
-          {`(function(){try{var t=localStorage.getItem('theme')||'dark';var d=t==='system'?(window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'):t;document.documentElement.classList.add(d);}catch(e){document.documentElement.classList.add('dark');}})();`}
-        </Script>
         <ThemeProvider>
           {children}
         </ThemeProvider>
