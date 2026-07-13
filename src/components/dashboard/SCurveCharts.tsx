@@ -268,16 +268,26 @@ export default function SCurveCharts({ projects }: { projects: DBProject[] }) {
   // ── Cell editing (actual values only) ────────────────────────────────────────
   const [editingCell, setEditingCell] = useState<{ taskId: string; week: string } | null>(null);
   const [cellInput, setCellInput] = useState("");
+  const [cellOriginal, setCellOriginal] = useState(0);
   const [saving, setSaving] = useState(false);
 
   function startCellEdit(taskId: string, week: string, current: number) {
     setEditingCell({ taskId, week });
-    setCellInput(current ? String(current) : "");
+    // Show 2 decimals (matches the cell display); full precision stays stored.
+    setCellInput(current ? current.toFixed(2) : "");
+    setCellOriginal(current);
   }
 
   async function commitCell() {
     if (!editingCell || !projectId) { setEditingCell(null); return; }
     const val = Math.max(0, parseFloat(cellInput) || 0);
+
+    // Unchanged at 2dp (e.g. just clicked and blurred) → keep the stored
+    // full-precision value instead of overwriting it with the rounded one.
+    if (Math.round(val * 100) === Math.round(cellOriginal * 100)) {
+      setEditingCell(null);
+      return;
+    }
 
     // Optimistic update
     setSteps(prev => prev.map(step => ({
