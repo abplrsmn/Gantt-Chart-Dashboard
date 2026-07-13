@@ -289,6 +289,7 @@ export default function ProjectGanttDB() {
   const headerRef    = useRef<HTMLDivElement>(null);
   const bodyRef      = useRef<HTMLDivElement>(null);
   const topScrollRef = useRef<HTMLDivElement>(null);
+  const cardRef      = useRef<HTMLDivElement>(null);
   const syncingRef   = useRef(false);
 
   const dragRef        = useRef<ActiveDrag | null>(null);
@@ -594,6 +595,23 @@ export default function ProjectGanttDB() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dateRange.start]);
 
+  // Force the gantt card to fill down to the container's bottom edge. With a
+  // short project list the flex chain leaves the card at content height,
+  // showing an empty gap below the last row — measure and pin it instead.
+  useEffect(() => {
+    const fit = () => {
+      const c = containerRef.current, card = cardRef.current;
+      if (!c || !card) return;
+      const avail = Math.floor(c.getBoundingClientRect().bottom - card.getBoundingClientRect().top);
+      card.style.height = avail > 8 ? `${avail}px` : "";
+    };
+    const raf = requestAnimationFrame(fit);
+    const ro = new ResizeObserver(fit);
+    if (containerRef.current) ro.observe(containerRef.current);
+    window.addEventListener("resize", fit);
+    return () => { cancelAnimationFrame(raf); ro.disconnect(); window.removeEventListener("resize", fit); };
+  }, [loading, filteredProjects.length]);
+
   function startDrag(
     e: React.MouseEvent,
     project: DBProject,
@@ -760,7 +778,7 @@ export default function ProjectGanttDB() {
       </div>
 
       {/* Gantt */}
-      <div className="flex-1 min-h-0 flex flex-col rounded-xl overflow-clip border border-slate-200/60 dark:border-white/8 bg-white/60 dark:bg-zinc-900/50 backdrop-blur-sm">
+      <div ref={cardRef} className="flex-1 min-h-0 flex flex-col rounded-xl overflow-clip border border-slate-200/60 dark:border-white/8 bg-white/60 dark:bg-zinc-900/50 backdrop-blur-sm">
 
         {/* ── Sticky headers + top scrollbar ── */}
         <div className="shrink-0 sticky top-0 z-30 bg-white dark:bg-zinc-900 rounded-t-2xl border-b border-slate-200/60 dark:border-white/8">
