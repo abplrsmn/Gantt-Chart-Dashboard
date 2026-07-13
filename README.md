@@ -104,10 +104,30 @@ Also carries: `progress_pct`, `notes`, `brief_text`, `actual_phase_completion_da
 
 #### S-Curve Tracking
 ```
-project_tasks          — id, project_id, weight_pct
-project_task_progress_periods — id, project_task_id, period_order,
-                                period_start, planned_weight, actual_weight
+scurve_steps       — id, project_id, letter (A–Q), name, step_order
+scurve_tasks       — id, step_id, project_id, name, unit, vol,
+                     bobot NUMERIC(9,5), task_order
+scurve_task_weeks  — id, task_id, week_date, plan_pct NUMERIC(9,5),
+                     actual_pct NUMERIC(9,5), UNIQUE(task_id, week_date)
 ```
+Nested hierarchy **step → task → weekly plan/actual**. Weekly values are
+stored at full precision (`NUMERIC(9,5)`) and displayed rounded to 2 dp so
+per-cell numbers match the source Excel while the cumulative still sums to
+100%. Populated either manually in the S-curve grid or via the Excel
+importer (see below). Created by `scripts/migrate-scurve.mjs`.
+
+> **Note:** `project_tasks` / `project_task_progress_periods` were an earlier,
+> disconnected attempt and are no longer read by the S-curve UI.
+
+#### Excel Import (TIME SCHEDULE format)
+`ScurveImportModal` parses a "TIME SCHEDULE" workbook (BOBOT column,
+sections A–Q, per-task UNIT & VOL, weekly period columns). A row becomes a
+task when its `NO.` is an uppercase letter **or** a digit **and** its BOBOT
+> 0 — section headers with weight become the step's task; zero-weight
+sub-items are skipped. Excel date serials are converted timezone-safely so
+weekly values land on the correct Mondays. Import replaces all existing
+S-curve data for the project; a double-confirmation "Hapus S-Curve" button
+wipes it.
 
 #### Master / Lookup Tables
 ```
@@ -149,7 +169,15 @@ chat_reminder_logs      — id, channel, target_type, reminder_type, message_bod
 | PATCH | `/api/projects/[id]` | Update single field (role-gated), writes audit log |
 | DELETE | `/api/projects/[id]` | Delete project, best-effort audit log |
 | GET | `/api/projects/gantt` | All projects with phase pivots + S-curve CTE |
-| GET | `/api/projects/[id]/scurve` | S-curve data by period |
+| GET | `/api/projects/[id]/scurve` | S-curve data by period (chart CTE) |
+| GET | `/api/projects/[id]/scurve-steps` | Nested steps → tasks → weekly plan/actual |
+| POST | `/api/projects/[id]/scurve-steps` | Create a step |
+| PATCH/DELETE | `/api/projects/[id]/scurve-steps/[stepId]` | Rename / delete a step |
+| POST | `/api/projects/[id]/scurve-tasks` | Create a task under a step |
+| PATCH/DELETE | `/api/projects/[id]/scurve-tasks/[taskId]` | Edit / delete a task |
+| PATCH | `/api/projects/[id]/scurve-weeks` | Upsert one week's `plan` or `actual` value |
+| POST | `/api/projects/[id]/scurve-import` | Import full S-curve from parsed Excel (replaces existing; auto-widens numeric precision) |
+| DELETE | `/api/projects/[id]/scurve-import` | Wipe all S-curve data for the project |
 | GET | `/api/projects/[id]/audit` | Paginated change log |
 | POST | `/api/projects/[id]/audit` | Manual audit log entry |
 | GET | `/api/projects/[id]/attachments` | List file attachments |
@@ -375,6 +403,17 @@ node seed_postgres.js
 npm run migrate:pw
 ```
 
+### Migrate S-Curve Tables (first run, or to widen numeric precision)
+
+```bash
+node scripts/migrate-scurve.mjs
+```
+
+Creates `scurve_steps` / `scurve_tasks` / `scurve_task_weeks` and widens the
+weight/percent columns to `NUMERIC(9,5)`. Idempotent — safe to re-run. The
+Excel importer also runs the widening `ALTER`s automatically, so a plain
+re-import is enough on an already-created schema.
+
 ### Development
 
 ```bash
@@ -419,7 +458,8 @@ npm run start
 │   ├── components/dashboard/       # Reusable React components
 │   │   ├── ProjectGanttDB.tsx      # Full Gantt implementation
 │   │   ├── ProjectSummaryMatrix.tsx # Summary matrix table
-│   │   ├── SCurveCharts.tsx        # S-curve visualization
+│   │   ├── SCurveCharts.tsx        # S-curve grid + chart (editable plan/actual)
+│   │   ├── ScurveImportModal.tsx   # Excel (TIME SCHEDULE) → S-curve importer
 │   │   ├── AddProjectModal.tsx     # New project form
 │   │   ├── AnimatedDropdown.tsx    # Reusable animated dropdown
 │   │   └── DateRangePicker.tsx     # Date range filter
