@@ -58,13 +58,25 @@ function parsePeriodDate(header: string, year: number, prevDate: Date | null): D
   return new Date(useYear, monthIdx, startDay);
 }
 
+// Convert an Excel serial (days since 1899-12-30) to a LOCAL-midnight Date on the
+// correct calendar day. We compute the UTC instant first (clean multiple of a day),
+// then rebuild from its UTC Y/M/D so timezone never shifts the day.
+function serialToLocalDate(serial: number): Date {
+  const utc = new Date(Math.round((serial - 25569) * 86400000));
+  return new Date(utc.getUTCFullYear(), utc.getUTCMonth(), utc.getUTCDate());
+}
+
 function parseDateCell(cell: unknown): Date | null {
-  if (cell instanceof Date && !isNaN(cell.getTime())) return cell;
-  if (typeof cell === "number" && cell > 40000)
-    return new Date(Math.round((cell - 25569) * 86400000));
+  // SheetJS Date objects can carry sub-second drift (e.g. 23:59:48), which would
+  // read as the previous day — round to the nearest local calendar day.
+  if (cell instanceof Date && !isNaN(cell.getTime())) {
+    const rounded = new Date(cell.getTime() + 12 * 3600 * 1000);
+    return new Date(rounded.getFullYear(), rounded.getMonth(), rounded.getDate());
+  }
+  if (typeof cell === "number" && cell > 40000) return serialToLocalDate(cell);
   if (typeof cell === "string") {
     const d = new Date(cell);
-    if (!isNaN(d.getTime())) return d;
+    if (!isNaN(d.getTime())) return new Date(d.getFullYear(), d.getMonth(), d.getDate());
   }
   return null;
 }
@@ -85,7 +97,9 @@ function parseExcel(file: File, baseYear: number): Promise<ParsedData> {
     reader.onload = (e) => {
       try {
         const data = new Uint8Array(e.target!.result as ArrayBuffer);
-        const wb = XLSX.read(data, { type: "array", cellDates: true });
+        // No cellDates → date cells arrive as raw serials, which we convert
+        // timezone-safely (SheetJS Date objects can drift by ~12s and shift the day).
+        const wb = XLSX.read(data, { type: "array" });
         const ws = wb.Sheets[wb.SheetNames[0]];
         const rows: unknown[][] = XLSX.utils.sheet_to_json(ws, {
           header: 1, defval: null, raw: true,
@@ -137,19 +151,6 @@ function parseExcel(file: File, baseYear: number): Promise<ParsedData> {
             warnings.push("Tanggal periode tidak ditemukan — pakai sequential dates.");
           }
 
-          // REALISASI actuals (scan from bottom)
-          const actualsPerPeriod: number[] = new Array(periodCount).fill(0);
-          for (let r = rows.length - 1; r >= headerRowIdx + 1; r--) {
-            const row = rows[r] as unknown[];
-            if (String(row[0] ?? "").trim().toLowerCase() === "realisasi") {
-              for (let c = 0; c < periodCount; c++) {
-                const v = Number(row[periodStartCol + c] ?? 0);
-                actualsPerPeriod[c] = isNaN(v) ? 0 : v;
-              }
-              break;
-            }
-          }
-
           // Collect steps and their tasks
           type RawTask = { name: string; unit: string; vol: string; bobot: number; periods: number[] };
           type RawSection = { letter: string; name: string; tasks: RawTask[] };
@@ -164,7 +165,7 @@ function parseExcel(file: File, baseYear: number): Promise<ParsedData> {
             const col2 = String(row[2] ?? "").trim();  // UNIT
             const col3 = String(row[3] ?? "").trim();  // VOL
 
-            // Stop at RENCANA/REALISASI summary rows
+            // Stop at RENCANA/REALISASI/KUMULATIF/DEVIASI summary rows
             if (STOP_KEYWORDS.some(kw => col0.toLowerCase().startsWith(kw))) break;
 
             const readPeriods = (): number[] =>
@@ -178,32 +179,31 @@ function parseExcel(file: File, baseYear: number): Promise<ParsedData> {
               return isNaN(v) ? 0 : v;
             })();
 
-            // Uppercase single letter → new section
-            if (/^[A-Z]$/.test(col0)) {
-              if (seenLetters.has(col0)) break; // second occurrence = separate table
+            const isLetter = /^[A-Z]$/.test(col0);
+            const isNumber = /^\d+$/.test(col0);
+
+            // Uppercase single letter → starts a new section (step)
+            if (isLetter) {
+              if (seenLetters.has(col0)) break; // second occurrence = separate table below
               seenLetters.add(col0);
               currentSection = { letter: col0, name: col1, tasks: [] };
               sections.push(currentSection);
-
-              // If section header has its own bobot → create a "section-level" task
-              if (bobot > 0) {
-                currentSection.tasks.push({
-                  name: col1, unit: "", vol: "", bobot, periods: readPeriods(),
-                });
-              }
             }
 
-            // Numbered sub-item (1, 2, 3…) → create task under current section
-            if (/^\d+$/.test(col0) && currentSection) {
+            // A row is a real TASK only when it carries its own weight (bobot > 0).
+            //  - Section headers with bobot (A, M–Q): the header itself is the task.
+            //  - Numbered items with bobot (B–L): each numbered item is a task.
+            //  - bobot = 0 rows (spec sub-items, lowercase a/b/c, zero-weight numbers,
+            //    SUB TOTAL rows) are skipped entirely.
+            if ((isLetter || isNumber) && bobot > 0 && currentSection) {
               currentSection.tasks.push({
                 name: col1 || col0,
-                unit: col2,
-                vol: col3,
+                unit: isNumber ? col2 : "",
+                vol: isNumber ? col3 : "",
                 bobot,
-                periods: bobot > 0 ? readPeriods() : [],
+                periods: readPeriods(),
               });
             }
-            // Lowercase sub-items (a, b, c…) are specification details → skip
           }
 
           if (sections.length === 0) {
@@ -211,41 +211,30 @@ function parseExcel(file: File, baseYear: number): Promise<ParsedData> {
             return;
           }
 
-          // Compute total planned per period (for distributing REALISASI actuals)
-          const plannedPerPeriod: number[] = new Array(periodCount).fill(0);
-          for (const sec of sections) {
-            for (const task of sec.tasks) {
-              if (task.bobot > 0) {
-                for (let c = 0; c < periodCount; c++) plannedPerPeriod[c] += task.periods[c] ?? 0;
-              }
-            }
-          }
-
-          // Build ImportStep[]
-          const steps: ImportStep[] = sections.map(sec => ({
-            letter: sec.letter,
-            name: `${sec.letter} - ${sec.name}`,
-            tasks: sec.tasks.map(task => {
-              const weeks: ImportWeek[] = [];
-              if (task.bobot > 0) {
+          // Build ImportStep[] — the yellow per-period values are the weekly target
+          // (rencana). They populate BOTH plan_pct (drives the PLANNED line) and
+          // actual_pct (so the numbers appear in the editable weekly grid cells).
+          const steps: ImportStep[] = sections
+            .filter(sec => sec.tasks.length > 0)
+            .map(sec => ({
+              letter: sec.letter,
+              name: `${sec.letter} - ${sec.name}`,
+              tasks: sec.tasks.map(task => {
+                const weeks: ImportWeek[] = [];
                 for (let c = 0; c < periodCount; c++) {
-                  const plan = task.periods[c] ?? 0;
-                  const ta = actualsPerPeriod[c];
-                  const tp = plannedPerPeriod[c];
-                  const actual = (ta > 0 && tp > 0 && plan > 0)
-                    ? parseFloat(((ta * plan) / tp).toFixed(4))
-                    : 0;
-                  if (plan > 0 || actual > 0) {
-                    weeks.push({ week_date: toISODate(periodDates[c]), plan_pct: plan, actual_pct: actual });
+                  const val = task.periods[c] ?? 0;
+                  if (val > 0) {
+                    weeks.push({ week_date: toISODate(periodDates[c]), plan_pct: val, actual_pct: val });
                   }
                 }
-              }
-              return { name: task.name, unit: task.unit, vol: task.vol, bobot: task.bobot, weeks };
-            }),
-          }));
+                return { name: task.name, unit: task.unit, vol: task.vol, bobot: task.bobot, weeks };
+              }),
+            }));
 
-          if (actualsPerPeriod.every(v => v === 0))
-            warnings.push("Baris 'REALISASI' tidak ditemukan atau semua 0 — actual values akan 0.");
+          const grandTotal = steps.reduce((s, st) => s + st.tasks.reduce((ts, t) => ts + t.bobot, 0), 0);
+          if (Math.abs(grandTotal - 100) > 1) {
+            warnings.push(`Total bobot ${grandTotal.toFixed(2)}% (bukan 100%) — cek kembali kolom BOBOT di Excel.`);
+          }
 
           resolve({ steps, periodLabels, warnings });
           return;
