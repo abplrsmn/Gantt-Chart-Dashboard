@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Upload, X, FileSpreadsheet, Check, Loader2, AlertTriangle, ChevronDown, ChevronRight } from "lucide-react";
 import * as XLSX from "xlsx";
 
@@ -407,9 +408,11 @@ export default function ScurveImportModal({ projectId, baseYear, onImported, onC
   const totalTasks = parsed?.steps.reduce((s, step) => s + step.tasks.length, 0) ?? 0;
   const activeTasks = parsed?.steps.reduce((s, step) => s + step.tasks.filter(t => t.bobot > 0).length, 0) ?? 0;
 
-  return (
+  if (typeof document === "undefined") return null;
+
+  return createPortal(
     <div
-      className={`fixed inset-0 z-200 flex items-center justify-center p-4 ${exiting ? "animate-backdrop-exit" : "animate-backdrop-enter"}`}
+      className={`fixed inset-0 z-9999 flex items-center justify-center p-4 ${exiting ? "animate-backdrop-exit" : "animate-backdrop-enter"}`}
       style={{ backgroundColor: "rgba(0,0,0,0.5)", backdropFilter: "blur(6px)" }}
       onMouseDown={e => { if (e.target === e.currentTarget) handleClose(); }}
     >
@@ -564,6 +567,7 @@ export default function ScurveImportModal({ projectId, baseYear, onImported, onC
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
