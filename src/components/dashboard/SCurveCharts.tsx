@@ -195,7 +195,7 @@ function FakeSCurve() {
 // ─── Constants ─────────────────────────────────────────────────────────────────
 
 const CELL_W = 48;
-const LEFT_W = 300;
+const LEFT_W = 500;
 
 // ─── Main Component ────────────────────────────────────────────────────────────
 
@@ -634,6 +634,8 @@ export default function SCurveCharts({ projects }: { projects: DBProject[] }) {
                   <div className="shrink-0 border-r border-slate-200/60 dark:border-white/8 h-7 flex items-center px-3 gap-2" style={{ width: LEFT_W }}>
                     <span className="text-[8px] uppercase tracking-widest text-slate-400 w-8 shrink-0 text-center">NO</span>
                     <span className="text-[8px] uppercase tracking-widest text-slate-400 flex-1">ITEM / DESCRIPTION</span>
+                    <span className="text-[8px] uppercase tracking-widest text-slate-400 w-10 shrink-0 text-center">UNIT</span>
+                    <span className="text-[8px] uppercase tracking-widest text-slate-400 w-12 shrink-0 text-right">VOL</span>
                     <span className="text-[8px] uppercase tracking-widest text-slate-400 w-14 text-right shrink-0">WEIGHT%</span>
                   </div>
                   {monthGroups.map((mg, i) => (
@@ -797,9 +799,9 @@ export default function SCurveCharts({ projects }: { projects: DBProject[] }) {
                       {/* Task rows */}
                       {!isCollapsed && step.tasks.map((task, ti) => {
                         return (
-                          <div key={task.id} className="flex border-b border-slate-200/40 dark:border-white/5 hover:bg-slate-50/40 dark:hover:bg-white/1.5 group/task">
-                            <div className="shrink-0 border-r border-slate-200/60 dark:border-white/8 flex items-center gap-2 px-2 h-10" style={{ width: LEFT_W }}>
-                              <span className="text-[9px] text-slate-400 w-8 shrink-0 text-center">{si + 1}.{ti + 1}</span>
+                          <div key={task.id} className="flex items-stretch border-b border-slate-200/40 dark:border-white/5 hover:bg-slate-50/40 dark:hover:bg-white/1.5 group/task">
+                            <div className="shrink-0 border-r border-slate-200/60 dark:border-white/8 flex items-center gap-2 px-2 py-1.5 min-h-10" style={{ width: LEFT_W }}>
+                              <span className="text-[9px] text-slate-400 w-8 shrink-0 text-center self-start mt-0.5">{si + 1}.{ti + 1}</span>
                               {editingTaskField?.taskId === task.id && editingTaskField.field === "name" ? (
                                 <input
                                   autoFocus
@@ -812,9 +814,11 @@ export default function SCurveCharts({ projects }: { projects: DBProject[] }) {
                               ) : (
                                 <span
                                   onClick={() => { setEditingTaskField({ taskId: task.id, field: "name" }); setTaskFieldDraft(task.name); }}
-                                  className="text-[11px] text-slate-700 dark:text-slate-200 flex-1 truncate cursor-text hover:text-amber-600 dark:hover:text-amber-400 transition-colors"
+                                  className="text-[11px] text-slate-700 dark:text-slate-200 flex-1 whitespace-normal break-words leading-snug cursor-text hover:text-amber-600 dark:hover:text-amber-400 transition-colors"
                                 >{task.name}</span>
                               )}
+                              <span className="text-[9px] text-slate-400 dark:text-slate-500 w-10 shrink-0 text-center self-start mt-0.5">{task.unit || "—"}</span>
+                              <span className="text-[9px] text-slate-400 dark:text-slate-500 w-12 shrink-0 text-right self-start mt-0.5">{task.vol || "—"}</span>
                               {editingTaskField?.taskId === task.id && editingTaskField.field === "bobot" ? (
                                 <input
                                   autoFocus
@@ -823,15 +827,15 @@ export default function SCurveCharts({ projects }: { projects: DBProject[] }) {
                                   onChange={e => setTaskFieldDraft(e.target.value)}
                                   onBlur={() => commitTaskField(step.id, task.id, "bobot")}
                                   onKeyDown={e => { if (e.key === "Enter") commitTaskField(step.id, task.id, "bobot"); if (e.key === "Escape") setEditingTaskField(null); }}
-                                  className="w-14 bg-white/10 dark:bg-white/5 border border-amber-400/60 rounded px-1.5 text-[10px] font-bold text-right text-slate-800 dark:text-white outline-none"
+                                  className="w-14 self-start bg-white/10 dark:bg-white/5 border border-amber-400/60 rounded px-1.5 text-[10px] font-bold text-right text-slate-800 dark:text-white outline-none"
                                 />
                               ) : (
                                 <span
                                   onClick={() => { setEditingTaskField({ taskId: task.id, field: "bobot" }); setTaskFieldDraft(String(task.bobot)); }}
-                                  className="text-[10px] font-bold text-slate-600 dark:text-slate-300 w-14 text-right shrink-0 cursor-text hover:text-amber-600 dark:hover:text-amber-400 transition-colors"
+                                  className="text-[10px] font-bold text-slate-600 dark:text-slate-300 w-14 text-right shrink-0 self-start mt-0.5 cursor-text hover:text-amber-600 dark:hover:text-amber-400 transition-colors"
                                 >{task.bobot.toFixed(2)}</span>
                               )}
-                              <button onClick={() => deleteTask(step.id, task.id, task.name)} className="opacity-0 group-hover/task:opacity-100 text-slate-400 hover:text-rose-500 dark:text-white/30 dark:hover:text-rose-400 transition-all shrink-0 ml-0.5">
+                              <button onClick={() => deleteTask(step.id, task.id, task.name)} className="opacity-0 group-hover/task:opacity-100 text-slate-400 hover:text-rose-500 dark:text-white/30 dark:hover:text-rose-400 transition-all shrink-0 ml-0.5 self-start mt-0.5">
                                 <Trash2 size={13} />
                               </button>
                             </div>
@@ -842,7 +846,7 @@ export default function SCurveCharts({ projects }: { projects: DBProject[] }) {
                                 <div
                                   key={wi}
                                   style={{ width: CELL_W, minWidth: CELL_W }}
-                                  className={`h-10 border-r border-slate-200/30 dark:border-white/4 flex items-center justify-center ${v > 0 ? "bg-emerald-50/60 dark:bg-emerald-950/20" : ""}`}
+                                  className={`min-h-10 border-r border-slate-200/30 dark:border-white/4 flex items-center justify-center ${v > 0 ? "bg-emerald-50/60 dark:bg-emerald-950/20" : ""}`}
                                 >
                                   {isEditing ? (
                                     <input
