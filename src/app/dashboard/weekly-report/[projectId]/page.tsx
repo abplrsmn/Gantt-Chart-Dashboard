@@ -12,6 +12,7 @@ import {
   MapPin, User, Users, Building2, TrendingUp, CheckSquare, Square, ExternalLink,
 } from "lucide-react";
 import { PHASE_LIST, PHASE_COLORS, DEFAULT_PHASE_COLOR } from "@/lib/phases";
+import WeekPicker from "@/components/dashboard/WeekPicker";
 import {
   ComposedChart, Area, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Legend,
@@ -497,12 +498,7 @@ function ProjectReportContent() {
               >
                 <ChevronLeft size={13} />
               </button>
-              <input
-                type="week"
-                value={selectedWeekVal}
-                onChange={e => setSelectedWeekVal(e.target.value)}
-                className="rounded-lg border border-slate-200/70 dark:border-white/10 bg-white/70 dark:bg-zinc-900/60 pl-2 pr-2 py-1 text-[11px] outline-none text-slate-700 dark:text-white w-36 cursor-pointer focus:border-brand-sienna/60 transition-all"
-              />
+              <WeekPicker value={selectedWeekVal} onChange={setSelectedWeekVal} />
               <button
                 onClick={() => { const w = weeks[currentWeekIdx + 1]; if (w) setSelectedWeekVal(toWeekVal(w.monday)); }}
                 disabled={currentWeekIdx >= weeks.length - 1}

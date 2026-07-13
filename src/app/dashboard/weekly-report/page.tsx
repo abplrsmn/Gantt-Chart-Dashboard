@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { format, addDays, parseISO, isValid, getISOWeek, getISOWeekYear, startOfISOWeek, eachWeekOfInterval } from "date-fns";
 import { BarChart2, Search, CalendarRange, ArrowRight, Camera, MapPin, User } from "lucide-react";
 import { PHASE_COLORS, DEFAULT_PHASE_COLOR } from "@/lib/phases";
+import WeekPicker from "@/components/dashboard/WeekPicker";
 
 type ProjectMeta = {
   id: string;
@@ -146,15 +147,7 @@ export default function WeeklyReportPage() {
           <h2 className="text-lg font-bold text-slate-800 dark:text-white">Weekly Report</h2>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <div className="relative">
-            <CalendarRange size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-            <input
-              type="week"
-              value={selectedWeekVal}
-              onChange={e => setSelectedWeekVal(e.target.value)}
-              className="rounded-lg border border-slate-200/70 dark:border-white/10 bg-white/70 dark:bg-zinc-900/60 pl-8 pr-3 py-2 text-[12px] outline-none text-slate-800 dark:text-white w-44 cursor-pointer focus:border-brand-sienna/60 focus:ring-1 focus:ring-brand-sienna/20 transition-all"
-            />
-          </div>
+          <WeekPicker value={selectedWeekVal} onChange={setSelectedWeekVal} />
           <label className="relative">
             <Search size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
             <input
