@@ -90,6 +90,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [sidebarExpanded, setSidebarExpanded] = useState(false);
   const settingsRef    = useRef<HTMLDivElement>(null);
+  const mainRef        = useRef<HTMLElement>(null);
   const expandTimerRef = useRef<number | null>(null);
   const prevAlertCountRef = useRef<number | null>(null);
   const toastTimerRef     = useRef<number | null>(null);
@@ -115,6 +116,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }
 
   useEffect(() => { pathnameRef.current = pathname; }, [pathname]);
+  // main is the scroll container now (root is overflow-hidden), so reset its
+  // scroll on navigation — the window no longer scrolls for Next to reset.
+  useEffect(() => { mainRef.current?.scrollTo(0, 0); }, [pathname]);
   useEffect(() => { setUserRole(getRoleFromCookie()); }, []);
   useEffect(() => {
     function handler(e: MouseEvent) {
@@ -216,7 +220,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }
 
   return (
-    <div className={`flex min-h-screen transition-colors duration-500 ${isDark ? "mesh-bg-dark" : "mesh-bg-light"}`}>
+    <div className={`flex h-screen overflow-hidden transition-colors duration-500 ${isDark ? "mesh-bg-dark" : "mesh-bg-light"}`}>
 
       {/* ── Sidebar ───────────────────────────────────────────────────────── */}
       <aside
@@ -296,7 +300,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </aside>
 
       {/* ── Main content — fixed 56px left offset for collapsed sidebar ── */}
-      <main className="flex-1 min-w-0 ml-14 px-4 pb-8 pt-5">
+      <main ref={mainRef} className="flex-1 min-w-0 ml-14 px-4 pb-8 pt-5 overflow-y-auto">
         <div className="max-w-390 mx-auto">
           {children}
         </div>
