@@ -486,7 +486,7 @@ function dateFieldConstraint(
 }
 
 function PhaseCard({
-  ph, project, isCurrent, isPast, people, masterPeople, onSave,
+  ph, project, isCurrent, isPast, people, picOptions, onSave,
   phaseRowId, onAssignPic, onRemovePerson, tasks, attachments,
   onTaskAdd, onTaskToggle, onTaskDelete,
   onFileUpload, onFileDelete,
@@ -496,7 +496,7 @@ function PhaseCard({
   isCurrent: boolean;
   isPast: boolean;
   people: PersonRow[];
-  masterPeople: { id: number; full_name: string; job_title: string | null }[];
+  picOptions: { id: number; full_name: string; job_title: string | null }[];
   onSave: (key: keyof ProjectDetail, value: string | null) => Promise<void>;
   phaseRowId: string | null;
   onAssignPic: (person: { id: number; full_name: string; job_title: string | null }) => void;
@@ -622,12 +622,12 @@ function PhaseCard({
                   value={picPerson?.person_id != null ? String(picPerson.person_id) : ""}
                   placeholder="Select PIC…"
                   minWidth={200}
-                  options={masterPeople.map(mp => ({
+                  options={picOptions.map(mp => ({
                     value: String(mp.id),
                     label: mp.job_title ? `${mp.full_name} · ${mp.job_title}` : mp.full_name,
                   }))}
                   onChange={val => {
-                    const mp = masterPeople.find(m => String(m.id) === val);
+                    const mp = picOptions.find(m => String(m.id) === val);
                     if (mp) onAssignPic(mp);
                   }}
                 />
@@ -945,6 +945,8 @@ function ProjectDetailContent() {
   const [newStakeholder, setNewStakeholder] = useState("");
   const [addingStakeholder, setAddingStakeholder] = useState(false);
   const [masterPeople, setMasterPeople] = useState<{ id: number; full_name: string; job_title: string | null }[]>([]);
+  // User accounts (master_acc) — the pool of PICs
+  const [accountUsers, setAccountUsers] = useState<{ id: number; full_name: string; job_title: string | null }[]>([]);
 
   const [showStatusPicker, setShowStatusPicker] = useState(false);
   const statusBtnRef = useRef<HTMLButtonElement>(null);
@@ -1002,6 +1004,19 @@ function ProjectDetailContent() {
     fetch("/api/master/people")
       .then(r => r.json())
       .then(d => { if (d.success) setMasterPeople(d.data); })
+      .catch(() => {});
+    // PIC options come from user accounts (each account is linked to a person)
+    fetch("/api/master/users")
+      .then(r => r.json())
+      .then(d => {
+        if (d.success) {
+          setAccountUsers(
+            (d.data as { person_id: number | null; full_name: string | null; job_title: string | null }[])
+              .filter(u => u.person_id != null && u.full_name)
+              .map(u => ({ id: u.person_id as number, full_name: u.full_name as string, job_title: u.job_title }))
+          );
+        }
+      })
       .catch(() => {});
   }, []);
 
@@ -1874,7 +1889,7 @@ function ProjectDetailContent() {
                 isCurrent={project.current_phase_code === ph.phaseCode}
                 isPast={phIdx < currentIdx}
                 people={people}
-                masterPeople={masterPeople}
+                picOptions={accountUsers}
                 onSave={patchField}
                 phaseRowId={phaseRowId}
                 onAssignPic={person => phaseRowId && assignPic(phaseRowId, ph.phaseId, person)}
