@@ -230,7 +230,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 
       client.query(`
         SELECT pp.id, pp.raw_person_name, pp.raw_organization_name,
-               pp.is_primary, pp.notes,
+               pp.is_primary, pp.notes, pp.person_id,
                pp.phase_id AS phase_row_id,
                pph.phase_id::int AS phase_id,
                pp.created_at, pp.updated_at,

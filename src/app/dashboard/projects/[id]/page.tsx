@@ -95,6 +95,7 @@ type PersonRow = {
   is_primary: boolean;
   notes: string | null;
   phase_id: number | null;
+  person_id: number | null;
   role_code: string | null;
   role_name: string | null;
   full_name: string | null;
@@ -485,8 +486,8 @@ function dateFieldConstraint(
 }
 
 function PhaseCard({
-  ph, project, isCurrent, isPast, people, onSave,
-  phaseRowId, tasks, attachments,
+  ph, project, isCurrent, isPast, people, masterPeople, onSave,
+  phaseRowId, onAssignPic, onRemovePerson, tasks, attachments,
   onTaskAdd, onTaskToggle, onTaskDelete,
   onFileUpload, onFileDelete,
 }: {
@@ -495,8 +496,11 @@ function PhaseCard({
   isCurrent: boolean;
   isPast: boolean;
   people: PersonRow[];
+  masterPeople: { id: number; full_name: string; job_title: string | null }[];
   onSave: (key: keyof ProjectDetail, value: string | null) => Promise<void>;
   phaseRowId: string | null;
+  onAssignPic: (person: { id: number; full_name: string; job_title: string | null }) => void;
+  onRemovePerson: (personRowId: string) => void;
   tasks: TaskRow[];
   attachments: AttachmentRow[];
   onTaskAdd: (title: string, assigneeName?: string | null, assignedByName?: string | null) => Promise<void>;
@@ -507,6 +511,7 @@ function PhaseCard({
 }) {
   const isLocked    = !isCurrent;
   const phasePeople = people.filter(p => Number(p.phase_id) === ph.phaseId);
+  const picPerson   = phasePeople.find(p => p.role_code === "pic");
 
   const [open,             setOpen]             = useState(isCurrent);
   const [newTaskInput,      setNewTaskInput]      = useState("");
@@ -606,24 +611,72 @@ function PhaseCard({
         </div>
 
         {/* ── PIC ── */}
-        {phasePeople.length > 0 && (
+        {(phasePeople.length > 0 || (!isLocked && phaseRowId)) && (
           <div className="pt-2 border-t border-slate-200/40 dark:border-white/6">
             <p className="text-[9px] uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1.5">PIC</p>
-            <div className="flex flex-wrap gap-1.5">
-              {phasePeople.map(p => {
-                const name = p.full_name || p.raw_person_name || "—";
-                return (
+
+            {/* Editable: pick the PIC from the user directory */}
+            {!isLocked && phaseRowId ? (
+              <div className="flex items-center gap-2">
+                <AnimatedDropdown
+                  value={picPerson?.person_id != null ? String(picPerson.person_id) : ""}
+                  placeholder="Select PIC…"
+                  minWidth={200}
+                  options={masterPeople.map(mp => ({
+                    value: String(mp.id),
+                    label: mp.job_title ? `${mp.full_name} · ${mp.job_title}` : mp.full_name,
+                  }))}
+                  onChange={val => {
+                    const mp = masterPeople.find(m => String(m.id) === val);
+                    if (mp) onAssignPic(mp);
+                  }}
+                />
+                {picPerson && (
+                  <button
+                    aria-label="Remove PIC"
+                    onClick={() => onRemovePerson(picPerson.id)}
+                    className="p-1 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors shrink-0"
+                  >
+                    <X size={13} />
+                  </button>
+                )}
+              </div>
+            ) : (
+              /* Locked: read-only chips */
+              <div className="flex flex-wrap gap-1.5">
+                {phasePeople.map(p => {
+                  const name = p.full_name || p.raw_person_name || "—";
+                  return (
+                    <span
+                      key={p.id}
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold bg-slate-100 dark:bg-white/8 text-slate-700 dark:text-slate-200 border border-slate-200/60 dark:border-white/10"
+                    >
+                      <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: ph.color }} />
+                      {name}
+                      {p.job_title && <span className="text-slate-400 dark:text-slate-500 font-normal">· {p.job_title}</span>}
+                    </span>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Any non-PIC people already on this phase (legacy) shown as chips */}
+            {!isLocked && phaseRowId && phasePeople.some(p => p.role_code !== "pic") && (
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {phasePeople.filter(p => p.role_code !== "pic").map(p => (
                   <span
                     key={p.id}
                     className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold bg-slate-100 dark:bg-white/8 text-slate-700 dark:text-slate-200 border border-slate-200/60 dark:border-white/10"
                   >
                     <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: ph.color }} />
-                    {name}
-                    {p.job_title && <span className="text-slate-400 dark:text-slate-500 font-normal">· {p.job_title}</span>}
+                    {p.full_name || p.raw_person_name || "—"}
+                    <button aria-label="Remove" onClick={() => onRemovePerson(p.id)} className="text-slate-400 hover:text-rose-500 transition-colors">
+                      <X size={10} />
+                    </button>
                   </span>
-                );
-              })}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -1006,7 +1059,7 @@ function ProjectDetailContent() {
       });
       const data = await res.json();
       if (data.success) {
-        setPeople(prev => [...prev, { id: data.data.id, raw_person_name: data.data.raw_person_name, raw_organization_name: null, is_primary: false, notes: null, phase_id: null, role_code: "stakeholder", role_name: "Stakeholder", full_name: null, job_title: null, department: null, email: null }]);
+        setPeople(prev => [...prev, { id: data.data.id, raw_person_name: data.data.raw_person_name ?? data.data.display_name ?? null, raw_organization_name: null, is_primary: false, notes: null, phase_id: null, person_id: null, role_code: "stakeholder", role_name: "Stakeholder", full_name: null, job_title: null, department: null, email: null }]);
         setNewStakeholder("");
       }
     } finally {
@@ -1021,6 +1074,29 @@ function ProjectDetailContent() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ personRowId }),
     });
+  }
+
+  // Assign a person (from the user directory) as the single PIC of a phase.
+  async function assignPic(phaseRowId: string, phaseId: number, person: { id: number; full_name: string; job_title: string | null }) {
+    // Optimistic: drop any existing PIC for this phase, add the new one
+    setPeople(prev => [
+      ...prev.filter(p => !(Number(p.phase_id) === phaseId && p.role_code === "pic")),
+      { id: `tmp-${Date.now()}`, raw_person_name: null, raw_organization_name: null, is_primary: false, notes: null, phase_id: phaseId, person_id: person.id, role_code: "pic", role_name: "PIC", full_name: person.full_name, job_title: person.job_title, department: null, email: null },
+    ]);
+    const res = await fetch(`/api/projects/${id}/people`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ person_id: person.id, role_code: "pic", phase_id: phaseRowId }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      // Replace the temp row id with the real one
+      setPeople(prev => prev.map(p =>
+        p.role_code === "pic" && Number(p.phase_id) === phaseId && p.person_id === person.id
+          ? { ...p, id: data.data.id }
+          : p
+      ));
+    }
   }
 
   async function handleTaskAdd(phaseRowId: string, title: string, assigneeName?: string | null, assignedByName?: string | null) {
@@ -1798,8 +1874,11 @@ function ProjectDetailContent() {
                 isCurrent={project.current_phase_code === ph.phaseCode}
                 isPast={phIdx < currentIdx}
                 people={people}
+                masterPeople={masterPeople}
                 onSave={patchField}
                 phaseRowId={phaseRowId}
+                onAssignPic={person => phaseRowId && assignPic(phaseRowId, ph.phaseId, person)}
+                onRemovePerson={removeStakeholder}
                 tasks={tasks.filter(t => t.phase_id === phaseRowId)}
                 attachments={attachments.filter(a => a.phase_id === phaseRowId)}
                 onTaskAdd={(title, assigneeName, assignedByName) => handleTaskAdd(phaseRowId!, title, assigneeName, assignedByName)}
