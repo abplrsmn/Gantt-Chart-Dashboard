@@ -602,14 +602,20 @@ export default function ProjectGanttDB() {
     const fit = () => {
       const c = containerRef.current, card = cardRef.current;
       if (!c || !card) return;
-      const avail = Math.floor(c.getBoundingClientRect().bottom - card.getBoundingClientRect().top);
-      card.style.height = avail > 8 ? `${avail}px` : "";
+      // Fill the card from its top down to the container's bottom (or the
+      // viewport, whichever is closer) so the gantt table is the last thing on
+      // the page — no empty gap, no page scroll — regardless of the flex chain.
+      const top    = card.getBoundingClientRect().top;
+      const bottom = Math.min(c.getBoundingClientRect().bottom, window.innerHeight - 8);
+      const avail  = Math.floor(bottom - top);
+      card.style.height = avail > 40 ? `${avail}px` : "";
     };
     const raf = requestAnimationFrame(fit);
-    const ro = new ResizeObserver(fit);
+    const t   = setTimeout(fit, 120);           // catch layout after page-enter anim
+    const ro  = new ResizeObserver(fit);
     if (containerRef.current) ro.observe(containerRef.current);
     window.addEventListener("resize", fit);
-    return () => { cancelAnimationFrame(raf); ro.disconnect(); window.removeEventListener("resize", fit); };
+    return () => { cancelAnimationFrame(raf); clearTimeout(t); ro.disconnect(); window.removeEventListener("resize", fit); };
   }, [loading, filteredProjects.length]);
 
   function startDrag(
