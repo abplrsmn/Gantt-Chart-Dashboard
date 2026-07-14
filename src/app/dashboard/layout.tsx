@@ -209,6 +209,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   const navItems = isPm ? pmNavItems : adminNavItems;
 
+  // Pages that fill the viewport and manage their own internal scroll
+  const fullHeightPage =
+    pathname === "/dashboard/projects/gantt" ||
+    pathname === "/dashboard/projects/summary-matrix";
+
   // Active match: exact for home & summary-matrix, prefix for others
   function isActive(path: string) {
     if (path === "/dashboard") return pathname === "/dashboard";
@@ -300,7 +305,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </aside>
 
       {/* ── Main content — fixed 56px left offset for collapsed sidebar ── */}
-      <main ref={mainRef} className="flex-1 min-w-0 ml-14 px-4 pb-8 pt-5 overflow-y-auto">
+      {/* Full-height pages (gantt/summary) manage their own internal scroll, so
+          hide main's scrollbar there; other pages keep it. */}
+      <main ref={mainRef} className={`flex-1 min-w-0 ml-14 px-4 pb-8 pt-5 overflow-y-auto ${fullHeightPage ? "no-scrollbar" : ""}`}>
         <div className="max-w-390 mx-auto">
           {children}
         </div>
