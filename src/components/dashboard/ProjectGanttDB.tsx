@@ -595,25 +595,24 @@ export default function ProjectGanttDB() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dateRange.start]);
 
-  // Force the gantt card to fill down to the container's bottom edge. With a
-  // short project list the flex chain leaves the card at content height,
-  // showing an empty gap below the last row — measure and pin it instead.
+  // Pin the gantt container to exactly its parent's height (the fixed
+  // calc(100vh - 52px) page wrapper). The flex chain can leave it at content
+  // height with a short project list, which — combined with overflow:clip —
+  // then clips the card and leaves an empty gap below the last row. Forcing
+  // the container height makes the card (flex-1) fill it reliably.
   useEffect(() => {
     const fit = () => {
-      const c = containerRef.current, card = cardRef.current;
-      if (!c || !card) return;
-      // Fill the card from its top down to the container's bottom (or the
-      // viewport, whichever is closer) so the gantt table is the last thing on
-      // the page — no empty gap, no page scroll — regardless of the flex chain.
-      const top    = card.getBoundingClientRect().top;
-      const bottom = Math.min(c.getBoundingClientRect().bottom, window.innerHeight - 8);
-      const avail  = Math.floor(bottom - top);
-      card.style.height = avail > 40 ? `${avail}px` : "";
+      const c = containerRef.current;
+      const parent = c?.parentElement;
+      if (!c || !parent) return;
+      const h = parent.clientHeight;
+      c.style.height = h > 80 ? `${h}px` : "";
     };
     const raf = requestAnimationFrame(fit);
     const t   = setTimeout(fit, 120);           // catch layout after page-enter anim
+    // Observe the parent (not the container we resize) to avoid a feedback loop.
     const ro  = new ResizeObserver(fit);
-    if (containerRef.current) ro.observe(containerRef.current);
+    if (containerRef.current?.parentElement) ro.observe(containerRef.current.parentElement);
     window.addEventListener("resize", fit);
     return () => { cancelAnimationFrame(raf); clearTimeout(t); ro.disconnect(); window.removeEventListener("resize", fit); };
   }, [loading, filteredProjects.length]);
@@ -659,7 +658,7 @@ export default function ProjectGanttDB() {
   );
 
   return (
-    <div className="flex flex-col gap-3 flex-1 min-h-0 relative" style={{ overflow: "clip" }} ref={containerRef}>
+    <div className="flex flex-col gap-3 flex-1 min-h-0 h-full relative" style={{ overflow: "clip" }} ref={containerRef}>
       <div className="flex items-center gap-2 mt-2 shrink-0">
         <CalendarRange size={16} className="text-amber-500" />
         <h2 className="text-lg font-bold text-slate-800 dark:text-white">Project Gantt</h2>
