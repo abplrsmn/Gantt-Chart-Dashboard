@@ -77,7 +77,7 @@ function Modal({
   return createPortal(
     <div
       className={`fixed inset-0 z-[9998] flex items-center justify-center p-4 ${phase === "enter" ? "animate-backdrop-enter" : "animate-backdrop-exit"}`}
-      style={{ backgroundColor: "rgba(0,0,0,0.45)", backdropFilter: "blur(6px)" }}
+      style={{ backgroundColor: "rgba(0,0,0,0.5)", backdropFilter: "blur(6px)" }}
       onMouseDown={e => { if (e.target === e.currentTarget) close(); }}
     >
       <div
@@ -141,7 +141,7 @@ function DeleteConfirm({ label, onConfirm, onCancel }: { label: string; onConfir
   return createPortal(
     <div
       className={`fixed inset-0 z-[9998] flex items-center justify-center p-4 ${phase === "enter" ? "animate-backdrop-enter" : "animate-backdrop-exit"}`}
-      style={{ backgroundColor: "rgba(0,0,0,0.45)", backdropFilter: "blur(6px)" }}
+      style={{ backgroundColor: "rgba(0,0,0,0.5)", backdropFilter: "blur(6px)" }}
       onMouseDown={e => { if (e.target === e.currentTarget) cancel(); }}
     >
       <div

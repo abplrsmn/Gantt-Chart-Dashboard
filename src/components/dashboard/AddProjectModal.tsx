@@ -222,7 +222,7 @@ export default function AddProjectModal({
   return createPortal(
     <div
       className={`fixed inset-0 z-9998 flex items-center justify-center p-4 ${exiting ? "animate-backdrop-exit" : "animate-backdrop-enter"}`}
-      style={{ backgroundColor: "rgba(0,0,0,0.45)", backdropFilter: "blur(6px)" }}
+      style={{ backgroundColor: "rgba(0,0,0,0.5)", backdropFilter: "blur(6px)" }}
       onMouseDown={e => { if (e.target === e.currentTarget) closeWithAnimation(); }}
     >
       <div

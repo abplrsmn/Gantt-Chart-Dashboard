@@ -775,7 +775,7 @@ function PhaseCard({
           {showAddTask && typeof document !== "undefined" && createPortal(
             <div
               className="fixed inset-0 z-9999 flex items-center justify-center p-4 animate-backdrop-enter"
-              style={{ backgroundColor: "rgba(0,0,0,0.45)", backdropFilter: "blur(6px)" }}
+              style={{ backgroundColor: "rgba(0,0,0,0.5)", backdropFilter: "blur(6px)" }}
               onMouseDown={e => { if (e.target === e.currentTarget) setShowAddTask(false); }}
             >
               <div
@@ -1918,8 +1918,11 @@ function ProjectDetailContent() {
       )}
       {/* Delete S-Curve double-confirmation popup */}
       {deleteScurveStep > 0 && (
-        <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-white/10 w-full max-w-sm p-6 flex flex-col gap-4">
+        <div
+          className="fixed inset-0 z-[300] flex items-center justify-center p-4 animate-backdrop-enter"
+          style={{ backgroundColor: "rgba(0,0,0,0.5)", backdropFilter: "blur(6px)" }}
+        >
+          <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-white/10 w-full max-w-sm p-6 flex flex-col gap-4 animate-modal-enter">
             {deleteScurveStep === 1 ? (
               <>
                 <div className="flex items-center gap-3">
