@@ -305,9 +305,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </aside>
 
       {/* ── Main content — fixed 56px left offset for collapsed sidebar ── */}
-      {/* Full-height pages (gantt/summary) manage their own internal scroll, so
-          hide main's scrollbar there; other pages keep it. */}
-      <main ref={mainRef} className={`flex-1 min-w-0 ml-14 px-4 pb-8 pt-5 overflow-y-auto ${fullHeightPage ? "no-scrollbar" : ""}`}>
+      {/* Full-height pages (gantt/summary) fill the viewport and manage their own
+          internal scroll, so main must not scroll there; other pages scroll. */}
+      <main ref={mainRef} className={`flex-1 min-w-0 ml-14 px-4 pb-8 pt-5 ${fullHeightPage ? "overflow-hidden" : "overflow-y-auto"}`}>
         <div className="max-w-390 mx-auto">
           {children}
         </div>
