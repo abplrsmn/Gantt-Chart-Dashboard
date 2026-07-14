@@ -767,6 +767,8 @@ export default function ProjectGanttDB() {
             <button
               key={mode}
               title={title}
+              aria-label={title}
+              aria-pressed={toolMode === mode}
               onClick={() => setToolMode(mode)}
               className={`p-2 rounded-lg transition-all ${
                 toolMode === mode

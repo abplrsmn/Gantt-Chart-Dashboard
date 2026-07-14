@@ -399,7 +399,7 @@ function WeekCard({ week, weekKey, range, projectId }: WeekEntry & { projectId: 
                       className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-red-500 hover:bg-red-600 text-white text-[11px] font-semibold transition-colors">
                       <Trash2 size={11} /> Delete
                     </button>
-                    <button onClick={() => setLightbox(null)} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/8 transition-colors ml-1">
+                    <button aria-label="Tutup" onClick={() => setLightbox(null)} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/8 transition-colors ml-1">
                       <X size={14} />
                     </button>
                   </div>
@@ -412,7 +412,7 @@ function WeekCard({ week, weekKey, range, projectId }: WeekEntry & { projectId: 
                 <div className="flex items-center gap-3 px-5 py-4 border-b border-slate-200/60 dark:border-white/8">
                   <FileTypeIcon type={fileType} size={16} />
                   <p className="text-sm font-bold text-slate-800 dark:text-white flex-1 truncate">{lightbox.file_name}</p>
-                  <button onClick={() => setLightbox(null)} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/8 transition-colors">
+                  <button aria-label="Tutup" onClick={() => setLightbox(null)} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/8 transition-colors">
                     <X size={14} />
                   </button>
                 </div>

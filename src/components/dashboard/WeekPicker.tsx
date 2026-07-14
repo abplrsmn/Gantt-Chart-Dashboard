@@ -174,7 +174,7 @@ export default function WeekPicker({ value, onChange }: Props) {
         {/* ── Header: nav + month/year ── */}
         <div className="px-4 pt-4 pb-2">
           <div className="flex items-center justify-between mb-3">
-            <button onClick={() => { setMonth(m => subMonths(m, 1)); setMode("calendar"); }}
+            <button aria-label="Bulan sebelumnya" onClick={() => { setMonth(m => subMonths(m, 1)); setMode("calendar"); }}
               className="w-6 h-6 flex items-center justify-center rounded-lg hover:bg-slate-100 dark:hover:bg-white/8 text-slate-400 dark:text-white/40 hover:text-slate-800 dark:hover:text-white transition-colors">
               <ChevronLeft size={13} />
             </button>
@@ -192,7 +192,7 @@ export default function WeekPicker({ value, onChange }: Props) {
                     : "text-slate-700 dark:text-white/80 hover:bg-slate-100 dark:hover:bg-white/8 hover:text-slate-900 dark:hover:text-white"
                 }`}>{format(month, "yyyy")}</button>
             </div>
-            <button onClick={() => { setMonth(m => addMonths(m, 1)); setMode("calendar"); }}
+            <button aria-label="Bulan berikutnya" onClick={() => { setMonth(m => addMonths(m, 1)); setMode("calendar"); }}
               className="w-6 h-6 flex items-center justify-center rounded-lg hover:bg-slate-100 dark:hover:bg-white/8 text-slate-400 dark:text-white/40 hover:text-slate-800 dark:hover:text-white transition-colors">
               <ChevronRight size={13} />
             </button>

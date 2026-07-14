@@ -88,6 +88,7 @@ function Modal({
         <div className="flex items-center gap-3 px-5 py-4 border-b border-slate-200/60 dark:border-white/8 shrink-0">
           <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 flex-1">{title}</h3>
           <button
+            aria-label="Tutup"
             onClick={close}
             className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/8 transition-colors"
           >
@@ -204,12 +205,14 @@ function RowActions({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => 
   return (
     <td className="px-4 py-3 text-right whitespace-nowrap">
       <button
+        aria-label="Edit"
         onClick={onEdit}
         className="p-2 rounded-lg text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-500/10 transition-colors mr-1"
       >
         <Pencil size={15} />
       </button>
       <button
+        aria-label="Hapus"
         onClick={onDelete}
         className="p-2 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
       >

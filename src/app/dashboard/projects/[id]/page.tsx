@@ -732,7 +732,7 @@ function PhaseCard({
               >
                 <div className="flex items-center justify-between">
                   <p className="text-sm font-bold text-slate-800 dark:text-white">Add Sub-Task</p>
-                  <button onClick={() => setShowAddTask(false)} className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 dark:hover:bg-white/8 transition-colors">
+                  <button aria-label="Tutup" onClick={() => setShowAddTask(false)} className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 dark:hover:bg-white/8 transition-colors">
                     <X size={14} />
                   </button>
                 </div>
@@ -828,6 +828,7 @@ function PhaseCard({
                   )}
                   {!isLocked && (
                     <button
+                      aria-label="Hapus lampiran"
                       onClick={() => onFileDelete(a.id)}
                       className="opacity-0 group-hover:opacity-60 hover:opacity-100! text-slate-400 hover:text-rose-500 transition-all shrink-0"
                     >
@@ -1667,7 +1668,7 @@ function ProjectDetailContent() {
                       <span key={s.id} className="group inline-flex items-center gap-1 text-xs font-medium text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-white/6 px-2 py-1 rounded-md">
                         <Building2 size={10} className="text-slate-400 dark:text-slate-500 shrink-0" />
                         {s.full_name ?? s.raw_person_name ?? s.raw_organization_name ?? "—"}
-                        <button onClick={() => removeStakeholder(s.id)} className="ml-0.5 opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-rose-500">
+                        <button aria-label="Hapus stakeholder" onClick={() => removeStakeholder(s.id)} className="ml-0.5 opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-rose-500">
                           <X size={10} />
                         </button>
                       </span>

@@ -427,7 +427,7 @@ export default function ScurveImportModal({ projectId, baseYear, onImported, onC
               <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">Steps A–Q · Tasks dengan Unit & Vol · Rencana & Realisasi</p>
             </div>
           </div>
-          <button onClick={handleClose} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/6 transition-colors">
+          <button aria-label="Tutup" onClick={handleClose} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/6 transition-colors">
             <X size={16} />
           </button>
         </div>

@@ -492,6 +492,7 @@ function ProjectReportContent() {
             <span className="text-base font-bold text-slate-700 dark:text-slate-200 flex-1">Weekly Progress</span>
             <div className="flex items-center gap-1.5">
               <button
+                aria-label="Minggu sebelumnya"
                 onClick={() => { const w = weeks[currentWeekIdx - 1]; if (w) setSelectedWeekVal(toWeekVal(w.monday)); }}
                 disabled={currentWeekIdx <= 0}
                 className="w-7 h-7 flex items-center justify-center rounded-lg border border-slate-200/70 dark:border-white/10 text-slate-400 hover:text-brand-sienna hover:border-brand-sienna/40 disabled:opacity-30 transition-all"
@@ -500,6 +501,7 @@ function ProjectReportContent() {
               </button>
               <WeekPicker value={selectedWeekVal} onChange={setSelectedWeekVal} />
               <button
+                aria-label="Minggu berikutnya"
                 onClick={() => { const w = weeks[currentWeekIdx + 1]; if (w) setSelectedWeekVal(toWeekVal(w.monday)); }}
                 disabled={currentWeekIdx >= weeks.length - 1}
                 className="w-7 h-7 flex items-center justify-center rounded-lg border border-slate-200/70 dark:border-white/10 text-slate-400 hover:text-brand-sienna hover:border-brand-sienna/40 disabled:opacity-30 transition-all"

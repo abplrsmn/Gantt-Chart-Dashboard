@@ -232,7 +232,7 @@ export default function AddProjectModal({
         {/* Header */}
         <div className="flex items-center gap-3 px-5 py-4 border-b border-slate-200/60 dark:border-white/8">
           <h2 className="text-sm font-bold text-slate-800 dark:text-slate-100 flex-1">Add New Project</h2>
-          <button type="button" onClick={closeWithAnimation}
+          <button type="button" aria-label="Tutup" onClick={closeWithAnimation}
             className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/8 transition-colors">
             <X size={14} />
           </button>
@@ -361,7 +361,7 @@ export default function AddProjectModal({
                             placeholder="— Select phase"
                             className="flex-1"
                           />
-                          <button type="button" onClick={() => removePhaseEntry(idx)} className="p-1 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors">
+                          <button type="button" aria-label="Hapus fase" onClick={() => removePhaseEntry(idx)} className="p-1 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors">
                             <Trash2 size={14} />
                           </button>
                         </div>
