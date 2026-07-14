@@ -149,7 +149,7 @@ function parseExcel(file: File, baseYear: number): Promise<ParsedData> {
             const base = new Date(baseYear, 0, 1);
             for (let i = 0; i < periodCount; i++)
               periodDates.push(new Date(base.getTime() + i * 7 * 86400000));
-            warnings.push("Tanggal periode tidak ditemukan — pakai sequential dates.");
+            warnings.push("Period dates not found — using sequential dates.");
           }
 
           // Collect steps and their tasks
@@ -208,7 +208,7 @@ function parseExcel(file: File, baseYear: number): Promise<ParsedData> {
           }
 
           if (sections.length === 0) {
-            reject(new Error("Tidak ada section (A, B, C…) yang ditemukan. Pastikan format Excel TIME SCHEDULE sudah benar."));
+            reject(new Error("No sections (A, B, C…) found. Make sure the Excel is in TIME SCHEDULE format."));
             return;
           }
 
@@ -238,7 +238,7 @@ function parseExcel(file: File, baseYear: number): Promise<ParsedData> {
 
           const grandTotal = steps.reduce((s, st) => s + st.tasks.reduce((ts, t) => ts + t.bobot, 0), 0);
           if (Math.abs(grandTotal - 100) > 1) {
-            warnings.push(`Total bobot ${grandTotal.toFixed(2)}% (bukan 100%) — cek kembali kolom BOBOT di Excel.`);
+            warnings.push(`Total weight ${grandTotal.toFixed(2)}% (not 100%) — double-check the BOBOT column in Excel.`);
           }
 
           resolve({ steps, periodLabels, warnings });
@@ -263,7 +263,7 @@ function parseExcel(file: File, baseYear: number): Promise<ParsedData> {
             break;
           }
         }
-        if (dateRowIdx === -1) { warnings.push("Tidak menemukan baris tanggal — pakai urutan kolom."); dateRowIdx = 1; }
+        if (dateRowIdx === -1) { warnings.push("Date row not found — using column order."); dateRowIdx = 1; }
 
         const dateRow = (rows[dateRowIdx] ?? []) as unknown[];
         const oldDates: (Date | null)[] = [];
@@ -308,7 +308,7 @@ function parseExcel(file: File, baseYear: number): Promise<ParsedData> {
           rawTasks.push({ name, bobot, planned });
         }
 
-        if (rawTasks.length === 0) { reject(new Error("Tidak ada task yang ditemukan. Pastikan format Excel sesuai.")); return; }
+        if (rawTasks.length === 0) { reject(new Error("No tasks found. Make sure the Excel format is correct.")); return; }
 
         const stepsOld: ImportStep[] = rawTasks.map((t, idx) => ({
           letter: LETTERS[Math.min(idx, 25)],
@@ -323,13 +323,13 @@ function parseExcel(file: File, baseYear: number): Promise<ParsedData> {
           }],
         }));
 
-        if (!actualsRowOld) warnings.push("Baris 'Bobot Realisasi' tidak ditemukan — actual values akan 0.");
+        if (!actualsRowOld) warnings.push("'Bobot Realisasi' row not found — actual values will be 0.");
         resolve({ steps: stepsOld, periodLabels: periodLabelsOld, warnings });
       } catch (err) {
         reject(err);
       }
     };
-    reader.onerror = () => reject(new Error("Gagal membaca file"));
+    reader.onerror = () => reject(new Error("Failed to read file"));
     reader.readAsArrayBuffer(file);
   });
 }
@@ -384,7 +384,7 @@ export default function ScurveImportModal({ projectId, baseYear, onImported, onC
         body: JSON.stringify({ steps: parsed.steps }),
       });
       const json = await res.json();
-      if (!json.success) throw new Error(json.error ?? "Import gagal");
+      if (!json.success) throw new Error(json.error ?? "Import failed");
       setDone(true);
       setTimeout(() => { setExiting(true); setTimeout(() => { onImported(); onClose(); }, 200); }, 1200);
     } catch (err) {
@@ -423,11 +423,11 @@ export default function ScurveImportModal({ projectId, baseYear, onImported, onC
           <div className="flex items-center gap-3">
             <FileSpreadsheet size={20} className="text-green-500" />
             <div>
-              <h2 className="font-semibold text-slate-800 dark:text-white text-sm">Import S-Curve dari Excel</h2>
-              <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">Steps A–Q · Tasks dengan Unit & Vol · Rencana & Realisasi</p>
+              <h2 className="font-semibold text-slate-800 dark:text-white text-sm">Import S-Curve from Excel</h2>
+              <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">Steps A–Q · Tasks with Unit & Vol · Plan & Actual</p>
             </div>
           </div>
-          <button aria-label="Tutup" onClick={handleClose} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/6 transition-colors">
+          <button aria-label="Close" onClick={handleClose} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/6 transition-colors">
             <X size={16} />
           </button>
         </div>
@@ -446,8 +446,8 @@ export default function ScurveImportModal({ projectId, baseYear, onImported, onC
               <p className="text-sm font-medium text-slate-700 dark:text-slate-200">{fileName}</p>
             ) : (
               <>
-                <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Klik untuk pilih file Excel</p>
-                <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1">.xlsx atau .xls · Format Time Schedule (kolom BOBOT, sections A–Q, unit & vol per task)</p>
+                <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Click to choose an Excel file</p>
+                <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1">.xlsx or .xls · Time Schedule format (BOBOT column, sections A–Q, unit & vol per task)</p>
               </>
             )}
           </div>
@@ -469,7 +469,7 @@ export default function ScurveImportModal({ projectId, baseYear, onImported, onC
             <div className="space-y-3">
               <div className="flex items-center gap-4">
                 <p className="text-[11px] font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-500">
-                  Preview — {parsed.steps.length} steps · {activeTasks} tasks aktif · {totalTasks} total tasks · Bobot {totalWeight.toFixed(2)}%
+                  Preview — {parsed.steps.length} steps · {activeTasks} active tasks · {totalTasks} total tasks · Weight {totalWeight.toFixed(2)}%
                   {Math.abs(totalWeight - 100) > 0.5 && <span className="ml-2 text-amber-500">(≠ 100%)</span>}
                 </p>
               </div>
@@ -492,7 +492,7 @@ export default function ScurveImportModal({ projectId, baseYear, onImported, onC
                         <span className="w-6 text-[11px] font-bold text-slate-500 dark:text-slate-400">{step.letter}</span>
                         <span className="flex-1 text-[12px] font-semibold text-slate-700 dark:text-slate-200 truncate">{step.name.replace(/^[A-Z] - /, "")}</span>
                         <span className="text-[11px] font-mono text-blue-600 dark:text-blue-400 w-16 text-right">{stepBobot.toFixed(2)}%</span>
-                        <span className="text-[10px] text-slate-400 dark:text-slate-500 w-24 text-right">{step.tasks.filter(t => t.bobot > 0).length} task aktif</span>
+                        <span className="text-[10px] text-slate-400 dark:text-slate-500 w-24 text-right">{step.tasks.filter(t => t.bobot > 0).length} active tasks</span>
                         {hasActuals && <span className="text-[10px] text-green-500 w-12 text-right">actual ✓</span>}
                         <span className="text-[10px] text-slate-300 dark:text-slate-600 w-20 text-right">{activePeriods.length} period entries</span>
                       </button>
@@ -506,8 +506,8 @@ export default function ScurveImportModal({ projectId, baseYear, onImported, onC
                                 <th className="text-left px-8 py-1.5 font-semibold text-slate-400 dark:text-slate-500">Task</th>
                                 <th className="text-center px-2 py-1.5 font-semibold text-slate-400 dark:text-slate-500 w-14">Unit</th>
                                 <th className="text-center px-2 py-1.5 font-semibold text-slate-400 dark:text-slate-500 w-16">Vol</th>
-                                <th className="text-right px-3 py-1.5 font-semibold text-slate-400 dark:text-slate-500 w-20">Bobot (%)</th>
-                                <th className="text-right px-3 py-1.5 font-semibold text-slate-400 dark:text-slate-500 w-24">Aktif Minggu</th>
+                                <th className="text-right px-3 py-1.5 font-semibold text-slate-400 dark:text-slate-500 w-20">Weight (%)</th>
+                                <th className="text-right px-3 py-1.5 font-semibold text-slate-400 dark:text-slate-500 w-24">Active Weeks</th>
                               </tr>
                             </thead>
                             <tbody>
@@ -521,7 +521,7 @@ export default function ScurveImportModal({ projectId, baseYear, onImported, onC
                                   </td>
                                   <td className="px-3 py-1 text-right text-slate-400 dark:text-slate-500">
                                     {task.weeks.length > 0 ? (
-                                      <span>{task.weeks.length} minggu{task.weeks.some(w => w.actual_pct > 0) ? <span className="ml-1 text-green-500">+actual</span> : ""}</span>
+                                      <span>{task.weeks.length} weeks{task.weeks.some(w => w.actual_pct > 0) ? <span className="ml-1 text-green-500">+actual</span> : ""}</span>
                                     ) : "—"}
                                   </td>
                                 </tr>
@@ -536,14 +536,14 @@ export default function ScurveImportModal({ projectId, baseYear, onImported, onC
               </div>
 
               <p className="text-[10px] text-slate-400 dark:text-slate-500">
-                Klik step untuk lihat tasks · Biru = bobot aktif · Hijau = ada data actual · Import akan <strong>mengganti</strong> semua data S-Curve yang ada.
+                Click a step to see its tasks · Blue = active weight · Green = has actual data · Import will <strong>replace</strong> all existing S-Curve data.
               </p>
             </div>
           )}
 
           {done && (
             <div className="flex items-center gap-2 p-3 rounded-lg bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-300 text-[12px]">
-              <Check size={14} />Import berhasil! Memuat ulang data...
+              <Check size={14} />Import successful! Reloading data...
             </div>
           )}
         </div>
@@ -551,18 +551,18 @@ export default function ScurveImportModal({ projectId, baseYear, onImported, onC
         {/* Footer */}
         <div className="flex items-center justify-between px-6 py-4 border-t border-slate-200 dark:border-white/10">
           <button onClick={() => fileRef.current?.click()} className="text-[12px] text-slate-400 hover:text-slate-600 dark:hover:text-white transition-colors">
-            Ganti file
+            Change file
           </button>
           <div className="flex items-center gap-3">
             <button onClick={handleClose} className="px-4 py-2 rounded-lg text-[12px] text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/6 transition-colors">
-              Batal
+              Cancel
             </button>
             <button
               onClick={handleImport}
               disabled={!parsed || importing || done}
               className="px-5 py-2 rounded-lg text-[12px] font-semibold bg-green-500 hover:bg-green-600 text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
             >
-              {importing ? <><Loader2 size={13} className="animate-spin" /> Mengimpor…</> : done ? <><Check size={13} /> Selesai</> : "Import Sekarang"}
+              {importing ? <><Loader2 size={13} className="animate-spin" /> Importing…</> : done ? <><Check size={13} /> Done</> : "Import Now"}
             </button>
           </div>
         </div>

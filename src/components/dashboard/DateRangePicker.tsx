@@ -268,7 +268,7 @@ export default function DateRangePicker({ value, onChange }: Props) {
     m: Date; mode: HeaderMode; onNavPrev: () => void; onNavNext: () => void; setMode: (m: HeaderMode) => void;
   }) => (
     <div className="flex items-center justify-between mb-3">
-      <button aria-label="Bulan sebelumnya" onClick={onNavPrev}
+      <button aria-label="Previous month" onClick={onNavPrev}
         className="w-6 h-6 flex items-center justify-center rounded-lg hover:bg-slate-100 dark:hover:bg-white/8 text-slate-400 dark:text-white/40 hover:text-slate-800 dark:hover:text-white transition-colors">
         <ChevronLeft size={13} />
       </button>
@@ -286,7 +286,7 @@ export default function DateRangePicker({ value, onChange }: Props) {
               : "text-slate-700 dark:text-white/80 hover:bg-slate-100 dark:hover:bg-white/8 hover:text-slate-900 dark:hover:text-white"
           }`}>{format(m, "yyyy")}</button>
       </div>
-      <button aria-label="Bulan berikutnya" onClick={onNavNext}
+      <button aria-label="Next month" onClick={onNavNext}
         className="w-6 h-6 flex items-center justify-center rounded-lg hover:bg-slate-100 dark:hover:bg-white/8 text-slate-400 dark:text-white/40 hover:text-slate-800 dark:hover:text-white transition-colors">
         <ChevronRight size={13} />
       </button>

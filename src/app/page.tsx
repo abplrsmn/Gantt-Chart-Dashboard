@@ -21,7 +21,7 @@ function LoginForm() {
   const searchParams = useSearchParams();
   const [email, setEmail]     = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError]     = useState(searchParams.get("error") === "AccessDenied" ? "Akun Google kamu belum terdaftar. Hubungi admin." : "");
+  const [error, setError]     = useState(searchParams.get("error") === "AccessDenied" ? "Your Google account isn't registered. Please contact an admin." : "");
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
 

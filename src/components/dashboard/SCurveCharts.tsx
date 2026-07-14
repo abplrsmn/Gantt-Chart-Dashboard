@@ -315,7 +315,7 @@ export default function SCurveCharts({ projects }: { projects: DBProject[] }) {
       }
     } catch (err) {
       console.error("Save error:", err);
-      alert("Gagal menyimpan nilai. Cek koneksi.");
+      alert("Failed to save value. Check your connection.");
     } finally {
       setSaving(false);
     }
@@ -694,7 +694,7 @@ export default function SCurveCharts({ projects }: { projects: DBProject[] }) {
                                 className="flex-1 bg-transparent text-sm font-semibold text-slate-800 dark:text-white outline-none placeholder:text-slate-300 dark:placeholder:text-slate-600"
                               />
                               {setupRows.length > 1 && (
-                                <button aria-label="Hapus step" onClick={() => setSetupRows(p => p.filter((_, ri) => ri !== si))} className="text-slate-300 hover:text-rose-400 transition-colors shrink-0">
+                                <button aria-label="Delete step" onClick={() => setSetupRows(p => p.filter((_, ri) => ri !== si))} className="text-slate-300 hover:text-rose-400 transition-colors shrink-0">
                                   <Trash2 size={12} />
                                 </button>
                               )}
@@ -719,7 +719,7 @@ export default function SCurveCharts({ projects }: { projects: DBProject[] }) {
                                       inputMode="decimal"
                                       className="w-24 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/8 rounded px-2 py-1 text-[13px] text-right text-slate-700 dark:text-slate-200 outline-none focus:border-amber-400"
                                     />
-                                    <button aria-label="Hapus task" onClick={() => removeSetupTask(si, ti)} className="text-slate-300 hover:text-rose-400 transition-colors shrink-0">
+                                    <button aria-label="Delete task" onClick={() => removeSetupTask(si, ti)} className="text-slate-300 hover:text-rose-400 transition-colors shrink-0">
                                       <Trash2 size={12} />
                                     </button>
                                   </div>
@@ -769,7 +769,7 @@ export default function SCurveCharts({ projects }: { projects: DBProject[] }) {
                       <div className="flex border-b border-slate-200/60 dark:border-white/8 bg-slate-100/50 dark:bg-zinc-800/25 group/step">
                         <div className="shrink-0 border-r border-slate-200/60 dark:border-white/8 flex items-center gap-2 px-2 h-9" style={{ width: LEFT_W }}>
                           <button
-                            aria-label={isCollapsed ? "Buka step" : "Tutup step"}
+                            aria-label={isCollapsed ? "Expand step" : "Collapse step"}
                             onClick={() => setCollapsed(c => { const n = new Set(c); n.has(step.id) ? n.delete(step.id) : n.add(step.id); return n; })}
                             className="text-slate-400 hover:text-slate-600 dark:hover:text-white transition-colors shrink-0"
                           >
@@ -798,7 +798,7 @@ export default function SCurveCharts({ projects }: { projects: DBProject[] }) {
                           >
                             <Plus size={9} /> Task
                           </button>
-                          <button aria-label="Hapus step" onClick={() => deleteStep(step.id, step.name)} className="opacity-0 group-hover/step:opacity-100 text-slate-400 hover:text-rose-500 dark:text-white/30 dark:hover:text-rose-400 transition-all shrink-0">
+                          <button aria-label="Delete step" onClick={() => deleteStep(step.id, step.name)} className="opacity-0 group-hover/step:opacity-100 text-slate-400 hover:text-rose-500 dark:text-white/30 dark:hover:text-rose-400 transition-all shrink-0">
                             <Trash2 size={13} />
                           </button>
                         </div>
@@ -846,7 +846,7 @@ export default function SCurveCharts({ projects }: { projects: DBProject[] }) {
                                   className="text-[10px] font-bold text-slate-600 dark:text-slate-300 w-14 text-right shrink-0 self-start mt-0.5 cursor-text hover:text-amber-600 dark:hover:text-amber-400 transition-colors"
                                 >{task.bobot.toFixed(2)}</span>
                               )}
-                              <button aria-label="Hapus task" onClick={() => deleteTask(step.id, task.id, task.name)} className="opacity-0 group-hover/task:opacity-100 text-slate-400 hover:text-rose-500 dark:text-white/30 dark:hover:text-rose-400 transition-all shrink-0 ml-0.5 self-start mt-0.5">
+                              <button aria-label="Delete task" onClick={() => deleteTask(step.id, task.id, task.name)} className="opacity-0 group-hover/task:opacity-100 text-slate-400 hover:text-rose-500 dark:text-white/30 dark:hover:text-rose-400 transition-all shrink-0 ml-0.5 self-start mt-0.5">
                                 <Trash2 size={13} />
                               </button>
                             </div>
@@ -989,7 +989,7 @@ export default function SCurveCharts({ projects }: { projects: DBProject[] }) {
                 value={stepName}
                 onChange={e => setStepName(e.target.value)}
                 onKeyDown={e => { if (e.key === "Enter") addStep(); if (e.key === "Escape") setAddStepOpen(false); }}
-                placeholder="e.g. PRELIMINARY, PEKERJAAN DINDING..."
+                placeholder="e.g. PRELIMINARY, WALL WORKS..."
                 className="flex-1 rounded-lg border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-zinc-800 px-3 py-2 text-[12px] text-slate-800 dark:text-white outline-none focus:border-amber-400 dark:focus:border-amber-500"
               />
             </div>

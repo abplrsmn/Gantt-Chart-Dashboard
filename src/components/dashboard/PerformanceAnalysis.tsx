@@ -504,7 +504,7 @@ export default function PerformanceAnalysis({ projects }: { projects: Project[] 
                   <input
                     value={row.name}
                     onChange={e => setModalRows(prev => prev.map((r, i) => i === idx ? { ...r, name: e.target.value } : r))}
-                    placeholder="Nama pekerjaan..."
+                    placeholder="Task name..."
                     className="text-[12px] bg-white dark:bg-zinc-800 border border-slate-200/70 dark:border-white/10 rounded-lg px-2.5 py-1.5 outline-none focus:border-brand-sienna/60 focus:ring-1 focus:ring-brand-sienna/20 text-slate-700 dark:text-slate-200 placeholder:text-slate-300 dark:placeholder:text-slate-600"
                   />
                   <input

@@ -732,7 +732,7 @@ function PhaseCard({
               >
                 <div className="flex items-center justify-between">
                   <p className="text-sm font-bold text-slate-800 dark:text-white">Add Sub-Task</p>
-                  <button aria-label="Tutup" onClick={() => setShowAddTask(false)} className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 dark:hover:bg-white/8 transition-colors">
+                  <button aria-label="Close" onClick={() => setShowAddTask(false)} className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 dark:hover:bg-white/8 transition-colors">
                     <X size={14} />
                   </button>
                 </div>
@@ -744,7 +744,7 @@ function PhaseCard({
                       value={newTaskInput}
                       onChange={e => setNewTaskInput(e.target.value)}
                       onKeyDown={e => { if (e.key === "Enter" && newTaskInput.trim()) handleTaskAdd(); }}
-                      placeholder="Tulis nama sub-task..."
+                      placeholder="Enter sub-task name..."
                       className="w-full text-xs px-3 py-2 rounded-lg border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-zinc-800 text-slate-700 dark:text-slate-200 placeholder:text-slate-300 outline-none focus:border-amber-600/60 transition-all"
                     />
                   </div>
@@ -754,7 +754,7 @@ function PhaseCard({
                       <input
                         value={newTaskAssignee}
                         onChange={e => setNewTaskAssignee(e.target.value)}
-                        placeholder="Nama assignee..."
+                        placeholder="Assignee name..."
                         className="w-full text-xs px-3 py-2 rounded-lg border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-zinc-800 text-slate-700 dark:text-slate-200 placeholder:text-slate-300 outline-none focus:border-amber-600/60 transition-all"
                       />
                     </div>
@@ -763,7 +763,7 @@ function PhaseCard({
                       <input
                         value={newTaskAssignedBy}
                         onChange={e => setNewTaskAssignedBy(e.target.value)}
-                        placeholder="Nama yang assign..."
+                        placeholder="Assigned by..."
                         className="w-full text-xs px-3 py-2 rounded-lg border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-zinc-800 text-slate-700 dark:text-slate-200 placeholder:text-slate-300 outline-none focus:border-amber-600/60 transition-all"
                       />
                     </div>
@@ -828,7 +828,7 @@ function PhaseCard({
                   )}
                   {!isLocked && (
                     <button
-                      aria-label="Hapus lampiran"
+                      aria-label="Delete attachment"
                       onClick={() => onFileDelete(a.id)}
                       className="opacity-0 group-hover:opacity-60 hover:opacity-100! text-slate-400 hover:text-rose-500 transition-all shrink-0"
                     >
@@ -1668,7 +1668,7 @@ function ProjectDetailContent() {
                       <span key={s.id} className="group inline-flex items-center gap-1 text-xs font-medium text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-white/6 px-2 py-1 rounded-md">
                         <Building2 size={10} className="text-slate-400 dark:text-slate-500 shrink-0" />
                         {s.full_name ?? s.raw_person_name ?? s.raw_organization_name ?? "—"}
-                        <button aria-label="Hapus stakeholder" onClick={() => removeStakeholder(s.id)} className="ml-0.5 opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-rose-500">
+                        <button aria-label="Delete stakeholder" onClick={() => removeStakeholder(s.id)} className="ml-0.5 opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-rose-500">
                           <X size={10} />
                         </button>
                       </span>
@@ -1833,13 +1833,13 @@ function ProjectDetailContent() {
                     <Trash2 size={18} className="text-rose-500" />
                   </div>
                   <div>
-                    <p className="font-semibold text-slate-800 dark:text-white text-sm">Hapus Data S-Curve?</p>
-                    <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">Semua steps, tasks, dan progress mingguan akan dihapus.</p>
+                    <p className="font-semibold text-slate-800 dark:text-white text-sm">Delete S-Curve data?</p>
+                    <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">All steps, tasks, and weekly progress will be deleted.</p>
                   </div>
                 </div>
                 <div className="flex gap-2 justify-end">
-                  <button onClick={() => setDeleteScurveStep(0)} className="px-4 py-2 rounded-lg text-[12px] text-slate-500 hover:bg-slate-100 dark:hover:bg-white/6 transition-colors">Batal</button>
-                  <button onClick={() => setDeleteScurveStep(2)} className="px-4 py-2 rounded-lg text-[12px] font-semibold bg-rose-500 hover:bg-rose-600 text-white transition-colors">Ya, Hapus</button>
+                  <button onClick={() => setDeleteScurveStep(0)} className="px-4 py-2 rounded-lg text-[12px] text-slate-500 hover:bg-slate-100 dark:hover:bg-white/6 transition-colors">Cancel</button>
+                  <button onClick={() => setDeleteScurveStep(2)} className="px-4 py-2 rounded-lg text-[12px] font-semibold bg-rose-500 hover:bg-rose-600 text-white transition-colors">Yes, delete</button>
                 </div>
               </>
             ) : (
@@ -1849,12 +1849,12 @@ function ProjectDetailContent() {
                     <Trash2 size={18} className="text-rose-600" />
                   </div>
                   <div>
-                    <p className="font-semibold text-rose-600 dark:text-rose-400 text-sm">Ini tidak bisa dibatalkan</p>
-                    <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">Konfirmasi terakhir — data S-Curve akan hilang permanen.</p>
+                    <p className="font-semibold text-rose-600 dark:text-rose-400 text-sm">This cannot be undone</p>
+                    <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">Final confirmation — S-Curve data will be permanently lost.</p>
                   </div>
                 </div>
                 <div className="flex gap-2 justify-end">
-                  <button onClick={() => setDeleteScurveStep(0)} disabled={deletingScurve} className="px-4 py-2 rounded-lg text-[12px] text-slate-500 hover:bg-slate-100 dark:hover:bg-white/6 transition-colors disabled:opacity-40">Batal</button>
+                  <button onClick={() => setDeleteScurveStep(0)} disabled={deletingScurve} className="px-4 py-2 rounded-lg text-[12px] text-slate-500 hover:bg-slate-100 dark:hover:bg-white/6 transition-colors disabled:opacity-40">Cancel</button>
                   <button
                     disabled={deletingScurve}
                     onClick={async () => {
@@ -1869,7 +1869,7 @@ function ProjectDetailContent() {
                     }}
                     className="px-4 py-2 rounded-lg text-[12px] font-semibold bg-rose-600 hover:bg-rose-700 text-white transition-colors disabled:opacity-40 flex items-center gap-1.5"
                   >
-                    {deletingScurve ? <><Loader2 size={12} className="animate-spin" /> Menghapus…</> : <><Trash2 size={12} /> Hapus Sekarang</>}
+                    {deletingScurve ? <><Loader2 size={12} className="animate-spin" /> Deleting…</> : <><Trash2 size={12} /> Delete now</>}
                   </button>
                 </div>
               </>
@@ -1886,7 +1886,7 @@ function ProjectDetailContent() {
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold bg-white dark:bg-zinc-900 border border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5 hover:text-rose-600 dark:hover:text-rose-400 hover:border-rose-300 dark:hover:border-rose-500/40 transition-all"
             >
               <Trash2 size={12} />
-              Hapus S-Curve
+              Delete S-Curve
             </button>
             <button
               onClick={() => setShowImportModal(true)}
