@@ -85,6 +85,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const isDark = resolvedTheme === "dark";
 
   const [userRole, setUserRole]   = useState<string>("admin");
+  const [userName, setUserName]   = useState<string>("");
   const [alertCount, setAlertCount] = useState(0);
   const [toast, setToast]         = useState<ToastState>({ visible: false, count: 0 });
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -116,10 +117,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }
 
   useEffect(() => { pathnameRef.current = pathname; }, [pathname]);
-  // main is the scroll container now (root is overflow-hidden), so reset its
-  // scroll on navigation — the window no longer scrolls for Next to reset.
-  useEffect(() => { mainRef.current?.scrollTo(0, 0); }, [pathname]);
+  // Natural document flow now scrolls the window, so reset window scroll on
+  // navigation (and main's own scroll, if any inner container ever uses it).
+  useEffect(() => { window.scrollTo(0, 0); mainRef.current?.scrollTo(0, 0); }, [pathname]);
   useEffect(() => { setUserRole(getRoleFromCookie()); }, []);
+  useEffect(() => {
+    fetch("/api/auth/me", { cache: "no-store", credentials: "include" })
+      .then(r => r.json())
+      .then(j => { if (j.success) setUserName(j.data.fullName || j.data.email || ""); })
+      .catch(() => {});
+  }, []);
   useEffect(() => {
     function handler(e: MouseEvent) {
       if (!settingsRef.current?.contains(e.target as Node)) setSettingsOpen(false);
@@ -209,7 +216,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   const navItems = isPm ? pmNavItems : adminNavItems;
 
-  // Pages that fill the viewport and manage their own internal scroll
+  // Gantt & Summary are single-screen views with their own internal scroll, so
+  // the app shell is locked to the viewport (no browser scroll). Every other
+  // page uses natural document flow so it ends exactly at its last card.
   const fullHeightPage =
     pathname === "/dashboard/projects/gantt" ||
     pathname === "/dashboard/projects/summary-matrix";
@@ -225,7 +234,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }
 
   return (
-    <div className={`flex h-screen overflow-hidden transition-colors duration-500 ${isDark ? "mesh-bg-dark" : "mesh-bg-light"}`}>
+    <div className={`flex transition-colors duration-500 ${fullHeightPage ? "h-screen overflow-hidden" : "min-h-screen"}`}>
+
+      {/* Full-viewport background — fixed so it always covers the screen even
+          when a page's content is shorter than the viewport, and so it never
+          adds scrollable empty space below the last card. */}
+      <div className={`fixed inset-0 -z-10 pointer-events-none ${isDark ? "mesh-bg-dark" : "mesh-bg-light"}`} />
 
       {/* ── Sidebar ───────────────────────────────────────────────────────── */}
       <aside
@@ -240,12 +254,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       >
 
         {/* Logo — display only */}
-        <div className="flex items-center gap-3 px-3.5 py-4 shrink-0 border-b border-slate-200/50 dark:border-white/6">
+        <div className="flex items-center gap-3 px-3.5 py-4 shrink-0 overflow-hidden border-b border-slate-200/50 dark:border-white/6">
           <div className="w-7 h-7 rounded-lg overflow-hidden shrink-0 flex items-center justify-center bg-white">
             <img src="/logo_perusahaan.jpg" alt="" className="w-full h-full object-contain" />
           </div>
-          <span className={`text-[11px] font-extrabold tracking-widest uppercase text-slate-700 dark:text-slate-200 whitespace-nowrap transition-opacity duration-150 delay-75 ${sidebarExpanded ? "opacity-100" : "opacity-0"}`}>
-            Aryaduta
+          <span className={`min-w-0 flex-1 text-[11px] font-extrabold tracking-widest uppercase text-slate-700 dark:text-slate-200 whitespace-nowrap overflow-hidden text-ellipsis transition-opacity duration-150 ${sidebarExpanded ? "opacity-100" : "opacity-0"}`}>
+            {userName || " "}
           </span>
         </div>
 
@@ -305,9 +319,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </aside>
 
       {/* ── Main content — fixed 56px left offset for collapsed sidebar ── */}
-      {/* Full-height pages (gantt/summary) fill the viewport and manage their own
-          internal scroll, so main must not scroll there; other pages scroll. */}
-      <main ref={mainRef} className={`flex-1 min-w-0 ml-14 px-4 pb-8 pt-5 ${fullHeightPage ? "overflow-hidden" : "overflow-y-auto"}`}>
+      {/* Natural document flow: the page is exactly as tall as its content and
+          the browser scrolls when needed, so there is never scrollable empty
+          space below the last card. Full-viewport pages (gantt/summary) size
+          themselves with their own calc(100vh − 52px) wrapper. */}
+      <main ref={mainRef} className={`flex-1 min-w-0 ml-14 px-4 pb-8 pt-5 ${fullHeightPage ? "overflow-hidden" : ""}`}>
         <div className="max-w-390 mx-auto">
           {children}
         </div>

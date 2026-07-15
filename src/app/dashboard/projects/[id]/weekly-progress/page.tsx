@@ -509,9 +509,10 @@ export default function WeeklyProgressPage() {
   const months    = Array.from(new Map(weeks.map(w => [w.monthKey, w.monthLabel])).entries());
   const [activeKey, setActiveKey] = useState<string>("");
 
+  // Default/lock to the first month (Week 1) rather than the most recent one.
   useEffect(() => {
     if (months.length > 0 && !activeKey) {
-      setActiveKey(months[months.length - 1][0]);
+      setActiveKey(months[0][0]);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [project]);

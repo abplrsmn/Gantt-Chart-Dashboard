@@ -54,6 +54,16 @@ CREATE TABLE IF NOT EXISTS scurve_task_weeks (
   UNIQUE(task_id, week_date)
 );
 
+-- Cumulative actual (realisasi kumulatif) entered per project/week by the PM.
+-- Aggregate figure (not per task), matching the Excel "KUMULATIF REALISASI" row.
+CREATE TABLE IF NOT EXISTS scurve_week_actuals (
+  project_id     BIGINT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  week_date      DATE NOT NULL,
+  cum_actual_pct NUMERIC(9,5) NOT NULL DEFAULT 0,
+  updated_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (project_id, week_date)
+);
+
 -- Widen precision on existing installs so full-precision weekly values are
 -- kept (2-decimal storage summed to 99.92% instead of 100%). Idempotent.
 ALTER TABLE scurve_tasks      ALTER COLUMN bobot      TYPE NUMERIC(9,5);
@@ -64,7 +74,7 @@ ALTER TABLE scurve_task_weeks ALTER COLUMN actual_pct TYPE NUMERIC(9,5);
 const client = await pool.connect();
 try {
   await client.query(sql);
-  console.log("✅ scurve_steps, scurve_tasks, scurve_task_weeks created (if not exists)");
+  console.log("✅ scurve_steps, scurve_tasks, scurve_task_weeks, scurve_week_actuals created (if not exists)");
 } finally {
   client.release();
   await pool.end();

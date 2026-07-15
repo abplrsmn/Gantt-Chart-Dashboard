@@ -398,7 +398,7 @@ export default function PerformanceAnalysis({ projects }: { projects: Project[] 
           {/* S-curve chart */}
           {chartData.length > 0 && (
             <div className="rounded-lg border border-slate-200/60 dark:border-white/10 bg-white/40 dark:bg-zinc-950/30 overflow-hidden">
-              <ResponsiveContainer width="100%" height={280}>
+              <ResponsiveContainer width="100%" height={280} initialDimension={{ width: 800, height: 280 }}>
                 <ComposedChart data={chartData} margin={{ top: 16, right: 16, bottom: 8, left: 0 }}>
                   <defs>
                     <linearGradient id="perfPlanGrad" x1="0" y1="0" x2="0" y2="1">

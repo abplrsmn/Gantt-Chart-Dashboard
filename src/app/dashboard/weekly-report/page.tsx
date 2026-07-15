@@ -208,7 +208,6 @@ export default function WeeklyReportPage() {
                       <p className="text-sm font-bold text-slate-800 dark:text-white leading-snug truncate">
                         {p.project_name}
                       </p>
-                      <p className="text-[10px] font-mono text-slate-400 dark:text-slate-500 mt-0.5">{p.project_code}</p>
                     </div>
                     <ArrowRight size={14} className="text-slate-300 dark:text-slate-600 transition-all shrink-0 mt-0.5" />
                   </div>
@@ -218,18 +217,6 @@ export default function WeeklyReportPage() {
                     {p.current_phase_name && (
                       <span className="text-[9px] font-bold px-2 py-0.5 rounded-full text-white leading-tight" style={{ backgroundColor: phaseColor }}>
                         {p.current_phase_name}
-                      </span>
-                    )}
-                    {p.priority_name && (
-                      <span className="text-[9px] font-semibold px-2 py-0.5 rounded-full"
-                        style={{ color: p.priority_color ?? undefined, backgroundColor: `${p.priority_color}20` }}>
-                        {p.priority_name}
-                      </span>
-                    )}
-                    {p.status_label && (
-                      <span className="text-[9px] font-semibold px-2 py-0.5 rounded-full"
-                        style={{ color: p.status_color ?? undefined, backgroundColor: `${p.status_color}20` }}>
-                        {p.status_label}
                       </span>
                     )}
                   </div>

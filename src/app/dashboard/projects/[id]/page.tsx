@@ -190,7 +190,7 @@ function InlineField({
     !value ? "—"
     : fmt === "date" ? fmtDate(value)
     : fmt === "currency" ? fmtCurrency(value)
-    : fmt === "weeks" ? `${Math.round(Number(value) / 7)}w`
+    : fmt === "weeks" ? `${Number(value)}w`
     : String(value);
 
   const wrapCls = fullWidth ? "col-span-2" : "";
@@ -440,6 +440,20 @@ const PHASE_DEFS: PhaseDef[] = [
   },
 ];
 
+// Count full Mon–Sun calendar weeks spanning [start, end] — identical to the
+// S-curve's week generation, so "Duration (weeks)" always matches the columns.
+function fullWeekCount(startStr?: string | null, endStr?: string | null): number | null {
+  if (!startStr || !endStr) return null;
+  const start = new Date(`${startStr}T00:00:00`);
+  const end = new Date(`${endStr}T00:00:00`);
+  if (isNaN(+start) || isNaN(+end) || start > end) return null;
+  const cur = new Date(start);
+  while (cur.getDay() !== 1) cur.setDate(cur.getDate() - 1); // back to Monday of the start week
+  let count = 0;
+  while (cur <= end) { count++; cur.setDate(cur.getDate() + 7); }
+  return count;
+}
+
 // Shift a YYYY-MM-DD string by ±N days without UTC-offset distortion
 function shiftDay(dateStr: string, delta: number): string {
   const [y, m, d] = dateStr.split("-").map(Number);
@@ -593,11 +607,16 @@ function PhaseCard({
         <div className="grid grid-cols-2 gap-x-6 gap-y-3">
           {ph.fields.filter(f => f.label !== "Notes").map(f => {
             const c = f.format === "date" ? dateFieldConstraint(f.key, project) : {};
+            // Duration (weeks) is derived live from the phase start/end so it always
+            // matches the S-curve column count instead of a stale stored value.
+            const fieldValue = f.format === "weeks"
+              ? (() => { const wk = fullWeekCount(project[ph.startKey] as string, project[ph.endKey] as string); return wk != null ? String(wk) : null; })()
+              : (project[f.key] as string | null);
             return (
               <InlineField
                 key={f.key as string}
                 label={f.label}
-                value={project[f.key] as string | null}
+                value={fieldValue}
                 format={f.format}
                 fullWidth={f.fullWidth}
                 readOnly={isLocked || !!f.readonly}
@@ -1917,9 +1936,9 @@ function ProjectDetailContent() {
         />
       )}
       {/* Delete S-Curve double-confirmation popup */}
-      {deleteScurveStep > 0 && (
+      {deleteScurveStep > 0 && typeof document !== "undefined" && createPortal(
         <div
-          className="fixed inset-0 z-[300] flex items-center justify-center p-4 animate-backdrop-enter"
+          className="fixed inset-0 z-9999 flex items-center justify-center p-4 animate-backdrop-enter"
           style={{ backgroundColor: "rgba(0,0,0,0.5)", backdropFilter: "blur(6px)" }}
         >
           <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-white/10 w-full max-w-sm p-6 flex flex-col gap-4 animate-modal-enter">
@@ -1972,7 +1991,8 @@ function ProjectDetailContent() {
               </>
             )}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {project.current_phase_code === "project_management" && scProject ? (

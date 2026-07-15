@@ -27,8 +27,16 @@ type ImportStep = {
   tasks: ImportTask[];
 };
 
+// Cumulative actual (realisasi kumulatif) per week — from the Excel
+// "KUMULATIF REALISASI" row. Feeds CUM. ACTUAL in the dashboard.
+type ImportWeekActual = {
+  week_date: string;
+  cum_actual_pct: number;
+};
+
 type ParsedData = {
   steps: ImportStep[];
+  weekActuals: ImportWeekActual[];
   periodLabels: string[];
   warnings: string[];
 };
@@ -212,9 +220,9 @@ function parseExcel(file: File, baseYear: number): Promise<ParsedData> {
             return;
           }
 
-          // Build ImportStep[] — the yellow per-period values are the weekly target
-          // (rencana). They populate BOTH plan_pct (drives the PLANNED line) and
-          // actual_pct (so the numbers appear in the editable weekly grid cells).
+          // Build ImportStep[] — the yellow per-period values are the weekly PLAN
+          // target (rencana). They populate plan_pct (drives the PLANNED line and
+          // the editable schedule grid). Actual comes from CUM. ACTUAL below.
           const steps: ImportStep[] = sections
             .filter(sec => sec.tasks.length > 0)
             .map(sec => ({
@@ -229,19 +237,39 @@ function parseExcel(file: File, baseYear: number): Promise<ParsedData> {
                   // dropped the cumulative to 99.92%).
                   const val = task.periods[c] ?? 0;
                   if (val > 0) {
-                    weeks.push({ week_date: toISODate(periodDates[c]), plan_pct: val, actual_pct: val });
+                    weeks.push({ week_date: toISODate(periodDates[c]), plan_pct: val, actual_pct: 0 });
                   }
                 }
                 return { name: task.name, unit: task.unit, vol: task.vol, bobot: task.bobot, weeks };
               }),
             }));
 
+          // Scan the summary rows for "KUMULATIF REALISASI" → cumulative actual
+          // per week (feeds CUM. ACTUAL; REALISASI & DEVIATION derive from it).
+          const weekActuals: ImportWeekActual[] = [];
+          for (let r = headerRowIdx + 1; r < rows.length; r++) {
+            const label = String((rows[r] as unknown[])[0] ?? "").trim().toLowerCase();
+            if (label.includes("kumulatif") && label.includes("realisasi")) {
+              const row = rows[r] as unknown[];
+              for (let c = 0; c < periodCount; c++) {
+                const v = Number(row[periodStartCol + c] ?? 0);
+                if (!isNaN(v) && v > 0) {
+                  weekActuals.push({ week_date: toISODate(periodDates[c]), cum_actual_pct: v });
+                }
+              }
+              break;
+            }
+          }
+
           const grandTotal = steps.reduce((s, st) => s + st.tasks.reduce((ts, t) => ts + t.bobot, 0), 0);
           if (Math.abs(grandTotal - 100) > 1) {
             warnings.push(`Total weight ${grandTotal.toFixed(2)}% (not 100%) — double-check the BOBOT column in Excel.`);
           }
+          if (weekActuals.length === 0) {
+            warnings.push("'Kumulatif Realisasi' row not found — CUM. ACTUAL will start empty.");
+          }
 
-          resolve({ steps, periodLabels, warnings });
+          resolve({ steps, weekActuals, periodLabels, warnings });
           return;
         }
 
@@ -324,7 +352,7 @@ function parseExcel(file: File, baseYear: number): Promise<ParsedData> {
         }));
 
         if (!actualsRowOld) warnings.push("'Bobot Realisasi' row not found — actual values will be 0.");
-        resolve({ steps: stepsOld, periodLabels: periodLabelsOld, warnings });
+        resolve({ steps: stepsOld, weekActuals: [], periodLabels: periodLabelsOld, warnings });
       } catch (err) {
         reject(err);
       }
@@ -381,7 +409,7 @@ export default function ScurveImportModal({ projectId, baseYear, onImported, onC
       const res = await fetch(`/api/projects/${projectId}/scurve-import`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ steps: parsed.steps }),
+        body: JSON.stringify({ steps: parsed.steps, weekActuals: parsed.weekActuals }),
       });
       const json = await res.json();
       if (!json.success) throw new Error(json.error ?? "Import failed");

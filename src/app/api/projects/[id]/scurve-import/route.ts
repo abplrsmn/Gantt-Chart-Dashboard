@@ -23,10 +23,15 @@ type ImportStep = {
   tasks: ImportTask[];
 };
 
+type ImportWeekActual = {
+  week_date: string;
+  cum_actual_pct: number;
+};
+
 // POST — replace all scurve data with imported steps
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const body = await req.json() as { steps: ImportStep[] };
+  const body = await req.json() as { steps: ImportStep[]; weekActuals?: ImportWeekActual[] };
 
   if (!Array.isArray(body.steps) || body.steps.length === 0) {
     return NextResponse.json({ success: false, error: "steps array required" }, { status: 400 });
@@ -43,11 +48,22 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     await client.query(`ALTER TABLE scurve_tasks      ALTER COLUMN bobot      TYPE NUMERIC(9,5)`).catch(() => {});
     await client.query(`ALTER TABLE scurve_task_weeks ALTER COLUMN plan_pct   TYPE NUMERIC(9,5)`).catch(() => {});
     await client.query(`ALTER TABLE scurve_task_weeks ALTER COLUMN actual_pct TYPE NUMERIC(9,5)`).catch(() => {});
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS scurve_week_actuals (
+        project_id     BIGINT NOT NULL,
+        week_date      DATE NOT NULL,
+        cum_actual_pct NUMERIC(9,5) NOT NULL DEFAULT 0,
+        updated_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        PRIMARY KEY (project_id, week_date)
+      )
+    `).catch(() => {});
 
     await client.query("BEGIN");
 
     // Wipe existing scurve data for project (cascade handles tasks + weeks)
     await client.query(`DELETE FROM scurve_steps WHERE project_id = $1`, [id]);
+    // Wipe existing cumulative-actual entries too — re-imported fresh below
+    await client.query(`DELETE FROM scurve_week_actuals WHERE project_id = $1`, [id]);
 
     let totalTasks = 0;
     let totalWeeks = 0;
@@ -83,8 +99,22 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       }
     }
 
+    // Cumulative actual (realisasi kumulatif) per week from the Excel
+    let totalActuals = 0;
+    for (const wa of body.weekActuals ?? []) {
+      if (!wa.week_date) continue;
+      await client.query(
+        `INSERT INTO scurve_week_actuals (project_id, week_date, cum_actual_pct, updated_at)
+         VALUES ($1, $2, $3, NOW())
+         ON CONFLICT (project_id, week_date)
+         DO UPDATE SET cum_actual_pct = EXCLUDED.cum_actual_pct, updated_at = NOW()`,
+        [id, wa.week_date, Math.max(0, wa.cum_actual_pct ?? 0)]
+      );
+      totalActuals++;
+    }
+
     await client.query("COMMIT");
-    return NextResponse.json({ success: true, imported: body.steps.length, tasks: totalTasks, weeks: totalWeeks });
+    return NextResponse.json({ success: true, imported: body.steps.length, tasks: totalTasks, weeks: totalWeeks, actuals: totalActuals });
   } catch (err: unknown) {
     await client?.query("ROLLBACK").catch(() => {});
     const msg = err instanceof Error ? err.message : String(err);
@@ -102,6 +132,7 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   try {
     client = await pool.connect();
     await client.query(`DELETE FROM scurve_steps WHERE project_id = $1`, [id]);
+    await client.query(`DELETE FROM scurve_week_actuals WHERE project_id = $1`, [id]).catch(() => {});
     return NextResponse.json({ success: true });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);

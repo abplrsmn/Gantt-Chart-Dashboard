@@ -2,8 +2,8 @@
 
 import { useState, useEffect, useMemo, useCallback } from "react";
 import {
-  ResponsiveContainer, ComposedChart, Line, XAxis, YAxis,
-  CartesianGrid, Tooltip, Area,
+  ResponsiveContainer, LineChart, Line, XAxis, YAxis,
+  Tooltip, CartesianGrid,
 } from "recharts";
 import { format, addDays, parseISO, isValid } from "date-fns";
 import { Plus, Trash2, ChevronDown, ChevronRight, Activity, Loader2 } from "lucide-react";
@@ -43,7 +43,12 @@ type DBProject = {
   [key: string]: unknown;
 };
 
-type ChartPoint = { label: string; plan: number; actual: number | null };
+type ChartPoint = {
+  label: string; plan: number; actual: number | null;
+  // Actual is split into two series so the line can change color at the point
+  // it crosses Planned — green while on/ahead of target, red while behind.
+  actualAhead: number | null; actualBehind: number | null;
+};
 type MonthGroup = { label: string; count: number };
 
 // ─── Helpers ────────────────────────────────────────────────────────────────────
@@ -56,18 +61,20 @@ function parseDate(s: string | null | undefined): Date | null {
   return isValid(d) ? d : null;
 }
 
+// Full calendar weeks (Mon–Sun) covering the schedule, matching the Excel time
+// schedule: each week runs from its Monday (start) through Sunday (end). The
+// week is keyed by its Monday, same as the imported period start dates.
 function generateWeeks(start: Date, end: Date): string[] {
   const weeks: string[] = [];
+  // Snap back to the Monday of the week that contains the start date, so the
+  // first (possibly partial) week is included in full — "from start of week".
   let cur = new Date(start);
-  while (cur.getDay() !== 1) cur = addDays(cur, 1);
+  while (cur.getDay() !== 1) cur = addDays(cur, -1);
+  // Include every week whose Monday falls on/before the end date, so the final
+  // week is shown in full — "to end of week".
   while (cur <= end) {
     weeks.push(format(cur, "yyyy-MM-dd"));
     cur = addDays(cur, 7);
-  }
-  // Include pm_end itself if it falls after the last Monday (partial final week)
-  const endStr = format(end, "yyyy-MM-dd");
-  if (weeks.length > 0 && weeks[weeks.length - 1] !== endStr) {
-    weeks.push(endStr);
   }
   return weeks;
 }
@@ -125,26 +132,62 @@ function calcWeeklyPlan(steps: SStep[], weeks: string[]): Record<string, number>
   return result;
 }
 
-function buildChartData(steps: SStep[], weeks: string[], pmStart?: Date): ChartPoint[] {
+// Cumulative-actual series (realisasi kumulatif) per week.
+// The PM enters the cumulative % directly for reported weeks; weeks in between
+// carry forward the last known value, and weeks after the last report are null
+// (not yet reported). Mirrors the Excel "KUMULATIF REALISASI" row.
+function cumActualSeries(weeks: string[], cumActuals: Record<string, number>): (number | null)[] {
+  let lastIdx = -1;
+  for (let i = 0; i < weeks.length; i++) if (cumActuals[weeks[i]] != null) lastIdx = i;
+  const out: (number | null)[] = [];
+  let last = 0;
+  for (let i = 0; i < weeks.length; i++) {
+    const v = cumActuals[weeks[i]];
+    if (v != null) last = v;
+    out.push(i <= lastIdx ? last : null);
+  }
+  return out;
+}
+
+function buildChartData(steps: SStep[], weeks: string[], cumActuals: Record<string, number>, pmStart?: Date, pmEnd?: Date): ChartPoint[] {
   if (!weeks.length) return [];
   const weeklyPlan = calcWeeklyPlan(steps, weeks);
-  const weekTotals = weeks.map(w =>
-    steps.reduce((sum, s) => sum + s.tasks.reduce((ts, t) => ts + (t.weeklyActual[w] ?? 0), 0), 0)
-  );
-  const lastActualIdx = weekTotals.reduceRight((found, v, i) => found === -1 && v > 0 ? i : found, -1);
-  const hasAnyActual = lastActualIdx >= 0;
-  let cumPlan = 0, cumActual = 0;
-  const points: ChartPoint[] = [{ label: "", plan: 0, actual: hasAnyActual ? 0 : null }];
+  const actualCum = cumActualSeries(weeks, cumActuals);
+  const hasAnyActual = actualCum.some(v => v != null);
+  let cumPlan = 0;
+  // Origin = project start at 0%. Each week point is labelled by its END date
+  // (Sunday, capped to pm_end) — the cumulative value reached by that date.
+  const points: ChartPoint[] = [{ label: pmStart ? format(pmStart, "d MMM") : "", plan: 0, actual: hasAnyActual ? 0 : null, actualAhead: null, actualBehind: null }];
   for (let i = 0; i < weeks.length; i++) {
     const w = weeks[i];
-    cumPlan = Math.min(100, cumPlan + (weeklyPlan[w] ?? 0));
-    cumActual = Math.min(100, cumActual + weekTotals[i]);
+    cumPlan = cumPlan + (weeklyPlan[w] ?? 0);
+    const a = actualCum[i];
+    const weekEnd = addDays(parseISO(w), 6);
+    const labelDate = pmEnd && pmEnd < weekEnd ? pmEnd : weekEnd;
     points.push({
-      label: i === 0 && pmStart ? format(pmStart, "d MMM") : format(parseISO(w), "d MMM"),
+      label: format(labelDate, "d MMM"),
       plan: Number(cumPlan.toFixed(2)),
-      actual: hasAnyActual && i <= lastActualIdx ? Number(cumActual.toFixed(2)) : null,
+      actual: a == null ? null : Number(a.toFixed(2)),
+      actualAhead: null, actualBehind: null,
     });
   }
+
+  // Split actual into "ahead/on-track" (>= plan) vs "behind" (< plan) series,
+  // duplicating the point at each crossing into both series so the colored
+  // segments touch instead of leaving a gap.
+  const status = points.map(p => p.actual == null ? null : (p.actual >= p.plan ? "ahead" : "behind"));
+  for (let i = 0; i < points.length; i++) {
+    const s = status[i];
+    if (s === null) continue;
+    if (s === "ahead") points[i].actualAhead = points[i].actual;
+    else points[i].actualBehind = points[i].actual;
+    const prev = status[i - 1];
+    if (prev != null && prev !== s) {
+      if (s === "ahead") points[i - 1].actualAhead = points[i - 1].actual;
+      else points[i - 1].actualBehind = points[i - 1].actual;
+    }
+  }
+
   return points;
 }
 
@@ -233,6 +276,8 @@ export default function SCurveCharts({ projects }: { projects: DBProject[] }) {
 
   // ── Weeks ─────────────────────────────────────────────────────────────────────
   const hasPmDates = !!(parseDate(selectedProject?.pm_start) && parseDate(selectedProject?.pm_end));
+  const pmStartDate = useMemo(() => parseDate(selectedProject?.pm_start), [selectedProject]);
+  const pmEndDate   = useMemo(() => parseDate(selectedProject?.pm_end),   [selectedProject]);
 
   const weeks = useMemo(() => {
     if (!selectedProject) return [];
@@ -265,7 +310,23 @@ export default function SCurveCharts({ projects }: { projects: DBProject[] }) {
     fetchSteps(projectId);
   }, [projectId, fetchSteps]);
 
-  // ── Cell editing (actual values only) ────────────────────────────────────────
+  // ── Cumulative actual (realisasi kumulatif) — entered per week by the PM ──────
+  const [cumActuals, setCumActuals] = useState<Record<string, number>>({});
+  useEffect(() => {
+    if (!projectId) { setCumActuals({}); return; }
+    fetch(`/api/projects/${projectId}/scurve-week-actuals`, { cache: "no-store" })
+      .then(r => r.json())
+      .then(j => {
+        if (j.success) {
+          setCumActuals(Object.fromEntries(
+            (j.data as { week_date: string; cum_actual_pct: number }[]).map(r => [r.week_date, r.cum_actual_pct])
+          ));
+        }
+      })
+      .catch(() => {});
+  }, [projectId]);
+
+  // ── Cell editing (plan values in the grid) ───────────────────────────────────
   const [editingCell, setEditingCell] = useState<{ taskId: string; week: string } | null>(null);
   const [cellInput, setCellInput] = useState("");
   const [cellOriginal, setCellOriginal] = useState(0);
@@ -289,12 +350,12 @@ export default function SCurveCharts({ projects }: { projects: DBProject[] }) {
       return;
     }
 
-    // Optimistic update
+    // Optimistic update — the grid edits the PLAN schedule
     setSteps(prev => prev.map(step => ({
       ...step,
       tasks: step.tasks.map(task => {
         if (task.id !== editingCell.taskId) return task;
-        return { ...task, weeklyActual: { ...task.weeklyActual, [editingCell.week]: val } };
+        return { ...task, weeklyPlan: { ...task.weeklyPlan, [editingCell.week]: val } };
       }),
     })));
     setEditingCell(null);
@@ -306,13 +367,77 @@ export default function SCurveCharts({ projects }: { projects: DBProject[] }) {
       const res = await fetch(`/api/projects/${projectId}/scurve-weeks`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ taskId: snap.taskId, weekDate: snap.week, mode: "actual", actualPct: val }),
+        body: JSON.stringify({ taskId: snap.taskId, weekDate: snap.week, mode: "plan", planPct: val }),
       });
       const j = await res.json();
       if (!j.success) {
         console.error("Save failed:", j.error);
         alert(`Gagal menyimpan: ${j.error}`);
       }
+    } catch (err) {
+      console.error("Save error:", err);
+      alert("Failed to save value. Check your connection.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  // ── CUM. ACTUAL editing (cumulative realisasi per week) ──────────────────────
+  const [editingCumWeek, setEditingCumWeek] = useState<string | null>(null);
+  const [cumInput, setCumInput] = useState("");
+  const [cumOriginal, setCumOriginal] = useState<number | null>(null);
+
+  function startCumEdit(week: string, current: number | null) {
+    setEditingCumWeek(week);
+    setCumInput(current != null ? current.toFixed(2) : "");
+    setCumOriginal(current);
+  }
+
+  async function commitCumActual() {
+    const week = editingCumWeek;
+    if (!week || !projectId) { setEditingCumWeek(null); return; }
+    const raw = cumInput.trim();
+    setEditingCumWeek(null);
+
+    // Cleared input → unset entirely ("not yet reported"), never store a
+    // literal 0 (0% reported is a different, meaningful state that would
+    // regress REALISASI/DEVIATION for this and later weeks).
+    if (raw === "") {
+      if (cumOriginal == null) return; // was already unset — nothing to do
+      setCumActuals(prev => { const next = { ...prev }; delete next[week]; return next; });
+      setSaving(true);
+      try {
+        const res = await fetch(`/api/projects/${projectId}/scurve-week-actuals`, {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ weekDate: week }),
+        });
+        const j = await res.json();
+        if (!j.success) { console.error("Clear failed:", j.error); alert(`Gagal menghapus: ${j.error}`); }
+      } catch (err) {
+        console.error("Clear error:", err);
+        alert("Failed to clear value. Check your connection.");
+      } finally {
+        setSaving(false);
+      }
+      return;
+    }
+
+    const val = Math.max(0, parseFloat(raw) || 0);
+    if (cumOriginal != null && Math.round(val * 100) === Math.round(cumOriginal * 100)) return;
+
+    // Optimistic
+    setCumActuals(prev => ({ ...prev, [week]: val }));
+
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/projects/${projectId}/scurve-week-actuals`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ weekDate: week, cumActualPct: val }),
+      });
+      const j = await res.json();
+      if (!j.success) { console.error("Save failed:", j.error); alert(`Gagal menyimpan: ${j.error}`); }
     } catch (err) {
       console.error("Save error:", err);
       alert("Failed to save value. Check your connection.");
@@ -513,41 +638,36 @@ export default function SCurveCharts({ projects }: { projects: DBProject[] }) {
     await fetch(`/api/projects/${projectId}/scurve-tasks/${taskId}`, { method: "DELETE" });
   }
 
-  // ── Summary (plan = auto from bobot, actual = manual) ────────────────────────
+  // ── Summary — plan from the schedule grid, actual from cumulative input ───────
+  // RENCANA (per-week plan) is auto-derived from bobot; CUM. ACTUAL is entered by
+  // the PM per week, and REALISASI + DEVIASI are derived (same math as Excel).
   const weeklyAutoPlan = useMemo(() => calcWeeklyPlan(steps, weeks), [steps, weeks]);
 
   const cumSummary = useMemo(() => {
-    const lastActualIdx = [...weeks].map(w =>
-      steps.reduce((sum, s) => sum + s.tasks.reduce((ts, t) => ts + (t.weeklyActual[w] ?? 0), 0), 0)
-    ).reduceRight((found, v, i) => found === -1 && v > 0 ? i : found, -1);
-
-    let cumR = 0, cumA = 0;
+    const actualCum = cumActualSeries(weeks, cumActuals);
+    let cumR = 0;
+    let prevA = 0;
     return weeks.map((w, i) => {
       const rencana = weeklyAutoPlan[w] ?? 0;
-      let realisasi = 0;
-      for (const step of steps) {
-        for (const task of step.tasks) {
-          realisasi += task.weeklyActual[w] ?? 0;
-        }
-      }
       cumR += rencana;
-      const pastLast = lastActualIdx >= 0 && i > lastActualIdx;
-      if (!pastLast) cumA += realisasi;
+      const cumA = actualCum[i];               // number | null (null = not yet reported)
+      const realisasi = cumA == null ? null : cumA - prevA;
+      if (cumA != null) prevA = cumA;
       return {
         week: w, rencana,
-        realisasi: pastLast ? null : realisasi,
+        realisasi,
         cumRencana: cumR,
-        cumRealisasi: pastLast ? null : cumA,
-        deviasi: pastLast ? null : (cumA - cumR),
+        cumRealisasi: cumA,
+        deviasi: cumA == null ? null : (cumA - cumR),
       };
     });
-  }, [steps, weeks, weeklyAutoPlan]);
+  }, [steps, weeks, weeklyAutoPlan, cumActuals]);
 
   // ── Chart ─────────────────────────────────────────────────────────────────────
   const chartData = useMemo(() => {
     const pmStart = parseDate(selectedProject?.pm_start) ?? undefined;
-    return buildChartData(steps, weeks, pmStart);
-  }, [steps, weeks, selectedProject]);
+    return buildChartData(steps, weeks, cumActuals, pmStart, pmEndDate ?? undefined);
+  }, [steps, weeks, cumActuals, selectedProject, pmEndDate]);
   const hasChart  = chartData.some(p => p.plan > 0);
 
   // ── Render ────────────────────────────────────────────────────────────────────
@@ -646,31 +766,41 @@ export default function SCurveCharts({ projects }: { projects: DBProject[] }) {
                     <span className="text-[8px] uppercase tracking-widest text-slate-400 flex-1">ITEM / DESCRIPTION</span>
                     <span className="text-[8px] uppercase tracking-widest text-slate-400 w-10 shrink-0 text-center">UNIT</span>
                     <span className="text-[8px] uppercase tracking-widest text-slate-400 w-12 shrink-0 text-right">VOL</span>
-                    <span className="text-[8px] uppercase tracking-widest text-slate-400 w-14 text-right shrink-0">WEIGHT%</span>
+                    <span className="text-[8px] uppercase text-slate-400 w-14 text-right shrink-0 whitespace-nowrap">WEIGHT%</span>
+                    <span className="w-16 shrink-0" aria-hidden />
                   </div>
                   {monthGroups.map((mg, i) => (
                     <div key={i} style={{ width: mg.count * CELL_W }} className="h-7 flex items-center justify-center border-r border-slate-200/60 dark:border-white/8">
-                      <span className="text-[8px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 truncate px-1">{mg.label}</span>
+                      <span className="text-[8px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 whitespace-nowrap shrink-0 px-1">{mg.label}</span>
                     </div>
                   ))}
                 </div>
 
-                {/* Week number row — resets per month */}
+                {/* Week date range row — start date / "s/d" / end date, each on
+                    its own line, like the Excel schedule. Three short stacked
+                    lines so it fits the narrow week column without overlap. */}
                 <div className="flex border-b border-slate-200/60 dark:border-white/8 bg-slate-50/60 dark:bg-zinc-900/40">
-                  <div className="shrink-0 border-r border-slate-200/60 dark:border-white/8 h-6" style={{ width: LEFT_W }} />
-                  {(() => {
-                    const monthCounts = new Map<string, number>();
-                    return weeks.map((w, i) => {
-                      const month = format(parseISO(w), "MMM yyyy");
-                      const n = (monthCounts.get(month) ?? 0) + 1;
-                      monthCounts.set(month, n);
-                      return (
-                        <div key={i} style={{ width: CELL_W, minWidth: CELL_W }} className="h-6 flex items-center justify-center border-r border-slate-200/40 dark:border-white/5">
-                          <span className="text-[8px] font-bold text-slate-400 dark:text-slate-500">{n}</span>
-                        </div>
-                      );
-                    });
-                  })()}
+                  <div className="shrink-0 border-r border-slate-200/60 dark:border-white/8 h-12" style={{ width: LEFT_W }} />
+                  {weeks.map((w, i) => {
+                    const rawStart = parseISO(w);
+                    const rawEnd = addDays(rawStart, 6);
+                    // Clamp the shown range to the PM phase: the first week can't
+                    // start before pm_start and the last can't end after pm_end.
+                    const startD = pmStartDate && pmStartDate > rawStart ? pmStartDate : rawStart;
+                    const endD = pmEndDate && pmEndDate < rawEnd ? pmEndDate : rawEnd;
+                    return (
+                      <div
+                        key={i}
+                        title={`${format(startD, "d MMM yyyy")} – ${format(endD, "d MMM yyyy")}`}
+                        style={{ width: CELL_W, minWidth: CELL_W }}
+                        className="h-12 flex flex-col items-center justify-center gap-0.5 leading-none border-r border-slate-200/40 dark:border-white/5"
+                      >
+                        <span className="text-[8px] font-bold uppercase text-slate-500 dark:text-slate-300 whitespace-nowrap leading-none">{format(startD, "d MMM")}</span>
+                        <span className="text-[10px] font-medium text-slate-400 dark:text-slate-500 leading-none">s/d</span>
+                        <span className="text-[8px] font-bold uppercase text-slate-500 dark:text-slate-300 whitespace-nowrap leading-none">{format(endD, "d MMM")}</span>
+                      </div>
+                    );
+                  })}
                 </div>
 
                 {/* Setup wizard — shown when no steps exist */}
@@ -767,7 +897,7 @@ export default function SCurveCharts({ projects }: { projects: DBProject[] }) {
                     <div key={step.id}>
                       {/* Step header */}
                       <div className="flex border-b border-slate-200/60 dark:border-white/8 bg-slate-100/50 dark:bg-zinc-800/25 group/step">
-                        <div className="shrink-0 border-r border-slate-200/60 dark:border-white/8 flex items-center gap-2 px-2 h-9" style={{ width: LEFT_W }}>
+                        <div className="shrink-0 border-r border-slate-200/60 dark:border-white/8 flex items-center gap-2 px-3 h-9" style={{ width: LEFT_W }}>
                           <button
                             aria-label={isCollapsed ? "Expand step" : "Collapse step"}
                             onClick={() => setCollapsed(c => { const n = new Set(c); n.has(step.id) ? n.delete(step.id) : n.add(step.id); return n; })}
@@ -791,16 +921,18 @@ export default function SCurveCharts({ projects }: { projects: DBProject[] }) {
                               className="text-[11px] font-bold text-slate-700 dark:text-slate-100 flex-1 truncate uppercase tracking-wide cursor-text hover:text-amber-600 dark:hover:text-amber-400 transition-colors"
                             >{step.name}</span>
                           )}
-                          {stepBobot > 0 && <span className="text-[9px] font-bold text-slate-500 dark:text-slate-400 shrink-0 w-12 text-right">{stepBobot.toFixed(2)}</span>}
-                          <button
-                            onClick={() => { setTaskForm({ name: "", unit: "", vol: "", weight: "" }); setAddTaskStep(step.id); }}
-                            className="flex items-center gap-0.5 text-[9px] font-bold text-slate-400 hover:text-amber-600 dark:hover:text-amber-400 transition-colors shrink-0 px-1"
-                          >
-                            <Plus size={9} /> Task
-                          </button>
-                          <button aria-label="Delete step" onClick={() => deleteStep(step.id, step.name)} className="opacity-0 group-hover/step:opacity-100 text-slate-400 hover:text-rose-500 dark:text-white/30 dark:hover:text-rose-400 transition-all shrink-0">
-                            <Trash2 size={13} />
-                          </button>
+                          <span className="text-[9px] font-bold text-slate-500 dark:text-slate-400 shrink-0 w-14 text-right">{stepBobot > 0 ? stepBobot.toFixed(2) : ""}</span>
+                          <div className="w-16 shrink-0 flex items-center justify-end gap-1">
+                            <button
+                              onClick={() => { setTaskForm({ name: "", unit: "", vol: "", weight: "" }); setAddTaskStep(step.id); }}
+                              className="flex items-center gap-0.5 text-[9px] font-bold text-slate-400 hover:text-amber-600 dark:hover:text-amber-400 transition-colors shrink-0 px-1"
+                            >
+                              <Plus size={9} /> Task
+                            </button>
+                            <button aria-label="Delete step" onClick={() => deleteStep(step.id, step.name)} className="opacity-0 group-hover/step:opacity-100 text-slate-400 hover:text-rose-500 dark:text-white/30 dark:hover:text-rose-400 transition-all shrink-0">
+                              <Trash2 size={13} />
+                            </button>
+                          </div>
                         </div>
                         {weeks.map((_, wi) => (
                           <div key={wi} style={{ width: CELL_W, minWidth: CELL_W }} className="h-9 border-r border-slate-200/30 dark:border-white/4" />
@@ -811,7 +943,7 @@ export default function SCurveCharts({ projects }: { projects: DBProject[] }) {
                       {!isCollapsed && step.tasks.map((task, ti) => {
                         return (
                           <div key={task.id} className="flex items-stretch border-b border-slate-200/40 dark:border-white/5 hover:bg-slate-50/40 dark:hover:bg-white/1.5 group/task">
-                            <div className="shrink-0 border-r border-slate-200/60 dark:border-white/8 flex items-center gap-2 px-2 py-1.5 min-h-10" style={{ width: LEFT_W }}>
+                            <div className="shrink-0 border-r border-slate-200/60 dark:border-white/8 flex items-center gap-2 px-3 py-1.5 min-h-12" style={{ width: LEFT_W }}>
                               <span className="text-[9px] text-slate-400 w-8 shrink-0 text-center self-start mt-0.5">{si + 1}.{ti + 1}</span>
                               {editingTaskField?.taskId === task.id && editingTaskField.field === "name" ? (
                                 <input
@@ -846,18 +978,20 @@ export default function SCurveCharts({ projects }: { projects: DBProject[] }) {
                                   className="text-[10px] font-bold text-slate-600 dark:text-slate-300 w-14 text-right shrink-0 self-start mt-0.5 cursor-text hover:text-amber-600 dark:hover:text-amber-400 transition-colors"
                                 >{task.bobot.toFixed(2)}</span>
                               )}
-                              <button aria-label="Delete task" onClick={() => deleteTask(step.id, task.id, task.name)} className="opacity-0 group-hover/task:opacity-100 text-slate-400 hover:text-rose-500 dark:text-white/30 dark:hover:text-rose-400 transition-all shrink-0 ml-0.5 self-start mt-0.5">
-                                <Trash2 size={13} />
-                              </button>
+                              <div className="w-16 shrink-0 flex items-center justify-end self-start mt-0.5">
+                                <button aria-label="Delete task" onClick={() => deleteTask(step.id, task.id, task.name)} className="opacity-0 group-hover/task:opacity-100 text-slate-400 hover:text-rose-500 dark:text-white/30 dark:hover:text-rose-400 transition-all shrink-0">
+                                  <Trash2 size={13} />
+                                </button>
+                              </div>
                             </div>
                             {weeks.map((w, wi) => {
-                              const v = task.weeklyActual[w] ?? 0;
+                              const v = task.weeklyPlan[w] ?? 0;
                               const isEditing = editingCell?.taskId === task.id && editingCell.week === w;
                               return (
                                 <div
                                   key={wi}
                                   style={{ width: CELL_W, minWidth: CELL_W }}
-                                  className={`min-h-10 border-r border-slate-200/30 dark:border-white/4 flex items-center justify-center ${v > 0 ? "bg-emerald-50/60 dark:bg-emerald-950/20" : ""}`}
+                                  className={`min-h-12 border-r border-slate-200/30 dark:border-white/4 flex items-center justify-center ${v > 0 ? "bg-blue-50/60 dark:bg-blue-950/20" : ""}`}
                                 >
                                   {isEditing ? (
                                     <input
@@ -872,11 +1006,11 @@ export default function SCurveCharts({ projects }: { projects: DBProject[] }) {
                                   ) : (
                                     <button
                                       onClick={() => startCellEdit(task.id, w, v)}
-                                      className="w-full h-full flex items-center justify-center text-[10px] font-semibold hover:bg-emerald-100/80 dark:hover:bg-emerald-900/30 hover:ring-1 hover:ring-inset hover:ring-emerald-300 dark:hover:ring-emerald-700 transition-all cursor-pointer"
+                                      className="w-full h-full flex items-center justify-center text-[10px] font-semibold hover:bg-blue-100/80 dark:hover:bg-blue-900/30 hover:ring-1 hover:ring-inset hover:ring-blue-300 dark:hover:ring-blue-700 transition-all cursor-pointer"
                                     >
                                       {v > 0
-                                        ? <span className="text-emerald-600 dark:text-emerald-400 font-bold">{v.toFixed(2)}</span>
-                                        : <span className="text-slate-300 dark:text-slate-600 text-[9px] group-hover/task:text-emerald-400 dark:group-hover/task:text-emerald-600 transition-colors">+</span>
+                                        ? <span className="text-blue-600 dark:text-blue-400 font-bold">{v.toFixed(2)}</span>
+                                        : <span className="text-slate-300 dark:text-slate-600 text-[9px] group-hover/task:text-blue-400 dark:group-hover/task:text-blue-600 transition-colors">+</span>
                                       }
                                     </button>
                                   )}
@@ -909,6 +1043,37 @@ export default function SCurveCharts({ projects }: { projects: DBProject[] }) {
                           const cls = row.key === "deviasi"
                             ? ((v ?? 0) >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400")
                             : row.textCls;
+
+                          // CUM. ACTUAL — editable: PM enters the cumulative realisasi per week
+                          if (row.key === "cumRealisasi") {
+                            const isEditing = editingCumWeek === s.week;
+                            const raw = cumActuals[s.week];
+                            return (
+                              <div key={wi} style={{ width: CELL_W, minWidth: CELL_W }} className="h-7 border-r border-slate-200/30 dark:border-white/4 flex items-center justify-center">
+                                {isEditing ? (
+                                  <input
+                                    autoFocus
+                                    value={cumInput}
+                                    onChange={e => setCumInput(e.target.value)}
+                                    onBlur={commitCumActual}
+                                    onKeyDown={e => { if (e.key === "Enter") commitCumActual(); if (e.key === "Escape") setEditingCumWeek(null); }}
+                                    className="w-full h-full text-center text-[9px] font-bold bg-amber-50 dark:bg-amber-950/30 outline-none border-0 text-amber-700 dark:text-amber-300"
+                                    placeholder="0.00"
+                                  />
+                                ) : (
+                                  <button
+                                    onClick={() => startCumEdit(s.week, raw ?? v)}
+                                    className="w-full h-full flex items-center justify-center hover:bg-emerald-100/80 dark:hover:bg-emerald-900/30 hover:ring-1 hover:ring-inset hover:ring-emerald-300 dark:hover:ring-emerald-700 transition-all cursor-pointer"
+                                  >
+                                    {v !== null && v !== 0
+                                      ? <span className={`text-[9px] font-bold ${cls}`}>{v.toFixed(2)}</span>
+                                      : <span className="text-slate-300 dark:text-slate-600 text-[9px]">+</span>}
+                                  </button>
+                                )}
+                              </div>
+                            );
+                          }
+
                           return (
                             <div key={wi} style={{ width: CELL_W, minWidth: CELL_W }} className="h-7 border-r border-slate-200/30 dark:border-white/4 flex items-center justify-center">
                               {v !== null && v !== 0 && <span className={`text-[9px] font-bold ${cls}`}>{v.toFixed(2)}</span>}
@@ -925,7 +1090,7 @@ export default function SCurveCharts({ projects }: { projects: DBProject[] }) {
 
           {/* ── S-Curve Chart ─────────────────────────────────────────────────── */}
           {!loading && hasPmDates && weeks.length > 0 && (
-            <div className="border-t border-slate-200/60 dark:border-white/8 relative" style={{ height: 240 }}>
+            <div className="border-t border-slate-200/60 dark:border-white/8 relative" style={{ height: 440 }}>
               {!hasChart ? (
                 <>
                   <div className="absolute inset-0 pointer-events-none opacity-35" style={{ filter: "blur(3px)" }}>
@@ -938,35 +1103,30 @@ export default function SCurveCharts({ projects }: { projects: DBProject[] }) {
                   </div>
                 </>
               ) : (
-                <ResponsiveContainer width="100%" height="100%">
-                  <ComposedChart data={chartData} margin={{ top: 12, right: 20, bottom: 28, left: 8 }}>
-                    <defs>
-                      <linearGradient id="planGradSC" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.15" />
-                        <stop offset="100%" stopColor="#3b82f6" stopOpacity="0" />
-                      </linearGradient>
-                      <linearGradient id="actualGradSC" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#22c55e" stopOpacity="0.15" />
-                        <stop offset="100%" stopColor="#22c55e" stopOpacity="0" />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.15)" />
-                    <XAxis dataKey="label" tick={{ fontSize: 8, fill: "currentColor" }} tickLine={false} axisLine={false} interval="preserveStartEnd" padding={{ left: 40, right: 8 }} />
-                    <YAxis domain={[0, 100]} tick={{ fontSize: 8, fill: "currentColor" }} tickLine={false} axisLine={false} tickFormatter={(v: number) => `${v}%`} width={34} />
+                <ResponsiveContainer width="100%" height="100%" initialDimension={{ width: 800, height: 440 }}>
+                  <LineChart data={chartData} margin={{ top: 12, right: 24, bottom: 48, left: 4 }}>
+                    <CartesianGrid horizontal vertical={false} strokeDasharray="4 4" stroke="rgba(148,163,184,0.35)" />
+                    <XAxis dataKey="label" tick={{ fontSize: 9, fill: "currentColor" }} tickLine={false} axisLine={false} interval="preserveStartEnd" padding={{ left: 24, right: 8 }} tickMargin={8} />
+                    <YAxis domain={[0, 100]} ticks={[0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]} interval={0} tick={{ fontSize: 9, fill: "currentColor" }} tickLine={false} axisLine={false} tickFormatter={(v: number) => `${v}%`} width={34} />
                     <Tooltip content={<ChartTooltip />} />
-                    <Area type="monotone" dataKey="plan" name="Planned Target" stroke="#3b82f6" strokeWidth={2} strokeDasharray="6 3" fill="url(#planGradSC)" dot={false} connectNulls />
-                    <Line type="monotone" dataKey="actual" name="Actual Progress" stroke="#22c55e" strokeWidth={2.5} dot={false} connectNulls />
-                  </ComposedChart>
+                    <Line type="linear" dataKey="plan" name="Planned Target" stroke="#3b82f6" strokeWidth={3} dot={false} connectNulls isAnimationActive animationDuration={650} animationEasing="ease-in-out" />
+                    <Line type="linear" dataKey="actualAhead" name="Actual Progress" stroke="#22c55e" strokeWidth={3} dot={false} connectNulls={false} isAnimationActive animationDuration={650} animationEasing="ease-in-out" />
+                    <Line type="linear" dataKey="actualBehind" name="Actual Progress" stroke="#ef4444" strokeWidth={3} dot={false} connectNulls={false} isAnimationActive animationDuration={650} animationEasing="ease-in-out" />
+                  </LineChart>
                 </ResponsiveContainer>
               )}
-              <div className="absolute bottom-1 left-4 flex items-center gap-4 pointer-events-none">
+              <div className="absolute bottom-1 left-0 right-0 flex items-center justify-center gap-5 pointer-events-none">
                 <div className="flex items-center gap-1.5">
-                  <svg width="20" height="8"><line x1="0" y1="4" x2="20" y2="4" stroke="#3b82f6" strokeWidth="2" strokeDasharray="5 3" /></svg>
-                  <span className="text-[8px] font-bold uppercase tracking-widest text-slate-500">Planned Target</span>
+                  <svg width="22" height="8"><line x1="0" y1="4" x2="22" y2="4" stroke="#3b82f6" strokeWidth="3" /></svg>
+                  <span className="text-[9px] font-semibold text-slate-500 dark:text-slate-400">Planned</span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <svg width="20" height="8"><line x1="0" y1="4" x2="20" y2="4" stroke="#22c55e" strokeWidth="2.5" /></svg>
-                  <span className="text-[8px] font-bold uppercase tracking-widest text-emerald-600 dark:text-emerald-500">Actual Progress</span>
+                  <svg width="22" height="8"><line x1="0" y1="4" x2="22" y2="4" stroke="#22c55e" strokeWidth="3" /></svg>
+                  <span className="text-[9px] font-semibold text-emerald-600 dark:text-emerald-500">Actual (on track)</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <svg width="22" height="8"><line x1="0" y1="4" x2="22" y2="4" stroke="#ef4444" strokeWidth="3" /></svg>
+                  <span className="text-[9px] font-semibold text-rose-600 dark:text-rose-500">Actual (behind)</span>
                 </div>
               </div>
             </div>
