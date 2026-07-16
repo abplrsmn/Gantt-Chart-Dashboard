@@ -8,17 +8,19 @@ const AUTH_COOKIE_NAME = 'auth_token';
 
 const PROTECTED_API_PREFIXES = [
   '/api/ai-telemetry',
+  '/api/audit',
   '/api/capex',
   '/api/gchat/notify',
   '/api/google/calendar',
   '/api/google/oauth/start',
+  '/api/master',
   '/api/meetings',
   '/api/ops',
   '/api/projects',
   '/api/reminder-logs',
 ];
 
-function verifyToken(token: string): { email?: string; role?: string; isAdmin?: boolean } | null {
+function verifyToken(token: string): { email?: string } | null {
   try {
     const secret = process.env.AUTH_SECRET;
     const dot = token.lastIndexOf('.');
@@ -39,22 +41,6 @@ function isProtectedApiPath(pathname: string): boolean {
   return PROTECTED_API_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
 }
 
-// Pages each role is ALLOWED to access (prefix match)
-const ROLE_ALLOWED_PATHS: Record<string, string[]> = {
-  admin: ['/dashboard'], // admin can access everything under /dashboard
-  pm: [
-    '/dashboard/projects',    // Gantt, list, detail, weekly-progress, audit
-    '/dashboard/weekly-report',
-    '/dashboard/alerts',
-  ],
-};
-
-// Default landing page per role after login
-const ROLE_DEFAULT_PAGE: Record<string, string> = {
-  admin: '/dashboard',
-  pm: '/dashboard/projects/gantt',
-};
-
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
@@ -74,26 +60,6 @@ export function middleware(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     }
     return NextResponse.redirect(new URL('/', request.url));
-  }
-
-  // API auth only; route-level API handlers can add stricter role checks if needed.
-  if (protectsApi) {
-    return NextResponse.next();
-  }
-
-  // --- Role-based dashboard page access check ---
-  // Always derive from isAdmin so stale tokens without 'role' are handled correctly.
-  const role = decoded.isAdmin ? 'admin' : 'pm';
-  const allowedPaths = ROLE_ALLOWED_PATHS[role] ?? [];
-
-  const isAllowed = allowedPaths.some((allowed) =>
-    pathname === allowed || pathname.startsWith(allowed + '/')
-  );
-
-  if (!isAllowed) {
-    // Redirect to their default landing page
-    const fallback = ROLE_DEFAULT_PAGE[role] ?? '/dashboard/projects/gantt';
-    return NextResponse.redirect(new URL(fallback, request.url));
   }
 
   return NextResponse.next();

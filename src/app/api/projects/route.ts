@@ -88,6 +88,13 @@ export async function POST(req: Request) {
     const newProject = projectRes.rows[0];
     const projectId  = newProject.id;
 
+    const changedByName = user?.fullName ?? user?.email ?? "Unknown";
+    await client.query(
+      `INSERT INTO project_change_logs (project_id, entity_type, field_name, old_value, new_value, change_summary, changed_by_name, action_type, created_at)
+       VALUES ($1, 'project', NULL, NULL, NULL, $2, $3, 'project_created', NOW())`,
+      [projectId, `Project "${newProject.project_name}" (${newProject.project_code}) created`, changedByName]
+    );
+
     // Create all 5 phase rows
     await client.query(
       `INSERT INTO project_phases (project_id, phase_id, progress_pct)

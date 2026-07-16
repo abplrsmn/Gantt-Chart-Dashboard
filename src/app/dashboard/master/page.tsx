@@ -2,21 +2,28 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
+import { format } from "date-fns";
 import {
   Plus, Pencil, Trash2, X, Eye, EyeOff, Check,
-  AlertCircle, Database, UserCog, Users,
+  AlertCircle, Database, UserCog, Users, History,
 } from "lucide-react";
+import AnimatedDropdown from "@/components/dashboard/AnimatedDropdown";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type Unit     = { id: number; unit_code: string; unit_name: string };
 type Priority = { id: number; priority_code: string; priority_name: string; color_hex: string; level: number };
 type Status   = { id: number; entity_type: string; status_code: string; status_label: string; color: string };
-type User     = { id: number; email: string; is_admin: boolean; is_active: boolean; created_at: string; full_name: string | null; department: string | null; job_title: string | null; employee_code: string | null; person_id: number | null };
+type User     = { id: number; email: string; is_active: boolean; created_at: string; full_name: string | null; department: string | null; job_title: string | null; employee_code: string | null; person_id: number | null };
 type Person   = { id: number; employee_code: string | null; full_name: string; nickname: string | null; department: string | null; job_title: string | null; email: string | null; phone_number: string | null; is_active: boolean };
 type Phase    = { id: number; phase_code: string; phase_name: string };
+type LogEntry = {
+  id: number; entity_type: string; entity_id: string | null; field_name: string | null;
+  old_value: string | null; new_value: string | null; change_summary: string | null;
+  changed_by_name: string | null; action_type: string; created_at: string;
+};
 
-type Tab = "units" | "priorities" | "statuses" | "users" | "stakeholders" | "phases";
+type Tab = "units" | "priorities" | "statuses" | "users" | "stakeholders" | "phases" | "activity";
 
 const TABS: { key: Tab; label: string; icon?: React.ElementType }[] = [
   { key: "units",        label: "Units" },
@@ -25,6 +32,7 @@ const TABS: { key: Tab; label: string; icon?: React.ElementType }[] = [
   { key: "users",        label: "User Accounts", icon: UserCog },
   { key: "stakeholders", label: "Stakeholders",  icon: Users },
   { key: "phases",       label: "Phases" },
+  { key: "activity",     label: "Activity Log",  icon: History },
 ];
 
 // ─── Safe fetch helper ────────────────────────────────────────────────────────
@@ -426,7 +434,7 @@ function UsersSection({ onAddReady }: SectionProps) {
   const [data, setData] = useState<User[]>([]);
   const [modal, setModal] = useState<null | "add" | User>(null);
   const [deleting, setDeleting] = useState<User | null>(null);
-  const [form, setForm] = useState({ full_name: "", email: "", password: "", is_admin: false, department: "", job_title: "", is_active: true });
+  const [form, setForm] = useState({ full_name: "", email: "", password: "", department: "", job_title: "", is_active: true });
   const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -437,12 +445,12 @@ function UsersSection({ onAddReady }: SectionProps) {
   useEffect(() => { load(); }, [load]);
 
   const openAdd = () => {
-    setForm({ full_name: "", email: "", password: "", is_admin: false, department: "", job_title: "", is_active: true });
+    setForm({ full_name: "", email: "", password: "", department: "", job_title: "", is_active: true });
     setModal("add");
   };
   useEffect(() => { onAddReady(openAdd); }, [onAddReady]); // eslint-disable-line
   const openEdit = (u: User) => {
-    setForm({ full_name: u.full_name || "", email: u.email, password: "", is_admin: u.is_admin, department: u.department || "", job_title: u.job_title || "", is_active: u.is_active });
+    setForm({ full_name: u.full_name || "", email: u.email, password: "", department: u.department || "", job_title: u.job_title || "", is_active: u.is_active });
     setModal(u);
   };
 
@@ -450,7 +458,7 @@ function UsersSection({ onAddReady }: SectionProps) {
     setLoading(true);
     const isEdit = modal !== "add";
     const body = isEdit
-      ? { full_name: form.full_name, is_admin: form.is_admin, is_active: form.is_active, ...(form.password ? { password: form.password } : {}), department: form.department, job_title: form.job_title }
+      ? { full_name: form.full_name, is_active: form.is_active, ...(form.password ? { password: form.password } : {}), department: form.department, job_title: form.job_title }
       : form;
     await fetch(isEdit ? `/api/master/users/${(modal as User).id}` : "/api/master/users", {
       method: isEdit ? "PATCH" : "POST",
@@ -462,14 +470,7 @@ function UsersSection({ onAddReady }: SectionProps) {
 
   return (
     <>
-      <div className="flex items-start gap-3 px-5 py-3.5 bg-purple-50/60 dark:bg-purple-500/8 border-b border-purple-100 dark:border-purple-500/15">
-        <UserCog size={14} className="text-purple-500 mt-0.5 shrink-0" />
-        <div>
-          <p className="text-xs font-semibold text-purple-700 dark:text-purple-300">User Accounts</p>
-          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Akun dengan akses login ke dashboard.</p>
-        </div>
-      </div>
-      <TableShell heads={["Name", "Email", "Role", "Status"]} empty={!data.length}>
+      <TableShell heads={["Name", "Email", "Status"]} empty={!data.length}>
         {data.map(u => (
           <tr key={u.id}>
             <td className="px-4 py-3">
@@ -477,11 +478,6 @@ function UsersSection({ onAddReady }: SectionProps) {
               {u.job_title && <div className="text-xs text-slate-400 mt-0.5">{u.job_title}</div>}
             </td>
             <td className="px-4 py-3 text-slate-500 dark:text-slate-400 text-xs">{u.email}</td>
-            <td className="px-4 py-3">
-              <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${u.is_admin ? "bg-purple-100 dark:bg-purple-500/20 text-purple-700 dark:text-purple-300" : "bg-brand-cream dark:bg-white/10 text-brand-mahogany dark:text-brand-sand"}`}>
-                {u.is_admin ? "Admin" : "PM"}
-              </span>
-            </td>
             <td className="px-4 py-3">
               <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${u.is_active ? "bg-green-100 dark:bg-green-500/15 text-growth-green" : "bg-red-100 dark:bg-red-500/15 text-alert-red"}`}>
                 {u.is_active ? "Active" : "Inactive"}
@@ -516,26 +512,6 @@ function UsersSection({ onAddReady }: SectionProps) {
             <Field label="Job Title">
               <input className={inputCls} value={form.job_title} onChange={e => setForm(f => ({ ...f, job_title: e.target.value }))} placeholder="e.g. Project Manager" />
             </Field>
-          </div>
-          {/* Role selector */}
-          <div className="pt-1 space-y-2">
-            <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">Access Level</p>
-            <div className="grid grid-cols-2 gap-2">
-              <label className={`flex flex-col gap-1 p-3 rounded-lg border cursor-pointer transition-all select-none ${!form.is_admin ? "border-brand-sienna/60 bg-brand-cream/40 dark:bg-brand-sienna/10" : "border-slate-200 dark:border-white/10 hover:border-slate-300 dark:hover:border-white/20"}`}>
-                <div className="flex items-center gap-2">
-                  <input type="radio" checked={!form.is_admin} onChange={() => setForm(f => ({ ...f, is_admin: false }))} className="accent-brand-sienna" />
-                  <span className="text-xs font-semibold text-slate-700 dark:text-slate-200">PM</span>
-                </div>
-                <span className="text-[10px] text-slate-400 dark:text-slate-500 leading-tight pl-5">Projects page access only</span>
-              </label>
-              <label className={`flex flex-col gap-1 p-3 rounded-lg border cursor-pointer transition-all select-none ${form.is_admin ? "border-brand-sienna/60 bg-brand-cream/40 dark:bg-brand-sienna/10" : "border-slate-200 dark:border-white/10 hover:border-slate-300 dark:hover:border-white/20"}`}>
-                <div className="flex items-center gap-2">
-                  <input type="radio" checked={form.is_admin} onChange={() => setForm(f => ({ ...f, is_admin: true }))} className="accent-brand-sienna" />
-                  <span className="text-xs font-semibold text-slate-700 dark:text-slate-200">Admin</span>
-                </div>
-                <span className="text-[10px] text-slate-400 dark:text-slate-500 leading-tight pl-5">Full access to all pages</span>
-              </label>
-            </div>
           </div>
           {modal !== "add" && (
             <label className="flex items-center gap-2 cursor-pointer select-none">
@@ -585,13 +561,6 @@ function StakeholdersSection({ onAddReady }: SectionProps) {
 
   return (
     <>
-      <div className="flex items-start gap-3 px-5 py-3.5 bg-sky-50/60 dark:bg-sky-500/8 border-b border-sky-100 dark:border-sky-500/15">
-        <Users size={14} className="text-sky-500 mt-0.5 shrink-0" />
-        <div>
-          <p className="text-xs font-semibold text-sky-700 dark:text-sky-300">Stakeholders</p>
-          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Tidak memiliki akses login. Digunakan sebagai referensi PIC di fase project.</p>
-        </div>
-      </div>
       <TableShell heads={["Name", "Email", "Phone", "Department", "Job Title", "Status"]} empty={!data.length}>
         {data.map(p => (
           <tr key={p.id}>
@@ -706,6 +675,89 @@ function PhasesSection({ onAddReady }: SectionProps) {
   );
 }
 
+// ─── Section: Activity Log ────────────────────────────────────────────────────
+
+const ENTITY_LABELS: Record<string, string> = {
+  user_account:     "User Account",
+  master_unit:      "Unit",
+  master_priority:  "Priority",
+  master_status:    "Status",
+  master_phase:     "Phase",
+  master_person:    "Stakeholder",
+};
+
+const ACTION_COLOR: Record<string, string> = {
+  master_created:    "bg-green-100 dark:bg-green-500/15 text-growth-green",
+  user_created:       "bg-green-100 dark:bg-green-500/15 text-growth-green",
+  user_activated:      "bg-green-100 dark:bg-green-500/15 text-growth-green",
+  master_updated:      "bg-amber-100 dark:bg-amber-500/15 text-amber-600 dark:text-amber-400",
+  user_deactivated:    "bg-amber-100 dark:bg-amber-500/15 text-amber-600 dark:text-amber-400",
+  password_reset:      "bg-amber-100 dark:bg-amber-500/15 text-amber-600 dark:text-amber-400",
+  master_deleted:      "bg-red-100 dark:bg-red-500/15 text-alert-red",
+  user_deleted:        "bg-red-100 dark:bg-red-500/15 text-alert-red",
+};
+
+function ActivityLogSection() {
+  const [data, setData] = useState<LogEntry[]>([]);
+  const [entityFilter, setEntityFilter] = useState("ALL");
+  const [loading, setLoading] = useState(false);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    const qs = entityFilter === "ALL" ? "" : `?entity_type=${entityFilter}`;
+    const j = await safeFetch(`/api/audit/global${qs}`);
+    if (j?.success) setData(j.data);
+    setLoading(false);
+  }, [entityFilter]);
+  useEffect(() => { load(); }, [load]);
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <p className="text-xs text-slate-500 dark:text-slate-400">
+          Perubahan pada akun user dan data master (unit, prioritas, status, fase, stakeholder).
+        </p>
+        <AnimatedDropdown
+          value={entityFilter}
+          onChange={setEntityFilter}
+          minWidth={160}
+          align="right"
+          options={[
+            { value: "ALL", label: "All Activity" },
+            ...Object.entries(ENTITY_LABELS).map(([value, label]) => ({ value, label })),
+          ]}
+        />
+      </div>
+
+      {loading ? (
+        <div className="flex justify-center py-12">
+          <div className="w-5 h-5 border-2 border-brand-sienna/40 border-t-brand-sienna rounded-full animate-spin" />
+        </div>
+      ) : data.length === 0 ? (
+        <div className="rounded-lg border border-slate-200 dark:border-white/8 px-4 py-8 text-center text-xs text-slate-400 dark:text-slate-500">
+          No activity recorded yet.
+        </div>
+      ) : (
+        <div className="rounded-lg border border-slate-200 dark:border-white/8 divide-y divide-slate-100 dark:divide-white/5 overflow-hidden">
+          {data.map(log => (
+            <div key={log.id} className="flex items-start gap-3 px-4 py-3">
+              <span className={`shrink-0 mt-0.5 text-[9px] font-bold uppercase tracking-wide px-2 py-1 rounded-full ${ACTION_COLOR[log.action_type] ?? "bg-slate-100 dark:bg-white/8 text-slate-500 dark:text-slate-400"}`}>
+                {ENTITY_LABELS[log.entity_type] ?? log.entity_type}
+              </span>
+              <div className="flex-1 min-w-0">
+                <p className="text-[12px] text-slate-700 dark:text-slate-200">{log.change_summary}</p>
+                <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">
+                  {log.changed_by_name ?? "Unknown"} · {format(new Date(log.created_at), "dd MMM yyyy, HH:mm")}
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 type SectionProps = { onAddReady: (fn: () => void) => void };
@@ -718,6 +770,7 @@ function renderSection(tab: Tab, props: SectionProps) {
     case "users":        return <UsersSection        {...props} />;
     case "stakeholders": return <StakeholdersSection {...props} />;
     case "phases":       return <PhasesSection       {...props} />;
+    case "activity":     return <ActivityLogSection />;
   }
 }
 
@@ -757,14 +810,16 @@ export default function MasterSetupPage() {
               </button>
             ))}
           </div>
-          <div className="px-4 shrink-0">
-            <button
-              onClick={() => addFnRef.current?.()}
-              className="glass-btn-primary flex items-center gap-1.5 px-3.5! py-2! text-xs font-semibold"
-            >
-              <Plus size={13} /> Add
-            </button>
-          </div>
+          {tab !== "activity" && (
+            <div className="px-4 shrink-0">
+              <button
+                onClick={() => addFnRef.current?.()}
+                className="glass-btn-primary flex items-center gap-1.5 px-3.5! py-2! text-xs font-semibold"
+              >
+                <Plus size={13} /> Add
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Section body */}

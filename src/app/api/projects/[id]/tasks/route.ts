@@ -100,7 +100,8 @@ export async function PATCH(req: Request, { params }: Params) {
 
     // Fetch current task state for audit diff
     const before = await client.query(
-      `SELECT title, progress_pct FROM project_tasks WHERE id::text = $1 AND project_id = $2`,
+      `SELECT title, progress_pct, weight_pct, item_order, raw_assignee_name, raw_assigned_by_name
+       FROM project_tasks WHERE id::text = $1 AND project_id = $2`,
       [taskId, id]
     );
     const prev = before.rows[0];
@@ -120,6 +121,39 @@ export async function PATCH(req: Request, { params }: Params) {
       `UPDATE project_tasks SET ${sets.join(", ")} WHERE id::text = $${vals.length - 1} AND project_id = $${vals.length}`,
       vals
     );
+
+    // Audit: rename, reweight, reorder, reassign
+    if (prev) {
+      const changes: string[] = [];
+      if (title != null && prev.title !== title.trim()) {
+        changes.push(`title: "${prev.title}" → "${title.trim()}"`);
+      }
+      if (weight_pct != null && Number(prev.weight_pct) !== Number(weight_pct)) {
+        changes.push(`weight: ${prev.weight_pct}% → ${weight_pct}%`);
+      }
+      if (item_order != null && Number(prev.item_order) !== Number(item_order)) {
+        changes.push(`order: ${prev.item_order} → ${item_order}`);
+      }
+      if ("raw_assignee_name" in body) {
+        const nextAssignee = raw_assignee_name?.trim() || null;
+        if ((prev.raw_assignee_name ?? null) !== nextAssignee) {
+          changes.push(`assignee: ${prev.raw_assignee_name ?? "—"} → ${nextAssignee ?? "—"}`);
+        }
+      }
+      if ("raw_assigned_by_name" in body) {
+        const nextAssignedBy = raw_assigned_by_name?.trim() || null;
+        if ((prev.raw_assigned_by_name ?? null) !== nextAssignedBy) {
+          changes.push(`assigned by: ${prev.raw_assigned_by_name ?? "—"} → ${nextAssignedBy ?? "—"}`);
+        }
+      }
+      if (changes.length > 0) {
+        await client.query(
+          `INSERT INTO project_change_logs (project_id, entity_type, field_name, old_value, new_value, change_summary, changed_by_name, action_type, created_at)
+           VALUES ($1, 'project_tasks', NULL, NULL, NULL, $2, $3, 'task_updated', NOW())`,
+          [id, `Sub-task "${prev.title}" updated — ${changes.join(", ")}`, changedByName]
+        );
+      }
+    }
 
     // Audit: task completed/uncompleted
     if (progress_pct != null && prev) {

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getDbPool } from "@/lib/db";
+import { getAuthUserFromCookie } from "@/lib/auth";
 import bcrypt from "bcryptjs";
 
 export const dynamic = "force-dynamic";
@@ -9,7 +10,7 @@ export async function GET() {
   const client = await pool.connect();
   try {
     const { rows } = await client.query(`
-      SELECT a.id, a.email, a.is_admin, a.is_active, a.created_at,
+      SELECT a.id, a.email, a.is_active, a.created_at,
              p.id AS person_id, p.full_name, p.department, p.job_title, p.employee_code
       FROM master_acc a
       LEFT JOIN master_people p ON p.id = a.person_id
@@ -25,9 +26,12 @@ export async function GET() {
 
 export async function POST(req: Request) {
   const body = await req.json();
-  const { full_name, email, password, is_admin, department, job_title, employee_code } = body;
+  const { full_name, email, password, department, job_title, employee_code } = body;
   if (!full_name?.trim() || !email?.trim() || !password?.trim())
     return NextResponse.json({ success: false, error: "full_name, email, and password are required" }, { status: 400 });
+
+  const actor = await getAuthUserFromCookie();
+  const changedByName = actor?.fullName ?? actor?.email ?? "Unknown";
 
   const pool = getDbPool();
   const client = await pool.connect();
@@ -43,9 +47,15 @@ export async function POST(req: Request) {
 
     const hash = await bcrypt.hash(password, 12);
     const { rows: accRows } = await client.query(
-      `INSERT INTO master_acc (person_id, email, password_hash, is_admin, is_active)
-       VALUES ($1, $2, $3, $4, true) RETURNING id, email, is_admin, is_active, created_at`,
-      [personId, email.trim().toLowerCase(), hash, Boolean(is_admin)]
+      `INSERT INTO master_acc (person_id, email, password_hash, is_active)
+       VALUES ($1, $2, $3, true) RETURNING id, email, is_active, created_at`,
+      [personId, email.trim().toLowerCase(), hash]
+    );
+
+    await client.query(
+      `INSERT INTO project_change_logs (project_id, entity_type, entity_id, field_name, old_value, new_value, change_summary, changed_by_name, action_type, created_at)
+       VALUES (NULL, 'user_account', $1, 'email', NULL, $2, $3, $4, 'user_created', NOW())`,
+      [accRows[0].id, email.trim().toLowerCase(), `User account "${full_name.trim()}" (${email.trim().toLowerCase()}) created`, changedByName]
     );
 
     await client.query("COMMIT");

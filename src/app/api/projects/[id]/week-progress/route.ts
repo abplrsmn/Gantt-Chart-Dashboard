@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type { PoolClient } from "pg";
 import { getDbPool } from "@/lib/db";
+import { logChange, getChangedByName } from "@/lib/auditLog";
 
 export const dynamic = "force-dynamic";
 
@@ -56,6 +57,13 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const client = await pool.connect();
   try {
     await ensureTable(client);
+
+    const before = await client.query(
+      `SELECT plan_pct, actual_pct, status, notes FROM project_week_progress WHERE project_id = $1 AND week_key = $2`,
+      [id, body.week_key]
+    );
+    const prev = before.rows[0];
+
     const { rows } = await client.query(
       `INSERT INTO project_week_progress (project_id, week_key, plan_pct, actual_pct, status, notes, updated_at)
        VALUES ($1, $2, $3, $4, $5, $6, now())
@@ -68,6 +76,28 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
        RETURNING week_key, plan_pct, actual_pct, status, notes`,
       [id, body.week_key, body.plan_pct ?? null, body.actual_pct ?? null, body.status ?? null, body.notes ?? null]
     );
+    const next = rows[0];
+
+    const changes: string[] = [];
+    if (!prev) {
+      changes.push("created");
+    } else {
+      if (body.plan_pct   != null && Number(prev.plan_pct)   !== Number(next.plan_pct))   changes.push(`plan: ${prev.plan_pct}% → ${next.plan_pct}%`);
+      if (body.actual_pct != null && Number(prev.actual_pct) !== Number(next.actual_pct)) changes.push(`actual: ${prev.actual_pct}% → ${next.actual_pct}%`);
+      if (body.status     != null && prev.status !== next.status) changes.push(`status: ${prev.status} → ${next.status}`);
+      if (body.notes      != null && prev.notes  !== next.notes)  changes.push("notes updated");
+    }
+    if (changes.length > 0) {
+      await logChange(client, {
+        projectId: id,
+        entityType: "project_week_progress",
+        fieldName: body.week_key,
+        changeSummary: `Weekly progress (${body.week_key}) ${changes.join(", ")}`,
+        changedByName: await getChangedByName(),
+        actionType: "week_progress_updated",
+      });
+    }
+
     return NextResponse.json({ success: true, data: rows[0] });
   } catch (err) {
     return NextResponse.json({ success: false, error: String(err) }, { status: 500 });

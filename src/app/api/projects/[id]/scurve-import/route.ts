@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getDbPool } from "@/lib/db";
+import { logChange, getChangedByName } from "@/lib/auditLog";
 
 export const dynamic = "force-dynamic";
 
@@ -113,6 +114,14 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       totalActuals++;
     }
 
+    await logChange(client, {
+      projectId: id,
+      entityType: "scurve",
+      changeSummary: `S-curve imported — ${body.steps.length} steps, ${totalTasks} tasks, ${totalWeeks} week entries, ${totalActuals} cumulative actuals (replaces previous data)`,
+      changedByName: await getChangedByName(),
+      actionType: "scurve_imported",
+    });
+
     await client.query("COMMIT");
     return NextResponse.json({ success: true, imported: body.steps.length, tasks: totalTasks, weeks: totalWeeks, actuals: totalActuals });
   } catch (err: unknown) {
@@ -133,6 +142,15 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
     client = await pool.connect();
     await client.query(`DELETE FROM scurve_steps WHERE project_id = $1`, [id]);
     await client.query(`DELETE FROM scurve_week_actuals WHERE project_id = $1`, [id]).catch(() => {});
+
+    await logChange(client, {
+      projectId: id,
+      entityType: "scurve",
+      changeSummary: "S-curve data wiped",
+      changedByName: await getChangedByName(),
+      actionType: "scurve_deleted",
+    });
+
     return NextResponse.json({ success: true });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);

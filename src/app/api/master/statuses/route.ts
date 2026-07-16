@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getDbPool } from "@/lib/db";
+import { logChange, getChangedByName } from "@/lib/auditLog";
 
 export const dynamic = "force-dynamic";
 
@@ -31,6 +32,14 @@ export async function POST(req: Request) {
       `INSERT INTO master_statuses (entity_type, status_code, status_label, color) VALUES ($1, $2, $3, $4) RETURNING *`,
       [entity_type?.trim() || "project", status_code.trim().toLowerCase(), status_label.trim(), color || "#94a3b8"]
     );
+    await logChange(client, {
+      entityType: "master_status",
+      entityId: rows[0].id,
+      newValue: rows[0].status_label,
+      changeSummary: `Status "${rows[0].status_label}" (${rows[0].status_code}) created`,
+      changedByName: await getChangedByName(),
+      actionType: "master_created",
+    });
     return NextResponse.json({ success: true, data: rows[0] });
   } catch (err) {
     return NextResponse.json({ success: false, error: String(err) }, { status: 500 });

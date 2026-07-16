@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getDbPool } from "@/lib/db";
+import { logChange, getChangedByName } from "@/lib/auditLog";
 
 export const dynamic = "force-dynamic";
 
@@ -55,13 +56,35 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   try {
     client = await pool.connect();
     await ensureTable(client);
+
+    const before = await client.query(
+      `SELECT cum_actual_pct::float FROM scurve_week_actuals WHERE project_id = $1 AND week_date = $2`,
+      [id, body.weekDate]
+    );
+    const prevVal = before.rows[0]?.cum_actual_pct ?? null;
+    const nextVal = Math.max(0, body.cumActualPct ?? 0);
+
     await client.query(
       `INSERT INTO scurve_week_actuals (project_id, week_date, cum_actual_pct, updated_at)
        VALUES ($1, $2, $3, NOW())
        ON CONFLICT (project_id, week_date)
        DO UPDATE SET cum_actual_pct = EXCLUDED.cum_actual_pct, updated_at = NOW()`,
-      [id, body.weekDate, Math.max(0, body.cumActualPct ?? 0)]
+      [id, body.weekDate, nextVal]
     );
+
+    if (prevVal !== nextVal) {
+      await logChange(client, {
+        projectId: id,
+        entityType: "scurve_week_actual",
+        fieldName: "cum_actual_pct",
+        oldValue: prevVal == null ? null : String(prevVal),
+        newValue: String(nextVal),
+        changeSummary: `S-curve cumulative actual for ${body.weekDate}: ${prevVal ?? "—"}% → ${nextVal}%`,
+        changedByName: await getChangedByName(),
+        actionType: "scurve_week_updated",
+      });
+    }
+
     return NextResponse.json({ success: true });
   } catch (err) {
     return NextResponse.json({ success: false, error: String(err) }, { status: 500 });
@@ -88,6 +111,16 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
       `DELETE FROM scurve_week_actuals WHERE project_id = $1 AND week_date = $2`,
       [id, body.weekDate]
     );
+
+    await logChange(client, {
+      projectId: id,
+      entityType: "scurve_week_actual",
+      fieldName: "cum_actual_pct",
+      changeSummary: `S-curve cumulative actual for ${body.weekDate} cleared`,
+      changedByName: await getChangedByName(),
+      actionType: "scurve_week_cleared",
+    });
+
     return NextResponse.json({ success: true });
   } catch (err) {
     return NextResponse.json({ success: false, error: String(err) }, { status: 500 });

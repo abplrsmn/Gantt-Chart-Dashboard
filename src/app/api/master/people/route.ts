@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getDbPool } from "@/lib/db";
+import { logChange, getChangedByName } from "@/lib/auditLog";
 
 export const dynamic = "force-dynamic";
 
@@ -51,6 +52,14 @@ export async function POST(req: Request) {
         phone_number?.trim() || null,
       ]
     );
+    await logChange(client, {
+      entityType: "master_person",
+      entityId: rows[0].id,
+      newValue: rows[0].full_name,
+      changeSummary: `Stakeholder "${rows[0].full_name}" created`,
+      changedByName: await getChangedByName(),
+      actionType: "master_created",
+    });
     return NextResponse.json({ success: true, data: rows[0] });
   } catch (err) {
     return NextResponse.json({ success: false, error: String(err) }, { status: 500 });

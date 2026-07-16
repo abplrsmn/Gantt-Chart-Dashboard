@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getDbPool } from "@/lib/db";
+import { logChange, getChangedByName } from "@/lib/auditLog";
 
 export const dynamic = "force-dynamic";
 
@@ -31,6 +32,15 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       VALUES ($1, $2, $3, $4, $5, $6, $7)
       RETURNING id, name, unit, vol, bobot::float, task_order
     `, [body.stepId, id, body.name.trim(), body.unit ?? "", body.vol ?? "", body.bobot ?? 0, order]);
+
+    await logChange(client, {
+      projectId: id,
+      entityType: "scurve_task",
+      newValue: rows[0].name,
+      changeSummary: `S-curve task "${rows[0].name}" added (weight ${rows[0].bobot}%)`,
+      changedByName: await getChangedByName(),
+      actionType: "scurve_task_added",
+    });
 
     return NextResponse.json({ success: true, data: rows[0] });
   } catch (err) {

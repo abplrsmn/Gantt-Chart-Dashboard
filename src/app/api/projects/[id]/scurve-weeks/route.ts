@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getDbPool } from "@/lib/db";
+import { logChange, getChangedByName } from "@/lib/auditLog";
 
 export const dynamic = "force-dynamic";
 
@@ -19,9 +20,16 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
     // Verify task belongs to this project
     const check = await client.query(
-      `SELECT id FROM scurve_tasks WHERE id = $1 AND project_id = $2`, [body.taskId, id]
+      `SELECT name FROM scurve_tasks WHERE id = $1 AND project_id = $2`, [body.taskId, id]
     );
     if (!check.rows.length) return NextResponse.json({ success: false, error: "Task not found" }, { status: 404 });
+    const taskName = check.rows[0].name as string;
+
+    const before = await client.query(
+      `SELECT plan_pct::float, actual_pct::float FROM scurve_task_weeks WHERE task_id = $1 AND week_date = $2`,
+      [body.taskId, body.weekDate]
+    );
+    const prev = before.rows[0];
 
     if (body.mode === "plan") {
       await client.query(`
@@ -35,6 +43,22 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
         VALUES ($1, $2, 0, $3)
         ON CONFLICT (task_id, week_date) DO UPDATE SET actual_pct = EXCLUDED.actual_pct
       `, [body.taskId, body.weekDate, body.actualPct ?? 0]);
+    }
+
+    const field = body.mode === "plan" ? "plan_pct" : "actual_pct";
+    const oldVal = prev ? Number(body.mode === "plan" ? prev.plan_pct : prev.actual_pct) : 0;
+    const newVal = Number(body.mode === "plan" ? (body.planPct ?? 0) : (body.actualPct ?? 0));
+    if (oldVal !== newVal) {
+      await logChange(client, {
+        projectId: id,
+        entityType: "scurve_task_week",
+        fieldName: field,
+        oldValue: String(oldVal),
+        newValue: String(newVal),
+        changeSummary: `S-curve "${taskName}" ${body.mode} for ${body.weekDate}: ${oldVal}% → ${newVal}%`,
+        changedByName: await getChangedByName(),
+        actionType: "scurve_week_updated",
+      });
     }
 
     return NextResponse.json({ success: true });
