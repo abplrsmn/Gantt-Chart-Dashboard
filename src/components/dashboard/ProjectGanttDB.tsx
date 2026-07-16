@@ -439,10 +439,23 @@ export default function ProjectGanttDB() {
   const rangeEnd   = useMemo(() => dateRange.end   ? new Date(dateRange.end)   : null, [dateRange.end]);
 
 
-  // Timeline: always spans full year(s) based on project dates — date range never crops the ruler.
+  const filteredProjects = useMemo(() => {
+    return projects.filter(p => {
+      const matchSearch = [p.project_name, p.project_code, p.status_label, p.current_phase_name, p.unit_code, p.unit_name, p.brief_pic, p.design_pic, p.control_pic, p.pm_pic, p.handover_pic]
+        .filter(Boolean).join(" ").toLowerCase().includes(search.toLowerCase());
+      const matchPriority = priorityFilter === "ALL" || p.priority_code      === priorityFilter;
+      const matchPhase    = phaseFilter    === "ALL" || p.current_phase_code === phaseFilter;
+      const matchStatus   = statusFilter   === "ALL" || p.status_label       === statusFilter;
+      return matchSearch && matchPriority && matchPhase && matchStatus;
+    });
+  }, [projects, search, priorityFilter, phaseFilter, statusFilter]);
+
+  // Timeline: spans full year(s) based on the FILTERED projects' dates, so
+  // narrowing the results (search/phase/status/priority) shrinks the ruler
+  // instead of always showing every project's full date range.
   const timeline = useMemo(() => {
     const allDates: Date[] = [];
-    for (const p of projects) {
+    for (const p of filteredProjects) {
       [p.brief_received, p.brief_deadline, p.design_start, p.design_end,
        p.control_start, p.control_end, p.pm_start, p.pm_end,
        p.handover_start, p.handover_end, p.start_date, p.end_date]
@@ -467,7 +480,7 @@ export default function ProjectGanttDB() {
       start: snappedStart < s ? s : snappedStart,
       end:   endOfWeek(e, { weekStartsOn: 1 }),
     };
-  }, [projects]);
+  }, [filteredProjects]);
 
   // Ruler overlay positions for the selected date range
   const rangeRulers = useMemo(() => {
@@ -483,18 +496,6 @@ export default function ProjectGanttDB() {
     Math.max(1, differenceInCalendarDays(timeline.end, timeline.start) + 1),
     [timeline]
   );
-
-  const filteredProjects = useMemo(() => {
-    return projects.filter(p => {
-      const matchSearch = [p.project_name, p.project_code, p.status_label, p.current_phase_name, p.unit_code, p.unit_name, p.brief_pic, p.design_pic, p.control_pic, p.pm_pic, p.handover_pic]
-        .filter(Boolean).join(" ").toLowerCase().includes(search.toLowerCase());
-      const matchPriority = priorityFilter === "ALL" || p.priority_code      === priorityFilter;
-      const matchPhase    = phaseFilter    === "ALL" || p.current_phase_code === phaseFilter;
-      const matchStatus   = statusFilter   === "ALL" || p.status_label       === statusFilter;
-      const matchRange    = true;
-      return matchSearch && matchPriority && matchPhase && matchStatus && matchRange;
-    });
-  }, [projects, search, priorityFilter, phaseFilter, statusFilter, rangeStart, rangeEnd, timeline, totalDays]);
 
   // Build week columns
   const weekCols = useMemo<WeekCol[]>(() => {
@@ -595,18 +596,18 @@ export default function ProjectGanttDB() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dateRange.start]);
 
-  // Pin the gantt container to exactly its parent's height (the fixed
-  // calc(100vh - 52px) page wrapper). The flex chain can leave it at content
-  // height with a short project list, which — combined with overflow:clip —
-  // then clips the card and leaves an empty gap below the last row. Forcing
-  // the container height makes the card (flex-1) fill it reliably.
+  // Cap the gantt container at its parent's height (the fixed calc(100vh -
+  // 52px) page wrapper) instead of forcing it — so a short (e.g. filtered
+  // down to one result) list shrinks to fit its actual rows rather than
+  // leaving a tall empty void, while a long list still gets capped there and
+  // scrolls internally instead of overflowing the page.
   useEffect(() => {
     const fit = () => {
       const c = containerRef.current;
       const parent = c?.parentElement;
       if (!c || !parent) return;
       const h = parent.clientHeight;
-      c.style.height = h > 80 ? `${h}px` : "";
+      c.style.maxHeight = h > 80 ? `${h}px` : "";
     };
     const raf = requestAnimationFrame(fit);
     const t   = setTimeout(fit, 120);           // catch layout after page-enter anim
@@ -658,7 +659,7 @@ export default function ProjectGanttDB() {
   );
 
   return (
-    <div className="flex flex-col gap-3 flex-1 min-h-0 h-full relative" style={{ overflow: "clip" }} ref={containerRef}>
+    <div className="flex flex-col gap-3 min-h-0 max-h-full relative" style={{ overflow: "clip" }} ref={containerRef}>
       <div className="flex items-center gap-2 mt-2 shrink-0">
         <CalendarRange size={16} className="text-amber-500" />
         <h2 className="text-lg font-bold text-slate-800 dark:text-white">Project Gantt</h2>
@@ -857,9 +858,14 @@ export default function ProjectGanttDB() {
           onScroll={onBodyScroll}
           onMouseLeave={() => setTooltip(null)}
         >
-          <div style={{ minWidth: `${240 + totalWidth}px` }} className="relative min-h-full">
+          {/* No min-h-full here — the week grid / today line / range overlay below
+              are absolutely positioned "top-0 bottom-0" against THIS wrapper, so
+              stretching it to the scrollable body's full height (when there are
+              few/filtered rows) made those lines run on far past the last row,
+              out of sync with the project column which stops at actual content. */}
+          <div style={{ minWidth: `${240 + totalWidth}px` }} className="relative">
 
-            {/* Full-height week grid — fills empty area below last project row */}
+            {/* Week grid lines — spans exactly the rendered rows' height */}
             <div className="absolute top-0 bottom-0 pointer-events-none" style={{ left: 240, width: totalWidth }}>
               {weekCols.map((_wc, i) => {
                 const isLastOfMonth = i < weekCols.length - 1 && weekCols[i + 1].isFirstOfMonth;
@@ -889,7 +895,7 @@ export default function ProjectGanttDB() {
               />
             )}
 
-            {/* Today line — single overlay spanning full gantt body height */}
+            {/* Today line — single overlay spanning the rendered rows' height */}
             {todayOffsetPct >= 0 && todayOffsetPct <= 100 && (
               <div
                 className="absolute top-0 bottom-0 border-l-[3px] border-dashed border-red-500/90 pointer-events-none"
