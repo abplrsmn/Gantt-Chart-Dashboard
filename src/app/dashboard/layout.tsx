@@ -3,16 +3,10 @@
 import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
-  Home, Users, AlertTriangle, CalendarRange,
+  Home, Users, CalendarRange,
   Bell, X, Database, BarChart2, ShieldAlert, SunMoon, LogOut, Settings, TableProperties,
 } from "lucide-react";
 import { useTheme } from "@/components/ThemeProvider";
-
-function getRoleFromCookie(): string {
-  if (typeof document === "undefined") return "admin";
-  const match = document.cookie.match(/(?:^|;\s*)user_role=([^;]+)/);
-  return match ? match[1].trim() : "admin";
-}
 
 function getUserIdFromCookie(): string {
   if (typeof document === "undefined") return "default";
@@ -84,7 +78,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const { resolvedTheme, setTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
 
-  const [userRole, setUserRole]   = useState<string>("admin");
   const [userName, setUserName]   = useState<string>("");
   const [alertCount, setAlertCount] = useState(0);
   const [toast, setToast]         = useState<ToastState>({ visible: false, count: 0 });
@@ -120,7 +113,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   // Natural document flow now scrolls the window, so reset window scroll on
   // navigation (and main's own scroll, if any inner container ever uses it).
   useEffect(() => { window.scrollTo(0, 0); mainRef.current?.scrollTo(0, 0); }, [pathname]);
-  useEffect(() => { setUserRole(getRoleFromCookie()); }, []);
   useEffect(() => {
     fetch("/api/auth/me", { cache: "no-store", credentials: "include" })
       .then(r => r.json())
@@ -197,9 +189,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     window.location.href = "/";
   }
 
-  const isPm = userRole === "pm";
-
-  const adminNavItems = [
+  const navItems = [
     { icon: <Home size={16} />,             label: "Home",          path: "/dashboard" },
     { icon: <CalendarRange size={16} />,    label: "Projects",      path: "/dashboard/projects/gantt" },
     { icon: <TableProperties size={16} />,  label: "Summary",       path: "/dashboard/projects/summary-matrix" },
@@ -208,13 +198,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { icon: <ShieldAlert size={16} />,      label: "Alerts",        path: "/dashboard/alerts", badge: alertCount },
     { icon: <Database size={16} />,         label: "Master Setup",  path: "/dashboard/master" },
   ];
-
-  const pmNavItems = [
-    { icon: <CalendarRange size={16} />, label: "Projects", path: "/dashboard/projects/gantt" },
-    { icon: <AlertTriangle size={16} />, label: "Alerts",   path: "/dashboard/alerts", badge: alertCount },
-  ];
-
-  const navItems = isPm ? pmNavItems : adminNavItems;
 
   // Gantt & Summary are single-screen views with their own internal scroll, so
   // the app shell is locked to the viewport (no browser scroll). Every other
@@ -283,12 +266,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             onClick={() => setSettingsOpen(v => !v)}
             className={`relative w-full flex items-center gap-3 px-2.5 py-2.5 rounded-lg overflow-hidden transition-all duration-150 ${
               settingsOpen
-                ? "glass-nav-active shadow-sm text-brand-mahogany dark:text-brand-sand"
+                ? "bg-white/60 dark:bg-white/8 text-brand-mahogany dark:text-brand-sand"
                 : "text-slate-500 dark:text-slate-400 hover:bg-white/60 dark:hover:bg-white/8 hover:text-slate-700 dark:hover:text-slate-200"
             }`}
           >
             <span className="shrink-0 w-5 h-5 flex items-center justify-center">
-              <Settings size={16} />
+              <Settings size={16} className={`transition-transform duration-300 ease-out ${settingsOpen ? "rotate-90 scale-105" : "rotate-0 scale-100"}`} />
             </span>
             <span className={`text-[13px] font-semibold whitespace-nowrap leading-none flex-1 text-left transition-opacity duration-150 delay-75 ${sidebarExpanded ? "opacity-100" : "opacity-0"}`}>
               Settings

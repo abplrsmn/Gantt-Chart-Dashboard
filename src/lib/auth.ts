@@ -10,8 +10,6 @@ export type AuthUser = {
   accId: number;
   personId: number | null;
   email: string;
-  isAdmin: boolean;
-  role: string;
   fullName: string | null;
 };
 
@@ -42,14 +40,10 @@ function decodeToken(token: string): AuthUser | null {
     const parsed = JSON.parse(Buffer.from(b64, 'base64url').toString('utf8'));
     if (!parsed || typeof parsed !== 'object') return null;
     if (typeof parsed.email !== 'string') return null;
-    const isAdmin = Boolean(parsed.isAdmin);
     return {
       accId: Number(parsed.accId),
       personId: parsed.personId == null ? null : Number(parsed.personId),
       email: String(parsed.email),
-      isAdmin,
-      // Re-derive role from isAdmin so stale tokens without 'role' field still work correctly.
-      role: isAdmin ? 'admin' : 'pm',
       fullName: parsed.fullName == null ? null : String(parsed.fullName),
     };
   } catch {
@@ -60,7 +54,7 @@ function decodeToken(token: string): AuthUser | null {
 export async function authenticateUser(email: string, password: string): Promise<AuthUser | null> {
   const pool = getDbPool();
   const result = await pool.query(
-    `SELECT a.id, a.person_id, a.email, a.is_admin, a.password_hash, p.full_name
+    `SELECT a.id, a.person_id, a.email, a.password_hash, p.full_name
      FROM master_acc a
      LEFT JOIN master_people p ON p.id = a.person_id
      WHERE lower(a.email) = lower($1) AND a.is_active = true
@@ -73,13 +67,10 @@ export async function authenticateUser(email: string, password: string): Promise
   const valid = await bcrypt.compare(password, String(row.password_hash));
   if (!valid) return null;
 
-  const isAdmin = Boolean(row.is_admin);
   return {
     accId: Number(row.id),
     personId: row.person_id == null ? null : Number(row.person_id),
     email: String(row.email),
-    isAdmin,
-    role: isAdmin ? 'admin' : 'pm',
     fullName: row.full_name == null ? null : String(row.full_name),
   };
 }
@@ -94,14 +85,7 @@ export async function createAuthCookie(user: AuthUser, options?: { secure?: bool
     path: '/',
     maxAge: AUTH_COOKIE_MAX_AGE,
   });
-  // Non-httpOnly cookies so client-side JS can read role + identity for UI/localStorage keying
-  cookieStore.set('user_role', user.role, {
-    httpOnly: false,
-    sameSite: 'lax',
-    secure,
-    path: '/',
-    maxAge: AUTH_COOKIE_MAX_AGE,
-  });
+  // Non-httpOnly cookie so client-side JS can read identity for UI/localStorage keying
   cookieStore.set('user_id', String(user.accId), {
     httpOnly: false,
     sameSite: 'lax',
@@ -116,13 +100,6 @@ export async function clearAuthCookie(options?: { secure?: boolean }) {
   const secure = Boolean(options?.secure);
   cookieStore.set(AUTH_COOKIE_NAME, '', {
     httpOnly: true,
-    sameSite: 'lax',
-    secure,
-    path: '/',
-    maxAge: 0,
-  });
-  cookieStore.set('user_role', '', {
-    httpOnly: false,
     sameSite: 'lax',
     secure,
     path: '/',
@@ -159,8 +136,6 @@ export async function getAuthUser(): Promise<AuthUser | null> {
       accId:    session.user.accId,
       personId: null,
       email:    session.user.email,
-      isAdmin:  session.user.isAdmin,
-      role:     session.user.role,
       fullName: session.user.fullName,
     };
   } catch {

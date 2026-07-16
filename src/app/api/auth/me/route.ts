@@ -13,8 +13,6 @@ export async function GET() {
     data: {
       fullName: user.fullName,
       email: user.email,
-      role: user.role,
-      isAdmin: user.isAdmin,
     },
   });
 }

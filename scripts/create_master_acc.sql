@@ -3,7 +3,6 @@ create table if not exists master_acc (
   person_id bigint null,
   email varchar(255) not null unique,
   password_hash varchar(255) not null,
-  is_admin boolean not null default false,
   is_active boolean not null default true,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
@@ -29,8 +28,8 @@ where not exists (
 
 -- password_hash below = bcrypt(cost=12) of 'admin123'
 -- To regenerate: node -e "const b=require('bcryptjs');b.hash('admin123',12).then(console.log)"
-insert into master_acc (person_id, email, password_hash, is_admin, is_active)
-select mp.id, 'admin@aryaduta.com', '$2b$12$placeholder_run_migrate_pw_script', true, true
+insert into master_acc (person_id, email, password_hash, is_active)
+select mp.id, 'admin@aryaduta.com', '$2b$12$placeholder_run_migrate_pw_script', true
 from master_people mp
 where lower(mp.email) = lower('admin@aryaduta.com')
   and not exists (

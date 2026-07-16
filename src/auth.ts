@@ -26,11 +26,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     },
 
     async jwt({ token, user }) {
-      // On first sign-in, enrich token with DB role info
+      // On first sign-in, enrich token with DB identity info
       if (user?.email) {
         const pool = getDbPool()
         const { rows } = await pool.query(
-          `SELECT a.id, a.is_admin, p.full_name
+          `SELECT a.id, p.full_name
            FROM master_acc a
            LEFT JOIN master_people p ON p.id = a.person_id
            WHERE lower(a.email) = lower($1) AND a.is_active = true
@@ -40,8 +40,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const row = rows[0]
         if (row) {
           token.accId   = Number(row.id)
-          token.isAdmin = Boolean(row.is_admin)
-          token.role    = row.is_admin ? "admin" : "pm"
           token.fullName = row.full_name ?? null
         }
       }
@@ -50,8 +48,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
     async session({ session, token }) {
       session.user.accId    = token.accId    as number
-      session.user.isAdmin  = token.isAdmin  as boolean
-      session.user.role     = token.role     as string
       session.user.fullName = token.fullName as string | null
       return session
     },

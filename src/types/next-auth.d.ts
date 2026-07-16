@@ -5,8 +5,6 @@ declare module "next-auth" {
   interface Session {
     user: {
       accId: number
-      isAdmin: boolean
-      role: string
       fullName: string | null
       email: string
       name?: string | null
@@ -18,8 +16,6 @@ declare module "next-auth" {
 declare module "next-auth/jwt" {
   interface JWT {
     accId?: number
-    isAdmin?: boolean
-    role?: string
     fullName?: string | null
   }
 }

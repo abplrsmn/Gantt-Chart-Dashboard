@@ -22,7 +22,7 @@ export async function POST(request: Request) {
     }
 
     await createAuthCookie(user, { secure: isSecureRequest(request) });
-    return NextResponse.json({ success: true, user: { email: user.email, isAdmin: user.isAdmin, role: user.role, fullName: user.fullName } });
+    return NextResponse.json({ success: true, user: { email: user.email, fullName: user.fullName } });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error?.message || 'Login failed.' }, { status: 500 });
   }

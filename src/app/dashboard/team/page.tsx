@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Users, Mail, Briefcase, Shield, Building2, Search } from "lucide-react";
+import { Users, Mail, Briefcase, Building2, Search } from "lucide-react";
 
 type UserAccount = {
   id: string;
@@ -11,7 +11,6 @@ type UserAccount = {
   department: string | null;
   job_title: string | null;
   employee_code: string | null;
-  is_admin: boolean;
   is_active: boolean;
 };
 
@@ -60,9 +59,9 @@ function Avatar({ name, size = "md" }: { name: string; size?: "sm" | "md" }) {
   );
 }
 
-function PersonCard({ name, email, jobTitle, department, isActive, isAdmin, employeeCode }: {
+function PersonCard({ name, email, jobTitle, department, isActive, employeeCode }: {
   name: string; email?: string | null; jobTitle?: string | null;
-  department?: string | null; isActive: boolean; isAdmin?: boolean; employeeCode?: string | null;
+  department?: string | null; isActive: boolean; employeeCode?: string | null;
 }) {
   return (
     <div className={`flex items-start gap-3 p-3 rounded-lg border transition-all ${
@@ -74,11 +73,6 @@ function PersonCard({ name, email, jobTitle, department, isActive, isAdmin, empl
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5 flex-wrap">
           <p className="text-[12px] font-semibold text-slate-800 dark:text-white truncate">{name}</p>
-          {isAdmin && (
-            <span className="flex items-center gap-0.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-violet-100 dark:bg-violet-500/15 text-violet-600 dark:text-violet-400">
-              <Shield size={8} /> Admin
-            </span>
-          )}
           <span className={`ml-auto text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
             isActive ? "bg-green-100 dark:bg-green-500/15 text-emerald-600 dark:text-emerald-400"
                      : "bg-slate-100 dark:bg-white/8 text-slate-400"
@@ -324,7 +318,6 @@ function TeamContent() {
                   jobTitle={u.job_title}
                   department={u.department}
                   isActive={u.is_active}
-                  isAdmin={u.is_admin}
                   employeeCode={u.employee_code}
                 />
               ))}

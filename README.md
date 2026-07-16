@@ -56,15 +56,11 @@ Browser / Telegram
 4. Token format: `base64url(payload).hmac_sha256_hex`
 5. `middleware.ts` verifies token on every request to `/dashboard/*` and selected `/api/*` routes
 
-### Roles
-| Role | Access |
-|------|--------|
-| `admin` | Full `/dashboard` access |
-| `pm` | Limited to `/dashboard/projects/*` |
+All authenticated accounts have identical access — there is no role distinction.
 
 ### Relevant Files
 - `src/lib/auth.ts` — token encode/decode, `authenticateUser()`, `createAuthCookie()`
-- `middleware.ts` — route protection, role-based redirect
+- `middleware.ts` — route protection
 - `src/app/api/auth/login/route.ts` — login handler
 - `src/app/api/auth/logout/route.ts` — logout handler
 
@@ -138,7 +134,7 @@ master_units            — id, unit_code, unit_name
 master_project_categories — id, category_code, category_name
 master_roles            — id, role_name
 master_people           — id, employee_code, full_name, nickname, department, job_title, email
-master_acc              — id, person_id, email, password_hash, is_admin, role, is_active
+master_acc              — id, person_id, email, password_hash, is_active
 ```
 
 #### Relational / Audit Tables
