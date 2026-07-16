@@ -13,6 +13,7 @@ import {
 import SCurveCharts from "@/components/dashboard/SCurveCharts";
 import ScurveImportModal from "@/components/dashboard/ScurveImportModal";
 import AnimatedDropdown from "@/components/dashboard/AnimatedDropdown";
+import InlineDatePicker from "@/components/dashboard/InlineDatePicker";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type ProjectDetail = {
@@ -169,6 +170,7 @@ function InlineField({
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
   const [saving, setSaving] = useState(false);
+  const [anchorNode, setAnchorNode] = useState<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
 
@@ -186,6 +188,12 @@ function InlineField({
     try { await onSave(raw); } finally { setSaving(false); }
   }
 
+  async function pickDate(raw: string | null) {
+    setEditing(false);
+    setSaving(true);
+    try { await onSave(raw); } finally { setSaving(false); }
+  }
+
   const displayVal =
     !value ? "—"
     : fmt === "date" ? fmtDate(value)
@@ -196,6 +204,33 @@ function InlineField({
   const wrapCls = fullWidth ? "col-span-2" : "";
   const labelEl = <p className="text-[9px] uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-0.5">{label}</p>;
   const inputCls = "w-full bg-white dark:bg-zinc-800 border border-amber-400 rounded px-2 py-0.5 text-xs text-slate-700 dark:text-slate-200 outline-none ring-2 ring-amber-400/30";
+
+  if (editing && fmt === "date") {
+    return (
+      <div className={wrapCls} ref={setAnchorNode}>
+        {labelEl}
+        <div className={inputCls + " cursor-default select-none"}>
+          {draft ? fmtDate(draft) : <span className="text-slate-400 dark:text-slate-500">Pick a date…</span>}
+        </div>
+        {(min || max) && (
+          <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">
+            {min && max ? `${fmtDate(min)} – ${fmtDate(max)}` : min ? `From ${fmtDate(min)}` : `Until ${fmtDate(max!)}`}
+          </p>
+        )}
+        {anchorNode && (
+          <InlineDatePicker
+            anchorEl={anchorNode}
+            value={draft || null}
+            min={min}
+            max={max}
+            onPick={pickDate}
+            onClear={() => pickDate(null)}
+            onCancel={() => setEditing(false)}
+          />
+        )}
+      </div>
+    );
+  }
 
   if (editing) {
     return (
@@ -214,27 +249,13 @@ function InlineField({
         ) : (
           <input
             ref={inputRef}
-            type={fmt === "date" ? "date" : "text"}
+            type="text"
             value={draft}
-            min={fmt === "date" ? min : undefined}
-            max={fmt === "date" ? max : undefined}
-            onChange={e => {
-              if (fmt === "date") {
-                const v = e.target.value;
-                if (min && v && v < min) return;
-                if (max && v && v > max) return;
-              }
-              setDraft(e.target.value);
-            }}
+            onChange={e => setDraft(e.target.value)}
             onBlur={commit}
             onKeyDown={e => { if (e.key === "Escape") setEditing(false); if (e.key === "Enter") commit(); }}
             className={inputCls}
           />
-        )}
-        {fmt === "date" && (min || max) && (
-          <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">
-            {min && max ? `${fmtDate(min)} – ${fmtDate(max)}` : min ? `From ${fmtDate(min)}` : `Until ${fmtDate(max!)}`}
-          </p>
         )}
       </div>
     );
