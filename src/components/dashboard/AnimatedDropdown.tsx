@@ -27,7 +27,10 @@ export default function AnimatedDropdown({
   className = "", align = "left", minWidth = 160, disabled = false, dropUp = false,
 }: Props) {
   const [open, setOpen]         = useState(false);
-  const [panelStyle, setPanelStyle] = useState<React.CSSProperties>({});
+  // position: fixed + off-screen by default so the portal panel never sits in
+  // normal document flow (which would inflate document.body's scroll height)
+  // before it's ever been opened.
+  const [panelStyle, setPanelStyle] = useState<React.CSSProperties>({ position: "fixed", top: -9999, left: -9999 });
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelRef   = useRef<HTMLDivElement>(null);
 
