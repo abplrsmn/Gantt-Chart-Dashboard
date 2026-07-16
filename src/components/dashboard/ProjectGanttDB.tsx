@@ -8,14 +8,7 @@ import { Search, ArrowRight, MousePointer2, Move, Trash2, Plus, CalendarRange, C
 import DateRangePicker from "./DateRangePicker";
 import AnimatedDropdown from "./AnimatedDropdown";
 import { PHASE_LIST } from "@/lib/phases";
-import QuickMenu from "./QuickMenu";
 import AddProjectModal from "./AddProjectModal";
-
-function getRoleFromCookie(): string {
-  if (typeof document === "undefined") return "admin";
-  const match = document.cookie.match(/(?:^|;\s*)user_role=([^;]+)/);
-  return match ? match[1].trim() : "admin";
-}
 
 function getUserIdFromCookie(): string {
   if (typeof document === "undefined") return "default";
@@ -251,7 +244,6 @@ export default function ProjectGanttDB() {
   const [successToast, setSuccessToast] = useState<string | null>(null);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [search, setSearch]     = useState("");
-  const [userRole, setUserRole]             = useState<string>("");
   const [priorityFilter, setPriorityFilter] = useState(() => {
     try { return typeof window !== "undefined" ? localStorage.getItem(`gantt_priority_${getUserIdFromCookie()}`) ?? "ALL" : "ALL"; } catch { return "ALL"; }
   });
@@ -328,7 +320,6 @@ export default function ProjectGanttDB() {
   }
 
   useEffect(() => {
-    setUserRole(getRoleFromCookie());
     loadProjects();
     fetch("/api/master/options")
       .then(r => r.json())
@@ -742,7 +733,6 @@ export default function ProjectGanttDB() {
           <Plus size={13} />
           Add Project
         </button>
-        {userRole === "pm" && <QuickMenu align="right" />}
       </div>
 
       {/* Legend + tool mode selector on the same row */}
@@ -909,7 +899,10 @@ export default function ProjectGanttDB() {
                 No projects match your filter.
               </div>
             ) : filteredProjects.map(p => {
-              const segments = buildSegments(p, timeline.start, totalDays);
+              const allSegments = buildSegments(p, timeline.start, totalDays);
+              const segments = phaseFilter === "ALL"
+                ? allSegments
+                : allSegments.filter(s => s.key === PHASE_CODE_MAP[phaseFilter]);
               const phaseDates = getProjectPhaseDates(p);
               const projectRangeBar = buildProjectRangeBar(p, timeline.start, totalDays);
               const pCfg = PRIORITY_CONFIG[p.priority_code ?? ""] ?? { label: p.priority_name ?? "–", color: "#94a3b8", dot: "bg-slate-400" };
