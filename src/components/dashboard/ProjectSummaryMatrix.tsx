@@ -3,7 +3,6 @@
 import { format, isValid } from "date-fns";
 import { forwardRef, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Paperclip, Loader2 } from "lucide-react";
 
 type SummaryProject = {
   id: string;
@@ -31,8 +30,7 @@ type SummaryProject = {
   control_end?: string | null;
   aps_date?: string | null;
   project_control_duration_days?: number | string | null;
-  contract_file_url?: string | null;
-  contract_file_name?: string | null;
+  contract_name?: string | null;
   phase_contract_amount?: string | null;
   control_notes?: string | null;
   // Phase 4 — Project Management
@@ -78,7 +76,7 @@ const DATA_COLUMNS: { label: string; width: number }[] = [
   { label: "Tender Finish Real",                  width: 130 },
   { label: "Duration (+/-)",                      width:  95 },
   { label: "APS",                                 width:  90 },
-  { label: "Contract",                            width: 110 },
+  { label: "Contract Name",                       width: 130 },
   { label: "Contract Amount",                     width: 140 },
   { label: "Notes",                               width: 170 },
   { label: "START",                               width:  90 }, // Project Management
@@ -283,55 +281,6 @@ function InlineCell({
   );
 }
 
-function InlineContractCell({
-  projectId, fileUrl, fileName,
-  onUploaded,
-}: {
-  projectId: string;
-  fileUrl: string | null;
-  fileName: string | null;
-  onUploaded: (url: string, name: string) => void;
-}) {
-  const inputRef = useRef<HTMLInputElement>(null);
-  const [uploading, setUploading] = useState(false);
-
-  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploading(true);
-    try {
-      const form = new FormData();
-      form.append("file", file);
-      form.append("week_key", "contract");
-      const res = await fetch(`/api/projects/${projectId}/attachments`, { method: "POST", body: form });
-      const data = await res.json();
-      if (data.success) onUploaded(data.data.file_url, data.data.file_name);
-    } finally {
-      setUploading(false);
-      e.target.value = "";
-    }
-  }
-
-  return (
-    <div className="flex items-center gap-1 min-w-0">
-      <input ref={inputRef} type="file" className="hidden" onChange={handleFile} accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.png" />
-      {fileUrl ? (
-        <a href={fileUrl} target="_blank" rel="noreferrer"
-          className="text-[10px] text-cyan-600 dark:text-cyan-400 hover:underline truncate" title={fileName ?? undefined}>
-          {fileName ?? "File"}
-        </a>
-      ) : (
-        <span className="text-[10px] italic text-slate-400 dark:text-slate-600">—</span>
-      )}
-      <button onClick={() => inputRef.current?.click()} disabled={uploading}
-        className="shrink-0 text-slate-400 hover:text-cyan-500 transition-colors p-0.5 rounded"
-        title={fileUrl ? "Replace file" : "Attach contract"}>
-        {uploading ? <Loader2 size={10} className="animate-spin" /> : <Paperclip size={10} />}
-      </button>
-    </div>
-  );
-}
-
 const ProjectSummaryMatrix = forwardRef<HTMLDivElement, Props>(function ProjectSummaryMatrix({
   projects: initialProjects,
   className = "",
@@ -515,17 +464,8 @@ const ProjectSummaryMatrix = forwardRef<HTMLDivElement, Props>(function ProjectS
                 <td className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2">
                   <InlineCell value={project.aps_date} type="date" projectId={project.id} field="aps_date" onSaved={(f, v) => onSaved(project.id, f, v)} className="font-mono whitespace-nowrap" />
                 </td>
-                {/* Contract file attachment */}
                 <td className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2">
-                  <InlineContractCell
-                    projectId={project.id}
-                    fileUrl={project.contract_file_url ?? null}
-                    fileName={project.contract_file_name ?? null}
-                    onUploaded={(url, name) => {
-                      onSaved(project.id, "contract_file_url", url);
-                      onSaved(project.id, "contract_file_name", name);
-                    }}
-                  />
+                  <InlineCell value={project.contract_name} type="text" projectId={project.id} field="contract_name" onSaved={(f, v) => onSaved(project.id, f, v)} />
                 </td>
                 <td className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2">
                   <InlineCell value={project.phase_contract_amount} type="money" projectId={project.id} field="phase_contract_amount" onSaved={(f, v) => onSaved(project.id, f, v)} className="font-mono text-right whitespace-nowrap" />

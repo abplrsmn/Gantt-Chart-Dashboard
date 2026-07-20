@@ -63,6 +63,7 @@ type ProjectDetail = {
   project_control_duration_days: string | null;
   control_progress: string | null;
   aps_date: string | null;
+  contract_name: string | null;
   phase_contract_amount: string | null;
   control_notes: string | null;
   pm_start: string | null;
@@ -426,6 +427,7 @@ const PHASE_DEFS: PhaseDef[] = [
       { label: "Tender Finish Real",         key: "control_end",                    format: "date" },
       { label: "Duration (+/-)",             key: "project_control_duration_days",  format: "text" },
       { label: "APS Date",                   key: "aps_date",                       format: "date" },
+      { label: "Contract Name",               key: "contract_name",                  format: "text" },
       { label: "Contract Amount",            key: "phase_contract_amount",          format: "currency", fullWidth: true },
       { label: "Notes",                      key: "control_notes",                  format: "text",     fullWidth: true },
     ],

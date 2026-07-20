@@ -14,6 +14,7 @@ export async function GET() {
     await client.query("SET jit = off");
     try { await client.query(`ALTER TABLE project_phases ADD COLUMN IF NOT EXISTS aps_date date`); } catch { /* already exists */ }
     try { await client.query(`ALTER TABLE project_phases ADD COLUMN IF NOT EXISTS tender_finish_target date`); } catch { /* already exists */ }
+    try { await client.query(`ALTER TABLE project_phases ADD COLUMN IF NOT EXISTS contract_name varchar(255)`); } catch { /* already exists */ }
 
     const { rows } = await client.query(`
       WITH scurve_periods AS (
@@ -156,8 +157,7 @@ export async function GET() {
          WHERE cl.project_id = p.id AND cl.action_type = 'phase_advanced' AND cl.new_value = '3'
          ORDER BY cl.created_at DESC LIMIT 1) AS design_advance_note,
 
-        pa_contract.file_url          AS contract_file_url,
-        pa_contract.file_name         AS contract_file_name,
+        pc.contract_name               AS contract_name,
 
         (SELECT SUBSTRING(cl.change_summary FROM POSITION(':' IN cl.change_summary) + 2)
          FROM project_change_logs cl
@@ -183,11 +183,6 @@ export async function GET() {
       LEFT JOIN project_phases pc  ON pc.project_id = p.id AND pc.phase_id = 3
       LEFT JOIN project_phases pm  ON pm.project_id = p.id AND pm.phase_id = 4
       LEFT JOIN project_phases hv  ON hv.project_id = p.id AND hv.phase_id = 5
-      LEFT JOIN LATERAL (
-        SELECT file_url, file_name FROM project_attachments
-        WHERE project_id = p.id AND source_message_id = 'contract'
-        ORDER BY created_at DESC LIMIT 1
-      ) pa_contract ON true
 
       ORDER BY mpr.level ASC NULLS LAST, p.project_code
     `);
