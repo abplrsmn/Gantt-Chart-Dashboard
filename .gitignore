@@ -43,3 +43,6 @@ next-env.d.ts
 fix-escapes-2.js
 fix-escapes-3.js
 fix-escapes-4.js
+
+# claude code agent worktrees
+.claude/worktrees/

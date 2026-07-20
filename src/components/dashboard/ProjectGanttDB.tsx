@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { differenceInCalendarDays, format, addDays, isValid, startOfWeek, endOfWeek, addWeeks, startOfMonth, endOfMonth } from "date-fns";
-import { Search, ArrowRight, MousePointer2, Move, Trash2, Plus, CalendarRange, CheckCircle2, X as XIcon } from "lucide-react";
+import { Search, ArrowRight, MousePointer2, Move, Trash2, Plus, CalendarRange, CheckCircle2, X as XIcon, ChevronDown } from "lucide-react";
 import DateRangePicker from "./DateRangePicker";
 import AnimatedDropdown from "./AnimatedDropdown";
 import { PHASE_LIST } from "@/lib/phases";
@@ -163,34 +163,52 @@ function buildSegments(p: DBProject, timelineStart: Date, totalDays: number): Ph
     { key: "handover", start: toDate(p.handover_start),  end: toDate(p.handover_end),   progress: Number(p.handover_progress ?? 20) },
   ];
 
-  let previousVisualEnd: Date | null = null;
-
   return raw.flatMap(r => {
     if (r.start === null && r.end === null) return [];
     const s = r.start ?? projectStart;
     const e = r.end   ?? addDays(s, 14);
     if (e < s) return [];
 
-    // Gantt lifecycle bars are linear by phase order.
-    // If a later phase is entered with dates that overlap the previous phase,
-    // keep the previous phase visible and place the later phase after it visually
-    // instead of letting the active phase cover/replace the earlier segment.
-    let visualStart = s;
-    let visualEnd = e;
-    if (previousVisualEnd && visualStart <= previousVisualEnd) {
-      visualStart = addDays(previousVisualEnd, 1);
-    }
-    if (visualEnd < visualStart) visualEnd = visualStart;
-    previousVisualEnd = visualEnd;
-
-    const offsetDays = differenceInCalendarDays(visualStart, timelineStart);
-    const widthDays  = Math.max(1, differenceInCalendarDays(visualEnd, visualStart) + 1);
+    // Render each phase at its own true dates. A later phase (e.g. Handover)
+    // can legitimately start before an earlier phase's target/contractual end
+    // date when work finished ahead of schedule — previously that pushed the
+    // later phase's bar out past the project's real date range entirely. Now
+    // it just overlaps/blends with the tail of the previous bar instead,
+    // which matches what actually happened.
+    const offsetDays = differenceInCalendarDays(s, timelineStart);
+    const widthDays  = Math.max(1, differenceInCalendarDays(e, s) + 1);
     const offsetPct  = Math.max(0, (offsetDays / totalDays) * 100);
     const widthPct   = Math.max(0.3, (widthDays / totalDays) * 100);
     const ph = PHASES.find(ph => ph.key === r.key);
     if (!ph) return [];
     return [{ key: r.key, label: ph.label, color: ph.color, start: s, end: e, progress: r.progress, offsetPct, widthPct }];
   });
+}
+
+// Phases now render at their true dates and can legitimately overlap (e.g.
+// Handover starting before the previous phase's target end). Rather than
+// letting a later phase's bar fully cover an earlier one, stack overlapping
+// segments into separate vertical lanes so every phase stays visible.
+//
+// Each segment's lane is one more than the highest lane among every EARLIER
+// segment it actually overlaps (not just the nearest free slot). Plain
+// first-fit interval-partitioning would reuse a long-vacated lane (e.g. slot
+// Handover back onto Operational Brief's row just because they don't overlap
+// each other), even while Handover still overlaps Project Management sitting
+// one lane down — visually that reads as Handover "jumping behind" a phase
+// that comes before it. This trades an occasional extra lane for a stacking
+// order that always reads top-to-bottom in phase order.
+function assignLanes(segs: PhaseSegment[]): number[] {
+  const lanes: number[] = [];
+  segs.forEach((seg, i) => {
+    let lane = 0;
+    for (let j = 0; j < i; j++) {
+      const overlaps = seg.start <= segs[j].end && segs[j].start <= seg.end;
+      if (overlaps) lane = Math.max(lane, lanes[j] + 1);
+    }
+    lanes.push(lane);
+  });
+  return lanes;
 }
 
 function buildProjectRangeBar(p: DBProject, timelineStart: Date, totalDays: number) {
@@ -292,6 +310,16 @@ export default function ProjectGanttDB() {
   const [deleteConfirm, setDeleteConfirm] = useState<{ projectId: string; seg: PhaseSegment } | null>(null);
   const [dragConfirm, setDragConfirm]     = useState<{ projectId: string; phaseKey: PhaseKey; origStart: Date; origEnd: Date; newStart: Date; newEnd: Date } | null>(null);
   const [modalExiting, setModalExiting]   = useState(false);
+  // Rows default to showing only the project's current phase; click the
+  // chevron to break it down into the full phase-by-phase lifecycle.
+  const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
+  function toggleExpanded(id: string) {
+    setExpandedProjects(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
 
   const onBodyScroll = () => {
     if (syncingRef.current) return;
@@ -907,6 +935,30 @@ export default function ProjectGanttDB() {
               const projectRangeBar = buildProjectRangeBar(p, timeline.start, totalDays);
               const pCfg = PRIORITY_CONFIG[p.priority_code ?? ""] ?? { label: p.priority_name ?? "–", color: "#94a3b8", dot: "bg-slate-400" };
 
+              // Collapsed (default): one bar filling the project's full lifecycle
+              // range (start_date–end_date), colored/labeled as the current phase.
+              // Expanded: break down into every phase it has passed through, each
+              // at its own true dates. Highlighting (isActiveToday/isInRange below)
+              // still checks the full segment list regardless of collapse state.
+              const isExpanded     = expandedProjects.has(p.id);
+              const currentSegment = segments.find(s => s.key === PHASE_CODE_MAP[p.current_phase_code ?? ""]);
+              const collapsedSegment = currentSegment && projectRangeBar
+                ? { ...currentSegment, offsetPct: projectRangeBar.offsetPct, widthPct: projectRangeBar.widthPct }
+                : currentSegment;
+              const displaySegments = isExpanded ? segments : (collapsedSegment ? [collapsedSegment] : segments);
+
+              // Overlapping phases (e.g. Handover starting before the previous
+              // phase's target end) get stacked into separate lanes instead of
+              // one bar covering another; the row grows taller to fit them.
+              // When expanded, the project-lifecycle bar keeps its own lane at
+              // the top and every phase lane shifts down one, so phases render
+              // fully below the lifecycle track instead of overlapping it.
+              const lanes       = assignLanes(displaySegments);
+              const phaseLanes  = lanes.length ? Math.max(...lanes) + 1 : 1;
+              const laneOffset  = isExpanded ? 1 : 0;
+              const laneCount   = phaseLanes + laneOffset;
+              const rowHeight   = 88 + Math.max(0, laneCount - 1) * 32;
+
               // Is any phase running today?
               const today = new Date();
               const isActiveToday = segments.some(s => today >= s.start && today <= s.end);
@@ -933,14 +985,17 @@ export default function ProjectGanttDB() {
                   <div
                     className="flex items-center hover:bg-slate-50/70 dark:hover:bg-white/3 transition-colors"
                   >
-                    {/* Left: project info — sticky on horizontal scroll */}
+                    {/* Left: project info — sticky on horizontal scroll. Click to
+                        expand/collapse the phase breakdown (bars now always navigate
+                        to the detail page instead). */}
                     <div
-                      className={`sticky left-0 z-20 shrink-0 w-60 h-22 px-3 flex flex-col justify-center overflow-hidden border-r border-slate-200/40 dark:border-white/5 ${
-                        isActiveToday ? "bg-cyan-50 dark:bg-cyan-950"
-                        : isInRange   ? "bg-amber-50 dark:bg-amber-950"
-                        : "bg-white dark:bg-zinc-900"
+                      onClick={() => { if (segments.length > 1) toggleExpanded(p.id); }}
+                      className={`sticky left-0 z-20 shrink-0 w-60 px-3 flex flex-col justify-center overflow-hidden border-r border-slate-200/40 dark:border-white/5 ${segments.length > 1 ? "cursor-pointer" : ""} ${
+                        isActiveToday ? "bg-cyan-50 dark:bg-cyan-950 hover:bg-cyan-100 dark:hover:bg-cyan-900"
+                        : isInRange   ? "bg-amber-50 dark:bg-amber-950 hover:bg-amber-100 dark:hover:bg-amber-900"
+                        : "bg-white dark:bg-zinc-900 hover:bg-slate-50 dark:hover:bg-zinc-800"
                       }`}
-                      style={isActiveToday ? { borderLeft: `3px solid ${activeTodayPhase?.color ?? "#06b6d4"}` } : {}}
+                      style={{ height: `${rowHeight}px`, transition: "height 220ms ease", ...(isActiveToday ? { borderLeft: `3px solid ${activeTodayPhase?.color ?? "#06b6d4"}` } : {}) }}
                     >
                       <div className="flex items-center gap-1.5 mb-0.5">
                         <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${pCfg.dot}`} />
@@ -953,6 +1008,14 @@ export default function ProjectGanttDB() {
                             ● TODAY
                           </span>
                         )}
+                        {segments.length > 1 && (
+                          <span
+                            title={isExpanded ? "Collapse to current phase" : "Break down all phases"}
+                            className="ml-auto shrink-0 p-0.5 rounded text-slate-400"
+                          >
+                            <ChevronDown size={12} className={`transition-transform duration-150 ${isExpanded ? "rotate-180" : ""}`} />
+                          </span>
+                        )}
                       </div>
                       <p className="text-[11px] font-semibold text-slate-800 dark:text-white leading-snug line-clamp-2">
                         {p.unit_code ? `${p.unit_code} - ${p.project_name.split(" - ").slice(1).join(" - ") || p.project_name}` : p.project_name}
@@ -963,7 +1026,7 @@ export default function ProjectGanttDB() {
                     </div>
 
                     {/* Right: Gantt timeline (fixed pixel width per week) */}
-                    <div className="relative overflow-hidden" style={{ width: `${totalWidth}px`, height: "88px" }}>
+                    <div className="relative overflow-hidden" style={{ width: `${totalWidth}px`, height: `${rowHeight}px`, transition: "height 220ms ease" }}>
                       {/* Week grid lines */}
                       {weekCols.map((_wc, i) => {
                         const isLastOfMonth = i < weekCols.length - 1 && weekCols[i + 1].isFirstOfMonth;
@@ -976,7 +1039,10 @@ export default function ProjectGanttDB() {
                         );
                       })}
 
-                      {/* Project range bar — visual track only, click navigates to detail */}
+                      {/* Project range bar — visual track only, click navigates to detail.
+                          Always shown; when expanded it keeps the top lane to itself
+                          (phase bars shift down a lane below) so it reads as the
+                          lifecycle track instead of peeking out behind the phases. */}
                       {projectRangeBar && (
                         <div
                           className={`absolute rounded-lg border border-slate-300/60 bg-slate-200/50 dark:border-white/8 dark:bg-white/8 transition-colors ${toolMode === "select" ? "cursor-pointer hover:bg-slate-300/60 dark:hover:bg-white/12" : "cursor-default"}`}
@@ -1005,12 +1071,15 @@ export default function ProjectGanttDB() {
                         />
                       )}
 
-                      {/* Phase bars — individually draggable */}
-                      {segments.map(seg => {
+                      {/* Phase bars — individually draggable. Overlapping phases are
+                          stacked into separate lanes (see assignLanes) instead of
+                          one bar covering another. */}
+                      {displaySegments.map((seg, i) => {
                         const active = isPhaseActive(seg.key, p.current_phase_code);
                         const left  = (seg.offsetPct / 100) * totalWidth;
                         const width = Math.max(8, (seg.widthPct / 100) * totalWidth);
                         const isDragging = dragging && dragRef.current?.projectId === p.id && dragRef.current?.phaseKey === seg.key;
+                        const top = 24 + ((lanes[i] ?? 0) + laneOffset) * 32;
                         return (
                           <div
                             key={seg.key}
@@ -1019,18 +1088,21 @@ export default function ProjectGanttDB() {
                             style={{
                               left:   `${left}px`,
                               width:  `${width}px`,
-                              top:    "24px",
+                              top:    `${top}px`,
                               height: "28px",
                               backgroundColor: seg.color,
                               opacity:   isDragging ? 0.75 : active ? 1 : 0.62,
                               zIndex:    6,
                               cursor:    toolMode === "select" ? "pointer" : toolMode === "delete" ? "not-allowed" : "grab",
+                              transition: isDragging ? "none" : "left 220ms ease, width 220ms ease, top 220ms ease",
                               boxShadow: active
                                 ? `0 0 0 2px ${seg.color}55, 0 2px 8px ${seg.color}40`
                                 : "0 1px 4px rgba(0,0,0,0.18)",
                             }}
                             onMouseDown={e => { if (toolMode === "drag") startDrag(e, p, seg, "move"); }}
                             onClick={() => {
+                              // Expand/collapse now lives on the left project-info column;
+                              // the bar itself always goes straight to the detail page.
                               if (toolMode === "select") {
                                 router.push(`/dashboard/projects/${p.id}`);
                               } else if (toolMode === "delete") {
