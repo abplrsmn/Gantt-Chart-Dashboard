@@ -372,11 +372,11 @@ const ProjectSummaryMatrix = forwardRef<HTMLDivElement, Props>(function ProjectS
                   Description
                   <ColResizeHandle onResize={dx => resizeColumn(1, dx)} />
                 </th>
-                <th colSpan={5} className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2 bg-slate-200/70 dark:bg-zinc-800/80">Operational Brief (PR)</th>
-                <th colSpan={7} className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2 bg-blue-100/70 dark:bg-blue-950/30">Design (HoD)</th>
-                <th colSpan={8} className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2 bg-amber-100/80 dark:bg-amber-950/30">Project Control</th>
-                <th colSpan={7} className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2 bg-teal-100/70 dark:bg-teal-950/30">Project Management Team</th>
-                <th colSpan={4} className="border-b border-slate-200 dark:border-white/10 px-2 py-2 bg-emerald-100/70 dark:bg-emerald-950/30">Handover</th>
+                <th colSpan={5} className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2 text-left bg-slate-200/70 dark:bg-zinc-800/80">Operational Brief (PR)</th>
+                <th colSpan={7} className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2 text-left bg-blue-100/70 dark:bg-blue-950/30">Design (HoD)</th>
+                <th colSpan={8} className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2 text-left bg-amber-100/80 dark:bg-amber-950/30">Project Control</th>
+                <th colSpan={7} className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2 text-left bg-teal-100/70 dark:bg-teal-950/30">Project Management Team</th>
+                <th colSpan={4} className="border-b border-slate-200 dark:border-white/10 px-2 py-2 text-left bg-emerald-100/70 dark:bg-emerald-950/30">Handover</th>
               </tr>
               <tr className="bg-white dark:bg-zinc-950 text-[9px] uppercase tracking-wide text-slate-500 dark:text-slate-400">
                 {DATA_COLUMNS.map(({ label }, idx) => (
@@ -422,7 +422,7 @@ const ProjectSummaryMatrix = forwardRef<HTMLDivElement, Props>(function ProjectS
                   <InlineCell value={project.brief_deadline} type="date" projectId={project.id} field="brief_deadline" onSaved={(f, v) => onSaved(project.id, f, v)} className="font-mono whitespace-nowrap" />
                 </td>
                 <td className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2">
-                  <InlineCell value={project.budget_capex} type="money" projectId={project.id} field="budget_capex" onSaved={(f, v) => onSaved(project.id, f, v)} className="font-mono text-right whitespace-nowrap" />
+                  <InlineCell value={project.budget_capex} type="money" projectId={project.id} field="budget_capex" onSaved={(f, v) => onSaved(project.id, f, v)} className="font-mono whitespace-nowrap" />
                 </td>
                 <td className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2 whitespace-pre-wrap">
                   <InlineCell value={project.brief_notes} type="text" projectId={project.id} field="brief_notes" onSaved={(f, v) => onSaved(project.id, f, v)} />
@@ -437,7 +437,7 @@ const ProjectSummaryMatrix = forwardRef<HTMLDivElement, Props>(function ProjectS
                   <InlineCell value={project.design_end} type="date" projectId={project.id} field="design_end" onSaved={(f, v) => onSaved(project.id, f, v)} className="font-mono whitespace-nowrap" />
                 </td>
                 <td className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2">
-                  <InlineCell value={project.design_duration_days != null ? String(project.design_duration_days) : null} type="text" projectId={project.id} field="design_duration_days" onSaved={(f, v) => onSaved(project.id, f, v)} className="font-mono text-center whitespace-nowrap" />
+                  <InlineCell value={project.design_duration_days != null ? String(project.design_duration_days) : null} type="text" projectId={project.id} field="design_duration_days" onSaved={(f, v) => onSaved(project.id, f, v)} className="font-mono whitespace-nowrap" />
                 </td>
                 <td className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2 whitespace-pre-wrap">
                   <InlineCell value={project.design_brief} type="text" projectId={project.id} field="design_brief" onSaved={(f, v) => onSaved(project.id, f, v)} />
@@ -458,7 +458,7 @@ const ProjectSummaryMatrix = forwardRef<HTMLDivElement, Props>(function ProjectS
                   <InlineCell value={project.control_end} type="date" projectId={project.id} field="control_end" onSaved={(f, v) => onSaved(project.id, f, v)} className="font-mono whitespace-nowrap" />
                 </td>
                 <td className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2">
-                  <InlineCell value={project.project_control_duration_days != null ? String(project.project_control_duration_days) : null} type="text" projectId={project.id} field="project_control_duration_days" onSaved={(f, v) => onSaved(project.id, f, v)} className="font-mono text-center whitespace-nowrap" />
+                  <InlineCell value={project.project_control_duration_days != null ? String(project.project_control_duration_days) : null} type="text" projectId={project.id} field="project_control_duration_days" onSaved={(f, v) => onSaved(project.id, f, v)} className="font-mono whitespace-nowrap" />
                 </td>
                 {/* APS date */}
                 <td className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2">
@@ -468,7 +468,7 @@ const ProjectSummaryMatrix = forwardRef<HTMLDivElement, Props>(function ProjectS
                   <InlineCell value={project.contract_name} type="text" projectId={project.id} field="contract_name" onSaved={(f, v) => onSaved(project.id, f, v)} />
                 </td>
                 <td className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2">
-                  <InlineCell value={project.phase_contract_amount} type="money" projectId={project.id} field="phase_contract_amount" onSaved={(f, v) => onSaved(project.id, f, v)} className="font-mono text-right whitespace-nowrap" />
+                  <InlineCell value={project.phase_contract_amount} type="money" projectId={project.id} field="phase_contract_amount" onSaved={(f, v) => onSaved(project.id, f, v)} className="font-mono whitespace-nowrap" />
                 </td>
                 <td className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2 whitespace-pre-wrap">
                   <InlineCell value={project.control_notes} type="text" projectId={project.id} field="control_notes" onSaved={(f, v) => onSaved(project.id, f, v)} />
@@ -483,11 +483,11 @@ const ProjectSummaryMatrix = forwardRef<HTMLDivElement, Props>(function ProjectS
                 <td className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2">
                   <InlineCell value={project.pm_actual_end} type="date" projectId={project.id} field="pm_actual_end" onSaved={(f, v) => onSaved(project.id, f, v)} className="font-mono whitespace-nowrap" />
                 </td>
-                <td className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2 font-mono text-center text-[10px]">
+                <td className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2 font-mono text-[10px]">
                   {project.pm_duration_days ? `${Math.round(Number(project.pm_duration_days) / 7)}w` : "—"}
                 </td>
                 <td className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2">
-                  <InlineCell value={project.deviation_days != null ? String(project.deviation_days) : null} type="text" projectId={project.id} field="deviation_days" onSaved={(f, v) => onSaved(project.id, f, v)} className="font-mono text-center whitespace-nowrap" />
+                  <InlineCell value={project.deviation_days != null ? String(project.deviation_days) : null} type="text" projectId={project.id} field="deviation_days" onSaved={(f, v) => onSaved(project.id, f, v)} className="font-mono whitespace-nowrap" />
                 </td>
                 <td className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2 whitespace-pre-wrap">
                   <InlineCell value={project.current_site_progress} type="text" projectId={project.id} field="current_site_progress" onSaved={(f, v) => onSaved(project.id, f, v)} />
