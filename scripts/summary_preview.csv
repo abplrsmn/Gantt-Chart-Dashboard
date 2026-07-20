@@ -1,0 +1,52 @@
+﻿unit,no,project_name,overall_progress_pct,contract_amount,current_phase_id,start_date,end_date,flags,brief
+SPH,1,SPH TENNIS COURT INDOOR,100.0,345696200,5,2026-01-05,2026-06-15,multi-row(2),resurfacing (painting) 2 indoor court | To fit in 2 double + 1 single court
+SPH,2,SPH TENNIS COURT 3,100.0,262500000,5,2026-02-24,2026-04-14,,Repair strcuture crack and resurfacing
+AJK,3,MONAS 1-4 & CORRIDOR,,345904305,4,2026-04-30,2026-10-07,multi-row(2),"AJK_CA_BUD_2026_11CARPET, PADDED WALL & PARTITION — Sub-items: GRAND BALLROOM WA"
+AJK,4,Presidential suite,,,4,2026-02-19,2026-10-15,multi-row(3); recv-date-text(?),"pending capex request : Carpet, Furniture refabric, wallpaper & chandelier | AJK"
+AKB,5,2025 : CANOPY & FACADE NORTH LOBBY,,149850000,5,2025-09-22,2026-07-08,multi-row(2),Redirected | AKB_UnbudgetedCA_001
+AKB,6,AEI - HENRY'S,,,2,2026-04-19,2026-05-20,multi-row(2),23 April : brief revision-only level 1
+AKB,7,Rain Curtain For Paon,,175000000,4,2026-04-15,2026-08-17,,AKB_CA_BUD_2026_42
+AKB,8,Make Over Drop Off Area / Tile Replacement,,32190000,4,2026-06-30,2026-07-20,multi-row(3); cancelled/aborted,AKB_CA_BUD_2026_40 | cancelled by unit | Redirected — Sub-items: Digital Curtain
+IKG,9,AEI - EAGLE ROOM,,,4,2026-02-24,2026-10-30,multi-row(2),"FITOUT & IT, MEP | Awaiting comercial agreement — Sub-items: HWANGJYE"
+IKG,10,Skylight Window Film,,,3,2026-06-24,2026-07-15,,IKG_CA_UnbudgetedCA__01
+ABD,11,AEI - BALLROOM & MEETING RM (2),,,4,2026-07-01,2027-06-05,,ABD
+ABD,12,Replacement Wooden Sauna & Machine,8.0,85000000,4,2026-05-15,2026-07-15,multi-row(2),ABD_CA_BUD_2026_28 | awaiting Capex Request Approval — Sub-items: Buffet Island 
+ABD,13,Repair Wall Entrance Hotel Side - Sumatera,,,4,2026-07-08,2026-09-29,multi-row(2),ABD_CA_BUD_2026_13 | by ALTIRA — Sub-items: REDRAW BUILDING
+ASM,14,AEI - GUESTROOM,100.0,1080400000,5,2025-10-15,2026-07-31,multi-row(6),MUR 18'TH : Q1A & Q1B | Adjustment based on review | MUR 18'TH : Q2 & Q3 (3 unit
+AME,15,2025 : AME wood parquet,100.0,,5,2026-04-12,2026-05-12,,"continue from 2025, REPLACE THE WOODEN PARQUET RESTAURANT"
+AME,16,2025 : Wall lamp replacement at Guest Corridor,,140000000,4,2025-07-23,2026-08-15,,AME_UnbudgetedCA_001
+AME,17,AEI - NEW GYM,100.0,950160000,5,2025-12-01,2026-07-27,,AME_AEI_001
+AME,18,AEI - PEONY,,2944065275,4,2026-02-02,2026-12-31,multi-row(2); recv-date-text(initial),- | AME_AEI_003
+AME,19,Wallpaper / wall painting alamanda foyer + landing area 9th floor,,,4,2026-07-20,2026-12-01,multi-row(2); recv-date-text(PR-Q4),awaiting Capex Request Approval | 20 apr 2026 : not to continue — Sub-items: AEI
+APL,20,2025 : PPR Pipe Replacement,100.0,1325902770,5,2025-11-20,2026-03-31,,
+APL,21,2025 : CORRIDOR CARPET,,758110439,4,2025-11-13,2026-08-01,progress?(production),"12 level : 5th-18th
+wait ceilling work complete 30 Apr"
+APL,22,AEI - THE LOUNGE (Legacy Lounge),,880000000,4,2026-04-15,2026-11-15,,APL AEI 001
+APL,23,Facade Repair & Painting,5.0,555000000,4,2026-04-11,2026-09-30,,APL_CA_BUD_2026_17
+ALV,24,2025 : WATERPROOFING Concrete Roof,,450000000,4,2026-06-22,2026-08-31,,ALV_CA_UnbudgetedCA_003
+ALV-ID,25,AEI - GUESTROOM,100.0,1170828000,5,2025-12-03,2026-07-15,multi-row(4),MUR 6'th : deluxe & bussiness | Adjustment based on review | new bathroom mock u
+ALV-ID,26,AEI : VILLA,,1758172000,4,2026-05-19,2026-11-29,multi-row(2),"mock up | ALV AEI 002 
+1 cluster = 8 villas (total is 48 villas)"
+ALV-ID,27,AEI : EBONY,,,4,2026-07-15,2027-07-06,,ALV AEI 003
+ALV-ID,28,"AEI : LOBBY, VIP & RECEPTION",,,4,2026-06-02,2027-03-10,,ALV AEI 005
+ALV-ID,29,AEI : GARDENIA,,,4,2026-06-01,2027-03-10,,ALV AEI 004
+ALV-ID,30,AEI : PALM CAFE IN & OUTDOOR,,,4,2026-06-22,2027-06-01,multi-row(3),ALV_CA_UnbudgetedCA_002 under engineer — Sub-items: AEI : MAHOGANY | 2025 : ROOF
+ALV - LD,31,LD : BOULEVARD 1A,100.0,1524834857,5,2025-10-27,2026-07-15,,ALV AEI 001
+ALV - LD,32,LD : GATE 1B,100.0,,5,2025-11-13,2026-05-25,,
+ALV - LD,33,ENTRANCE : SIGNAGE  1C,100.0,76600000,5,2026-04-09,2026-05-14,,
+ALV - LD,34,ENTRANCE : SECURITY GATE 1D,,,4,2026-04-09,2026-10-06,,
+ALV - LD,35,LD : LOBBY DROP OFF 2B,100.0,475884857,5,2026-03-27,2026-05-21,,
+ALV - LD,36,LD : FOUNTAIN 2A,,435791075,4,2026-04-20,2026-11-14,,
+ALV - LD,37,LD : VILLA,,,4,2026-04-30,2026-11-22,,
+ALV - LD,38,LD : SWIMMING POOL,,357446249,4,2026-04-20,2026-11-14,,
+ALV - LD,39,RE-TILE SWIMMING POOL,,,4,2026-04-20,2026-09-13,,
+ALV - LD,40,ALV : MAHOGANY DROP OFF,,,2,2026-06-22,2026-07-15,,
+ACC,41,2025 : REPAIR SURFACE TENNIS 5&6,100.0,,5,2026-02-07,2026-03-17,,
+ACC,42,TENNIS COURT BENCHES,100.0,96000000,5,2025-12-23,2026-03-14,,
+ACC,43,PATHWAY REPAIR,30.33,375000000,4,2025-07-31,2026-05-31,multi-row(3),"volume = 366 sqm | introduce new vendor : ALTIRA, volume = 737 sqm | additional "
+ACC,44,LD : SIGNAGE,100.0,68920700,5,2026-04-29,2026-07-16,,ALV AEI 001
+ACC,45,LD : FRONT LOBBY & EXIT AREA,90.0,521937839,4,2026-04-16,2026-08-01,,
+ACC,46,LD :TENNIS & PADEL AREA,,262277177,3,2026-04-16,2026-05-28,,
+ACC,47,LD : REAR LOBBY & SWIMMING POOL,,,4,2026-05-19,2027-03-10,,
+AMD,48,FR : FACADE REPAIR & REPAINTING,63.0,630000000,4,2026-02-19,2026-07-03,,FIRST REIT REIMBURSEMENT
+AMD,49,Furniture for outdoor amicoo,,,1,,,multi-row(5); no-dates,awaiting Capex Request Approval — Sub-items: Sofa banquet | Director chair for m

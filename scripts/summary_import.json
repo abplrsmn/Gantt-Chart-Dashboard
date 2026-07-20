@@ -1,0 +1,2768 @@
+[
+  {
+    "unit": "SPH",
+    "no": "1",
+    "project_name": "SPH TENNIS COURT INDOOR",
+    "project_code": "SPH-1",
+    "summary_brief": "resurfacing (painting) 2 indoor court | To fit in 2 double + 1 single court",
+    "contract_amount": 345696200,
+    "overall_progress_pct": 100.0,
+    "start_date": "2026-01-05",
+    "end_date": "2026-06-15",
+    "current_phase_id": 5,
+    "phases": {
+      "operational_brief": {
+        "received_date": "2026-01-05",
+        "budget_capex": null,
+        "brief_text": "resurfacing (painting) 2 indoor court | To fit in 2 double + 1 single court",
+        "raw_deadline_text": null,
+        "notes": null
+      },
+      "design": {
+        "start_design_date": null,
+        "design_approval_target": "2026-05-25",
+        "design_approval_date": null,
+        "design_duration_days": null,
+        "brief_text": null,
+        "working_drawing_status": "2026-05-25",
+        "notes": null
+      },
+      "project_control": {
+        "tender_start_date": "2026-05-25",
+        "tender_finish_target": "2026-06-15",
+        "aps_spk_released_date": "2026-01-21",
+        "project_control_duration_days": null,
+        "aps_date": null,
+        "phase_contract_amount": 345696200,
+        "notes": null
+      },
+      "project_management": {
+        "commence_date": "2026-01-19",
+        "end_contract_date": "2026-02-21",
+        "actual_phase_completion_date": "2026-02-17",
+        "deviation_days": "+4",
+        "notes": null
+      },
+      "handover": {
+        "bast_1_date": "2026-02-17",
+        "bast_2_date": null,
+        "notes": null
+      }
+    },
+    "flags": [
+      "multi-row(2)"
+    ],
+    "src_rows": [
+      6,
+      7
+    ]
+  },
+  {
+    "unit": "SPH",
+    "no": "2",
+    "project_name": "SPH TENNIS COURT 3",
+    "project_code": "SPH-2",
+    "summary_brief": "Repair strcuture crack and resurfacing",
+    "contract_amount": 262500000,
+    "overall_progress_pct": 100.0,
+    "start_date": "2026-02-24",
+    "end_date": "2026-04-14",
+    "current_phase_id": 5,
+    "phases": {
+      "operational_brief": {
+        "received_date": "2026-02-24",
+        "budget_capex": null,
+        "brief_text": "Repair strcuture crack and resurfacing",
+        "raw_deadline_text": null,
+        "notes": null
+      },
+      "design": {
+        "start_design_date": null,
+        "design_approval_target": null,
+        "design_approval_date": null,
+        "design_duration_days": null,
+        "brief_text": null,
+        "working_drawing_status": null,
+        "notes": null
+      },
+      "project_control": {
+        "tender_start_date": null,
+        "tender_finish_target": null,
+        "aps_spk_released_date": null,
+        "project_control_duration_days": null,
+        "aps_date": null,
+        "phase_contract_amount": 262500000,
+        "notes": null
+      },
+      "project_management": {
+        "commence_date": "2026-02-25",
+        "end_contract_date": "2026-04-14",
+        "actual_phase_completion_date": "2026-04-14",
+        "deviation_days": "0",
+        "notes": "Reported duration: 7 weeks"
+      },
+      "handover": {
+        "bast_1_date": "2026-04-14",
+        "bast_2_date": null,
+        "notes": null
+      }
+    },
+    "flags": [],
+    "src_rows": [
+      8
+    ]
+  },
+  {
+    "unit": "AJK",
+    "no": "3",
+    "project_name": "MONAS 1-4 & CORRIDOR",
+    "project_code": "AJK-3",
+    "summary_brief": "AJK_CA_BUD_2026_11CARPET, PADDED WALL & PARTITION — Sub-items: GRAND BALLROOM WALL PADDED",
+    "contract_amount": 345904305,
+    "overall_progress_pct": null,
+    "start_date": "2026-04-30",
+    "end_date": "2026-10-07",
+    "current_phase_id": 4,
+    "phases": {
+      "operational_brief": {
+        "received_date": "2026-04-30",
+        "budget_capex": 1558900000,
+        "brief_text": "AJK_CA_BUD_2026_11CARPET, PADDED WALL & PARTITION",
+        "raw_deadline_text": null,
+        "notes": null
+      },
+      "design": {
+        "start_design_date": "2026-04-30",
+        "design_approval_target": "2026-05-31",
+        "design_approval_date": "2026-06-09",
+        "design_duration_days": -9,
+        "brief_text": "041 DAP-AJK-MONAS ROOM CARPET & PADDED | 040 DAP-AJK-GRAND BALLROOM PADDED",
+        "working_drawing_status": "not required",
+        "notes": null
+      },
+      "project_control": {
+        "tender_start_date": "2026-06-09",
+        "tender_finish_target": "2026-07-06",
+        "aps_spk_released_date": "2026-07-07",
+        "project_control_duration_days": null,
+        "aps_date": null,
+        "phase_contract_amount": 345904305,
+        "notes": "Capex request: 2026-04-30 00:00:00"
+      },
+      "project_management": {
+        "commence_date": "2026-07-06",
+        "end_contract_date": "2026-10-07",
+        "actual_phase_completion_date": null,
+        "deviation_days": "98",
+        "notes": "Start/End deviation: 5 days | Reported duration: 3"
+      },
+      "handover": {
+        "bast_1_date": null,
+        "bast_2_date": null,
+        "notes": null
+      }
+    },
+    "flags": [
+      "multi-row(2)"
+    ],
+    "src_rows": [
+      10,
+      11
+    ]
+  },
+  {
+    "unit": "AJK",
+    "no": "4",
+    "project_name": "Presidential suite",
+    "project_code": "AJK-4",
+    "summary_brief": "pending capex request : Carpet, Furniture refabric, wallpaper & chandelier | AJK_CA_BUD_2026_47 : The brief was incorrect, and the Operations team will send the revised version | request will be under operational — Sub-items: Mezanine ballroom curtain | SOAP DISPENSER : guestroom, public area toilet and fitness center room",
+    "contract_amount": null,
+    "overall_progress_pct": null,
+    "start_date": "2026-02-19",
+    "end_date": "2026-10-15",
+    "current_phase_id": 4,
+    "phases": {
+      "operational_brief": {
+        "received_date": null,
+        "budget_capex": null,
+        "brief_text": "pending capex request : Carpet, Furniture refabric, wallpaper & chandelier | AJK_CA_BUD_2026_47 : The brief was incorrect, and the Operations team will send the revised version | request will be under operational",
+        "raw_deadline_text": "?",
+        "notes": "Receive date (raw): ?"
+      },
+      "design": {
+        "start_design_date": "2026-02-19",
+        "design_approval_target": "2026-06-30",
+        "design_approval_date": "2026-06-23",
+        "design_duration_days": 7,
+        "brief_text": "046 DAP-AJK-PRESIDENTIAL SUITE INTERIOR ENHANCEMENT",
+        "working_drawing_status": "not required",
+        "notes": null
+      },
+      "project_control": {
+        "tender_start_date": "2026-06-23",
+        "tender_finish_target": "2026-07-14",
+        "aps_spk_released_date": null,
+        "project_control_duration_days": null,
+        "aps_date": null,
+        "phase_contract_amount": null,
+        "notes": null
+      },
+      "project_management": {
+        "commence_date": "2026-07-14",
+        "end_contract_date": "2026-10-15",
+        "actual_phase_completion_date": null,
+        "deviation_days": "106",
+        "notes": "Start/End deviation: 13 days | Reported duration: 3"
+      },
+      "handover": {
+        "bast_1_date": null,
+        "bast_2_date": null,
+        "notes": null
+      }
+    },
+    "flags": [
+      "multi-row(3)",
+      "recv-date-text(?)"
+    ],
+    "src_rows": [
+      12,
+      13,
+      14
+    ]
+  },
+  {
+    "unit": "AKB",
+    "no": "5",
+    "project_name": "2025 : CANOPY & FACADE NORTH LOBBY",
+    "project_code": "AKB-5",
+    "summary_brief": "Redirected | AKB_UnbudgetedCA_001",
+    "contract_amount": 149850000,
+    "overall_progress_pct": null,
+    "start_date": "2025-09-22",
+    "end_date": "2026-07-08",
+    "current_phase_id": 5,
+    "phases": {
+      "operational_brief": {
+        "received_date": "2026-01-05",
+        "budget_capex": 156510000,
+        "brief_text": "Redirected | AKB_UnbudgetedCA_001",
+        "raw_deadline_text": null,
+        "notes": null
+      },
+      "design": {
+        "start_design_date": null,
+        "design_approval_target": null,
+        "design_approval_date": null,
+        "design_duration_days": null,
+        "brief_text": "shop drawing approved",
+        "working_drawing_status": "2026-03-09",
+        "notes": null
+      },
+      "project_control": {
+        "tender_start_date": "2025-09-22",
+        "tender_finish_target": "2026-05-21",
+        "aps_spk_released_date": "2025-11-24",
+        "project_control_duration_days": null,
+        "aps_date": "2026-05-21",
+        "phase_contract_amount": 149850000,
+        "notes": "Capex request: 2026-04-30 00:00:00"
+      },
+      "project_management": {
+        "commence_date": "2026-06-22",
+        "end_contract_date": "2026-07-08",
+        "actual_phase_completion_date": "2026-07-08",
+        "deviation_days": null,
+        "notes": null
+      },
+      "handover": {
+        "bast_1_date": "2026-07-08",
+        "bast_2_date": null,
+        "notes": null
+      }
+    },
+    "flags": [
+      "multi-row(2)"
+    ],
+    "src_rows": [
+      16,
+      17
+    ]
+  },
+  {
+    "unit": "AKB",
+    "no": "6",
+    "project_name": "AEI - HENRY'S",
+    "project_code": "AKB-6",
+    "summary_brief": "23 April : brief revision-only level 1",
+    "contract_amount": null,
+    "overall_progress_pct": null,
+    "start_date": "2026-04-19",
+    "end_date": "2026-05-20",
+    "current_phase_id": 2,
+    "phases": {
+      "operational_brief": {
+        "received_date": "2026-04-23",
+        "budget_capex": 1500000000,
+        "brief_text": "23 April : brief revision-only level 1",
+        "raw_deadline_text": null,
+        "notes": null
+      },
+      "design": {
+        "start_design_date": "2026-04-19",
+        "design_approval_target": "2026-05-20",
+        "design_approval_date": "2026-05-19",
+        "design_duration_days": null,
+        "brief_text": "cancelled | 045 DAP-AKB-HENRY'S",
+        "working_drawing_status": "2026-06-22",
+        "notes": null
+      },
+      "project_control": {
+        "tender_start_date": null,
+        "tender_finish_target": null,
+        "aps_spk_released_date": null,
+        "project_control_duration_days": null,
+        "aps_date": null,
+        "phase_contract_amount": null,
+        "notes": null
+      },
+      "project_management": {
+        "commence_date": null,
+        "end_contract_date": null,
+        "actual_phase_completion_date": null,
+        "deviation_days": null,
+        "notes": null
+      },
+      "handover": {
+        "bast_1_date": null,
+        "bast_2_date": null,
+        "notes": null
+      }
+    },
+    "flags": [
+      "multi-row(2)"
+    ],
+    "src_rows": [
+      18,
+      19
+    ]
+  },
+  {
+    "unit": "AKB",
+    "no": "7",
+    "project_name": "Rain Curtain For Paon",
+    "project_code": "AKB-7",
+    "summary_brief": "AKB_CA_BUD_2026_42",
+    "contract_amount": 175000000,
+    "overall_progress_pct": null,
+    "start_date": "2026-04-15",
+    "end_date": "2026-08-17",
+    "current_phase_id": 4,
+    "phases": {
+      "operational_brief": {
+        "received_date": "2026-06-04",
+        "budget_capex": 100000000,
+        "brief_text": "AKB_CA_BUD_2026_42",
+        "raw_deadline_text": null,
+        "notes": null
+      },
+      "design": {
+        "start_design_date": null,
+        "design_approval_target": null,
+        "design_approval_date": "2026-04-15",
+        "design_duration_days": null,
+        "brief_text": "038 DAP-AKB-PAON CURTAIN",
+        "working_drawing_status": "2026-04-15",
+        "notes": null
+      },
+      "project_control": {
+        "tender_start_date": "2026-04-15",
+        "tender_finish_target": "2026-05-06",
+        "aps_spk_released_date": "2026-07-17",
+        "project_control_duration_days": -72,
+        "aps_date": null,
+        "phase_contract_amount": 175000000,
+        "notes": "Capex request: 2026-06-04 00:00:00"
+      },
+      "project_management": {
+        "commence_date": "2026-07-17",
+        "end_contract_date": "2026-08-17",
+        "actual_phase_completion_date": null,
+        "deviation_days": "47",
+        "notes": "Reported duration: 1"
+      },
+      "handover": {
+        "bast_1_date": null,
+        "bast_2_date": null,
+        "notes": null
+      }
+    },
+    "flags": [],
+    "src_rows": [
+      20
+    ]
+  },
+  {
+    "unit": "AKB",
+    "no": "8",
+    "project_name": "Make Over Drop Off Area / Tile Replacement",
+    "project_code": "AKB-8",
+    "summary_brief": "AKB_CA_BUD_2026_40 | cancelled by unit | Redirected — Sub-items: Digital Curtain For Chapel | 2023 : GLASS FACADE SOUNDPROOFING 26 ROOMS",
+    "contract_amount": 32190000,
+    "overall_progress_pct": null,
+    "start_date": "2026-06-30",
+    "end_date": "2026-07-20",
+    "current_phase_id": 4,
+    "phases": {
+      "operational_brief": {
+        "received_date": "2026-07-01",
+        "budget_capex": 30000000,
+        "brief_text": "AKB_CA_BUD_2026_40 | cancelled by unit | Redirected",
+        "raw_deadline_text": null,
+        "notes": null
+      },
+      "design": {
+        "start_design_date": null,
+        "design_approval_target": null,
+        "design_approval_date": null,
+        "design_duration_days": null,
+        "brief_text": null,
+        "working_drawing_status": null,
+        "notes": "start design (raw): not required"
+      },
+      "project_control": {
+        "tender_start_date": "2026-06-30",
+        "tender_finish_target": "2026-07-06",
+        "aps_spk_released_date": "2026-07-05",
+        "project_control_duration_days": null,
+        "aps_date": null,
+        "phase_contract_amount": 32190000,
+        "notes": null
+      },
+      "project_management": {
+        "commence_date": "2026-07-06",
+        "end_contract_date": "2026-07-20",
+        "actual_phase_completion_date": null,
+        "deviation_days": "19",
+        "notes": null
+      },
+      "handover": {
+        "bast_1_date": null,
+        "bast_2_date": null,
+        "notes": null
+      }
+    },
+    "flags": [
+      "multi-row(3)",
+      "cancelled/aborted"
+    ],
+    "src_rows": [
+      21,
+      22,
+      23
+    ]
+  },
+  {
+    "unit": "IKG",
+    "no": "9",
+    "project_name": "AEI - EAGLE ROOM",
+    "project_code": "IKG-9",
+    "summary_brief": "FITOUT & IT, MEP | Awaiting comercial agreement — Sub-items: HWANGJYE",
+    "contract_amount": null,
+    "overall_progress_pct": null,
+    "start_date": "2026-02-24",
+    "end_date": "2026-10-30",
+    "current_phase_id": 4,
+    "phases": {
+      "operational_brief": {
+        "received_date": "2026-02-24",
+        "budget_capex": 760000000,
+        "brief_text": "FITOUT & IT, MEP | Awaiting comercial agreement",
+        "raw_deadline_text": null,
+        "notes": null
+      },
+      "design": {
+        "start_design_date": "2026-06-24",
+        "design_approval_target": "2026-06-30",
+        "design_approval_date": "2026-06-30",
+        "design_duration_days": -1,
+        "brief_text": "LOKA",
+        "working_drawing_status": "2026-07-15",
+        "notes": null
+      },
+      "project_control": {
+        "tender_start_date": "2026-07-15",
+        "tender_finish_target": "2026-08-05",
+        "aps_spk_released_date": null,
+        "project_control_duration_days": null,
+        "aps_date": null,
+        "phase_contract_amount": null,
+        "notes": null
+      },
+      "project_management": {
+        "commence_date": "2026-07-29",
+        "end_contract_date": "2026-10-30",
+        "actual_phase_completion_date": null,
+        "deviation_days": "121",
+        "notes": "Start/End deviation: 28 days | Reported duration: 3"
+      },
+      "handover": {
+        "bast_1_date": null,
+        "bast_2_date": null,
+        "notes": null
+      }
+    },
+    "flags": [
+      "multi-row(2)"
+    ],
+    "src_rows": [
+      25,
+      26
+    ]
+  },
+  {
+    "unit": "IKG",
+    "no": "10",
+    "project_name": "Skylight Window Film",
+    "project_code": "IKG-10",
+    "summary_brief": "IKG_CA_UnbudgetedCA__01",
+    "contract_amount": null,
+    "overall_progress_pct": null,
+    "start_date": "2026-06-24",
+    "end_date": "2026-07-15",
+    "current_phase_id": 3,
+    "phases": {
+      "operational_brief": {
+        "received_date": "2026-06-24",
+        "budget_capex": 248225415,
+        "brief_text": "IKG_CA_UnbudgetedCA__01",
+        "raw_deadline_text": null,
+        "notes": null
+      },
+      "design": {
+        "start_design_date": null,
+        "design_approval_target": null,
+        "design_approval_date": null,
+        "design_duration_days": null,
+        "brief_text": null,
+        "working_drawing_status": null,
+        "notes": null
+      },
+      "project_control": {
+        "tender_start_date": "2026-06-24",
+        "tender_finish_target": "2026-07-15",
+        "aps_spk_released_date": null,
+        "project_control_duration_days": null,
+        "aps_date": null,
+        "phase_contract_amount": null,
+        "notes": null
+      },
+      "project_management": {
+        "commence_date": null,
+        "end_contract_date": null,
+        "actual_phase_completion_date": null,
+        "deviation_days": null,
+        "notes": null
+      },
+      "handover": {
+        "bast_1_date": null,
+        "bast_2_date": null,
+        "notes": null
+      }
+    },
+    "flags": [],
+    "src_rows": [
+      27
+    ]
+  },
+  {
+    "unit": "ABD",
+    "no": "11",
+    "project_name": "AEI - BALLROOM & MEETING RM (2)",
+    "project_code": "ABD-11",
+    "summary_brief": "ABD",
+    "contract_amount": null,
+    "overall_progress_pct": null,
+    "start_date": "2026-07-01",
+    "end_date": "2027-06-05",
+    "current_phase_id": 4,
+    "phases": {
+      "operational_brief": {
+        "received_date": "2026-07-16",
+        "budget_capex": 3834500000,
+        "brief_text": "ABD",
+        "raw_deadline_text": null,
+        "notes": null
+      },
+      "design": {
+        "start_design_date": "2026-07-01",
+        "design_approval_target": "2026-07-31",
+        "design_approval_date": null,
+        "design_duration_days": 30,
+        "brief_text": "LOKA",
+        "working_drawing_status": "2026-12-01",
+        "notes": null
+      },
+      "project_control": {
+        "tender_start_date": null,
+        "tender_finish_target": "2027-01-01",
+        "aps_spk_released_date": null,
+        "project_control_duration_days": null,
+        "aps_date": null,
+        "phase_contract_amount": null,
+        "notes": null
+      },
+      "project_management": {
+        "commence_date": "2027-02-01",
+        "end_contract_date": "2027-06-05",
+        "actual_phase_completion_date": null,
+        "deviation_days": "339",
+        "notes": "Start/End deviation: 215 days | Reported duration: 4"
+      },
+      "handover": {
+        "bast_1_date": null,
+        "bast_2_date": null,
+        "notes": null
+      }
+    },
+    "flags": [],
+    "src_rows": [
+      29
+    ]
+  },
+  {
+    "unit": "ABD",
+    "no": "12",
+    "project_name": "Replacement Wooden Sauna & Machine",
+    "project_code": "ABD-12",
+    "summary_brief": "ABD_CA_BUD_2026_28 | awaiting Capex Request Approval — Sub-items: Buffet Island / Cluster Table",
+    "contract_amount": 85000000,
+    "overall_progress_pct": 8.0,
+    "start_date": "2026-05-15",
+    "end_date": "2026-07-15",
+    "current_phase_id": 4,
+    "phases": {
+      "operational_brief": {
+        "received_date": "2026-05-15",
+        "budget_capex": 106000000,
+        "brief_text": "ABD_CA_BUD_2026_28 | awaiting Capex Request Approval",
+        "raw_deadline_text": null,
+        "notes": null
+      },
+      "design": {
+        "start_design_date": null,
+        "design_approval_target": null,
+        "design_approval_date": null,
+        "design_duration_days": null,
+        "brief_text": null,
+        "working_drawing_status": null,
+        "notes": null
+      },
+      "project_control": {
+        "tender_start_date": "2026-05-15",
+        "tender_finish_target": "2026-06-05",
+        "aps_spk_released_date": "2026-06-02",
+        "project_control_duration_days": 3,
+        "aps_date": null,
+        "phase_contract_amount": 85000000,
+        "notes": "Capex request: 2026-05-15 00:00:00"
+      },
+      "project_management": {
+        "commence_date": "2026-06-02",
+        "end_contract_date": "2026-07-15",
+        "actual_phase_completion_date": null,
+        "deviation_days": "14",
+        "notes": null
+      },
+      "handover": {
+        "bast_1_date": null,
+        "bast_2_date": null,
+        "notes": null
+      }
+    },
+    "flags": [
+      "multi-row(2)"
+    ],
+    "src_rows": [
+      30,
+      31
+    ]
+  },
+  {
+    "unit": "ABD",
+    "no": "13",
+    "project_name": "Repair Wall Entrance Hotel Side - Sumatera",
+    "project_code": "ABD-13",
+    "summary_brief": "ABD_CA_BUD_2026_13 | by ALTIRA — Sub-items: REDRAW BUILDING",
+    "contract_amount": null,
+    "overall_progress_pct": null,
+    "start_date": "2026-07-08",
+    "end_date": "2026-09-29",
+    "current_phase_id": 4,
+    "phases": {
+      "operational_brief": {
+        "received_date": "2026-07-08",
+        "budget_capex": 99500000,
+        "brief_text": "ABD_CA_BUD_2026_13 | by ALTIRA",
+        "raw_deadline_text": null,
+        "notes": null
+      },
+      "design": {
+        "start_design_date": null,
+        "design_approval_target": null,
+        "design_approval_date": null,
+        "design_duration_days": null,
+        "brief_text": null,
+        "working_drawing_status": null,
+        "notes": "start design (raw): not required"
+      },
+      "project_control": {
+        "tender_start_date": "2026-07-08",
+        "tender_finish_target": "2026-07-29",
+        "aps_spk_released_date": null,
+        "project_control_duration_days": null,
+        "aps_date": null,
+        "phase_contract_amount": null,
+        "notes": null
+      },
+      "project_management": {
+        "commence_date": "2026-07-29",
+        "end_contract_date": "2026-09-29",
+        "actual_phase_completion_date": null,
+        "deviation_days": "90",
+        "notes": "Start/End deviation: 28 days | Reported duration: 2"
+      },
+      "handover": {
+        "bast_1_date": null,
+        "bast_2_date": null,
+        "notes": null
+      }
+    },
+    "flags": [
+      "multi-row(2)"
+    ],
+    "src_rows": [
+      32,
+      33
+    ]
+  },
+  {
+    "unit": "ASM",
+    "no": "14",
+    "project_name": "AEI - GUESTROOM",
+    "project_code": "ASM-14",
+    "summary_brief": "MUR 18'TH : Q1A & Q1B | Adjustment based on review | MUR 18'TH : Q2 & Q3 (3 units) | 40 UNITS & 5 FLOORS | final account on termination term | under opeational request — Sub-items: 2025 : Room Renovation 8+3 units by MyDesign | Room Dining Chair",
+    "contract_amount": 1080400000,
+    "overall_progress_pct": 100.0,
+    "start_date": "2025-10-15",
+    "end_date": "2026-07-31",
+    "current_phase_id": 5,
+    "phases": {
+      "operational_brief": {
+        "received_date": "2026-07-16",
+        "budget_capex": 1287300000,
+        "brief_text": "MUR 18'TH : Q1A & Q1B | Adjustment based on review | MUR 18'TH : Q2 & Q3 (3 units) | 40 UNITS & 5 FLOORS | final account on termination term | under opeational request",
+        "raw_deadline_text": null,
+        "notes": null
+      },
+      "design": {
+        "start_design_date": "2025-10-15",
+        "design_approval_target": "2026-05-31",
+        "design_approval_date": "2025-12-01",
+        "design_duration_days": null,
+        "brief_text": "032 DAP-ASM-GUEST ROOM MOCK UP | Redesign by LOKA | LOKA",
+        "working_drawing_status": "2026-05-04",
+        "notes": null
+      },
+      "project_control": {
+        "tender_start_date": "2026-07-31",
+        "tender_finish_target": "2026-04-15",
+        "aps_spk_released_date": null,
+        "project_control_duration_days": null,
+        "aps_date": null,
+        "phase_contract_amount": 1080400000,
+        "notes": null
+      },
+      "project_management": {
+        "commence_date": "2025-12-18",
+        "end_contract_date": "2026-03-14",
+        "actual_phase_completion_date": "2026-03-16",
+        "deviation_days": "-2",
+        "notes": null
+      },
+      "handover": {
+        "bast_1_date": "2026-03-16",
+        "bast_2_date": null,
+        "notes": null
+      }
+    },
+    "flags": [
+      "multi-row(6)"
+    ],
+    "src_rows": [
+      35,
+      36,
+      37,
+      38,
+      39,
+      40
+    ]
+  },
+  {
+    "unit": "AME",
+    "no": "15",
+    "project_name": "2025 : AME wood parquet",
+    "project_code": "AME-15",
+    "summary_brief": "continue from 2025, REPLACE THE WOODEN PARQUET RESTAURANT",
+    "contract_amount": null,
+    "overall_progress_pct": 100.0,
+    "start_date": "2026-04-12",
+    "end_date": "2026-05-12",
+    "current_phase_id": 5,
+    "phases": {
+      "operational_brief": {
+        "received_date": null,
+        "budget_capex": 689750000,
+        "brief_text": "continue from 2025, REPLACE THE WOODEN PARQUET RESTAURANT",
+        "raw_deadline_text": null,
+        "notes": null
+      },
+      "design": {
+        "start_design_date": null,
+        "design_approval_target": null,
+        "design_approval_date": null,
+        "design_duration_days": null,
+        "brief_text": null,
+        "working_drawing_status": null,
+        "notes": null
+      },
+      "project_control": {
+        "tender_start_date": null,
+        "tender_finish_target": null,
+        "aps_spk_released_date": null,
+        "project_control_duration_days": null,
+        "aps_date": null,
+        "phase_contract_amount": null,
+        "notes": null
+      },
+      "project_management": {
+        "commence_date": "2026-04-12",
+        "end_contract_date": "2026-05-12",
+        "actual_phase_completion_date": "2026-05-04",
+        "deviation_days": "8",
+        "notes": "Reported duration: 1"
+      },
+      "handover": {
+        "bast_1_date": "2026-05-04",
+        "bast_2_date": null,
+        "notes": null
+      }
+    },
+    "flags": [],
+    "src_rows": [
+      42
+    ]
+  },
+  {
+    "unit": "AME",
+    "no": "16",
+    "project_name": "2025 : Wall lamp replacement at Guest Corridor",
+    "project_code": "AME-16",
+    "summary_brief": "AME_UnbudgetedCA_001",
+    "contract_amount": 140000000,
+    "overall_progress_pct": null,
+    "start_date": "2025-07-23",
+    "end_date": "2026-08-15",
+    "current_phase_id": 4,
+    "phases": {
+      "operational_brief": {
+        "received_date": "2026-05-15",
+        "budget_capex": 140000000,
+        "brief_text": "AME_UnbudgetedCA_001",
+        "raw_deadline_text": null,
+        "notes": null
+      },
+      "design": {
+        "start_design_date": "2025-07-23",
+        "design_approval_target": null,
+        "design_approval_date": "2025-11-26",
+        "design_duration_days": null,
+        "brief_text": "029 DAP-AME-CORRIDOR LAMP",
+        "working_drawing_status": "2026-04-18",
+        "notes": "duration (raw): -"
+      },
+      "project_control": {
+        "tender_start_date": "2026-05-15",
+        "tender_finish_target": "2026-06-05",
+        "aps_spk_released_date": "2026-07-15",
+        "project_control_duration_days": -26,
+        "aps_date": null,
+        "phase_contract_amount": 140000000,
+        "notes": "Capex request: 2026-05-15 00:00:00"
+      },
+      "project_management": {
+        "commence_date": "2026-07-15",
+        "end_contract_date": "2026-08-15",
+        "actual_phase_completion_date": null,
+        "deviation_days": "45",
+        "notes": null
+      },
+      "handover": {
+        "bast_1_date": null,
+        "bast_2_date": null,
+        "notes": null
+      }
+    },
+    "flags": [],
+    "src_rows": [
+      43
+    ]
+  },
+  {
+    "unit": "AME",
+    "no": "17",
+    "project_name": "AEI - NEW GYM",
+    "project_code": "AME-17",
+    "summary_brief": "AME_AEI_001",
+    "contract_amount": 950160000,
+    "overall_progress_pct": 100.0,
+    "start_date": "2025-12-01",
+    "end_date": "2026-07-27",
+    "current_phase_id": 5,
+    "phases": {
+      "operational_brief": {
+        "received_date": "2026-04-11",
+        "budget_capex": 960000000,
+        "brief_text": "AME_AEI_001",
+        "raw_deadline_text": null,
+        "notes": null
+      },
+      "design": {
+        "start_design_date": "2025-12-01",
+        "design_approval_target": "2026-01-01",
+        "design_approval_date": "2026-01-01",
+        "design_duration_days": null,
+        "brief_text": "031 DAP-AME-NEW GYM INTERIOR DESIGN",
+        "working_drawing_status": "2026-02-20",
+        "notes": "duration (raw): -"
+      },
+      "project_control": {
+        "tender_start_date": "2026-02-20",
+        "tender_finish_target": "2026-03-13",
+        "aps_spk_released_date": "2026-04-27",
+        "project_control_duration_days": -45,
+        "aps_date": null,
+        "phase_contract_amount": 950160000,
+        "notes": null
+      },
+      "project_management": {
+        "commence_date": "2026-04-27",
+        "end_contract_date": "2026-07-27",
+        "actual_phase_completion_date": "2026-07-15",
+        "deviation_days": "12",
+        "notes": "Reported duration: 3"
+      },
+      "handover": {
+        "bast_1_date": "2026-07-15",
+        "bast_2_date": null,
+        "notes": null
+      }
+    },
+    "flags": [],
+    "src_rows": [
+      44
+    ]
+  },
+  {
+    "unit": "AME",
+    "no": "18",
+    "project_name": "AEI - PEONY",
+    "project_code": "AME-18",
+    "summary_brief": "- | AME_AEI_003",
+    "contract_amount": 2944065275,
+    "overall_progress_pct": null,
+    "start_date": "2026-02-02",
+    "end_date": "2026-12-31",
+    "current_phase_id": 4,
+    "phases": {
+      "operational_brief": {
+        "received_date": null,
+        "budget_capex": 1390000000,
+        "brief_text": "- | AME_AEI_003",
+        "raw_deadline_text": "initial",
+        "notes": "Receive date (raw): initial"
+      },
+      "design": {
+        "start_design_date": "2026-02-02",
+        "design_approval_target": "2026-03-05",
+        "design_approval_date": "2026-04-16",
+        "design_duration_days": -42,
+        "brief_text": "039 DAP-AME-PEONY MEETING ROOM",
+        "working_drawing_status": "2026-05-07",
+        "notes": null
+      },
+      "project_control": {
+        "tender_start_date": "2026-05-07",
+        "tender_finish_target": "2026-06-26",
+        "aps_spk_released_date": "2026-07-15",
+        "project_control_duration_days": -19,
+        "aps_date": null,
+        "phase_contract_amount": 2944065275,
+        "notes": "Capex request: AEI"
+      },
+      "project_management": {
+        "commence_date": null,
+        "end_contract_date": "2026-12-31",
+        "actual_phase_completion_date": null,
+        "deviation_days": "183",
+        "notes": "Reported duration: 5"
+      },
+      "handover": {
+        "bast_1_date": null,
+        "bast_2_date": null,
+        "notes": null
+      }
+    },
+    "flags": [
+      "multi-row(2)",
+      "recv-date-text(initial)"
+    ],
+    "src_rows": [
+      45,
+      46
+    ]
+  },
+  {
+    "unit": "AME",
+    "no": "19",
+    "project_name": "Wallpaper / wall painting alamanda foyer + landing area 9th floor",
+    "project_code": "AME-19",
+    "summary_brief": "awaiting Capex Request Approval | 20 apr 2026 : not to continue — Sub-items: AEI - RIAS",
+    "contract_amount": null,
+    "overall_progress_pct": null,
+    "start_date": "2026-07-20",
+    "end_date": "2026-12-01",
+    "current_phase_id": 4,
+    "phases": {
+      "operational_brief": {
+        "received_date": null,
+        "budget_capex": 50000000,
+        "brief_text": "awaiting Capex Request Approval | 20 apr 2026 : not to continue",
+        "raw_deadline_text": "PR-Q4",
+        "notes": "Receive date (raw): PR-Q4"
+      },
+      "design": {
+        "start_design_date": "2026-07-20",
+        "design_approval_target": "2026-08-20",
+        "design_approval_date": null,
+        "design_duration_days": 50,
+        "brief_text": null,
+        "working_drawing_status": "2026-09-10",
+        "notes": null
+      },
+      "project_control": {
+        "tender_start_date": "2026-09-10",
+        "tender_finish_target": "2026-10-01",
+        "aps_spk_released_date": null,
+        "project_control_duration_days": null,
+        "aps_date": null,
+        "phase_contract_amount": null,
+        "notes": null
+      },
+      "project_management": {
+        "commence_date": "2026-10-01",
+        "end_contract_date": "2026-12-01",
+        "actual_phase_completion_date": null,
+        "deviation_days": null,
+        "notes": "Start/End deviation: 92 days | Reported duration: 2"
+      },
+      "handover": {
+        "bast_1_date": null,
+        "bast_2_date": null,
+        "notes": null
+      }
+    },
+    "flags": [
+      "multi-row(2)",
+      "recv-date-text(PR-Q4)"
+    ],
+    "src_rows": [
+      47,
+      48
+    ]
+  },
+  {
+    "unit": "APL",
+    "no": "20",
+    "project_name": "2025 : PPR Pipe Replacement",
+    "project_code": "APL-20",
+    "summary_brief": null,
+    "contract_amount": 1325902770,
+    "overall_progress_pct": 100.0,
+    "start_date": "2025-11-20",
+    "end_date": "2026-03-31",
+    "current_phase_id": 5,
+    "phases": {
+      "operational_brief": {
+        "received_date": null,
+        "budget_capex": 1455235717,
+        "brief_text": null,
+        "raw_deadline_text": null,
+        "notes": null
+      },
+      "design": {
+        "start_design_date": null,
+        "design_approval_target": null,
+        "design_approval_date": null,
+        "design_duration_days": null,
+        "brief_text": null,
+        "working_drawing_status": null,
+        "notes": null
+      },
+      "project_control": {
+        "tender_start_date": null,
+        "tender_finish_target": null,
+        "aps_spk_released_date": "2025-11-20",
+        "project_control_duration_days": null,
+        "aps_date": null,
+        "phase_contract_amount": 1325902770,
+        "notes": null
+      },
+      "project_management": {
+        "commence_date": "2025-11-28",
+        "end_contract_date": "2026-03-31",
+        "actual_phase_completion_date": "2026-03-24",
+        "deviation_days": "7",
+        "notes": "Reported duration: 4"
+      },
+      "handover": {
+        "bast_1_date": "2026-03-24",
+        "bast_2_date": null,
+        "notes": null
+      }
+    },
+    "flags": [],
+    "src_rows": [
+      50
+    ]
+  },
+  {
+    "unit": "APL",
+    "no": "21",
+    "project_name": "2025 : CORRIDOR CARPET",
+    "project_code": "APL-21",
+    "summary_brief": "12 level : 5th-18th\nwait ceilling work complete 30 Apr",
+    "contract_amount": 758110439,
+    "overall_progress_pct": null,
+    "start_date": "2025-11-13",
+    "end_date": "2026-08-01",
+    "current_phase_id": 4,
+    "phases": {
+      "operational_brief": {
+        "received_date": "2025-11-13",
+        "budget_capex": 1101909160,
+        "brief_text": "12 level : 5th-18th\nwait ceilling work complete 30 Apr",
+        "raw_deadline_text": null,
+        "notes": null
+      },
+      "design": {
+        "start_design_date": null,
+        "design_approval_target": null,
+        "design_approval_date": "2025-12-30",
+        "design_duration_days": null,
+        "brief_text": "034 DAP-APL-CORRIDOR CARPET",
+        "working_drawing_status": null,
+        "notes": null
+      },
+      "project_control": {
+        "tender_start_date": null,
+        "tender_finish_target": null,
+        "aps_spk_released_date": "2026-02-24",
+        "project_control_duration_days": null,
+        "aps_date": null,
+        "phase_contract_amount": 758110439,
+        "notes": null
+      },
+      "project_management": {
+        "commence_date": "2026-05-01",
+        "end_contract_date": "2026-08-01",
+        "actual_phase_completion_date": null,
+        "deviation_days": null,
+        "notes": "Reported duration: 3"
+      },
+      "handover": {
+        "bast_1_date": null,
+        "bast_2_date": null,
+        "notes": null
+      }
+    },
+    "flags": [
+      "progress?(production)"
+    ],
+    "src_rows": [
+      51
+    ]
+  },
+  {
+    "unit": "APL",
+    "no": "22",
+    "project_name": "AEI - THE LOUNGE (Legacy Lounge)",
+    "project_code": "APL-22",
+    "summary_brief": "APL AEI 001",
+    "contract_amount": 880000000,
+    "overall_progress_pct": null,
+    "start_date": "2026-04-15",
+    "end_date": "2026-11-15",
+    "current_phase_id": 4,
+    "phases": {
+      "operational_brief": {
+        "received_date": "2026-07-03",
+        "budget_capex": 880000000,
+        "brief_text": "APL AEI 001",
+        "raw_deadline_text": null,
+        "notes": null
+      },
+      "design": {
+        "start_design_date": "2026-04-15",
+        "design_approval_target": "2026-05-16",
+        "design_approval_date": "2026-06-19",
+        "design_duration_days": -34,
+        "brief_text": "044 DAP-APL-THE LOUNGE",
+        "working_drawing_status": "2026-06-16",
+        "notes": null
+      },
+      "project_control": {
+        "tender_start_date": "2026-06-19",
+        "tender_finish_target": "2026-08-01",
+        "aps_spk_released_date": null,
+        "project_control_duration_days": null,
+        "aps_date": null,
+        "phase_contract_amount": 880000000,
+        "notes": "Capex request: AEI"
+      },
+      "project_management": {
+        "commence_date": "2026-08-01",
+        "end_contract_date": "2026-11-15",
+        "actual_phase_completion_date": null,
+        "deviation_days": "137",
+        "notes": "Start/End deviation: 31 days | Reported duration: 3,5"
+      },
+      "handover": {
+        "bast_1_date": null,
+        "bast_2_date": null,
+        "notes": null
+      }
+    },
+    "flags": [],
+    "src_rows": [
+      52
+    ]
+  },
+  {
+    "unit": "APL",
+    "no": "23",
+    "project_name": "Facade Repair & Painting",
+    "project_code": "APL-23",
+    "summary_brief": "APL_CA_BUD_2026_17",
+    "contract_amount": 555000000,
+    "overall_progress_pct": 5.0,
+    "start_date": "2026-04-11",
+    "end_date": "2026-09-30",
+    "current_phase_id": 4,
+    "phases": {
+      "operational_brief": {
+        "received_date": "2026-04-11",
+        "budget_capex": 700000000,
+        "brief_text": "APL_CA_BUD_2026_17",
+        "raw_deadline_text": null,
+        "notes": null
+      },
+      "design": {
+        "start_design_date": null,
+        "design_approval_target": null,
+        "design_approval_date": null,
+        "design_duration_days": null,
+        "brief_text": "aesthetic advise 5 June",
+        "working_drawing_status": "2026-05-29",
+        "notes": null
+      },
+      "project_control": {
+        "tender_start_date": "2026-04-11",
+        "tender_finish_target": "2026-05-02",
+        "aps_spk_released_date": "2026-06-01",
+        "project_control_duration_days": -30,
+        "aps_date": null,
+        "phase_contract_amount": 555000000,
+        "notes": null
+      },
+      "project_management": {
+        "commence_date": "2026-06-01",
+        "end_contract_date": "2026-09-30",
+        "actual_phase_completion_date": null,
+        "deviation_days": null,
+        "notes": "Reported duration: 4"
+      },
+      "handover": {
+        "bast_1_date": null,
+        "bast_2_date": null,
+        "notes": null
+      }
+    },
+    "flags": [],
+    "src_rows": [
+      53
+    ]
+  },
+  {
+    "unit": "ALV",
+    "no": "24",
+    "project_name": "2025 : WATERPROOFING Concrete Roof",
+    "project_code": "ALV-24",
+    "summary_brief": "ALV_CA_UnbudgetedCA_003",
+    "contract_amount": 450000000,
+    "overall_progress_pct": null,
+    "start_date": "2026-06-22",
+    "end_date": "2026-08-31",
+    "current_phase_id": 4,
+    "phases": {
+      "operational_brief": {
+        "received_date": "2026-06-22",
+        "budget_capex": 460000000,
+        "brief_text": "ALV_CA_UnbudgetedCA_003",
+        "raw_deadline_text": null,
+        "notes": null
+      },
+      "design": {
+        "start_design_date": null,
+        "design_approval_target": null,
+        "design_approval_date": null,
+        "design_duration_days": null,
+        "brief_text": null,
+        "working_drawing_status": null,
+        "notes": null
+      },
+      "project_control": {
+        "tender_start_date": "2026-06-22",
+        "tender_finish_target": "2026-07-13",
+        "aps_spk_released_date": "2026-07-01",
+        "project_control_duration_days": 12,
+        "aps_date": null,
+        "phase_contract_amount": 450000000,
+        "notes": null
+      },
+      "project_management": {
+        "commence_date": "2026-07-13",
+        "end_contract_date": "2026-08-31",
+        "actual_phase_completion_date": null,
+        "deviation_days": null,
+        "notes": "Reported duration: 3"
+      },
+      "handover": {
+        "bast_1_date": null,
+        "bast_2_date": null,
+        "notes": null
+      }
+    },
+    "flags": [],
+    "src_rows": [
+      55
+    ]
+  },
+  {
+    "unit": "ALV-ID",
+    "no": "25",
+    "project_name": "AEI - GUESTROOM",
+    "project_code": "ALVID-25",
+    "summary_brief": "MUR 6'th : deluxe & bussiness | Adjustment based on review | new bathroom mock up | ALV AEI 002 \n1 FLOOR = 24 ROOMS (total is 147 rooms) — Sub-items: AEI - GUESTROOM",
+    "contract_amount": 1170828000,
+    "overall_progress_pct": 100.0,
+    "start_date": "2025-12-03",
+    "end_date": "2026-07-15",
+    "current_phase_id": 5,
+    "phases": {
+      "operational_brief": {
+        "received_date": "2026-07-15",
+        "budget_capex": 1170828000,
+        "brief_text": "MUR 6'th : deluxe & bussiness | Adjustment based on review | new bathroom mock up | ALV AEI 002 \n1 FLOOR = 24 ROOMS (total is 147 rooms)",
+        "raw_deadline_text": null,
+        "notes": null
+      },
+      "design": {
+        "start_design_date": null,
+        "design_approval_target": "2026-04-15",
+        "design_approval_date": null,
+        "design_duration_days": null,
+        "brief_text": "LOKA",
+        "working_drawing_status": "2026-12-01",
+        "notes": "start design (raw): 2 Sept 2025"
+      },
+      "project_control": {
+        "tender_start_date": null,
+        "tender_finish_target": null,
+        "aps_spk_released_date": null,
+        "project_control_duration_days": null,
+        "aps_date": null,
+        "phase_contract_amount": 1170828000,
+        "notes": null
+      },
+      "project_management": {
+        "commence_date": "2025-12-03",
+        "end_contract_date": "2026-03-14",
+        "actual_phase_completion_date": "2026-03-14",
+        "deviation_days": "0",
+        "notes": null
+      },
+      "handover": {
+        "bast_1_date": "2026-03-14",
+        "bast_2_date": null,
+        "notes": null
+      }
+    },
+    "flags": [
+      "multi-row(4)"
+    ],
+    "src_rows": [
+      56,
+      57,
+      58,
+      59
+    ]
+  },
+  {
+    "unit": "ALV-ID",
+    "no": "26",
+    "project_name": "AEI : VILLA",
+    "project_code": "ALVID-26",
+    "summary_brief": "mock up | ALV AEI 002 \n1 cluster = 8 villas (total is 48 villas)",
+    "contract_amount": 1758172000,
+    "overall_progress_pct": null,
+    "start_date": "2026-05-19",
+    "end_date": "2026-11-29",
+    "current_phase_id": 4,
+    "phases": {
+      "operational_brief": {
+        "received_date": "2026-07-15",
+        "budget_capex": 1912589596,
+        "brief_text": "mock up | ALV AEI 002 \n1 cluster = 8 villas (total is 48 villas)",
+        "raw_deadline_text": null,
+        "notes": null
+      },
+      "design": {
+        "start_design_date": "2026-11-29",
+        "design_approval_target": "2026-05-31",
+        "design_approval_date": "2026-05-19",
+        "design_duration_days": -31,
+        "brief_text": "pending working darwing",
+        "working_drawing_status": "2026-06-15",
+        "notes": null
+      },
+      "project_control": {
+        "tender_start_date": "2026-06-15",
+        "tender_finish_target": "2026-06-15",
+        "aps_spk_released_date": "2026-07-15",
+        "project_control_duration_days": -30,
+        "aps_date": null,
+        "phase_contract_amount": 1758172000,
+        "notes": null
+      },
+      "project_management": {
+        "commence_date": "2026-07-15",
+        "end_contract_date": "2026-11-29",
+        "actual_phase_completion_date": null,
+        "deviation_days": null,
+        "notes": "Reported duration: 4,5"
+      },
+      "handover": {
+        "bast_1_date": null,
+        "bast_2_date": null,
+        "notes": null
+      }
+    },
+    "flags": [
+      "multi-row(2)"
+    ],
+    "src_rows": [
+      60,
+      61
+    ]
+  },
+  {
+    "unit": "ALV-ID",
+    "no": "27",
+    "project_name": "AEI : EBONY",
+    "project_code": "ALVID-27",
+    "summary_brief": "ALV AEI 003",
+    "contract_amount": null,
+    "overall_progress_pct": null,
+    "start_date": "2026-07-15",
+    "end_date": "2027-07-06",
+    "current_phase_id": 4,
+    "phases": {
+      "operational_brief": {
+        "received_date": "2026-07-15",
+        "budget_capex": 3897616800,
+        "brief_text": "ALV AEI 003",
+        "raw_deadline_text": null,
+        "notes": null
+      },
+      "design": {
+        "start_design_date": "2026-08-01",
+        "design_approval_target": "2026-08-31",
+        "design_approval_date": null,
+        "design_duration_days": 61,
+        "brief_text": "LOKA",
+        "working_drawing_status": "2026-12-01",
+        "notes": null
+      },
+      "project_control": {
+        "tender_start_date": null,
+        "tender_finish_target": "2027-01-01",
+        "aps_spk_released_date": null,
+        "project_control_duration_days": null,
+        "aps_date": null,
+        "phase_contract_amount": null,
+        "notes": null
+      },
+      "project_management": {
+        "commence_date": "2027-02-01",
+        "end_contract_date": "2027-07-06",
+        "actual_phase_completion_date": null,
+        "deviation_days": "#VALUE!",
+        "notes": "Start/End deviation: 215 days | Reported duration: 5"
+      },
+      "handover": {
+        "bast_1_date": null,
+        "bast_2_date": null,
+        "notes": null
+      }
+    },
+    "flags": [],
+    "src_rows": [
+      62
+    ]
+  },
+  {
+    "unit": "ALV-ID",
+    "no": "28",
+    "project_name": "AEI : LOBBY, VIP & RECEPTION",
+    "project_code": "ALVID-28",
+    "summary_brief": "ALV AEI 005",
+    "contract_amount": null,
+    "overall_progress_pct": null,
+    "start_date": "2026-06-02",
+    "end_date": "2027-03-10",
+    "current_phase_id": 4,
+    "phases": {
+      "operational_brief": {
+        "received_date": "2026-07-15",
+        "budget_capex": 2298892750,
+        "brief_text": "ALV AEI 005",
+        "raw_deadline_text": null,
+        "notes": null
+      },
+      "design": {
+        "start_design_date": "2026-06-02",
+        "design_approval_target": "2026-07-31",
+        "design_approval_date": null,
+        "design_duration_days": 30,
+        "brief_text": "LOKA",
+        "working_drawing_status": "2026-08-15",
+        "notes": null
+      },
+      "project_control": {
+        "tender_start_date": "2026-08-15",
+        "tender_finish_target": "2026-09-05",
+        "aps_spk_released_date": null,
+        "project_control_duration_days": null,
+        "aps_date": null,
+        "phase_contract_amount": null,
+        "notes": null
+      },
+      "project_management": {
+        "commence_date": "2026-09-05",
+        "end_contract_date": "2027-03-10",
+        "actual_phase_completion_date": null,
+        "deviation_days": null,
+        "notes": "Start/End deviation: 66 days | Reported duration: 6"
+      },
+      "handover": {
+        "bast_1_date": null,
+        "bast_2_date": null,
+        "notes": null
+      }
+    },
+    "flags": [],
+    "src_rows": [
+      63
+    ]
+  },
+  {
+    "unit": "ALV-ID",
+    "no": "29",
+    "project_name": "AEI : GARDENIA",
+    "project_code": "ALVID-29",
+    "summary_brief": "ALV AEI 004",
+    "contract_amount": null,
+    "overall_progress_pct": null,
+    "start_date": "2026-06-01",
+    "end_date": "2027-03-10",
+    "current_phase_id": 4,
+    "phases": {
+      "operational_brief": {
+        "received_date": "2026-07-15",
+        "budget_capex": 1191859200,
+        "brief_text": "ALV AEI 004",
+        "raw_deadline_text": null,
+        "notes": null
+      },
+      "design": {
+        "start_design_date": "2026-06-01",
+        "design_approval_target": "2026-07-02",
+        "design_approval_date": null,
+        "design_duration_days": 1,
+        "brief_text": "LOKA",
+        "working_drawing_status": "2026-08-15",
+        "notes": null
+      },
+      "project_control": {
+        "tender_start_date": "2026-08-15",
+        "tender_finish_target": "2026-09-05",
+        "aps_spk_released_date": null,
+        "project_control_duration_days": null,
+        "aps_date": null,
+        "phase_contract_amount": null,
+        "notes": null
+      },
+      "project_management": {
+        "commence_date": "2026-09-05",
+        "end_contract_date": "2027-03-10",
+        "actual_phase_completion_date": null,
+        "deviation_days": null,
+        "notes": "Start/End deviation: 66 days | Reported duration: 6"
+      },
+      "handover": {
+        "bast_1_date": null,
+        "bast_2_date": null,
+        "notes": null
+      }
+    },
+    "flags": [],
+    "src_rows": [
+      64
+    ]
+  },
+  {
+    "unit": "ALV-ID",
+    "no": "30",
+    "project_name": "AEI : PALM CAFE IN & OUTDOOR",
+    "project_code": "ALVID-30",
+    "summary_brief": "ALV_CA_UnbudgetedCA_002 under engineer — Sub-items: AEI : MAHOGANY | 2025 : ROOF REPAIR MAHOGANY &  JASMINE GARDEN",
+    "contract_amount": null,
+    "overall_progress_pct": null,
+    "start_date": "2026-06-22",
+    "end_date": "2027-06-01",
+    "current_phase_id": 4,
+    "phases": {
+      "operational_brief": {
+        "received_date": "2026-06-22",
+        "budget_capex": 3148840700,
+        "brief_text": "ALV_CA_UnbudgetedCA_002 under engineer",
+        "raw_deadline_text": null,
+        "notes": null
+      },
+      "design": {
+        "start_design_date": "2026-08-15",
+        "design_approval_target": "2026-09-15",
+        "design_approval_date": null,
+        "design_duration_days": 76,
+        "brief_text": "LOKA",
+        "working_drawing_status": "2026-10-06",
+        "notes": null
+      },
+      "project_control": {
+        "tender_start_date": "2026-10-06",
+        "tender_finish_target": "2026-10-27",
+        "aps_spk_released_date": null,
+        "project_control_duration_days": null,
+        "aps_date": null,
+        "phase_contract_amount": null,
+        "notes": null
+      },
+      "project_management": {
+        "commence_date": "2026-10-27",
+        "end_contract_date": "2027-06-01",
+        "actual_phase_completion_date": null,
+        "deviation_days": null,
+        "notes": "Start/End deviation: 118 days | Reported duration: 7"
+      },
+      "handover": {
+        "bast_1_date": null,
+        "bast_2_date": null,
+        "notes": null
+      }
+    },
+    "flags": [
+      "multi-row(3)"
+    ],
+    "src_rows": [
+      65,
+      66,
+      67
+    ]
+  },
+  {
+    "unit": "ALV - LD",
+    "no": "31",
+    "project_name": "LD : BOULEVARD 1A",
+    "project_code": "ALVLD-31",
+    "summary_brief": "ALV AEI 001",
+    "contract_amount": 1524834857,
+    "overall_progress_pct": 100.0,
+    "start_date": "2025-10-27",
+    "end_date": "2026-07-15",
+    "current_phase_id": 5,
+    "phases": {
+      "operational_brief": {
+        "received_date": "2026-07-15",
+        "budget_capex": 1600000000,
+        "brief_text": "ALV AEI 001",
+        "raw_deadline_text": null,
+        "notes": null
+      },
+      "design": {
+        "start_design_date": "2025-10-27",
+        "design_approval_target": null,
+        "design_approval_date": "2026-01-05",
+        "design_duration_days": null,
+        "brief_text": null,
+        "working_drawing_status": null,
+        "notes": null
+      },
+      "project_control": {
+        "tender_start_date": null,
+        "tender_finish_target": null,
+        "aps_spk_released_date": null,
+        "project_control_duration_days": null,
+        "aps_date": null,
+        "phase_contract_amount": 1524834857,
+        "notes": null
+      },
+      "project_management": {
+        "commence_date": "2026-01-05",
+        "end_contract_date": "2026-02-09",
+        "actual_phase_completion_date": "2026-02-09",
+        "deviation_days": "0",
+        "notes": "Reported duration: 1"
+      },
+      "handover": {
+        "bast_1_date": "2026-02-09",
+        "bast_2_date": null,
+        "notes": null
+      }
+    },
+    "flags": [],
+    "src_rows": [
+      69
+    ]
+  },
+  {
+    "unit": "ALV - LD",
+    "no": "32",
+    "project_name": "LD : GATE 1B",
+    "project_code": "ALVLD-32",
+    "summary_brief": null,
+    "contract_amount": null,
+    "overall_progress_pct": 100.0,
+    "start_date": "2025-11-13",
+    "end_date": "2026-05-25",
+    "current_phase_id": 5,
+    "phases": {
+      "operational_brief": {
+        "received_date": null,
+        "budget_capex": null,
+        "brief_text": null,
+        "raw_deadline_text": null,
+        "notes": null
+      },
+      "design": {
+        "start_design_date": "2025-11-13",
+        "design_approval_target": null,
+        "design_approval_date": "2026-01-05",
+        "design_duration_days": null,
+        "brief_text": null,
+        "working_drawing_status": null,
+        "notes": null
+      },
+      "project_control": {
+        "tender_start_date": null,
+        "tender_finish_target": null,
+        "aps_spk_released_date": null,
+        "project_control_duration_days": null,
+        "aps_date": null,
+        "phase_contract_amount": null,
+        "notes": null
+      },
+      "project_management": {
+        "commence_date": "2026-01-11",
+        "end_contract_date": "2026-03-14",
+        "actual_phase_completion_date": "2026-05-25",
+        "deviation_days": null,
+        "notes": null
+      },
+      "handover": {
+        "bast_1_date": "2026-05-25",
+        "bast_2_date": null,
+        "notes": null
+      }
+    },
+    "flags": [],
+    "src_rows": [
+      70
+    ]
+  },
+  {
+    "unit": "ALV - LD",
+    "no": "33",
+    "project_name": "ENTRANCE : SIGNAGE  1C",
+    "project_code": "ALVLD-33",
+    "summary_brief": null,
+    "contract_amount": 76600000,
+    "overall_progress_pct": 100.0,
+    "start_date": "2026-04-09",
+    "end_date": "2026-05-14",
+    "current_phase_id": 5,
+    "phases": {
+      "operational_brief": {
+        "received_date": null,
+        "budget_capex": null,
+        "brief_text": null,
+        "raw_deadline_text": null,
+        "notes": null
+      },
+      "design": {
+        "start_design_date": null,
+        "design_approval_target": null,
+        "design_approval_date": null,
+        "design_duration_days": null,
+        "brief_text": "Loka",
+        "working_drawing_status": "2026-04-15",
+        "notes": null
+      },
+      "project_control": {
+        "tender_start_date": null,
+        "tender_finish_target": null,
+        "aps_spk_released_date": "2026-04-09",
+        "project_control_duration_days": null,
+        "aps_date": null,
+        "phase_contract_amount": 76600000,
+        "notes": null
+      },
+      "project_management": {
+        "commence_date": "2026-04-14",
+        "end_contract_date": "2026-05-14",
+        "actual_phase_completion_date": "2026-05-11",
+        "deviation_days": "3",
+        "notes": "Reported duration: 1"
+      },
+      "handover": {
+        "bast_1_date": "2026-05-11",
+        "bast_2_date": null,
+        "notes": null
+      }
+    },
+    "flags": [],
+    "src_rows": [
+      71
+    ]
+  },
+  {
+    "unit": "ALV - LD",
+    "no": "34",
+    "project_name": "ENTRANCE : SECURITY GATE 1D",
+    "project_code": "ALVLD-34",
+    "summary_brief": null,
+    "contract_amount": null,
+    "overall_progress_pct": null,
+    "start_date": "2026-04-09",
+    "end_date": "2026-10-06",
+    "current_phase_id": 4,
+    "phases": {
+      "operational_brief": {
+        "received_date": null,
+        "budget_capex": null,
+        "brief_text": null,
+        "raw_deadline_text": null,
+        "notes": null
+      },
+      "design": {
+        "start_design_date": "2026-04-09",
+        "design_approval_target": "2026-04-15",
+        "design_approval_date": "2026-04-20",
+        "design_duration_days": -5,
+        "brief_text": "Altira",
+        "working_drawing_status": "2026-06-14",
+        "notes": null
+      },
+      "project_control": {
+        "tender_start_date": "2026-06-14",
+        "tender_finish_target": "2026-07-05",
+        "aps_spk_released_date": null,
+        "project_control_duration_days": null,
+        "aps_date": null,
+        "phase_contract_amount": null,
+        "notes": null
+      },
+      "project_management": {
+        "commence_date": "2026-07-05",
+        "end_contract_date": "2026-10-06",
+        "actual_phase_completion_date": null,
+        "deviation_days": null,
+        "notes": "Start/End deviation: 4 days | Reported duration: 3"
+      },
+      "handover": {
+        "bast_1_date": null,
+        "bast_2_date": null,
+        "notes": null
+      }
+    },
+    "flags": [],
+    "src_rows": [
+      72
+    ]
+  },
+  {
+    "unit": "ALV - LD",
+    "no": "35",
+    "project_name": "LD : LOBBY DROP OFF 2B",
+    "project_code": "ALVLD-35",
+    "summary_brief": null,
+    "contract_amount": 475884857,
+    "overall_progress_pct": 100.0,
+    "start_date": "2026-03-27",
+    "end_date": "2026-05-21",
+    "current_phase_id": 5,
+    "phases": {
+      "operational_brief": {
+        "received_date": null,
+        "budget_capex": null,
+        "brief_text": null,
+        "raw_deadline_text": null,
+        "notes": null
+      },
+      "design": {
+        "start_design_date": null,
+        "design_approval_target": null,
+        "design_approval_date": null,
+        "design_duration_days": null,
+        "brief_text": null,
+        "working_drawing_status": null,
+        "notes": null
+      },
+      "project_control": {
+        "tender_start_date": null,
+        "tender_finish_target": null,
+        "aps_spk_released_date": "2026-03-27",
+        "project_control_duration_days": null,
+        "aps_date": null,
+        "phase_contract_amount": 475884857,
+        "notes": null
+      },
+      "project_management": {
+        "commence_date": "2026-04-06",
+        "end_contract_date": "2026-05-21",
+        "actual_phase_completion_date": "2026-05-07",
+        "deviation_days": "14",
+        "notes": null
+      },
+      "handover": {
+        "bast_1_date": "2026-05-07",
+        "bast_2_date": null,
+        "notes": null
+      }
+    },
+    "flags": [],
+    "src_rows": [
+      73
+    ]
+  },
+  {
+    "unit": "ALV - LD",
+    "no": "36",
+    "project_name": "LD : FOUNTAIN 2A",
+    "project_code": "ALVLD-36",
+    "summary_brief": null,
+    "contract_amount": 435791075,
+    "overall_progress_pct": null,
+    "start_date": "2026-04-20",
+    "end_date": "2026-11-14",
+    "current_phase_id": 4,
+    "phases": {
+      "operational_brief": {
+        "received_date": null,
+        "budget_capex": 162570017,
+        "brief_text": null,
+        "raw_deadline_text": null,
+        "notes": null
+      },
+      "design": {
+        "start_design_date": "2026-04-20",
+        "design_approval_target": "2026-05-31",
+        "design_approval_date": "2026-05-12",
+        "design_duration_days": 19,
+        "brief_text": "Altira : redesign to be softscape",
+        "working_drawing_status": "2026-06-22",
+        "notes": null
+      },
+      "project_control": {
+        "tender_start_date": "2026-06-22",
+        "tender_finish_target": "2026-07-13",
+        "aps_spk_released_date": null,
+        "project_control_duration_days": null,
+        "aps_date": null,
+        "phase_contract_amount": 435791075,
+        "notes": null
+      },
+      "project_management": {
+        "commence_date": "2026-07-13",
+        "end_contract_date": "2026-11-14",
+        "actual_phase_completion_date": null,
+        "deviation_days": null,
+        "notes": "Start/End deviation: 12 days | Reported duration: 4"
+      },
+      "handover": {
+        "bast_1_date": null,
+        "bast_2_date": null,
+        "notes": null
+      }
+    },
+    "flags": [],
+    "src_rows": [
+      74
+    ]
+  },
+  {
+    "unit": "ALV - LD",
+    "no": "37",
+    "project_name": "LD : VILLA",
+    "project_code": "ALVLD-37",
+    "summary_brief": null,
+    "contract_amount": null,
+    "overall_progress_pct": null,
+    "start_date": "2026-04-30",
+    "end_date": "2026-11-22",
+    "current_phase_id": 4,
+    "phases": {
+      "operational_brief": {
+        "received_date": null,
+        "budget_capex": 500000000,
+        "brief_text": null,
+        "raw_deadline_text": null,
+        "notes": null
+      },
+      "design": {
+        "start_design_date": "2026-04-30",
+        "design_approval_target": "2026-05-31",
+        "design_approval_date": "2026-05-19",
+        "design_duration_days": 12,
+        "brief_text": "Altira to provide cost est",
+        "working_drawing_status": "2026-07-31",
+        "notes": null
+      },
+      "project_control": {
+        "tender_start_date": "2026-07-31",
+        "tender_finish_target": "2026-08-21",
+        "aps_spk_released_date": null,
+        "project_control_duration_days": null,
+        "aps_date": null,
+        "phase_contract_amount": null,
+        "notes": null
+      },
+      "project_management": {
+        "commence_date": "2026-08-21",
+        "end_contract_date": "2026-11-22",
+        "actual_phase_completion_date": null,
+        "deviation_days": null,
+        "notes": "Start/End deviation: 51 days | Reported duration: 3"
+      },
+      "handover": {
+        "bast_1_date": null,
+        "bast_2_date": null,
+        "notes": null
+      }
+    },
+    "flags": [],
+    "src_rows": [
+      75
+    ]
+  },
+  {
+    "unit": "ALV - LD",
+    "no": "38",
+    "project_name": "LD : SWIMMING POOL",
+    "project_code": "ALVLD-38",
+    "summary_brief": null,
+    "contract_amount": 357446249,
+    "overall_progress_pct": null,
+    "start_date": "2026-04-20",
+    "end_date": "2026-11-14",
+    "current_phase_id": 4,
+    "phases": {
+      "operational_brief": {
+        "received_date": null,
+        "budget_capex": null,
+        "brief_text": null,
+        "raw_deadline_text": null,
+        "notes": null
+      },
+      "design": {
+        "start_design_date": "2026-05-01",
+        "design_approval_target": "2026-06-01",
+        "design_approval_date": "2026-04-20",
+        "design_duration_days": 42,
+        "brief_text": "044 DAP-ALV-swimming pool",
+        "working_drawing_status": "2026-06-22",
+        "notes": null
+      },
+      "project_control": {
+        "tender_start_date": "2026-06-22",
+        "tender_finish_target": "2026-07-13",
+        "aps_spk_released_date": null,
+        "project_control_duration_days": null,
+        "aps_date": null,
+        "phase_contract_amount": 357446249,
+        "notes": null
+      },
+      "project_management": {
+        "commence_date": "2026-07-13",
+        "end_contract_date": "2026-11-14",
+        "actual_phase_completion_date": null,
+        "deviation_days": null,
+        "notes": "Start/End deviation: 12 days | Reported duration: 4"
+      },
+      "handover": {
+        "bast_1_date": null,
+        "bast_2_date": null,
+        "notes": null
+      }
+    },
+    "flags": [],
+    "src_rows": [
+      76
+    ]
+  },
+  {
+    "unit": "ALV - LD",
+    "no": "39",
+    "project_name": "RE-TILE SWIMMING POOL",
+    "project_code": "ALVLD-39",
+    "summary_brief": null,
+    "contract_amount": null,
+    "overall_progress_pct": null,
+    "start_date": "2026-04-20",
+    "end_date": "2026-09-13",
+    "current_phase_id": 4,
+    "phases": {
+      "operational_brief": {
+        "received_date": null,
+        "budget_capex": 300000000,
+        "brief_text": null,
+        "raw_deadline_text": null,
+        "notes": null
+      },
+      "design": {
+        "start_design_date": "2026-05-01",
+        "design_approval_target": "2026-06-01",
+        "design_approval_date": "2026-04-20",
+        "design_duration_days": 42,
+        "brief_text": null,
+        "working_drawing_status": null,
+        "notes": null
+      },
+      "project_control": {
+        "tender_start_date": "2026-06-22",
+        "tender_finish_target": "2026-07-13",
+        "aps_spk_released_date": null,
+        "project_control_duration_days": null,
+        "aps_date": null,
+        "phase_contract_amount": null,
+        "notes": null
+      },
+      "project_management": {
+        "commence_date": "2026-07-13",
+        "end_contract_date": "2026-09-13",
+        "actual_phase_completion_date": null,
+        "deviation_days": null,
+        "notes": "Reported duration: 2"
+      },
+      "handover": {
+        "bast_1_date": null,
+        "bast_2_date": null,
+        "notes": null
+      }
+    },
+    "flags": [],
+    "src_rows": [
+      77
+    ]
+  },
+  {
+    "unit": "ALV - LD",
+    "no": "40",
+    "project_name": "ALV : MAHOGANY DROP OFF",
+    "project_code": "ALVLD-40",
+    "summary_brief": null,
+    "contract_amount": null,
+    "overall_progress_pct": null,
+    "start_date": "2026-06-22",
+    "end_date": "2026-07-15",
+    "current_phase_id": 2,
+    "phases": {
+      "operational_brief": {
+        "received_date": null,
+        "budget_capex": null,
+        "brief_text": null,
+        "raw_deadline_text": null,
+        "notes": null
+      },
+      "design": {
+        "start_design_date": "2026-06-22",
+        "design_approval_target": "2026-07-15",
+        "design_approval_date": "2026-07-02",
+        "design_duration_days": null,
+        "brief_text": null,
+        "working_drawing_status": "2026-07-15",
+        "notes": null
+      },
+      "project_control": {
+        "tender_start_date": null,
+        "tender_finish_target": null,
+        "aps_spk_released_date": null,
+        "project_control_duration_days": null,
+        "aps_date": null,
+        "phase_contract_amount": null,
+        "notes": null
+      },
+      "project_management": {
+        "commence_date": null,
+        "end_contract_date": null,
+        "actual_phase_completion_date": null,
+        "deviation_days": null,
+        "notes": null
+      },
+      "handover": {
+        "bast_1_date": null,
+        "bast_2_date": null,
+        "notes": null
+      }
+    },
+    "flags": [],
+    "src_rows": [
+      78
+    ]
+  },
+  {
+    "unit": "ACC",
+    "no": "41",
+    "project_name": "2025 : REPAIR SURFACE TENNIS 5&6",
+    "project_code": "ACC-41",
+    "summary_brief": null,
+    "contract_amount": null,
+    "overall_progress_pct": 100.0,
+    "start_date": "2026-02-07",
+    "end_date": "2026-03-17",
+    "current_phase_id": 5,
+    "phases": {
+      "operational_brief": {
+        "received_date": null,
+        "budget_capex": null,
+        "brief_text": null,
+        "raw_deadline_text": null,
+        "notes": null
+      },
+      "design": {
+        "start_design_date": null,
+        "design_approval_target": null,
+        "design_approval_date": null,
+        "design_duration_days": null,
+        "brief_text": null,
+        "working_drawing_status": null,
+        "notes": null
+      },
+      "project_control": {
+        "tender_start_date": null,
+        "tender_finish_target": null,
+        "aps_spk_released_date": null,
+        "project_control_duration_days": null,
+        "aps_date": null,
+        "phase_contract_amount": null,
+        "notes": null
+      },
+      "project_management": {
+        "commence_date": "2026-02-07",
+        "end_contract_date": "2026-03-17",
+        "actual_phase_completion_date": "2026-03-10",
+        "deviation_days": "7",
+        "notes": null
+      },
+      "handover": {
+        "bast_1_date": "2026-03-10",
+        "bast_2_date": null,
+        "notes": null
+      }
+    },
+    "flags": [],
+    "src_rows": [
+      80
+    ]
+  },
+  {
+    "unit": "ACC",
+    "no": "42",
+    "project_name": "TENNIS COURT BENCHES",
+    "project_code": "ACC-42",
+    "summary_brief": null,
+    "contract_amount": 96000000,
+    "overall_progress_pct": 100.0,
+    "start_date": "2025-12-23",
+    "end_date": "2026-03-14",
+    "current_phase_id": 5,
+    "phases": {
+      "operational_brief": {
+        "received_date": null,
+        "budget_capex": null,
+        "brief_text": null,
+        "raw_deadline_text": null,
+        "notes": null
+      },
+      "design": {
+        "start_design_date": null,
+        "design_approval_target": null,
+        "design_approval_date": null,
+        "design_duration_days": null,
+        "brief_text": null,
+        "working_drawing_status": null,
+        "notes": null
+      },
+      "project_control": {
+        "tender_start_date": null,
+        "tender_finish_target": null,
+        "aps_spk_released_date": "2025-12-23",
+        "project_control_duration_days": null,
+        "aps_date": null,
+        "phase_contract_amount": 96000000,
+        "notes": null
+      },
+      "project_management": {
+        "commence_date": null,
+        "end_contract_date": "2026-03-14",
+        "actual_phase_completion_date": "2026-03-11",
+        "deviation_days": "3",
+        "notes": null
+      },
+      "handover": {
+        "bast_1_date": "2026-03-11",
+        "bast_2_date": null,
+        "notes": null
+      }
+    },
+    "flags": [],
+    "src_rows": [
+      81
+    ]
+  },
+  {
+    "unit": "ACC",
+    "no": "43",
+    "project_name": "PATHWAY REPAIR",
+    "project_code": "ACC-43",
+    "summary_brief": "volume = 366 sqm | introduce new vendor : ALTIRA, volume = 737 sqm | additional volume = 4.234 sqm — Sub-items: PATHWAY REPAIR",
+    "contract_amount": 375000000,
+    "overall_progress_pct": 30.33,
+    "start_date": "2025-07-31",
+    "end_date": "2026-05-31",
+    "current_phase_id": 4,
+    "phases": {
+      "operational_brief": {
+        "received_date": "2025-07-31",
+        "budget_capex": 1400000000,
+        "brief_text": "volume = 366 sqm | introduce new vendor : ALTIRA, volume = 737 sqm | additional volume = 4.234 sqm",
+        "raw_deadline_text": null,
+        "notes": null
+      },
+      "design": {
+        "start_design_date": "2025-07-31",
+        "design_approval_target": "2026-05-31",
+        "design_approval_date": null,
+        "design_duration_days": null,
+        "brief_text": "Mock up approved 9 Sept | following to swimmg pool design",
+        "working_drawing_status": "2026-07-31",
+        "notes": null
+      },
+      "project_control": {
+        "tender_start_date": "2025-08-21",
+        "tender_finish_target": "2026-03-23",
+        "aps_spk_released_date": "2025-08-29",
+        "project_control_duration_days": null,
+        "aps_date": null,
+        "phase_contract_amount": 375000000,
+        "notes": null
+      },
+      "project_management": {
+        "commence_date": null,
+        "end_contract_date": "2025-12-07",
+        "actual_phase_completion_date": null,
+        "deviation_days": null,
+        "notes": null
+      },
+      "handover": {
+        "bast_1_date": null,
+        "bast_2_date": null,
+        "notes": null
+      }
+    },
+    "flags": [
+      "multi-row(3)"
+    ],
+    "src_rows": [
+      82,
+      83,
+      84
+    ]
+  },
+  {
+    "unit": "ACC",
+    "no": "44",
+    "project_name": "LD : SIGNAGE",
+    "project_code": "ACC-44",
+    "summary_brief": "ALV AEI 001",
+    "contract_amount": 68920700,
+    "overall_progress_pct": 100.0,
+    "start_date": "2026-04-29",
+    "end_date": "2026-07-16",
+    "current_phase_id": 5,
+    "phases": {
+      "operational_brief": {
+        "received_date": null,
+        "budget_capex": null,
+        "brief_text": "ALV AEI 001",
+        "raw_deadline_text": null,
+        "notes": null
+      },
+      "design": {
+        "start_design_date": null,
+        "design_approval_target": "2026-04-29",
+        "design_approval_date": null,
+        "design_duration_days": -63,
+        "brief_text": null,
+        "working_drawing_status": "2026-05-20",
+        "notes": null
+      },
+      "project_control": {
+        "tender_start_date": "2026-05-20",
+        "tender_finish_target": "2026-06-10",
+        "aps_spk_released_date": "2026-07-16",
+        "project_control_duration_days": -36,
+        "aps_date": null,
+        "phase_contract_amount": 68920700,
+        "notes": null
+      },
+      "project_management": {
+        "commence_date": "2026-06-10",
+        "end_contract_date": "2026-07-15",
+        "actual_phase_completion_date": "2026-07-04",
+        "deviation_days": "11",
+        "notes": "Reported duration: 1"
+      },
+      "handover": {
+        "bast_1_date": "2026-07-04",
+        "bast_2_date": null,
+        "notes": null
+      }
+    },
+    "flags": [],
+    "src_rows": [
+      85
+    ]
+  },
+  {
+    "unit": "ACC",
+    "no": "45",
+    "project_name": "LD : FRONT LOBBY & EXIT AREA",
+    "project_code": "ACC-45",
+    "summary_brief": null,
+    "contract_amount": 521937839,
+    "overall_progress_pct": 90.0,
+    "start_date": "2026-04-16",
+    "end_date": "2026-08-01",
+    "current_phase_id": 4,
+    "phases": {
+      "operational_brief": {
+        "received_date": null,
+        "budget_capex": 800000000,
+        "brief_text": null,
+        "raw_deadline_text": null,
+        "notes": null
+      },
+      "design": {
+        "start_design_date": null,
+        "design_approval_target": "2026-04-16",
+        "design_approval_date": null,
+        "design_duration_days": -76,
+        "brief_text": "040DAP-ACC-LANDSCAPE WORKS-LOBBY & EXIT AREA",
+        "working_drawing_status": "2026-05-07",
+        "notes": null
+      },
+      "project_control": {
+        "tender_start_date": "2026-05-07",
+        "tender_finish_target": "2026-05-28",
+        "aps_spk_released_date": "2026-05-25",
+        "project_control_duration_days": 3,
+        "aps_date": null,
+        "phase_contract_amount": 521937839,
+        "notes": null
+      },
+      "project_management": {
+        "commence_date": "2026-05-25",
+        "end_contract_date": "2026-08-01",
+        "actual_phase_completion_date": null,
+        "deviation_days": null,
+        "notes": null
+      },
+      "handover": {
+        "bast_1_date": null,
+        "bast_2_date": null,
+        "notes": null
+      }
+    },
+    "flags": [],
+    "src_rows": [
+      86
+    ]
+  },
+  {
+    "unit": "ACC",
+    "no": "46",
+    "project_name": "LD :TENNIS & PADEL AREA",
+    "project_code": "ACC-46",
+    "summary_brief": null,
+    "contract_amount": 262277177,
+    "overall_progress_pct": null,
+    "start_date": "2026-04-16",
+    "end_date": "2026-05-28",
+    "current_phase_id": 3,
+    "phases": {
+      "operational_brief": {
+        "received_date": null,
+        "budget_capex": 500000000,
+        "brief_text": null,
+        "raw_deadline_text": null,
+        "notes": null
+      },
+      "design": {
+        "start_design_date": null,
+        "design_approval_target": "2026-04-16",
+        "design_approval_date": null,
+        "design_duration_days": -76,
+        "brief_text": null,
+        "working_drawing_status": "2026-05-07",
+        "notes": null
+      },
+      "project_control": {
+        "tender_start_date": "2026-05-07",
+        "tender_finish_target": "2026-05-28",
+        "aps_spk_released_date": "2026-05-25",
+        "project_control_duration_days": 3,
+        "aps_date": null,
+        "phase_contract_amount": 262277177,
+        "notes": null
+      },
+      "project_management": {
+        "commence_date": null,
+        "end_contract_date": null,
+        "actual_phase_completion_date": null,
+        "deviation_days": null,
+        "notes": null
+      },
+      "handover": {
+        "bast_1_date": null,
+        "bast_2_date": null,
+        "notes": null
+      }
+    },
+    "flags": [],
+    "src_rows": [
+      87
+    ]
+  },
+  {
+    "unit": "ACC",
+    "no": "47",
+    "project_name": "LD : REAR LOBBY & SWIMMING POOL",
+    "project_code": "ACC-47",
+    "summary_brief": null,
+    "contract_amount": null,
+    "overall_progress_pct": null,
+    "start_date": "2026-05-19",
+    "end_date": "2027-03-10",
+    "current_phase_id": 4,
+    "phases": {
+      "operational_brief": {
+        "received_date": null,
+        "budget_capex": 1500000000,
+        "brief_text": null,
+        "raw_deadline_text": null,
+        "notes": null
+      },
+      "design": {
+        "start_design_date": null,
+        "design_approval_target": "2026-05-31",
+        "design_approval_date": "2026-05-19",
+        "design_duration_days": -31,
+        "brief_text": null,
+        "working_drawing_status": "2026-07-31",
+        "notes": null
+      },
+      "project_control": {
+        "tender_start_date": "2026-11-16",
+        "tender_finish_target": "2026-12-07",
+        "aps_spk_released_date": null,
+        "project_control_duration_days": null,
+        "aps_date": null,
+        "phase_contract_amount": null,
+        "notes": null
+      },
+      "project_management": {
+        "commence_date": "2026-12-07",
+        "end_contract_date": "2027-03-10",
+        "actual_phase_completion_date": null,
+        "deviation_days": null,
+        "notes": "Start/End deviation: 159 days | Reported duration: 3"
+      },
+      "handover": {
+        "bast_1_date": null,
+        "bast_2_date": null,
+        "notes": null
+      }
+    },
+    "flags": [],
+    "src_rows": [
+      88
+    ]
+  },
+  {
+    "unit": "AMD",
+    "no": "48",
+    "project_name": "FR : FACADE REPAIR & REPAINTING",
+    "project_code": "AMD-48",
+    "summary_brief": "FIRST REIT REIMBURSEMENT",
+    "contract_amount": 630000000,
+    "overall_progress_pct": 63.0,
+    "start_date": "2026-02-19",
+    "end_date": "2026-07-03",
+    "current_phase_id": 4,
+    "phases": {
+      "operational_brief": {
+        "received_date": null,
+        "budget_capex": 630000000,
+        "brief_text": "FIRST REIT REIMBURSEMENT",
+        "raw_deadline_text": null,
+        "notes": null
+      },
+      "design": {
+        "start_design_date": null,
+        "design_approval_target": null,
+        "design_approval_date": "2026-03-13",
+        "design_duration_days": null,
+        "brief_text": "wa chat",
+        "working_drawing_status": null,
+        "notes": null
+      },
+      "project_control": {
+        "tender_start_date": null,
+        "tender_finish_target": null,
+        "aps_spk_released_date": "2026-03-10",
+        "project_control_duration_days": null,
+        "aps_date": null,
+        "phase_contract_amount": 630000000,
+        "notes": null
+      },
+      "project_management": {
+        "commence_date": "2026-02-19",
+        "end_contract_date": "2026-07-03",
+        "actual_phase_completion_date": null,
+        "deviation_days": null,
+        "notes": "Reported duration: 3"
+      },
+      "handover": {
+        "bast_1_date": null,
+        "bast_2_date": null,
+        "notes": null
+      }
+    },
+    "flags": [],
+    "src_rows": [
+      90
+    ]
+  },
+  {
+    "unit": "AMD",
+    "no": "49",
+    "project_name": "Furniture for outdoor amicoo",
+    "project_code": "AMD-49",
+    "summary_brief": "awaiting Capex Request Approval — Sub-items: Sofa banquet | Director chair for meeting room | Portable folded partition",
+    "contract_amount": null,
+    "overall_progress_pct": null,
+    "start_date": null,
+    "end_date": null,
+    "current_phase_id": 1,
+    "phases": {
+      "operational_brief": {
+        "received_date": null,
+        "budget_capex": 15000000,
+        "brief_text": "awaiting Capex Request Approval",
+        "raw_deadline_text": null,
+        "notes": null
+      },
+      "design": {
+        "start_design_date": null,
+        "design_approval_target": null,
+        "design_approval_date": null,
+        "design_duration_days": null,
+        "brief_text": null,
+        "working_drawing_status": null,
+        "notes": null
+      },
+      "project_control": {
+        "tender_start_date": null,
+        "tender_finish_target": null,
+        "aps_spk_released_date": null,
+        "project_control_duration_days": null,
+        "aps_date": null,
+        "phase_contract_amount": null,
+        "notes": null
+      },
+      "project_management": {
+        "commence_date": null,
+        "end_contract_date": null,
+        "actual_phase_completion_date": null,
+        "deviation_days": null,
+        "notes": null
+      },
+      "handover": {
+        "bast_1_date": null,
+        "bast_2_date": null,
+        "notes": null
+      }
+    },
+    "flags": [
+      "multi-row(5)",
+      "no-dates"
+    ],
+    "src_rows": [
+      91,
+      92,
+      93,
+      94,
+      96
+    ]
+  }
+]
