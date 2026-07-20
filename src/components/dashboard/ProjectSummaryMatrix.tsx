@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import { format, isValid } from "date-fns";
-import { useEffect, useRef, useState } from "react";
+import { forwardRef, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Paperclip, Loader2 } from "lucide-react";
 
@@ -53,6 +53,84 @@ type SummaryProject = {
 interface Props {
   projects: SummaryProject[];
   className?: string;
+}
+
+// One source of truth for both the header labels and each column's default
+// width, so narrow-content columns (dates, "APS", "+/-") stay compact while
+// long labels (e.g. "Design Approval — Target (+1M)") or free-text columns
+// (Brief/Notes/Remarks) get enough room to not wrap into an awkward
+// multi-line header. Widths are user-resizable from here (see COL_WIDTHS_KEY).
+const DATA_COLUMNS: { label: string; width: number }[] = [
+  { label: "Brief",                              width: 160 }, // Operational Brief
+  { label: "Received Date",                      width: 105 },
+  { label: "Deadline Date",                       width: 105 },
+  { label: "Budget / CAPEX",                      width: 130 },
+  { label: "Notes",                               width: 170 },
+  { label: "Start Design",                        width: 105 }, // Design
+  { label: "Design Approval — Target (+1M)",      width: 180 },
+  { label: "Design Approval — Real",              width: 130 },
+  { label: "Duration (+/-)",                      width:  95 },
+  { label: "Brief",                               width: 170 },
+  { label: "Working Drawing (+3W)",                width: 150 },
+  { label: "Notes",                               width: 170 },
+  { label: "Tender Start",                        width: 105 }, // Project Control
+  { label: "Tender Finish Target (+3W)",           width: 180 },
+  { label: "Tender Finish Real",                  width: 130 },
+  { label: "Duration (+/-)",                      width:  95 },
+  { label: "APS",                                 width:  90 },
+  { label: "Contract",                            width: 110 },
+  { label: "Contract Amount",                     width: 140 },
+  { label: "Notes",                               width: 170 },
+  { label: "START",                               width:  90 }, // Project Management
+  { label: "END",                                 width:  90 },
+  { label: "Completion real date",                 width: 140 },
+  { label: "Duration (weeks)",                    width: 120 },
+  { label: "+/-",                                 width:  80 },
+  { label: "Progress %",                          width: 100 },
+  { label: "Remarks",                             width: 220 },
+  { label: "BAST-1",                              width: 100 }, // Handover
+  { label: "BAST-2",                              width: 100 },
+  { label: "Actual Completion",                   width: 140 },
+  { label: "Notes",                               width: 170 },
+];
+const DEFAULT_COL_WIDTHS = [80, 288, ...DATA_COLUMNS.map(c => c.width)];
+const MIN_COL_WIDTH = 50;
+const COL_WIDTHS_STORAGE_KEY = "summaryMatrixColWidths";
+
+// ─── Column resize handle ───────────────────────────────────────────────────
+function ColResizeHandle({
+  onResize,
+}: {
+  onResize: (deltaX: number) => void;
+}) {
+  function onMouseDown(e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    const startX = e.clientX;
+    let lastX = startX;
+    function onMove(ev: MouseEvent) {
+      const delta = ev.clientX - lastX;
+      lastX = ev.clientX;
+      if (delta !== 0) onResize(delta);
+    }
+    function onUp() {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    }
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  }
+
+  return (
+    <div
+      onMouseDown={onMouseDown}
+      onClick={e => e.stopPropagation()}
+      className="absolute top-0 bottom-0 -right-1 w-2 cursor-col-resize z-10 group/resize"
+      title="Drag to resize column"
+    >
+      <div className="mx-auto w-px h-full bg-transparent group-hover/resize:bg-cyan-400 dark:group-hover/resize:bg-cyan-500 transition-colors" />
+    </div>
+  );
 }
 
 function toDate(val: string | null | undefined): Date | null {
@@ -254,13 +332,24 @@ function InlineContractCell({
   );
 }
 
-export default function ProjectSummaryMatrix({
+const ProjectSummaryMatrix = forwardRef<HTMLDivElement, Props>(function ProjectSummaryMatrix({
   projects: initialProjects,
   className = "",
-}: Props) {
+}, ref) {
   const router = useRouter();
   const [projects, setProjects] = useState<SummaryProject[]>(initialProjects);
-  const [innerWidth, setInnerWidth] = useState(3200);
+  const [colWidths, setColWidths] = useState<number[]>(() => {
+    try {
+      const raw = typeof window !== "undefined" ? localStorage.getItem(COL_WIDTHS_STORAGE_KEY) : null;
+      if (!raw) return DEFAULT_COL_WIDTHS;
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length === DEFAULT_COL_WIDTHS.length && parsed.every(n => typeof n === "number")) {
+        return parsed;
+      }
+    } catch { /* ignore malformed storage */ }
+    return DEFAULT_COL_WIDTHS;
+  });
+  const innerWidth = colWidths.reduce((sum, w) => sum + w, 0);
 
   const topScrollRef  = useRef<HTMLDivElement>(null);
   const headerScrollRef = useRef<HTMLDivElement>(null);
@@ -272,9 +361,14 @@ export default function ProjectSummaryMatrix({
     setProjects(initialProjects);
   }
 
-  useEffect(() => {
-    if (bodyRef.current) setInnerWidth(bodyRef.current.scrollWidth);
-  }, [projects]);
+  function resizeColumn(index: number, deltaX: number) {
+    setColWidths(prev => {
+      const next = [...prev];
+      next[index] = Math.max(MIN_COL_WIDTH, next[index] + deltaX);
+      try { localStorage.setItem(COL_WIDTHS_STORAGE_KEY, JSON.stringify(next)); } catch { /* ignore */ }
+      return next;
+    });
+  }
 
   function syncScroll(sourceLeft: number) {
     if (syncingRef.current) return;
@@ -306,10 +400,8 @@ export default function ProjectSummaryMatrix({
     return Array.from(groups.entries()).map(([unit, rows]) => ({ unit, rows }));
   })();
 
-  const COL_WIDTHS = [80, 288, ...Array(31).fill(112)];
-
   return (
-    <div className={`flex flex-col rounded-xl border border-slate-200/60 dark:border-white/8 bg-white/60 dark:bg-zinc-900/50 backdrop-blur-sm ${className}`} style={{ overflow: "clip" }}>
+    <div ref={ref} className={`flex flex-col rounded-xl border border-slate-200/60 dark:border-white/8 bg-white/60 dark:bg-zinc-900/50 backdrop-blur-sm ${className}`} style={{ overflow: "clip" }}>
 
       {/* ── Sticky header section — page-level sticky, outside body scroll container ── */}
       <div className="sticky top-0 z-50 bg-white dark:bg-zinc-900 rounded-t-2xl shadow-sm">
@@ -319,12 +411,18 @@ export default function ProjectSummaryMatrix({
         </div>
         {/* Sticky column headers — horizontally synced */}
         <div ref={headerScrollRef} className="overflow-x-hidden" onScroll={onHeaderScroll}>
-          <table className="w-full border-separate border-spacing-0 text-[10px]" style={{ minWidth: innerWidth }}>
-            <colgroup>{COL_WIDTHS.map((w, i) => <col key={i} style={{ width: w, minWidth: w }} />)}</colgroup>
+          <table className="w-full border-separate border-spacing-0 text-[10px]" style={{ minWidth: innerWidth, tableLayout: "fixed" }}>
+            <colgroup>{colWidths.map((w, i) => <col key={i} style={{ width: w, minWidth: w }} />)}</colgroup>
             <thead>
               <tr className="bg-slate-100 dark:bg-zinc-900 text-[9px] uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                <th rowSpan={2} className="sticky left-0 z-50 w-20 min-w-20 border-r border-b border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-zinc-900 px-2 py-2 text-left">Unit</th>
-                <th rowSpan={2} className="sticky left-20 z-50 w-72 min-w-72 border-r border-b border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-zinc-900 px-2 py-2 text-left shadow-[8px_0_12px_-12px_rgba(15,23,42,0.45)]">Description</th>
+                <th rowSpan={2} className="sticky left-0 z-50 w-20 min-w-20 border-r border-b border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-zinc-900 px-2 py-2 text-left">
+                  Unit
+                  <ColResizeHandle onResize={dx => resizeColumn(0, dx)} />
+                </th>
+                <th rowSpan={2} className="sticky left-20 z-50 w-72 min-w-72 border-r border-b border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-zinc-900 px-2 py-2 text-left shadow-[8px_0_12px_-12px_rgba(15,23,42,0.45)]">
+                  Description
+                  <ColResizeHandle onResize={dx => resizeColumn(1, dx)} />
+                </th>
                 <th colSpan={5} className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2 bg-slate-200/70 dark:bg-zinc-800/80">Operational Brief (PR)</th>
                 <th colSpan={7} className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2 bg-blue-100/70 dark:bg-blue-950/30">Design (HoD)</th>
                 <th colSpan={8} className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2 bg-amber-100/80 dark:bg-amber-950/30">Project Control</th>
@@ -332,15 +430,10 @@ export default function ProjectSummaryMatrix({
                 <th colSpan={4} className="border-b border-slate-200 dark:border-white/10 px-2 py-2 bg-emerald-100/70 dark:bg-emerald-950/30">Handover</th>
               </tr>
               <tr className="bg-white dark:bg-zinc-950 text-[9px] uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                {[
-                  "Brief", "Received Date", "Deadline Date", "Budget / CAPEX", "Notes",
-                  "Start Design", "Design Approval — Target (+1M)", "Design Approval — Real", "Duration (+/-)", "Brief", "Working Drawing (+3W)", "Notes",
-                  "Tender Start", "Tender Finish Target (+3W)", "Tender Finish Real", "Duration (+/-)", "APS", "Contract", "Contract Amount", "Notes",
-                  "START", "END", "Completion real date", "Duration (weeks)", "+/-", "Progress %", "Remarks",
-                  "BAST-1", "BAST-2", "Actual Completion", "Notes",
-                ].map((label, idx) => (
-                  <th key={`${label}-${idx}`} className="min-w-28 border-r border-b border-slate-200 dark:border-white/10 px-2 py-2 align-bottom leading-tight text-left last:border-r-0">
+                {DATA_COLUMNS.map(({ label }, idx) => (
+                  <th key={`${label}-${idx}`} className="relative border-r border-b border-slate-200 dark:border-white/10 px-2 py-2 align-bottom leading-tight text-left last:border-r-0">
                     {label}
+                    <ColResizeHandle onResize={dx => resizeColumn(idx + 2, dx)} />
                   </th>
                 ))}
               </tr>
@@ -351,8 +444,8 @@ export default function ProjectSummaryMatrix({
 
       {/* ── Body — horizontal scroll only, page handles vertical ── */}
       <div ref={bodyRef} className="flex-1 min-h-0 overflow-x-auto overflow-y-auto no-scrollbar" onScroll={onBodyScroll}>
-        <table className="w-full border-separate border-spacing-0 text-[10px] text-slate-700 dark:text-slate-200" style={{ minWidth: innerWidth }}>
-          <colgroup>{COL_WIDTHS.map((w, i) => <col key={i} style={{ width: w, minWidth: w }} />)}</colgroup>
+        <table className="w-full border-separate border-spacing-0 text-[10px] text-slate-700 dark:text-slate-200" style={{ minWidth: innerWidth, tableLayout: "fixed" }}>
+          <colgroup>{colWidths.map((w, i) => <col key={i} style={{ width: w, minWidth: w }} />)}</colgroup>
           <tbody>
             {summaryGroups.length === 0 ? (
               <tr>
@@ -482,4 +575,6 @@ export default function ProjectSummaryMatrix({
       </div>
     </div>
   );
-}
+});
+
+export default ProjectSummaryMatrix;

@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Search, TableProperties } from "lucide-react";
 import ProjectSummaryMatrix from "./ProjectSummaryMatrix";
 import AnimatedDropdown from "./AnimatedDropdown";
@@ -44,6 +44,7 @@ export default function ProjectSummaryMatrixPage() {
   const [phaseFilter, setPhaseFilter] = useState("ALL");
   const [prioFilter,  setPrioFilter]  = useState("ALL");
   const [picFilter,   setPicFilter]   = useState("ALL");
+  const cardRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetch("/api/projects/gantt", { cache: "no-store" })
@@ -71,6 +72,28 @@ export default function ProjectSummaryMatrixPage() {
     }
     return true;
   }), [projects, search, phaseFilter, prioFilter, picFilter]);
+
+  // Cap the table card at the space left over after the title/toolbar above it
+  // (not the whole page) instead of always forcing it to fill that space — so
+  // a short (e.g. filtered-down) result set shrinks to its actual rows rather
+  // than leaving a tall empty void, while a long list still gets capped there
+  // and scrolls internally instead of overflowing the page.
+  useEffect(() => {
+    const fit = () => {
+      const c = cardRef.current;
+      const parent = c?.parentElement;
+      if (!c || !parent) return;
+      const available = parent.clientHeight - c.offsetTop;
+      c.style.maxHeight = available > 80 ? `${available}px` : "";
+    };
+    const raf = requestAnimationFrame(fit);
+    const t   = setTimeout(fit, 120); // catch layout after page-enter anim
+    // Observe the parent (not the card we resize) to avoid a feedback loop.
+    const ro  = new ResizeObserver(fit);
+    if (cardRef.current?.parentElement) ro.observe(cardRef.current.parentElement);
+    window.addEventListener("resize", fit);
+    return () => { cancelAnimationFrame(raf); clearTimeout(t); ro.disconnect(); window.removeEventListener("resize", fit); };
+  }, [loading, filteredProjects.length]);
 
   const phaseOptions = useMemo(() => [
     { value: "ALL", label: "All Phases" },
@@ -110,10 +133,10 @@ export default function ProjectSummaryMatrixPage() {
       </div>
 
       {/* Toolbar: Search | Filters */}
-      <div className="shrink-0 flex items-center gap-3">
+      <div className="shrink-0 flex flex-wrap gap-2 items-center">
 
-        {/* Search — grows to fill middle */}
-        <div className="flex-1 flex justify-center">
+        {/* Search — left-aligned, capped width so it doesn't stretch the whole row */}
+        <div className="flex items-center gap-2 flex-1 min-w-48">
           <label className="relative w-full max-w-sm">
             <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
             <input
@@ -143,7 +166,7 @@ export default function ProjectSummaryMatrixPage() {
         </div>
       </div>
 
-      <ProjectSummaryMatrix projects={filteredProjects} className="flex-1 min-h-0" />
+      <ProjectSummaryMatrix ref={cardRef} projects={filteredProjects} className="min-h-0" />
     </div>
   );
 }
