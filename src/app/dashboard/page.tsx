@@ -155,8 +155,8 @@ export default function DashboardHome() {
     }
     const entries = [...phaseMap.entries()];
     entries.sort((a, b) => {
-      const ai = PHASE_LIST.findIndex(ph => a[0].toLowerCase().includes(ph.shortLabel.toLowerCase()));
-      const bi = PHASE_LIST.findIndex(ph => b[0].toLowerCase().includes(ph.shortLabel.toLowerCase()));
+      const ai = PHASE_LIST.findIndex(ph => a[0].toLowerCase().includes(ph.label.toLowerCase()));
+      const bi = PHASE_LIST.findIndex(ph => b[0].toLowerCase().includes(ph.label.toLowerCase()));
       if (ai === -1 && bi === -1) return b[1] - a[1];
       if (ai === -1) return 1;
       if (bi === -1) return -1;
@@ -167,7 +167,7 @@ export default function DashboardHome() {
       name,
       count,
       pct: Math.round((count / max) * 100),
-      color: PHASE_LIST.find(ph => name.toLowerCase().includes(ph.shortLabel.toLowerCase()))?.color ?? DEFAULT_PHASE_COLOR,
+      color: PHASE_LIST.find(ph => name.toLowerCase().includes(ph.label.toLowerCase()))?.color ?? DEFAULT_PHASE_COLOR,
     }));
   }, [activeProjects]);
 
