@@ -989,8 +989,8 @@ export default function ProjectGanttDB() {
                         expand/collapse the phase breakdown (bars now always navigate
                         to the detail page instead). */}
                     <div
-                      onClick={() => { if (segments.length > 1) toggleExpanded(p.id); }}
-                      className={`sticky left-0 z-20 shrink-0 w-60 px-3 flex flex-col justify-center overflow-hidden border-r border-slate-200/40 dark:border-white/5 ${segments.length > 1 ? "cursor-pointer" : ""} ${
+                      onClick={() => { if (segments.length > 0) toggleExpanded(p.id); }}
+                      className={`sticky left-0 z-20 shrink-0 w-60 px-3 flex flex-col justify-center overflow-hidden border-r border-slate-200/40 dark:border-white/5 ${segments.length > 0 ? "cursor-pointer" : ""} ${
                         isActiveToday ? "bg-cyan-50 dark:bg-cyan-950 hover:bg-cyan-100 dark:hover:bg-cyan-900"
                         : isInRange   ? "bg-amber-50 dark:bg-amber-950 hover:bg-amber-100 dark:hover:bg-amber-900"
                         : "bg-white dark:bg-zinc-900 hover:bg-slate-50 dark:hover:bg-zinc-800"
@@ -1008,7 +1008,7 @@ export default function ProjectGanttDB() {
                             ● TODAY
                           </span>
                         )}
-                        {segments.length > 1 && (
+                        {segments.length > 0 && (
                           <span
                             title={isExpanded ? "Collapse to current phase" : "Break down all phases"}
                             className="ml-auto shrink-0 p-0.5 rounded text-slate-400"
