@@ -362,16 +362,22 @@ function ProjectReportContent() {
     return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
   });
 
-  // Grouped documents — every phase's uploads, not just the current one
+  // Grouped documents — Brief/Design/Control/Handover uploads only. PM's
+  // files are week-tagged photo/file uploads (phase_id null, source_message_id
+  // like "week-2026-04-27") that already surface under Weekly Progress above,
+  // so they're deliberately excluded here instead of dumping into a "General"
+  // bucket.
   const groupedDocs: Record<string, Document[]> = {};
   for (const d of documents) {
-    const label = (d.phase_id && phaseIdToLabel[d.phase_id]) || "General";
+    const label = d.phase_id ? phaseIdToLabel[d.phase_id] : undefined;
+    if (!label || label === "Project Management") continue;
     (groupedDocs[label] = groupedDocs[label] ?? []).push(d);
   }
   const sortedDocGroups = Object.entries(groupedDocs).sort(([a], [b]) => {
     const ai = PHASE_ORDER.indexOf(a), bi = PHASE_ORDER.indexOf(b);
     return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
   });
+  const visibleDocsCount = sortedDocGroups.reduce((sum, [, docs]) => sum + docs.length, 0);
 
   if (loading) return (
     <div className="flex justify-center items-center min-h-64">
@@ -775,14 +781,15 @@ function ProjectReportContent() {
         </div>
       )}
 
-      {/* ── 6. Documents — every phase's uploads ── */}
-      {documents.length > 0 && (
+      {/* ── 6. Documents — every phase's uploads except PM (its files are
+          week-tagged and already shown under Weekly Progress above) ── */}
+      {visibleDocsCount > 0 && (
         <div className="glass-card p-6">
           <div className="flex items-center gap-2 mb-4">
             <FileText size={15} className="text-slate-400 shrink-0" />
             <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wide">Documents</h3>
             <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-white/8 text-slate-500 dark:text-slate-400">
-              {documents.length}
+              {visibleDocsCount}
             </span>
           </div>
 
