@@ -2,10 +2,9 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
-import { format } from "date-fns";
 import {
   Plus, Pencil, Trash2, X, Eye, EyeOff, Check,
-  AlertCircle, Database, UserCog, Users, History,
+  AlertCircle, Database, UserCog, Users,
 } from "lucide-react";
 import AnimatedDropdown from "@/components/dashboard/AnimatedDropdown";
 
@@ -17,13 +16,8 @@ type Status   = { id: number; entity_type: string; status_code: string; status_l
 type User     = { id: number; email: string; is_active: boolean; created_at: string; full_name: string | null; department: string | null; job_title: string | null; employee_code: string | null; person_id: number | null };
 type Person   = { id: number; employee_code: string | null; full_name: string; nickname: string | null; department: string | null; job_title: string | null; email: string | null; phone_number: string | null; is_active: boolean };
 type Phase    = { id: number; phase_code: string; phase_name: string };
-type LogEntry = {
-  id: number; entity_type: string; entity_id: string | null; field_name: string | null;
-  old_value: string | null; new_value: string | null; change_summary: string | null;
-  changed_by_name: string | null; action_type: string; created_at: string;
-};
 
-type Tab = "units" | "priorities" | "statuses" | "users" | "stakeholders" | "phases" | "activity";
+type Tab = "units" | "priorities" | "statuses" | "users" | "stakeholders" | "phases";
 
 const TABS: { key: Tab; label: string; icon?: React.ElementType }[] = [
   { key: "units",        label: "Units" },
@@ -32,7 +26,6 @@ const TABS: { key: Tab; label: string; icon?: React.ElementType }[] = [
   { key: "users",        label: "User Accounts", icon: UserCog },
   { key: "stakeholders", label: "Stakeholders",  icon: Users },
   { key: "phases",       label: "Phases" },
-  { key: "activity",     label: "Activity Log",  icon: History },
 ];
 
 // ─── Safe fetch helper ────────────────────────────────────────────────────────
@@ -675,89 +668,6 @@ function PhasesSection({ onAddReady }: SectionProps) {
   );
 }
 
-// ─── Section: Activity Log ────────────────────────────────────────────────────
-
-const ENTITY_LABELS: Record<string, string> = {
-  user_account:     "User Account",
-  master_unit:      "Unit",
-  master_priority:  "Priority",
-  master_status:    "Status",
-  master_phase:     "Phase",
-  master_person:    "Stakeholder",
-};
-
-const ACTION_COLOR: Record<string, string> = {
-  master_created:    "bg-green-100 dark:bg-green-500/15 text-growth-green",
-  user_created:       "bg-green-100 dark:bg-green-500/15 text-growth-green",
-  user_activated:      "bg-green-100 dark:bg-green-500/15 text-growth-green",
-  master_updated:      "bg-amber-100 dark:bg-amber-500/15 text-amber-600 dark:text-amber-400",
-  user_deactivated:    "bg-amber-100 dark:bg-amber-500/15 text-amber-600 dark:text-amber-400",
-  password_reset:      "bg-amber-100 dark:bg-amber-500/15 text-amber-600 dark:text-amber-400",
-  master_deleted:      "bg-red-100 dark:bg-red-500/15 text-alert-red",
-  user_deleted:        "bg-red-100 dark:bg-red-500/15 text-alert-red",
-};
-
-function ActivityLogSection() {
-  const [data, setData] = useState<LogEntry[]>([]);
-  const [entityFilter, setEntityFilter] = useState("ALL");
-  const [loading, setLoading] = useState(false);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    const qs = entityFilter === "ALL" ? "" : `?entity_type=${entityFilter}`;
-    const j = await safeFetch(`/api/audit/global${qs}`);
-    if (j?.success) setData(j.data);
-    setLoading(false);
-  }, [entityFilter]);
-  useEffect(() => { load(); }, [load]);
-
-  return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <p className="text-xs text-slate-500 dark:text-slate-400">
-          Perubahan pada akun user dan data master (unit, prioritas, status, fase, stakeholder).
-        </p>
-        <AnimatedDropdown
-          value={entityFilter}
-          onChange={setEntityFilter}
-          minWidth={160}
-          align="right"
-          options={[
-            { value: "ALL", label: "All Activity" },
-            ...Object.entries(ENTITY_LABELS).map(([value, label]) => ({ value, label })),
-          ]}
-        />
-      </div>
-
-      {loading ? (
-        <div className="flex justify-center py-12">
-          <div className="w-5 h-5 border-2 border-brand-sienna/40 border-t-brand-sienna rounded-full animate-spin" />
-        </div>
-      ) : data.length === 0 ? (
-        <div className="rounded-lg border border-slate-200 dark:border-white/8 px-4 py-8 text-center text-xs text-slate-400 dark:text-slate-500">
-          No activity recorded yet.
-        </div>
-      ) : (
-        <div className="rounded-lg border border-slate-200 dark:border-white/8 divide-y divide-slate-100 dark:divide-white/5 overflow-hidden">
-          {data.map(log => (
-            <div key={log.id} className="flex items-start gap-3 px-4 py-3">
-              <span className={`shrink-0 mt-0.5 text-[9px] font-bold uppercase tracking-wide px-2 py-1 rounded-full ${ACTION_COLOR[log.action_type] ?? "bg-slate-100 dark:bg-white/8 text-slate-500 dark:text-slate-400"}`}>
-                {ENTITY_LABELS[log.entity_type] ?? log.entity_type}
-              </span>
-              <div className="flex-1 min-w-0">
-                <p className="text-[12px] text-slate-700 dark:text-slate-200">{log.change_summary}</p>
-                <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">
-                  {log.changed_by_name ?? "Unknown"} · {format(new Date(log.created_at), "dd MMM yyyy, HH:mm")}
-                </p>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 type SectionProps = { onAddReady: (fn: () => void) => void };
@@ -770,7 +680,6 @@ function renderSection(tab: Tab, props: SectionProps) {
     case "users":        return <UsersSection        {...props} />;
     case "stakeholders": return <StakeholdersSection {...props} />;
     case "phases":       return <PhasesSection       {...props} />;
-    case "activity":     return <ActivityLogSection />;
   }
 }
 
@@ -810,16 +719,14 @@ export default function MasterSetupPage() {
               </button>
             ))}
           </div>
-          {tab !== "activity" && (
-            <div className="px-4 shrink-0">
-              <button
-                onClick={() => addFnRef.current?.()}
-                className="glass-btn-primary flex items-center gap-1.5 px-3.5! py-2! text-xs font-semibold"
-              >
-                <Plus size={13} /> Add
-              </button>
-            </div>
-          )}
+          <div className="px-4 shrink-0">
+            <button
+              onClick={() => addFnRef.current?.()}
+              className="glass-btn-primary flex items-center gap-1.5 px-3.5! py-2! text-xs font-semibold"
+            >
+              <Plus size={13} /> Add
+            </button>
+          </div>
         </div>
 
         {/* Section body */}
