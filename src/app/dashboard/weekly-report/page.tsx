@@ -19,7 +19,6 @@ type ProjectMeta = {
   status_color: string | null;
   current_phase_name: string | null;
   current_phase_code: string | null;
-  overall_progress_pct: string | null;
   pm_start: string | null;
   pm_end: string | null;
   start_date: string | null;
@@ -189,8 +188,6 @@ export default function WeeklyReportPage() {
             const start = p.pm_start ?? p.start_date;
             const end   = p.pm_end   ?? p.end_date;
 
-            const progress = Number(p.overall_progress_pct ?? 0);
-
             return (
               <button
                 key={p.id}
@@ -235,20 +232,6 @@ export default function WeeklyReportPage() {
                       <CalendarRange size={10} className="shrink-0" />
                       <span>{start ? `${fmtShort(start)}${end && end !== start ? ` – ${fmtShort(end)}` : ""}` : <span className="text-slate-300 dark:text-slate-700">—</span>}</span>
                     </div>
-                  </div>
-                </div>
-
-                {/* Footer — always shown, consistent height */}
-                <div className="px-4 pb-4 pt-3 border-t border-slate-100 dark:border-white/6 shrink-0">
-                  <div className="flex items-center justify-between text-[9px] text-slate-400 dark:text-slate-500 mb-1.5">
-                    <span className="uppercase tracking-widest font-semibold">Overall Progress</span>
-                    <span className="font-bold text-slate-600 dark:text-slate-300">{progress.toFixed(1)}%</span>
-                  </div>
-                  <div className="h-1.5 rounded-full bg-slate-100 dark:bg-white/6 overflow-hidden">
-                    <div
-                      className="h-full rounded-full transition-all duration-500"
-                      style={{ width: `${Math.min(100, progress)}%`, backgroundColor: phaseColor }}
-                    />
                   </div>
                 </div>
               </button>

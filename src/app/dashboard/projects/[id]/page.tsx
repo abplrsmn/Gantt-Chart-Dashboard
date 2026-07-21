@@ -964,6 +964,8 @@ function ProjectDetailContent() {
     ? "/dashboard/projects/summary-matrix"
     : fromParam === "completed"
     ? "/dashboard/projects/list?tab=completed"
+    : fromParam === "weekly"
+    ? `/dashboard/weekly-report/${id}`
     : "/dashboard/projects/gantt";
 
   const [project, setProject] = useState<ProjectDetail | null>(null);

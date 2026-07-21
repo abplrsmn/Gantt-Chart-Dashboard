@@ -36,7 +36,6 @@ type Project = {
   id: string;
   project_code: string;
   project_name: string;
-  overall_progress_pct: string | null;
   address: string | null;
   summary_brief: string | null;
   unit_name: string | null;
@@ -65,6 +64,10 @@ type Project = {
 type Photo = { id: string; file_name: string; file_url: string; mime_type: string | null; uploaded_by_name: string | null };
 type WeekProgress = { plan_pct: number; actual_pct: number; status: string };
 type SubTask = { id: string; title: string; progress_pct: number; phase_id: string | null; raw_assignee_name: string | null; raw_assigned_by_name: string | null };
+type Document = {
+  id: string; file_name: string; file_url: string | null; mime_type: string | null;
+  file_size_bytes: string | null; uploaded_by_name: string | null; phase_id: string | null;
+};
 
 type STask = { id: string; name: string; bobot: number; weeklyPlan: Record<string, number> };
 type SStep = { id: string; letter: string; name: string; step_order: number; tasks: STask[] };
@@ -101,6 +104,14 @@ function isImageFile(f: { mime_type: string | null; file_name: string }) {
 }
 function isPdfFile(f: { mime_type: string | null; file_name: string }) {
   return f.mime_type === "application/pdf" || /\.pdf$/i.test(f.file_name);
+}
+function fmtBytes(v: string | null): string {
+  if (!v) return "";
+  const n = Number(v);
+  if (isNaN(n) || n === 0) return "";
+  if (n < 1024) return `${n} B`;
+  if (n < 1_048_576) return `${(n / 1024).toFixed(0)} KB`;
+  return `${(n / 1_048_576).toFixed(1)} MB`;
 }
 
 function buildWeeks(startRaw: string | null, endRaw: string | null) {
@@ -238,6 +249,7 @@ function ProjectReportContent() {
   const [project,  setProject]  = useState<Project | null>(null);
   const [people,   setPeople]   = useState<Person[]>([]);
   const [tasks,    setTasks]    = useState<SubTask[]>([]);
+  const [documents, setDocuments] = useState<Document[]>([]);
   const [photos,   setPhotos]   = useState<Photo[]>([]);
   const [weekProg, setWeekProg] = useState<WeekProgress | null>(null);
   const [scSteps,  setScSteps]  = useState<SStep[]>([]);
@@ -259,6 +271,7 @@ function ProjectReportContent() {
       if (detailRes.success) {
         setProject(detailRes.data.project);
         setPeople(detailRes.data.people ?? []);
+        setDocuments(detailRes.data.attachments ?? []);
         const p = detailRes.data.project;
         setPhaseIdToLabel({
           [p.brief_phase_row_id]:    "Operational Brief",
@@ -349,6 +362,17 @@ function ProjectReportContent() {
     return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
   });
 
+  // Grouped documents — every phase's uploads, not just the current one
+  const groupedDocs: Record<string, Document[]> = {};
+  for (const d of documents) {
+    const label = (d.phase_id && phaseIdToLabel[d.phase_id]) || "General";
+    (groupedDocs[label] = groupedDocs[label] ?? []).push(d);
+  }
+  const sortedDocGroups = Object.entries(groupedDocs).sort(([a], [b]) => {
+    const ai = PHASE_ORDER.indexOf(a), bi = PHASE_ORDER.indexOf(b);
+    return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+  });
+
   if (loading) return (
     <div className="flex justify-center items-center min-h-64">
       <div className="w-7 h-7 border-2 border-brand-sienna/40 border-t-brand-sienna rounded-full animate-spin" />
@@ -390,7 +414,7 @@ function ProjectReportContent() {
           <ArrowLeft size={15} /> Weekly Report
         </button>
         <button
-          onClick={() => router.push(`/dashboard/projects/${project.id}`)}
+          onClick={() => router.push(`/dashboard/projects/${project.id}?from=weekly`)}
           className="flex items-center gap-1.5 text-xs font-semibold text-slate-400 hover:text-brand-sienna transition-colors"
         >
           <ExternalLink size={12} /> Open Project
@@ -450,6 +474,19 @@ function ProjectReportContent() {
               </div>
             )}
 
+            {/* Summary — pinned to the left column so it sits level with
+                Stakeholders on the right, regardless of what else is present
+                in the grid (Location may be absent). */}
+            {project.summary_brief && (
+              <div className="flex items-start gap-2.5 sm:col-start-1">
+                <Building2 size={13} className="text-slate-400 mt-0.5 shrink-0" />
+                <div>
+                  <p className="text-[9px] uppercase tracking-widest text-slate-400 font-semibold mb-0.5">Summary</p>
+                  <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">{project.summary_brief}</p>
+                </div>
+              </div>
+            )}
+
             {/* Stakeholders — pinned to the right column regardless of what
                 else is present in the grid (PIC used to occupy the left cell
                 on this row; now Stakeholders must not fall into it instead). */}
@@ -469,28 +506,6 @@ function ProjectReportContent() {
                 </div>
               </div>
             )}
-
-            {/* Summary */}
-            {project.summary_brief && (
-              <div className="sm:col-span-2 flex items-start gap-2.5">
-                <Building2 size={13} className="text-slate-400 mt-0.5 shrink-0" />
-                <div>
-                  <p className="text-[9px] uppercase tracking-widest text-slate-400 font-semibold mb-0.5">Summary</p>
-                  <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">{project.summary_brief}</p>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Overall progress */}
-          <div className="mt-5 pt-4 border-t border-slate-100 dark:border-white/6">
-            <div className="flex justify-between text-[10px] text-slate-400 mb-1.5">
-              <span className="uppercase tracking-widest font-semibold">Overall Progress</span>
-              <span className="font-bold text-slate-600 dark:text-slate-300">{Number(project.overall_progress_pct ?? 0).toFixed(1)}%</span>
-            </div>
-            <div className="h-2 rounded-full bg-slate-100 dark:bg-white/6 overflow-hidden">
-              <div className="h-full rounded-full transition-all duration-700" style={{ width: `${Math.min(100, Number(project.overall_progress_pct ?? 0))}%`, backgroundColor: phaseColor }} />
-            </div>
           </div>
         </div>
       </div>
@@ -753,6 +768,46 @@ function ProjectReportContent() {
                       </div>
                     );
                   })}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── 6. Documents — every phase's uploads ── */}
+      {documents.length > 0 && (
+        <div className="glass-card p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <FileText size={15} className="text-slate-400 shrink-0" />
+            <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wide">Documents</h3>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-white/8 text-slate-500 dark:text-slate-400">
+              {documents.length}
+            </span>
+          </div>
+
+          <div className="space-y-5">
+            {sortedDocGroups.map(([phase, phaseDocs]) => (
+              <div key={phase}>
+                <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-2">{phase}</p>
+                <div className="space-y-0.5">
+                  {phaseDocs.map(d => (
+                    <a
+                      key={d.id}
+                      href={d.file_url ?? "#"}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex items-center gap-2 group rounded-lg px-3 py-2 hover:bg-slate-50 dark:hover:bg-white/4 transition-colors"
+                    >
+                      <FileText size={13} className={isPdfFile(d) ? "text-red-500 shrink-0" : "text-slate-400 shrink-0"} />
+                      <span className="flex-1 text-sm text-slate-600 dark:text-slate-300 truncate group-hover:text-amber-600 dark:group-hover:text-amber-400 group-hover:underline transition-colors">
+                        {d.file_name}
+                      </span>
+                      {d.file_size_bytes && (
+                        <span className="text-[10px] text-slate-400 shrink-0">{fmtBytes(d.file_size_bytes)}</span>
+                      )}
+                    </a>
+                  ))}
                 </div>
               </div>
             ))}
