@@ -372,11 +372,11 @@ const ProjectSummaryMatrix = forwardRef<HTMLDivElement, Props>(function ProjectS
                   Description
                   <ColResizeHandle onResize={dx => resizeColumn(1, dx)} />
                 </th>
-                <th colSpan={5} className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2 text-left bg-slate-200/70 dark:bg-zinc-800/80">Operational Brief (PR)</th>
-                <th colSpan={7} className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2 text-left bg-blue-100/70 dark:bg-blue-950/30">Design (HoD)</th>
-                <th colSpan={8} className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2 text-left bg-amber-100/80 dark:bg-amber-950/30">Project Control</th>
-                <th colSpan={7} className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2 text-left bg-teal-100/70 dark:bg-teal-950/30">Project Management Team</th>
-                <th colSpan={4} className="border-b border-slate-200 dark:border-white/10 px-2 py-2 text-left bg-emerald-100/70 dark:bg-emerald-950/30">Handover</th>
+                <th colSpan={5} className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2 text-center bg-slate-200/70 dark:bg-zinc-800/80">Operational Brief (PR)</th>
+                <th colSpan={7} className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2 text-center bg-blue-100/70 dark:bg-blue-950/30">Design (HoD)</th>
+                <th colSpan={8} className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2 text-center bg-amber-100/80 dark:bg-amber-950/30">Project Control</th>
+                <th colSpan={7} className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2 text-center bg-teal-100/70 dark:bg-teal-950/30">Project Management Team</th>
+                <th colSpan={4} className="border-b border-slate-200 dark:border-white/10 px-2 py-2 text-center bg-emerald-100/70 dark:bg-emerald-950/30">Handover</th>
               </tr>
               <tr className="bg-white dark:bg-zinc-950 text-[9px] uppercase tracking-wide text-slate-500 dark:text-slate-400">
                 {DATA_COLUMNS.map(({ label }, idx) => (
