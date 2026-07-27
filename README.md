@@ -315,12 +315,6 @@ Zero-dependency regex-based NLP. Parses free-text commands in English and Bahasa
 ### Google Chat (`src/lib/gchat.ts`)
 Simple webhook POST — sends `{ text }` to `GCHAT_WEBHOOK_URL`.
 
-### OpenClaw / Telegram (`src/lib/openclaw.ts`)
-HTTP POST to `OPENCLAW_WEBHOOK_URL` with `{ groupId, message }` and optional `x-api-key` header. Powers the Telegram AI agent that translates chat commands into ClickUp/GCal API actions using the system prompt defined in `docs/openclaw-system-prompt.md`.
-
-### AI Telemetry (`/api/ai-telemetry`)
-Tracks token usage and estimated cost across providers (Claude, GPT-4, DeepSeek) for OpenClaw agent sessions.
-
 ### Meeting Scheduling (`/api/meetings/schedule`)
 `POST` with normalized meeting input → creates Google Calendar event. Uses `src/lib/meeting.ts` for timezone-aware datetime construction (`Asia/Jakarta`).
 
@@ -358,7 +352,7 @@ Cron / external trigger → POST /api/capex/reminder (or reminder-logs)
   └→ getDailyProjectSummary()
        └→ Buckets projects: handover / inProgress / nearDeadline / overdue
             └→ formatDailySummary() → markdown text
-                 └→ sendOpenClawMessage() → Telegram group
+                 └→ sendProjectSummaryToGroupChat() → currently logs the payload (Telegram send is stubbed)
                       └→ INSERT chat_reminder_logs (audit, dedupe_key)
 ```
 
@@ -366,7 +360,12 @@ Cron / external trigger → POST /api/capex/reminder (or reminder-logs)
 
 ## Environment Variables
 
-Lihat `docs/ENV_README.md` untuk setup lengkap.
+- **Database**: `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`, `PGDATABASE`
+- **Auth**: `AUTH_SECRET`, `AUTH_URL`, `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET`
+- **Google Calendar**: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REFRESH_TOKEN`
+- **Notifications**: `GCHAT_WEBHOOK_URL`, `TELEGRAM_SUMMARY_CHAT_IDS`, `TELEGRAM_REMINDER_CHAT_IDS`, `ALERT_NOTIFY_SECRET`
+
+Never commit `.env` or other secret files.
 
 ---
 
@@ -389,8 +388,8 @@ npm install
 # 1. create_master_acc.sql  — accounts table + admin seed
 # 2. create_chat_reminder_logs.sql — reminder audit table
 
-# Seed initial data
-node seed_postgres.js
+# Import real project data from the SUMMARY sheet (see scripts/parse_summary.py first)
+node scripts/import_summary.mjs --commit
 ```
 
 ### Migrate Passwords (first run if upgrading from plaintext)
@@ -468,19 +467,16 @@ npm run start
 │       ├── project-summary-send.ts # Telegram/notification dispatch
 │       ├── ops-intent.ts           # NLP parser (EN + ID)
 │       ├── meeting.ts              # Meeting normalization
-│       ├── gchat.ts                # Google Chat sender
-│       └── openclaw.ts             # OpenClaw/Telegram sender
+│       └── gchat.ts                # Google Chat sender
 ├── scripts/
 │   ├── create_master_acc.sql       # Account table schema
 │   ├── create_chat_reminder_logs.sql # Reminder audit schema
 │   ├── migrate_pw_to_bcrypt.js     # One-time password migration
-│   ├── memory-recall.js            # AI context memory indexer
-│   └── skill-evolution.js          # Skill pipeline
+│   ├── parse_summary.py            # SUMMARY sheet → JSON
+│   └── import_summary.mjs          # SUMMARY JSON → DB (projects + phases)
 ├── docs/                           # Project documentation
-├── data/                           # Normalized CSV exports
 ├── middleware.ts                   # Auth + RBAC middleware
-├── next.config.ts
-└── seed_postgres.js                # Database seeder
+└── next.config.ts
 ```
 
 ---
@@ -491,7 +487,7 @@ npm run start
 - **`z-20` on sticky columns** vs `z-10` on Gantt overlay — prevents today indicator line from bleeding through sticky column during horizontal scroll
 - **`overflow-hidden` on Gantt overlay container** — clips any absolutely-positioned children (today line, range indicators) at the timeline boundary
 - **Solid backgrounds on sticky cells** — semi-transparent backgrounds allow Gantt bars and row highlights to show through on scroll; all sticky elements use fully opaque backgrounds
-- **`force-dynamic`** on all API routes — bypasses Next.js route cache so ClickUp/DB updates reflect instantly
+- **`force-dynamic`** on all API routes — bypasses Next.js route cache so DB updates reflect instantly
 - **`SET jit = off`** on Gantt query connection — PostgreSQL JIT compilation adds seconds of overhead for this type of wide dashboard JOIN; disabling it drops latency to milliseconds
 - **`entity_type = 'project'`** required on `project_change_logs` and `master_statuses` — both tables have NOT NULL constraints; omitting this field silently fails the INSERT
 
