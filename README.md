@@ -1,532 +1,149 @@
-# Keystone
-*Full-stack Capital Project Monitoring & Operations Command Center*
-
----
-
-## Overview
-
-A custom-built, full-stack **CAPEX (Capital Expenditure) Project Management Dashboard**. The system provides end-to-end visibility across all capital projects — from initial brief through design, procurement, execution, and final handover — with live data, interactive Gantt charts, S-curve tracking, and AI-assisted operations.
-
----
-
-### Current project status
-
-This repository is an active development project. The main dashboard, project lifecycle, master-data, audit, team, chat, attachment, S-Curve, and AI-assistant features are implemented, but production hardening is still required before exposing the system publicly.
-
-Operational notes:
-
-- PostgreSQL must be configured through `DATABASE_URL` or the `PG*` environment variables.
-- Database schema changes are supplied as scripts in `scripts/` and should be applied before starting the application.
-- Uploaded files currently use local storage under `public/uploads/`; use protected object storage for multi-instance production deployments.
-- The production build currently requires network access for `next/font/google`, unless the font is changed to a local or system font.
-- No automated test suite is currently included.
-
-## Tech Stack
-
-| Layer | Technology |
-|-------|-----------|
-| Framework | Next.js 16.2 (App Router, `force-dynamic`) |
-| Frontend | React 19, Tailwind CSS 4 |
-| Charts | Recharts, Chart.js, Three.js (3D) |
-| Backend | Next.js Route Handlers (Node.js runtime) |
-| Database | PostgreSQL (via `pg` connection pool) |
-| Auth | Custom HMAC-SHA256 signed cookie token |
-| Password | bcryptjs (cost 12) |
-| Integrations | Google Calendar, Google Chat webhook, Gemini API |
-| Icons | Lucide React |
-| Date Utils | date-fns |
-
----
-
-## Architecture
-
-```
-Browser
-      │
-      ├─ Next.js App Router (pages + API routes)
-      │       ├─ /dashboard/*          → React client pages
-      │       └─ /api/*                → Server Route Handlers
-      │
-      ├─ middleware.ts                  → HMAC auth + role-based access
-      │
-      ├─ PostgreSQL (pg pool)          → primary data store
-      │
-      └─ External APIs
-              ├─ Google Calendar       → meeting scheduling
-              ├─ Google Chat webhook   → push notifications
-              └─ Gemini API            → dashboard AI assistant
-```
-
----
-
-## Authentication & Authorization
-
-### Flow
-1. User POSTs `email` + `password` to `/api/auth/login`
-2. Server fetches user by email, runs `bcrypt.compare(password, hash)`
-3. On success: creates HMAC-SHA256 signed cookie (`auth_token`, 30-day expiry)
-4. Token format: `base64url(payload).hmac_sha256_hex`
-5. `middleware.ts` verifies token on every request to `/dashboard/*` and selected `/api/*` routes
-
-All authenticated accounts have identical access — there is no role distinction.
-
-### Relevant Files
-- `src/lib/auth.ts` — token encode/decode, `authenticateUser()`, `createAuthCookie()`
-- `middleware.ts` — route protection
-- `src/app/api/auth/login/route.ts` — login handler
-- `src/app/api/auth/logout/route.ts` — logout handler
-
----
-
-## Database Schema
-
-### Core Tables
-
-#### `projects`
-Primary project record.
-```
-id, project_code, project_name
-unit_id → master_units
-priority_id → master_priorities
-current_phase_id → master_phases
-overall_status_id → master_statuses
-category_id → master_project_categories
-start_date, end_date
-overall_progress_pct, summary_brief, contract_amount
-address, blocker_note, next_action_note
-created_at, updated_at
-```
-
-#### `project_phases`
-One row per phase per project (5 rows per project). Each phase has its own set of date columns:
-
-| Phase | Start Column | End Column |
-|-------|-------------|-----------|
-| Operational Brief | `received_date` | `normalized_deadline_date` |
-| Design | `start_design_date` | `design_approval_date` |
-| Project Control | `tender_start_date` | `aps_spk_released_date` |
-| Project Management | `commence_date` | `end_contract_date` |
-| Handover | `bast_1_date` | `bast_2_date` |
-
-Also carries: `progress_pct`, `notes`, `brief_text`, `actual_phase_completion_date`, `current_site_progress`, `deviation_days`, `budget_capex`, `phase_contract_amount`, `working_drawing_status`
-
-#### S-Curve Tracking
-```
-scurve_steps       — id, project_id, letter (A–Q), name, step_order
-scurve_tasks       — id, step_id, project_id, name, unit, vol,
-                     bobot NUMERIC(9,5), task_order
-scurve_task_weeks  — id, task_id, week_date, plan_pct NUMERIC(9,5),
-                     actual_pct NUMERIC(9,5), UNIQUE(task_id, week_date)
-```
-Nested hierarchy **step → task → weekly plan/actual**. Weekly values are
-stored at full precision (`NUMERIC(9,5)`) and displayed rounded to 2 dp so
-per-cell numbers match the source Excel while the cumulative still sums to
-100%. Populated either manually in the S-curve grid or via the Excel
-importer (see below). Created by `scripts/migrate-scurve.mjs`.
-
-> **Note:** `project_tasks` / `project_task_progress_periods` were an earlier,
-> disconnected attempt and are no longer read by the S-curve UI.
-
-#### Excel Import (TIME SCHEDULE format)
-`ScurveImportModal` parses a "TIME SCHEDULE" workbook (BOBOT column,
-sections A–Q, per-task UNIT & VOL, weekly period columns). A row becomes a
-task when its `NO.` is an uppercase letter **or** a digit **and** its BOBOT
-> 0 — section headers with weight become the step's task; zero-weight
-sub-items are skipped. Excel date serials are converted timezone-safely so
-weekly values land on the correct Mondays. Import replaces all existing
-S-curve data for the project; a double-confirmation "Hapus S-Curve" button
-wipes it.
-
-#### Master / Lookup Tables
-```
-master_phases           — id, phase_code, phase_name, phase_order
-master_priorities       — id, priority_code, priority_name, color_hex, level (1=Critical…4=Low)
-master_statuses         — id, entity_type, status_code, status_label, color
-master_units            — id, unit_code, unit_name
-master_project_categories — id, category_code, category_name
-master_roles            — id, role_name
-master_people           — id, employee_code, full_name, nickname, department, job_title, email
-master_acc              — id, person_id, email, password_hash, is_active
-```
-
-#### Relational / Audit Tables
-```
-project_people          — id, project_id, phase_id, raw_person_name, raw_organization_name
-project_change_logs     — id, project_id, entity_type, action_type, field_name,
-                          old_value, new_value, change_summary, changed_by_name, created_at
-chat_reminder_logs      — id, channel, target_type, reminder_type, message_body,
-                          message_payload (jsonb), dedupe_key, run_key, is_simulated
-```
-
----
-
-## API Routes
-
-### Auth
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/auth/login` | Validate bcrypt password, issue auth cookie |
-| POST | `/api/auth/logout` | Clear auth cookie |
-
-### Projects
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/projects` | (not listed — use gantt) |
-| POST | `/api/projects` | Create project + auto-seed 5 phase rows + audit log |
-| GET | `/api/projects/[id]` | Full project detail with all phase data |
-| PATCH | `/api/projects/[id]` | Update single field (role-gated), writes audit log |
-| DELETE | `/api/projects/[id]` | Delete project, best-effort audit log |
-| GET | `/api/projects/gantt` | All projects with phase pivots + S-curve CTE |
-| GET | `/api/projects/[id]/scurve` | S-curve data by period (chart CTE) |
-| GET | `/api/projects/[id]/scurve-steps` | Nested steps → tasks → weekly plan/actual |
-| POST | `/api/projects/[id]/scurve-steps` | Create a step |
-| PATCH/DELETE | `/api/projects/[id]/scurve-steps/[stepId]` | Rename / delete a step |
-| POST | `/api/projects/[id]/scurve-tasks` | Create a task under a step |
-| PATCH/DELETE | `/api/projects/[id]/scurve-tasks/[taskId]` | Edit / delete a task |
-| PATCH | `/api/projects/[id]/scurve-weeks` | Upsert one week's `plan` or `actual` value |
-| POST | `/api/projects/[id]/scurve-import` | Import full S-curve from parsed Excel (replaces existing; auto-widens numeric precision) |
-| DELETE | `/api/projects/[id]/scurve-import` | Wipe all S-curve data for the project |
-| GET | `/api/projects/[id]/audit` | Paginated change log |
-| POST | `/api/projects/[id]/audit` | Manual audit log entry |
-| GET | `/api/projects/[id]/attachments` | List file attachments |
-| POST/DELETE | `/api/projects/[id]/attachments` | Add/remove attachment |
-| GET | `/api/projects/[id]/people` | Team members on project |
-| POST/DELETE | `/api/projects/[id]/people` | Assign/remove team member |
-
-### Master Data
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/master/options` | Units, phases, priorities, statuses — auto-seeds defaults if missing |
-
-### Operations & AI
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/ops/plan` | Parse free-text ops command → structured intent |
-| POST | `/api/meetings/schedule` | Schedule Google Calendar event |
-| GET | `/api/reminder-logs/latest` | Latest reminder summary |
-
----
-
-## Frontend Routes
-
-| Route | Component | Purpose |
-|-------|-----------|---------|
-| `/dashboard` | `page.tsx` | KPI cards, performance chart, active projects, reminder feed |
-| `/dashboard/projects` | `projects/page.tsx` | Project list with date range filter |
-| `/dashboard/projects/gantt` | `ProjectGanttDB` | Interactive Gantt chart (drag-to-reschedule, filters, S-curve) |
-| `/dashboard/projects/list` | `projects/list/page.tsx` | Tabular project list |
-| `/dashboard/projects/summary-matrix` | `ProjectSummaryMatrix` | Excel-style phase × project matrix with inline editing |
-| `/dashboard/projects/[id]` | `projects/[id]/page.tsx` | Project detail — full edit, phase management, S-curve, audit |
-| `/dashboard/projects/[id]/audit` | `audit/page.tsx` | Change audit log |
-| `/dashboard/projects/[id]/weekly-progress` | `weekly-progress/page.tsx` | Weekly task completion tracking |
-| `/dashboard/alerts` | `alerts/page.tsx` | Alert/notification dashboard |
-| `/dashboard/performance` | `performance/page.tsx` | KPI & performance metrics |
-| `/dashboard/team/[teamName]` | `team/[teamName]/page.tsx` | Team-specific task view |
-| `/dashboard/controls` | `controls/page.tsx` | System controls & settings |
-
----
-
-## Core Logic
-
-### 1. Project Phase System
-
-Every project has exactly **5 phases** in fixed order:
-
-```
-1. Operational Brief  →  2. Design  →  3. Project Control  →  4. Project Management  →  5. Handover
-```
-
-- Each phase stored as a separate row in `project_phases` with its own date columns
-- `projects.current_phase_id` tracks active phase
-- Phase creation is automatic: `POST /api/projects` inserts all 5 rows with `progress_pct = 0`
-- Phase date columns are phase-specific (see schema above)
-
-### 2. Gantt Chart Logic (`ProjectGanttDB.tsx`)
-
-**Data flow:**
-```
-GET /api/projects/gantt
-  └→ SQL: projects JOIN all 5 phase pivots + S-curve CTE
-       └→ Each project row contains all phase dates + S-curve latest
-            └→ Frontend builds visual segments per phase
-```
-
-**Phase bar rendering:**
-- Each project renders multiple phase bars across the timeline
-- Bar position: `(phaseStart - timelineStart) / totalDays * 100%`
-- Bar width: `(phaseEnd - phaseStart) / totalDays * 100%`
-- Drag-to-reschedule: mousedown → mousemove → PATCH `/api/projects/[id]` with new dates
-
-**Progress calculation (fallback chain):**
-1. Extract `XX%` from `current_site_progress` text
-2. Keyword match: `"defect"→95`, `"finishing"→90`, `"resume"→60`, `"start"→10`, `"mobilization"→5`
-3. Time-elapsed ratio: `(today − commence) / (end_contract − commence)` capped at 95%
-4. `actual_phase_completion_date` exists → 100%
-
-**Deadline risk:**
-```
-daysRemaining < 0   → overdue
-daysRemaining ≤ 14  → near
-else                → normal
-```
-
-**Today indicator:** Vertical red dashed line at `(today − timelineStart) / totalDays * 100%`. Clipped by `overflow-hidden` on the overlay container; sticky column uses `z-20` above overlay `z-10` and solid background to prevent bleed-through on scroll.
-
-**Priority color config:**
-```
-CRITICAL → #ef4444   HIGH → #f97316   MID → #eab308   LOW → #22c55e
-```
-
-### 3. S-Curve (`/api/projects/gantt` CTE)
-
-Window function accumulates `planned_weight` and `actual_weight` by `period_order`:
-
-```sql
-SUM(SUM(planned_weight)) OVER (PARTITION BY project_id ORDER BY period_order) AS target_progress
-SUM(SUM(actual_weight))  OVER (PARTITION BY project_id ORDER BY period_order) AS actual_progress
-```
-
-Returns cumulative `target_progress`, `actual_progress`, and `progress_variance` for each project.
-
-### 4. Summary Matrix (`ProjectSummaryMatrix.tsx`)
-
-- Fetches same Gantt data from `/api/projects/gantt`
-- Renders as wide horizontal table (min-width 2200px) with sticky Unit + Description columns
-- Uses `border-separate border-spacing-0` (NOT `border-collapse`) to prevent sticky column rendering gaps
-- All cells are inline-editable via `InlineCell` component → PATCH `/api/projects/[id]`
-- Filters: Phase, Priority, text search (all derived from loaded data, no extra API call)
-
-### 5. Audit Log
-
-Every data change writes to `project_change_logs`:
-- **Field**: `entity_type = 'project'` (required NOT NULL)
-- **Who**: `changed_by_name` from `getAuthUserFromCookie()` → `user.fullName ?? user.email ?? 'System'`
-- **What**: `field_name`, `old_value`, `new_value`, `change_summary`, `action_type`
-- Action types: `project_created`, `project_updated`, `field_updated`, `phase_updated`, `progress_updated`, `deadline_delayed`, `deadline_accelerated`, `attachment_added`, `project_deleted`
-
----
-
-## AI & Automation Layer
-
-### NLP Intent Parser (`src/lib/ops-intent.ts`)
-
-Zero-dependency regex-based NLP. Parses free-text commands in English and Bahasa Indonesia into structured `ParsedIntent` objects.
-
-**Three parse strategies (in order):**
-1. **Pipe format**: `TASK | title = X | deadline = Y | team = Z`
-2. **Key-value block**: Multi-line `key: value` pairs
-3. **Natural language**: Pattern-matching with Indonesian/English weekday and month normalization
-
-**Output intents:** `meeting`, `task`, `project`, `unknown`
-
-**Date parsing supports:** ISO dates, named dates (`hari ini`, `besok`, `lusa`), weekdays in EN/ID (`monday`/`senin`), full date strings (`15 Juni 2026`)
-
-**Time parsing supports:** `HH:MM`, `jam 9 siang`, `nanti sore` → `16:00`, `nanti malam` → `19:00`
-
-### Google Chat (`src/lib/gchat.ts`)
-Simple webhook POST — sends `{ text }` to `GCHAT_WEBHOOK_URL`.
-
-### Meeting Scheduling (`/api/meetings/schedule`)
-`POST` with normalized meeting input → creates Google Calendar event. Uses `src/lib/meeting.ts` for timezone-aware datetime construction (`Asia/Jakarta`).
-
----
-
-## Project Creation Workflow
-
-```
-User fills AddProjectModal
-  └→ POST /api/projects
-       ├─ Resolve unit_name → unit_id (ILIKE match on master_units)
-       ├─ generateCode(name) → "ABC-2026-472" format
-       ├─ INSERT projects (progress=0)
-       ├─ INSERT 5 project_phases rows (all phases, progress=0)
-       ├─ UPDATE phase date cols for selected current_phase
-       ├─ UPDATE extra_phases dates if provided
-       └─ INSERT project_change_logs (entity_type='project', action_type='project_created')
-```
-
-## Field Update Workflow
-
-```
-User edits field in project detail
-  └→ PATCH /api/projects/[id] { field, value, change_summary }
-       ├─ Lookup field in FIELD_MAP → { table, column, phaseId? }
-       ├─ Capture old_value from DB
-       ├─ UPDATE projects or project_phases
-       └─ INSERT project_change_logs (entity_type='project', action_type='field_updated')
-```
-
-## Reminder Workflow
-
-```
-Cron / external trigger → POST /api/capex/reminder (or reminder-logs)
-  └→ getDailyProjectSummary()
-       └→ Buckets projects: handover / inProgress / nearDeadline / overdue
-            └→ formatDailySummary() → markdown text
-                 └→ sendProjectSummaryToGroupChat() → formats/logs the configured notification payload
-                      └→ INSERT chat_reminder_logs (audit, dedupe_key)
-```
-
----
-
-## Environment Variables
-
-- **Database**: `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`, `PGDATABASE`
-- **Auth**: `AUTH_SECRET`, `AUTH_URL`, `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET`
-- **Google Calendar**: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REFRESH_TOKEN`
-- **Notifications**: `GCHAT_WEBHOOK_URL`, `ALERT_NOTIFY_SECRET`
-- **AI**: `GEMINI_API_KEY`, optional `GEMINI_MODEL`
-
-Never commit `.env` or other secret files.
-
----
-
-## Setup
-
-### Prerequisites
-- Node.js 20+
-- PostgreSQL 14+
-
-### Install
+# Gantt Chart Dashboard
+
+Dashboard sederhana untuk memantau jadwal, progres, dan pekerjaan tim dalam satu tempat. Aplikasi ini membantu melihat proyek mana yang berjalan, yang mendekati tenggat waktu, dan bagian mana yang perlu ditindaklanjuti.
+
+## Yang bisa dilakukan
+
+- Melihat semua proyek dalam tampilan Gantt Chart interaktif.
+- Membuat, mengubah, dan menghapus proyek.
+- Mengatur tahap pekerjaan, tanggal mulai, tenggat, prioritas, dan progres.
+- Memantau progres rencana vs realisasi dengan S-Curve.
+- Menampilkan ringkasan proyek dalam tabel dan dashboard performa.
+- Mencatat riwayat perubahan proyek.
+- Mengatur data pendukung seperti unit, prioritas, status, anggota tim, dan tahap proyek.
+- Berbagi dokumen proyek dan menggunakan chat internal.
+- Membuat pengingat serta menggunakan asisten AI untuk pertanyaan seputar data dashboard.
+
+## Cocok untuk siapa?
+
+Gantt Chart Dashboard cocok untuk tim yang mengelola beberapa pekerjaan atau proyek sekaligus dan membutuhkan gambaran jadwal yang jelas. Misalnya tim operasional, desain, konstruksi, IT, event, atau internal project management.
+
+## Cara kerja singkat
+
+1. Buat proyek baru dan isi informasi dasar, seperti nama, unit, prioritas, serta tanggal.
+2. Pilih tahap pekerjaan yang sedang berjalan.
+3. Perbarui progres, catatan, penanggung jawab, atau jadwal saat ada perubahan.
+4. Pantau seluruh pekerjaan dari halaman Dashboard, Gantt Chart, dan S-Curve.
+5. Gunakan riwayat perubahan untuk mengetahui apa yang berubah dan siapa yang memperbaruinya.
+
+## Fitur utama
+
+### Gantt Chart
+
+Menampilkan jadwal proyek dalam bentuk garis waktu. Kamu bisa melihat tanggal mulai, tanggal selesai, tahap aktif, risiko keterlambatan, dan prioritas proyek. Jadwal tahap dapat diperbarui langsung dari dashboard.
+
+### Tahap proyek
+
+Setiap proyek dapat memiliki beberapa tahap kerja. Secara default aplikasi menyediakan alur berikut:
+
+`Operational Brief → Design → Project Control → Project Management → Handover`
+
+Tahap tambahan juga dapat dikelola dari halaman Master Setup.
+
+### S-Curve
+
+S-Curve membantu membandingkan progres rencana dengan progres aktual dari minggu ke minggu. Data dapat diisi manual atau diimpor dari file Excel dengan format jadwal yang didukung.
+
+### Dashboard dan laporan
+
+Halaman Dashboard, Performance, Alerts, Weekly Report, dan Summary Matrix membantu tim membaca kondisi proyek tanpa harus membuka satu per satu.
+
+### Team dan chat
+
+Kelola anggota yang terlibat pada proyek, lihat tugas per tim, dan gunakan chat internal untuk berdiskusi. File pendukung juga dapat dilampirkan pada proyek atau percakapan.
+
+### Riwayat perubahan
+
+Perubahan penting pada proyek dicatat agar tim dapat menelusuri pembaruan data dengan lebih mudah.
+
+## Halaman yang tersedia
+
+| Halaman | Kegunaan |
+| --- | --- |
+| Dashboard | Ringkasan proyek, progres, dan informasi penting. |
+| Projects | Daftar seluruh proyek. |
+| Gantt Chart | Tampilan jadwal proyek dalam timeline. |
+| Summary Matrix | Ringkasan data proyek dalam tabel. |
+| Project Detail | Detail proyek, tahap, progres, anggota, file, dan riwayat. |
+| Performance | Analisis KPI dan performa proyek. |
+| Alerts | Proyek yang perlu perhatian. |
+| Team | Pembagian pekerjaan berdasarkan tim. |
+| Weekly Report | Laporan progres mingguan. |
+| Chat | Percakapan internal dan asisten AI. |
+| Master Setup | Pengaturan unit, prioritas, status, tahap, dan pengguna. |
+
+## Teknologi yang digunakan
+
+- Next.js dan React untuk aplikasi web.
+- TypeScript untuk kode yang lebih aman dan mudah dirawat.
+- PostgreSQL untuk penyimpanan data.
+- Tailwind CSS untuk tampilan antarmuka.
+- Recharts dan Chart.js untuk grafik.
+- Google Calendar, Google Chat webhook, dan Gemini API sebagai integrasi opsional.
+
+## Menjalankan aplikasi di komputer sendiri
+
+### Yang dibutuhkan
+
+- Node.js 20 atau lebih baru.
+- PostgreSQL 14 atau lebih baru.
+
+### Instalasi
 
 ```bash
 npm install
 ```
 
-### Database Setup
+Buat file `.env` untuk konfigurasi database dan layanan opsional. Jangan pernah mengunggah file `.env` ke GitHub.
 
-```bash
-# Run schema scripts in scripts/ directory (in order):
-# 1. create_master_acc.sql  — accounts table + admin seed
-# 2. create_chat_reminder_logs.sql — reminder audit table
+Contoh variabel utama:
 
-# Import real project data from the SUMMARY sheet (see scripts/parse_summary.py first)
-node scripts/import_summary.mjs --commit
+```env
+PGHOST=localhost
+PGPORT=5432
+PGUSER=postgres
+PGPASSWORD=your_password
+PGDATABASE=gantt_dashboard
+AUTH_SECRET=replace_with_a_long_random_value
 ```
 
-### Migrate Passwords (first run if upgrading from plaintext)
-
-```bash
-npm run migrate:pw
-```
-
-### Migrate S-Curve Tables (first run, or to widen numeric precision)
-
-```bash
-node scripts/migrate-scurve.mjs
-```
-
-Creates `scurve_steps` / `scurve_tasks` / `scurve_task_weeks` and widens the
-weight/percent columns to `NUMERIC(9,5)`. Idempotent — safe to re-run. The
-Excel importer also runs the widening `ALTER`s automatically, so a plain
-re-import is enough on an already-created schema.
-
-### Development
+Jalankan skrip database yang diperlukan dari folder `scripts/` sesuai kebutuhan proyek, lalu mulai aplikasi:
 
 ```bash
 npm run dev
-# → http://localhost:3000/dashboard
 ```
 
-### Build
+Buka `http://localhost:3000` di browser.
+
+## Perintah penting
 
 ```bash
-npm run build
-npm run start
+npm run dev          # Menjalankan aplikasi untuk development
+npm run build        # Membuat versi production
+npm run start        # Menjalankan versi production
+npm run lint         # Memeriksa gaya dan masalah kode
+npx tsc --noEmit     # Memeriksa tipe TypeScript
+```
+
+## Catatan keamanan
+
+- Simpan semua password, token, dan API key hanya di file `.env` atau secret manager.
+- Jangan mengunggah file `.env`, data sensitif, atau file pengguna ke repository publik.
+- Gunakan akun dan kata sandi yang aman untuk akses dashboard.
+- Sebelum dipakai secara publik, lakukan pengujian keamanan dan batasi akses file proyek sesuai kebutuhan organisasi.
+
+## Struktur folder singkat
+
+```text
+src/
+  app/                 Halaman dan API aplikasi
+  components/          Komponen antarmuka
+  lib/                 Logika database, autentikasi, dan fitur inti
+scripts/               Skrip database dan migrasi
+public/                File statis
+docs/                  Dokumentasi tambahan
 ```
 
 ---
 
-## Verification
-
-Run these checks before merging:
-
-```bash
-npm run lint
-npx tsc --noEmit
-npm run build
-```
-
-TypeScript currently passes independently, but lint requires cleanup and the production build may fail in offline environments because the root layout downloads Inter through `next/font/google`.
-
-## Security and production hardening
-
-Before public deployment, address the following:
-
-- Enforce authentication and role/ownership checks inside every mutating API handler.
-- Add token expiration and revalidate that accounts remain active.
-- Protect project attachment listing, upload, and deletion endpoints; do not serve sensitive files as unrestricted public assets.
-- Add upload size/type validation and move files to durable private storage.
-- Wrap multi-step project and S-Curve mutations in database transactions.
-- Move runtime `ALTER TABLE` statements into versioned migrations.
-- Add rate limiting for login, AI, uploads, and externally triggered operations.
-- Add automated coverage for authentication, authorization, project mutations, date calculations, uploads, chat membership, and S-Curve calculations.
-
-## Directory Structure
-
-```
-/
-├── src/
-│   ├── app/
-│   │   ├── api/                    # Backend Route Handlers
-│   │   │   ├── auth/               # login, logout
-│   │   │   ├── projects/           # CRUD + gantt + scurve + audit + people + attachments
-│   │   │   ├── master/options/     # Lookup data with auto-seed
-│   │   │   ├── meetings/           # Google Calendar scheduling
-│   │   │   ├── ops/plan/           # NLP intent parser
-│   │   │   └── reminder-logs/      # Reminder audit
-│   │   └── dashboard/              # Frontend pages
-│   │       ├── page.tsx            # Home / KPI dashboard
-│   │       ├── projects/
-│   │       │   ├── gantt/          # Interactive Gantt chart
-│   │       │   ├── list/           # Tabular list
-│   │       │   ├── summary-matrix/ # Excel-style matrix
-│   │       │   └── [id]/           # Project detail + audit + weekly progress
-│   │       ├── team/[teamName]/    # Team task view
-│   │       ├── alerts/             # Alerts dashboard
-│   │       ├── performance/        # KPI metrics
-│   │       └── controls/           # System controls
-│   ├── components/dashboard/       # Reusable React components
-│   │   ├── ProjectGanttDB.tsx      # Full Gantt implementation
-│   │   ├── ProjectSummaryMatrix.tsx # Summary matrix table
-│   │   ├── SCurveCharts.tsx        # S-curve grid + chart (editable plan/actual)
-│   │   ├── ScurveImportModal.tsx   # Excel (TIME SCHEDULE) → S-curve importer
-│   │   ├── AddProjectModal.tsx     # New project form
-│   │   ├── AnimatedDropdown.tsx    # Reusable animated dropdown
-│   │   └── DateRangePicker.tsx     # Date range filter
-│   └── lib/                        # Core business logic
-│       ├── auth.ts                 # Token auth, bcrypt
-│       ├── db.ts                   # PostgreSQL pool singleton
-│       ├── project-gantt.ts        # Gantt data model + phase windows
-│       ├── project-summary.ts      # Daily summary buckets
-│       ├── project-summary-format.ts # Markdown formatter
-│       ├── project-summary-send.ts # Notification dispatch helper
-│       ├── ops-intent.ts           # NLP parser (EN + ID)
-│       ├── meeting.ts              # Meeting normalization
-│       └── gchat.ts                # Google Chat sender
-├── scripts/
-│   ├── create_master_acc.sql       # Account table schema
-│   ├── create_chat_reminder_logs.sql # Reminder audit schema
-│   ├── migrate_pw_to_bcrypt.js     # One-time password migration
-│   ├── parse_summary.py            # SUMMARY sheet → JSON
-│   └── import_summary.mjs          # SUMMARY JSON → DB (projects + phases)
-├── docs/                           # Project documentation
-├── middleware.ts                   # Auth + RBAC middleware
-└── next.config.ts
-```
-
----
-
-## Key Design Decisions
-
-- **`border-separate border-spacing-0`** on summary matrix table — prevents sticky column rendering gaps that occur with `border-collapse` + `position: sticky`
-- **`z-20` on sticky columns** vs `z-10` on Gantt overlay — prevents today indicator line from bleeding through sticky column during horizontal scroll
-- **`overflow-hidden` on Gantt overlay container** — clips any absolutely-positioned children (today line, range indicators) at the timeline boundary
-- **Solid backgrounds on sticky cells** — semi-transparent backgrounds allow Gantt bars and row highlights to show through on scroll; all sticky elements use fully opaque backgrounds
-- **`force-dynamic`** on all API routes — bypasses Next.js route cache so DB updates reflect instantly
-- **`SET jit = off`** on Gantt query connection — PostgreSQL JIT compilation adds seconds of overhead for this type of wide dashboard JOIN; disabling it drops latency to milliseconds
-- **`entity_type = 'project'`** required on `project_change_logs` and `master_statuses` — both tables have NOT NULL constraints; omitting this field silently fails the INSERT
-
----
-
-*Built by Abraham Pilar Osman*
+Dibuat untuk membantu tim melihat pekerjaan dengan lebih jelas, terarah, dan mudah dipantau.
