@@ -1,22 +1,20 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import {
   AlertTriangle, CheckCircle2, TrendingUp, Users,
-  Loader2, LayoutList, Building2, Home,
-  Sparkles, UserCircle2, Layers,
+  Loader2, Building2, Home, UserCircle2, Flag, CalendarDays,
 } from "lucide-react";
 import { Doughnut } from "react-chartjs-2";
-import { PHASE_LIST, DEFAULT_PHASE_COLOR } from "@/lib/phases";
+import { DEFAULT_PHASE_COLOR, type CustomPhase } from "@/lib/phases";
+import { usePhases } from "@/lib/usePhases";
 import DateRangePicker, { DateRange } from "@/components/dashboard/DateRangePicker";
 import {
   Chart as ChartJS, ArcElement, Tooltip, Legend,
 } from "chart.js";
 
 ChartJS.register(ArcElement, Tooltip, Legend);
-
-const DAY_MS = 86_400_000;
 
 type DBProject = {
   id: string;
@@ -26,6 +24,7 @@ type DBProject = {
   start_date: string | null;
   end_date: string | null;
   current_phase_name: string | null;
+  current_phase_code: string | null;
   status_label: string | null;
   status_color: string | null;
   priority_name: string | null;
@@ -35,7 +34,99 @@ type DBProject = {
   unit_name: string | null;
   pm_end: string | null;
   handover_progress: number | null;
+  brief_pic: string | null;
+  design_pic: string | null;
+  control_pic: string | null;
+  pm_pic: string | null;
+  handover_pic: string | null;
+  /** Phases added via Master Setup beyond the built-in five. */
+  extra_phases?: CustomPhase[] | null;
 };
+
+/** Resolves the PIC name for whichever phase a project is currently in. */
+function currentPic(p: DBProject): string | null {
+  const map: Record<string, string | null> = {
+    operational_brief: p.brief_pic,
+    design: p.design_pic,
+    project_control: p.control_pic,
+    project_management: p.pm_pic,
+    handover: p.handover_pic,
+  };
+  return map[p.current_phase_code ?? ""] ?? p.pm_pic ?? null;
+}
+
+const PIC_AVATAR_COLORS = [
+  "bg-violet-100 dark:bg-violet-500/20 text-violet-600 dark:text-violet-400",
+  "bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400",
+  "bg-teal-100 dark:bg-teal-500/20 text-teal-600 dark:text-teal-400",
+  "bg-amber-100 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400",
+  "bg-rose-100 dark:bg-rose-500/20 text-rose-600 dark:text-rose-400",
+];
+
+function picInitials(name: string): string {
+  return name.split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]?.toUpperCase() ?? "").join("") || "?";
+}
+
+/** A phase column on the board — the built-in five plus any custom phases. */
+type PhaseMeta = { code: string; label: string; color: string };
+
+/** Kanban card for the Active Projects board — one per project, grouped by phase column. */
+function KanbanCard({ p, phases, router }: { p: DBProject; phases: PhaseMeta[]; router: ReturnType<typeof useRouter> }) {
+  const phaseIdx   = phases.findIndex(ph => ph.code === p.current_phase_code);
+  const phaseNum   = phaseIdx >= 0 ? phaseIdx + 1 : 0;
+  const phaseColor = phaseIdx >= 0 ? phases[phaseIdx].color : DEFAULT_PHASE_COLOR;
+  const pic        = currentPic(p);
+  const dueLabel   = p.end_date
+    ? new Date(p.end_date).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
+    : null;
+
+  return (
+    <button
+      onClick={() => router.push(`/dashboard/projects/${p.id}`)}
+      className="w-full text-left p-4 rounded-2xl bg-white dark:bg-zinc-800/60 border border-slate-200/60 dark:border-white/8 card-hover"
+    >
+      {p.priority_name && (
+        <div className="flex items-center gap-1 mb-2">
+          <Flag size={11} style={{ color: p.priority_color || "#94a3b8" }} />
+          <span className="text-[11px] font-bold" style={{ color: p.priority_color || "#94a3b8" }}>
+            {p.priority_name}
+          </span>
+        </div>
+      )}
+
+      <p className="text-[13px] font-bold text-slate-800 dark:text-white leading-snug line-clamp-2 mb-3">
+        {p.project_name}
+      </p>
+
+      <div className="flex items-center justify-between text-[10px] font-semibold text-slate-500 dark:text-slate-400 mb-1">
+        <span>Progress</span>
+        <span>{phaseNum || "–"}/{phases.length}</span>
+      </div>
+      <div className="h-1.5 rounded-full bg-slate-100 dark:bg-white/8 overflow-hidden mb-3">
+        <div className="h-full rounded-full transition-all duration-500" style={{ width: `${(phaseNum / Math.max(phases.length, 1)) * 100}%`, backgroundColor: phaseColor }} />
+      </div>
+
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400 min-w-0">
+          <CalendarDays size={12} className="shrink-0" />
+          {dueLabel ? (
+            <span className="truncate">Due to: <span className="font-semibold text-slate-700 dark:text-slate-200">{dueLabel}</span></span>
+          ) : (
+            <span className="italic text-slate-400 dark:text-slate-500">No due date</span>
+          )}
+        </div>
+        {pic && (
+          <div
+            title={pic}
+            className={`w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold shrink-0 ${PIC_AVATAR_COLORS[pic.charCodeAt(0) % PIC_AVATAR_COLORS.length]}`}
+          >
+            {picInitials(pic)}
+          </div>
+        )}
+      </div>
+    </button>
+  );
+}
 
 export default function DashboardHome() {
   const router = useRouter();
@@ -45,10 +136,9 @@ export default function DashboardHome() {
   const [donutHover, setDonutHover] = useState<{ label: string; count: number; color: string } | null>(null);
   const [lastSynced, setLastSynced] = useState<Date | null>(null);
   const [userCount, setUserCount] = useState(0);
-  const [userActiveCount, setUserActiveCount] = useState(0);
   const [stakeholderCount, setStakeholderCount] = useState(0);
-  const [stakeholderActiveCount, setStakeholderActiveCount] = useState(0);
   const [dateRange, setDateRange] = useState<DateRange>({ start: "", end: "" });
+  const { phases: dbPhases } = usePhases();
 
   const fetchDashboardData = useCallback(async () => {
     try {
@@ -68,11 +158,9 @@ export default function DashboardHome() {
       }
       if (usersData.success) {
         setUserCount(usersData.data.length);
-        setUserActiveCount(usersData.data.filter((u: { is_active: boolean }) => u.is_active).length);
       }
       if (peopleData.success) {
         setStakeholderCount(peopleData.data.length);
-        setStakeholderActiveCount(peopleData.data.filter((p: { is_active: boolean }) => p.is_active).length);
       }
     } catch (err) {
       console.error("Failed to fetch dashboard data", err);
@@ -87,6 +175,15 @@ export default function DashboardHome() {
   }, [fetchDashboardData]);
 
   const todayMidnight = useMemo(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; }, []);
+
+  /**
+   * The phase pipeline as configured in Master Setup — order and color are
+   * DB-driven, so dragging a phase or recoloring it there is reflected here.
+   */
+  const allPhases = useMemo<PhaseMeta[]>(
+    () => dbPhases.map(p => ({ code: p.code, label: p.label, color: p.color })),
+    [dbPhases]
+  );
 
   const rangeFilteredProjects = useMemo(() => {
     if (!dateRange.start && !dateRange.end) return projects;
@@ -107,30 +204,7 @@ export default function DashboardHome() {
   );
 
   const overdueProjects = useMemo(
-    () =>
-      activeProjects.filter((p) => {
-        return p.end_date ? new Date(p.end_date) < todayMidnight : false;
-      }),
-    [activeProjects, todayMidnight]
-  );
-
-  const urgentProjects = useMemo(
-    () => activeProjects.filter((p) => {
-      const end = p.end_date ? new Date(p.end_date).getTime() : null;
-      if (!end) return false;
-      const diff = end - todayMidnight.getTime();
-      return diff >= 0 && diff <= 3 * DAY_MS;
-    }),
-    [activeProjects, todayMidnight]
-  );
-
-  const soonProjects = useMemo(
-    () => activeProjects.filter((p) => {
-      const end = p.end_date ? new Date(p.end_date).getTime() : null;
-      if (!end) return false;
-      const diff = end - todayMidnight.getTime();
-      return diff > 3 * DAY_MS && diff <= 7 * DAY_MS;
-    }),
+    () => activeProjects.filter((p) => (p.end_date ? new Date(p.end_date) < todayMidnight : false)),
     [activeProjects, todayMidnight]
   );
 
@@ -147,35 +221,47 @@ export default function DashboardHome() {
     [rangeFilteredProjects]
   );
 
+  /** Counts per phase, over the full phase list (built-in + custom). */
   const phaseDistribution = useMemo(() => {
-    const phaseMap = new Map<string, number>();
+    const counts = new Map<string, number>();
     for (const p of activeProjects) {
-      const phase = p.current_phase_name || "Other";
-      phaseMap.set(phase, (phaseMap.get(phase) ?? 0) + 1);
+      const code = p.current_phase_code ?? "";
+      counts.set(code, (counts.get(code) ?? 0) + 1);
     }
-    const entries = [...phaseMap.entries()];
-    entries.sort((a, b) => {
-      const ai = PHASE_LIST.findIndex(ph => a[0].toLowerCase().includes(ph.label.toLowerCase()));
-      const bi = PHASE_LIST.findIndex(ph => b[0].toLowerCase().includes(ph.label.toLowerCase()));
-      if (ai === -1 && bi === -1) return b[1] - a[1];
-      if (ai === -1) return 1;
-      if (bi === -1) return -1;
-      return ai - bi;
-    });
-    const max = Math.max(...entries.map(e => e[1]), 1);
-    return entries.map(([name, count]) => ({
-      name,
-      count,
-      pct: Math.round((count / max) * 100),
-      color: PHASE_LIST.find(ph => name.toLowerCase().includes(ph.label.toLowerCase()))?.color ?? DEFAULT_PHASE_COLOR,
-    }));
-  }, [activeProjects]);
+    const rows = allPhases
+      .map(ph => ({ name: ph.label, count: counts.get(ph.code) ?? 0, color: ph.color }))
+      .filter(r => r.count > 0);
 
+    // Anything whose phase code isn't in the known list (e.g. a phase deleted
+    // while projects still point at it) collapses into one "Other" row.
+    const knownCodes = new Set(allPhases.map(ph => ph.code));
+    const otherCount = [...counts.entries()]
+      .filter(([code]) => !knownCodes.has(code))
+      .reduce((sum, [, n]) => sum + n, 0);
+    if (otherCount > 0) rows.push({ name: "Other", count: otherCount, color: DEFAULT_PHASE_COLOR });
+
+    const max = Math.max(...rows.map(r => r.count), 1);
+    return rows.map(r => ({ ...r, pct: Math.round((r.count / max) * 100) }));
+  }, [activeProjects, allPhases]);
+
+  /** Active Projects board — one column per phase, in pipeline order. */
+  const phaseColumns = useMemo(() => {
+    const buckets = allPhases.map(ph => ({ ...ph, projects: [] as DBProject[] }));
+    const other: DBProject[] = [];
+    for (const p of activeProjects) {
+      const idx = allPhases.findIndex(ph => ph.code === p.current_phase_code);
+      if (idx >= 0) buckets[idx].projects.push(p);
+      else other.push(p);
+    }
+    return other.length > 0
+      ? [...buckets, { code: "other", label: "Other", color: DEFAULT_PHASE_COLOR, projects: other }]
+      : buckets;
+  }, [activeProjects, allPhases]);
 
   const DONUT_ITEMS = [
     { label: "Completed", color: "#22c55e", onClick: () => router.push("/dashboard/projects/list?tab=completed") },
-    { label: "Overdue",   color: "#f43f5e", onClick: () => router.push("/dashboard/alerts?tab=overdue") },
-    { label: "On Track",  color: "#6B3A2A", onClick: () => router.push("/dashboard/projects/list") },
+    { label: "Overdue",   color: "#ef4444", onClick: () => router.push("/dashboard/alerts?tab=overdue") },
+    { label: "On Track",  color: "#10b981", onClick: () => router.push("/dashboard/projects/list") },
   ] as const;
 
   const donutData = useMemo(() => {
@@ -192,6 +278,7 @@ export default function DashboardHome() {
         spacing: 4,
       }],
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeProjects, overdueProjects, completedProjects]);
 
   const donutCounts = useMemo(
@@ -224,13 +311,22 @@ export default function DashboardHome() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }), [donutCounts]);
 
+  const STATS = [
+    { label: "Active",    value: activeProjects.length,    icon: TrendingUp,   accent: "text-emerald-600 dark:text-emerald-400", path: "/dashboard/projects/list" },
+    { label: "Completed", value: completedProjects.length, icon: CheckCircle2, accent: "text-green-600 dark:text-green-400",     path: "/dashboard/projects/list?tab=completed" },
+    { label: "Overdue",   value: overdueProjects.length,   icon: AlertTriangle, accent: "text-red-600 dark:text-red-400",        path: "/dashboard/alerts?tab=overdue" },
+    { label: "Units",     value: uniqueUnits.length,       icon: Building2,    accent: "text-teal-600 dark:text-teal-400",       path: "/dashboard/team?tab=units" },
+    { label: "PIC",       value: userCount,                icon: UserCircle2,  accent: "text-violet-600 dark:text-violet-400",   path: "/dashboard/team?tab=users" },
+    { label: "Stakeholders", value: stakeholderCount,      icon: Users,        accent: "text-sky-600 dark:text-sky-400",         path: "/dashboard/team?tab=stakeholders" },
+  ];
+
   return (
     <div className="space-y-6 pb-6 animate-page-enter">
 
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-3 mt-2">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-1 mt-2">
         <div className="flex items-center gap-2">
-          <Home size={16} className="text-amber-500" />
-          <h2 className="text-lg font-bold text-slate-800 dark:text-white">Dashboard Overview</h2>
+          <Home size={16} className="text-emerald-500" />
+          <h2 className="text-xl font-bold text-slate-800 dark:text-white">Dashboard Overview</h2>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <DateRangePicker value={dateRange} onChange={setDateRange} />
@@ -247,79 +343,24 @@ export default function DashboardHome() {
         </div>
       </div>
 
-      {/* Stat Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div onClick={() => router.push("/dashboard/projects/list")} className="glass-card flex-1 min-w-0 p-5 flex flex-col justify-between overflow-hidden relative min-h-27 cursor-pointer card-hover">
-          <div className="flex justify-between items-start mb-2">
-            <span className="text-3xl font-bold text-slate-800 dark:text-white">
-              {loading ? "..." : activeProjects.length}
-            </span>
-            <div className="p-2 rounded-lg" style={{ background: "rgba(59,35,21,0.08)", color: "var(--brand-mahogany)" }}>
-              <TrendingUp size={18} />
+      {/* ── Compact stat row ──────────────────────────────────────────────── */}
+      <section className="glass-card p-2 flex flex-wrap sm:flex-nowrap divide-x divide-slate-200/60 dark:divide-white/8">
+        {STATS.map(({ label, value, icon: Icon, accent, path }) => (
+          <button
+            key={label}
+            onClick={() => router.push(path)}
+            className="flex-1 min-w-24 flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl hover:bg-slate-50 dark:hover:bg-white/5 transition-colors text-left"
+          >
+            <Icon size={15} className={`shrink-0 ${accent}`} />
+            <div className="min-w-0">
+              <p className="text-base font-black text-slate-800 dark:text-white leading-none">
+                {loading ? "—" : value}
+              </p>
+              <p className="text-[10px] font-medium text-slate-500 dark:text-slate-400 truncate mt-0.5">{label}</p>
             </div>
-          </div>
-          <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Active Projects</p>
-        </div>
-
-        <div onClick={() => router.push("/dashboard/projects/list?tab=completed")} className="glass-card flex-1 min-w-0 p-5 flex flex-col justify-between overflow-hidden relative min-h-27 cursor-pointer card-hover">
-          <div className="flex justify-between items-start mb-2">
-            <span className="text-3xl font-bold text-slate-800 dark:text-white">
-              {loading ? "..." : completedProjects.length}
-            </span>
-            <div className="p-2 rounded-lg" style={{ background: "rgba(34,197,94,0.10)", color: "#22c55e" }}>
-              <CheckCircle2 size={18} />
-            </div>
-          </div>
-          <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Completed Projects</p>
-        </div>
-
-        <div onClick={() => router.push("/dashboard/team?tab=units")} className="glass-card flex-1 min-w-0 p-5 flex flex-col justify-between overflow-hidden relative min-h-27 cursor-pointer card-hover">
-          <div className="flex justify-between items-start mb-2">
-            <span className="text-3xl font-bold text-slate-800 dark:text-white">
-              {loading ? "..." : uniqueUnits.length}
-            </span>
-            <div className="p-2 rounded-lg" style={{ background: "rgba(196,149,106,0.15)", color: "var(--brand-sand)" }}>
-              <Building2 size={18} />
-            </div>
-          </div>
-          <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Units</p>
-        </div>
-      </div>
-
-      {/* Alert + People summary */}
-      {!loading && (
-        <>
-          <div className="grid grid-cols-3 gap-4">
-            <div onClick={() => router.push("/dashboard/alerts?tab=overdue")} className="glass-card flex-1 min-w-0 p-5 flex flex-col justify-between overflow-hidden relative min-h-27 cursor-pointer card-hover">
-              <div className="flex justify-between items-start mb-2">
-                <span className="text-3xl font-bold text-slate-800 dark:text-white">{overdueProjects.length}</span>
-                <div className="p-2 rounded-lg" style={{ background: "rgba(244,63,94,0.10)", color: "#f43f5e" }}>
-                  <AlertTriangle size={18} />
-                </div>
-              </div>
-              <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Overdue</p>
-            </div>
-            <div onClick={() => router.push("/dashboard/team?tab=users")} className="glass-card flex-1 min-w-0 p-5 flex flex-col justify-between overflow-hidden relative min-h-27 cursor-pointer card-hover">
-              <div className="flex justify-between items-start mb-2">
-                <span className="text-3xl font-bold text-slate-800 dark:text-white">{userCount}</span>
-                <div className="p-2 rounded-lg" style={{ background: "rgba(139,92,246,0.10)", color: "#8b5cf6" }}>
-                  <UserCircle2 size={18} />
-                </div>
-              </div>
-              <p className="text-xs font-medium text-slate-500 dark:text-slate-400">PIC</p>
-            </div>
-            <div onClick={() => router.push("/dashboard/team?tab=stakeholders")} className="glass-card flex-1 min-w-0 p-5 flex flex-col justify-between overflow-hidden relative min-h-27 cursor-pointer card-hover">
-              <div className="flex justify-between items-start mb-2">
-                <span className="text-3xl font-bold text-slate-800 dark:text-white">{stakeholderCount}</span>
-                <div className="p-2 rounded-lg" style={{ background: "rgba(45,212,191,0.10)", color: "#2dd4bf" }}>
-                  <Users size={18} />
-                </div>
-              </div>
-              <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Stakeholders</p>
-            </div>
-          </div>
-        </>
-      )}
+          </button>
+        ))}
+      </section>
 
       {/* Two panels */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
@@ -376,7 +417,7 @@ export default function DashboardHome() {
                       </div>
                     </div>
                     <div className="h-2 rounded-full bg-slate-100 dark:bg-white/8 overflow-hidden">
-                      <div className="h-full rounded-full transition-all duration-700 ease-out" style={{ width: barMounted ? `${pct}%` : "0%", backgroundColor: item.color, opacity: 0.8 }} />
+                      <div className="h-full rounded-full transition-all duration-700 ease-out" style={{ width: barMounted ? `${pct}%` : "0%", backgroundColor: item.color, opacity: 0.85 }} />
                     </div>
                   </div>
                 );
@@ -420,7 +461,7 @@ export default function DashboardHome() {
                   <div className="h-2 rounded-full bg-slate-100 dark:bg-white/8 overflow-hidden">
                     <div
                       className="h-full rounded-full transition-all duration-700 ease-out"
-                      style={{ width: barMounted ? `${pct}%` : "0%", backgroundColor: color, opacity: 0.8 }}
+                      style={{ width: barMounted ? `${pct}%` : "0%", backgroundColor: color, opacity: 0.85 }}
                     />
                   </div>
                 </div>
@@ -430,64 +471,39 @@ export default function DashboardHome() {
         </section>
       </div>
 
-      {/* Active Projects list */}
+      {/* Active Projects board — one column per phase, cards carry priority/phase-progress/due/PIC */}
       <section className="glass-card p-5">
         <div className="section-title">
           <h3>Active Projects</h3>
         </div>
-        <div className="space-y-2 max-h-105 overflow-y-auto overflow-x-hidden pr-1 scrollbar-border min-w-0">
-          {activeProjects.length === 0 ? (
-            <p className="text-xs text-slate-500 dark:text-slate-400 text-center py-8">No active projects.</p>
-          ) : (
-            activeProjects.map((p) => (
-              <div
-                key={p.id}
-                onClick={() => router.push(`/dashboard/projects/${p.id}`)}
-                className="flex items-center justify-between p-4 rounded-lg bg-white/30 dark:bg-zinc-800/30 border border-transparent cursor-pointer card-hover"
-              >
-                <div className="flex items-center gap-3 overflow-hidden flex-1">
-                  <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: "rgba(59,35,21,0.08)", color: "var(--brand-mahogany)" }}>
-                    <TrendingUp size={14} />
-                  </div>
-                  <div className="truncate pr-4">
-                    <p className="text-sm font-semibold text-slate-800 dark:text-white truncate block">
-                      {p.project_name}
-                    </p>
-                    <div className="flex gap-2 items-center mt-1">
-                      {p.status_label && (
-                        <span
-                          className="text-[11px] whitespace-nowrap px-1.5 py-0.5 rounded font-bold uppercase text-white shadow-sm"
-                          style={{ backgroundColor: p.status_color || "#64748b" }}
-                        >
-                          {p.status_label}
-                        </span>
-                      )}
-                      <span className="text-xs font-semibold text-slate-600 dark:text-slate-400">
-                        {p.unit_code || "-"}
-                      </span>
-                      {p.current_phase_name && (
-                        <span className="text-xs text-slate-400 dark:text-slate-500">{p.current_phase_name}</span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-                {p.priority_name && (
-                  <div className="shrink-0 pl-2">
-                    <span
-                      className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded"
-                      style={{ backgroundColor: `${p.priority_color}22`, color: p.priority_color || "#94a3b8" }}
-                    >
-                      {p.priority_name}
+        {activeProjects.length === 0 ? (
+          <p className="text-xs text-slate-500 dark:text-slate-400 text-center py-8">No active projects.</p>
+        ) : (
+          <div className="overflow-x-auto pb-1">
+            <div className="flex gap-4 min-w-min">
+              {phaseColumns.map((col) => (
+                <div key={col.code} className="w-72 shrink-0 flex flex-col">
+                  <div className="flex items-center gap-2 mb-3 px-1">
+                    <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: col.color }} />
+                    <h4 className="text-[12px] font-bold text-slate-700 dark:text-slate-200 flex-1 truncate">{col.label}</h4>
+                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-slate-100 dark:bg-white/8 text-slate-500 dark:text-slate-400 shrink-0">
+                      {col.projects.length}
                     </span>
                   </div>
-                )}
-              </div>
-            ))
-          )}
-        </div>
+                  <div className="space-y-3 max-h-140 overflow-y-auto pr-1 scrollbar-border">
+                    {col.projects.length === 0 ? (
+                      <p className="text-[11px] text-slate-300 dark:text-slate-600 italic px-1">No projects</p>
+                    ) : (
+                      col.projects.map((p) => <KanbanCard key={p.id} p={p} phases={allPhases} router={router} />)
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </section>
 
     </div>
   );
 }
-

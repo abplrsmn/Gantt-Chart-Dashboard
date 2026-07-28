@@ -253,7 +253,7 @@ export default function WeekPicker({ value, onChange }: Props) {
                       className={`group flex items-center gap-1 rounded-lg px-1 py-0.5 cursor-pointer transition-colors ${
                         selected ? "bg-brand-sienna" : "hover:bg-brand-sienna/10"
                       }`}
-                      style={selected ? { boxShadow: "0 4px 10px rgba(155,107,71,0.35)" } : undefined}
+                      style={selected ? { boxShadow: "0 4px 10px rgba(16,185,129,0.38)" } : undefined}
                     >
                       <div className={`w-8 text-center text-[10px] font-bold ${
                         selected ? "text-white/80" : "text-slate-300 dark:text-white/25 group-hover:text-brand-sienna"

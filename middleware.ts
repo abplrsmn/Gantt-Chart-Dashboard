@@ -10,6 +10,7 @@ const PROTECTED_API_PREFIXES = [
   '/api/ai-telemetry',
   '/api/audit',
   '/api/capex',
+  '/api/chat',
   '/api/gchat/notify',
   '/api/google/calendar',
   '/api/google/oauth/start',
@@ -17,6 +18,7 @@ const PROTECTED_API_PREFIXES = [
   '/api/meetings',
   '/api/ops',
   '/api/projects',
+  '/api/team',
   '/api/reminder-logs',
 ];
 

@@ -143,7 +143,7 @@ export default function WeeklyReportPage() {
       <div className="flex items-center gap-3 mt-2 justify-between flex-wrap">
         <div className="flex items-center gap-2">
           <BarChart2 size={16} className="text-amber-500" />
-          <h2 className="text-lg font-bold text-slate-800 dark:text-white">Weekly Report</h2>
+          <h2 className="text-xl font-bold text-slate-800 dark:text-white">Weekly Report</h2>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <WeekPicker value={selectedWeekVal} onChange={setSelectedWeekVal} />

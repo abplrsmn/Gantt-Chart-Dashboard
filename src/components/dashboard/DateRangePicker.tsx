@@ -218,7 +218,7 @@ export default function DateRangePicker({ value, onChange }: Props) {
                   : inMon        ? "text-slate-600 dark:text-white/65 hover:bg-slate-100 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white"
                   :                "text-slate-300 dark:text-white/20"}
                 `}
-                  style={isS || isE ? { boxShadow: "0 4px 8px rgba(155,107,71,0.40)" } : undefined}
+                  style={isS || isE ? { boxShadow: "0 4px 8px rgba(16,185,129,0.42)" } : undefined}
                 >
                   {format(day, "d")}
                 </span>

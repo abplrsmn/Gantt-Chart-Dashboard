@@ -1,13 +1,25 @@
-# Aryaduta CAPEX Project Dashboard
-*Full-stack Project Monitoring & Operations Command Center — Aryaduta Hotels Group*
+# Keystone
+*Full-stack Capital Project Monitoring & Operations Command Center*
 
 ---
 
 ## Overview
 
-A custom-built, full-stack **CAPEX (Capital Expenditure) Project Management Dashboard** built for **Aryaduta Hotels Group, IDEA-Tech Division**. The system provides end-to-end visibility across all capital projects — from initial brief through design, procurement, execution, and final handover — with live data, interactive Gantt charts, S-curve tracking, and AI-assisted operations.
+A custom-built, full-stack **CAPEX (Capital Expenditure) Project Management Dashboard**. The system provides end-to-end visibility across all capital projects — from initial brief through design, procurement, execution, and final handover — with live data, interactive Gantt charts, S-curve tracking, and AI-assisted operations.
 
 ---
+
+### Current project status
+
+This repository is an active development project. The main dashboard, project lifecycle, master-data, audit, team, chat, attachment, S-Curve, and AI-assistant features are implemented, but production hardening is still required before exposing the system publicly.
+
+Operational notes:
+
+- PostgreSQL must be configured through `DATABASE_URL` or the `PG*` environment variables.
+- Database schema changes are supplied as scripts in `scripts/` and should be applied before starting the application.
+- Uploaded files currently use local storage under `public/uploads/`; use protected object storage for multi-instance production deployments.
+- The production build currently requires network access for `next/font/google`, unless the font is changed to a local or system font.
+- No automated test suite is currently included.
 
 ## Tech Stack
 
@@ -425,6 +437,31 @@ npm run start
 
 ---
 
+## Verification
+
+Run these checks before merging:
+
+```bash
+npm run lint
+npx tsc --noEmit
+npm run build
+```
+
+TypeScript currently passes independently, but lint requires cleanup and the production build may fail in offline environments because the root layout downloads Inter through `next/font/google`.
+
+## Security and production hardening
+
+Before public deployment, address the following:
+
+- Enforce authentication and role/ownership checks inside every mutating API handler.
+- Add token expiration and revalidate that accounts remain active.
+- Protect project attachment listing, upload, and deletion endpoints; do not serve sensitive files as unrestricted public assets.
+- Add upload size/type validation and move files to durable private storage.
+- Wrap multi-step project and S-Curve mutations in database transactions.
+- Move runtime `ALTER TABLE` statements into versioned migrations.
+- Add rate limiting for login, AI, uploads, and externally triggered operations.
+- Add automated coverage for authentication, authorization, project mutations, date calculations, uploads, chat membership, and S-Curve calculations.
+
 ## Directory Structure
 
 ```
@@ -493,5 +530,4 @@ npm run start
 
 ---
 
-*Built by Abraham Pilar Osman — IDEA-Tech Division, Aryaduta Hotels Group*
-*Internship project, Feb–Jul 2026*
+*Built by Abraham Pilar Osman*

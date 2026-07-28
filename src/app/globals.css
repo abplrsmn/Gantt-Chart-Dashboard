@@ -2,12 +2,15 @@
 @custom-variant dark (&:is(.dark *));
 
 /* ── Brand color tokens ───────────────────────────────────────────────────── */
+/* Emerald/green scale. Token NAMES are kept (espresso/mahogany/sienna/sand/cream)
+   so the ~20 files referencing them recolor automatically — only the values moved
+   from brown to green. Ordered darkest → lightest, same as before. */
 @theme inline {
-  --color-brand-espresso: #3B2315;
-  --color-brand-mahogany: #6B3A2A;
-  --color-brand-sienna:   #9B6B47;
-  --color-brand-sand:     #C4956A;
-  --color-brand-cream:    #F5E6D3;
+  --color-brand-espresso: #064E3B;
+  --color-brand-mahogany: #047857;
+  --color-brand-sienna:   #10B981;
+  --color-brand-sand:     #6EE7B7;
+  --color-brand-cream:    #ECFDF5;
   --color-slab-bg:        #F2F3F4;
   --color-slab-surface:   #FFFFFF;
   --color-slab-border:    #E5E7EB;
@@ -16,28 +19,34 @@
 }
 
 :root {
-  --brand-espresso: #3B2315;
-  --brand-mahogany: #6B3A2A;
-  --brand-sienna:   #9B6B47;
-  --brand-sand:     #C4956A;
-  --brand-cream:    #F5E6D3;
+  --brand-espresso: #064E3B;
+  --brand-mahogany: #047857;
+  --brand-sienna:   #10B981;
+  --brand-sand:     #6EE7B7;
+  --brand-cream:    #ECFDF5;
   --slab-bg:        #F2F3F4;
   --slab-surface:   #FFFFFF;
   --slab-border:    #E5E7EB;
   --growth-green:   #10B981;
   --alert-red:      #E11D48;
 
+  /* Brand gradients */
+  --brand-gradient:        linear-gradient(135deg, #059669 0%, #047857 55%, #065F46 100%);
+  --brand-gradient-soft:   linear-gradient(135deg, #10B981 0%, #059669 100%);
+  --brand-gradient-vivid:  linear-gradient(135deg, #34D399 0%, #10B981 45%, #0D9488 100%);
+  --brand-glow:            rgba(16, 185, 129, 0.28);
+
   --background: #F2F3F4;
   --foreground: #0f172a;
   --sb-thumb: rgba(100, 116, 139, 0.35);
-  --sb-thumb-hover: rgba(100, 116, 139, 0.6);
+  --sb-thumb-hover: rgba(16, 185, 129, 0.55);
 }
 
 .dark {
   --background: #020617;
   --foreground: #f8fafc;
   --sb-thumb: rgba(255, 255, 255, 0.12);
-  --sb-thumb-hover: rgba(196, 149, 106, 0.45);
+  --sb-thumb-hover: rgba(52, 211, 153, 0.45);
 }
 
 /* ── Typography ───────────────────────────────────────────────────────────── */
@@ -132,7 +141,7 @@ h1, h2, h3, h4, h5, h6 {
 .section-title::before {
   content: "";
   @apply block w-1 h-4 rounded-full shrink-0;
-  background: var(--brand-espresso);
+  background: var(--brand-gradient-vivid);
 }
 .section-title h3 {
   @apply text-base font-bold text-slate-700;
@@ -177,24 +186,43 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .glass-btn-primary {
-  background: var(--brand-espresso);
+  background: var(--brand-gradient);
+  background-size: 150% 150%;
   color: #FFFFFF;
   border-radius: 10px;
   padding: 10px 20px;
-  box-shadow: 0 4px 12px rgba(59, 35, 21, 0.25);
-  transition: all 0.2s ease;
+  box-shadow: 0 4px 14px var(--brand-glow);
+  transition: background-position 0.35s ease, box-shadow 0.2s ease, transform 0.2s ease;
 }
 .glass-btn-primary:hover {
-  opacity: 0.9;
+  background-position: 100% 0;
+  box-shadow: 0 6px 20px var(--brand-glow);
   transform: translateY(-1px);
 }
 
 /* ── Navigation active state ──────────────────────────────────────────────── */
 .glass-nav-active {
-  background: var(--brand-espresso) !important;
+  background: var(--brand-gradient) !important;
   color: #FFFFFF !important;
   border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(59, 35, 21, 0.20);
+  box-shadow: 0 4px 14px var(--brand-glow);
+}
+/* Nav label/icon must stay white on the gradient, overriding the token-colored
+   text classes the sidebar applies for the active state. */
+.glass-nav-active span,
+.glass-nav-active svg {
+  color: #FFFFFF !important;
+}
+
+/* ── Brand gradient helpers ───────────────────────────────────────────────── */
+.brand-gradient      { background: var(--brand-gradient); }
+.brand-gradient-soft { background: var(--brand-gradient-soft); }
+.brand-gradient-text {
+  background: var(--brand-gradient-vivid);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
 }
 
 /* ── Form ─────────────────────────────────────────────────────────────────── */
@@ -210,7 +238,7 @@ h1, h2, h3, h4, h5, h6 {
 .glass-input:focus {
   outline: none;
   border-color: var(--brand-sienna);
-  box-shadow: 0 0 0 3px rgba(155, 107, 71, 0.15);
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.18);
 }
 .dark .glass-input {
   background: rgba(255, 255, 255, 0.06);
@@ -269,14 +297,14 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .row-total {
-  background: rgba(59, 35, 21, 0.06);
-  border-top: 1.5px solid rgba(59, 35, 21, 0.15);
-  border-bottom: 1.5px solid rgba(59, 35, 21, 0.15);
+  background: rgba(6, 78, 59, 0.06);
+  border-top: 1.5px solid rgba(6, 78, 59, 0.15);
+  border-bottom: 1.5px solid rgba(6, 78, 59, 0.15);
 }
 .dark .row-total {
-  background: rgba(196, 149, 106, 0.08);
-  border-top-color: rgba(196, 149, 106, 0.20);
-  border-bottom-color: rgba(196, 149, 106, 0.20);
+  background: rgba(52, 211, 153, 0.08);
+  border-top-color: rgba(52, 211, 153, 0.20);
+  border-bottom-color: rgba(52, 211, 153, 0.20);
 }
 
 /* ── Status / Percentage ──────────────────────────────────────────────────── */
@@ -302,18 +330,18 @@ h1, h2, h3, h4, h5, h6 {
 .mesh-bg-light {
   background-color: #F2F3F4;
   background-image:
-    radial-gradient(circle at 12% 18%, rgba(59, 35, 21, 0.03), transparent 36%),
-    radial-gradient(circle at 88% 14%, rgba(155, 107, 71, 0.02), transparent 32%),
-    radial-gradient(circle at 72% 86%, rgba(59, 35, 21, 0.03), transparent 34%);
+    radial-gradient(circle at 12% 18%, rgba(16, 185, 129, 0.07), transparent 36%),
+    radial-gradient(circle at 88% 14%, rgba(13, 148, 136, 0.05), transparent 32%),
+    radial-gradient(circle at 72% 86%, rgba(5, 150, 105, 0.06), transparent 34%);
   background-attachment: fixed;
 }
 
 .mesh-bg-dark {
   background-color: #09090b;
   background-image:
-    radial-gradient(circle at 14% 20%, rgba(255, 255, 255, 0.05), transparent 34%),
-    radial-gradient(circle at 86% 12%, rgba(255, 255, 255, 0.04), transparent 32%),
-    radial-gradient(circle at 74% 86%, rgba(255, 255, 255, 0.05), transparent 34%);
+    radial-gradient(circle at 14% 20%, rgba(16, 185, 129, 0.10), transparent 34%),
+    radial-gradient(circle at 86% 12%, rgba(13, 148, 136, 0.07), transparent 32%),
+    radial-gradient(circle at 74% 86%, rgba(52, 211, 153, 0.08), transparent 34%);
   background-attachment: fixed;
 }
 

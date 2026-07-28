@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
 import {
   Plus, Pencil, Trash2, X, Eye, EyeOff, Check,
-  AlertCircle, Database, UserCog, Users,
+  AlertCircle, Database, UserCog, Users, GripVertical,
 } from "lucide-react";
 import AnimatedDropdown from "@/components/dashboard/AnimatedDropdown";
 
@@ -15,7 +15,7 @@ type Priority = { id: number; priority_code: string; priority_name: string; colo
 type Status   = { id: number; entity_type: string; status_code: string; status_label: string; color: string };
 type User     = { id: number; email: string; is_active: boolean; created_at: string; full_name: string | null; department: string | null; job_title: string | null; employee_code: string | null; person_id: number | null };
 type Person   = { id: number; employee_code: string | null; full_name: string; nickname: string | null; department: string | null; job_title: string | null; email: string | null; phone_number: string | null; is_active: boolean };
-type Phase    = { id: number; phase_code: string; phase_name: string };
+type Phase    = { id: number; phase_code: string; phase_name: string; phase_order?: number; color?: string | null };
 
 type Tab = "units" | "priorities" | "statuses" | "users" | "stakeholders" | "phases";
 
@@ -40,6 +40,27 @@ async function safeFetch(url: string, init?: RequestInit) {
   }
 }
 
+/**
+ * Save helper for the master-data modals. Returns the API error message instead
+ * of swallowing it — these forms used to fire-and-forget, so a failed insert
+ * (e.g. a NOT NULL violation) closed the modal and looked exactly like success.
+ */
+async function saveRecord(url: string, method: "POST" | "PATCH", body: unknown): Promise<string | null> {
+  try {
+    const r = await fetch(url, {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    let j: { success?: boolean; error?: string } | null = null;
+    try { j = await r.json(); } catch { /* non-JSON response */ }
+    if (!r.ok || !j?.success) return j?.error || `Save failed (HTTP ${r.status})`;
+    return null;
+  } catch {
+    return "Network error — could not reach the server.";
+  }
+}
+
 // ─── Shared helpers ───────────────────────────────────────────────────────────
 
 const inputCls = "w-full rounded-lg border border-slate-200/70 dark:border-white/10 bg-white dark:bg-zinc-900/60 px-3 py-2 text-[12px] text-slate-700 dark:text-slate-200 outline-none focus:border-brand-sienna/60 focus:ring-2 focus:ring-brand-sienna/15 transition-all placeholder:text-slate-300 dark:placeholder:text-slate-600";
@@ -57,10 +78,10 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 // ─── Animated Modal ───────────────────────────────────────────────────────────
 
 function Modal({
-  title, onClose, children, onSubmit, loading,
+  title, onClose, children, onSubmit, loading, error,
 }: {
   title: string; onClose: () => void; children: React.ReactNode;
-  onSubmit: () => void; loading: boolean;
+  onSubmit: () => void; loading: boolean; error?: string;
 }) {
   const [phase, setPhase] = useState<"enter" | "exit">("enter");
 
@@ -98,7 +119,15 @@ function Modal({
         </div>
 
         {/* Body */}
-        <div className="px-5 py-4 space-y-4 max-h-[66vh] overflow-y-auto flex-1">{children}</div>
+        <div className="px-5 py-4 space-y-4 max-h-[66vh] overflow-y-auto flex-1">
+          {children}
+          {error && (
+            <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/25">
+              <AlertCircle size={13} className="text-red-500 mt-0.5 shrink-0" />
+              <p className="text-[11px] text-red-600 dark:text-red-400 leading-relaxed wrap-break-word">{error}</p>
+            </div>
+          )}
+        </div>
 
         {/* Footer */}
         <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-slate-200/60 dark:border-white/8 bg-slate-50/80 dark:bg-white/2 shrink-0">
@@ -231,6 +260,7 @@ function UnitsSection({ onAddReady }: { onAddReady: (fn: () => void) => void }) 
   const [deleting, setDeleting] = useState<Unit | null>(null);
   const [form, setForm] = useState({ unit_code: "", unit_name: "" });
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const load = useCallback(async () => {
     const j = await safeFetch("/api/master/units");
@@ -244,13 +274,16 @@ function UnitsSection({ onAddReady }: { onAddReady: (fn: () => void) => void }) 
 
   const submit = async () => {
     setLoading(true);
+    setError("");
     const isEdit = modal !== "add";
-    await fetch(isEdit ? `/api/master/units/${(modal as Unit).id}` : "/api/master/units", {
-      method: isEdit ? "PATCH" : "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
-    });
-    setLoading(false); setModal(null); load();
+    const err = await saveRecord(
+      isEdit ? `/api/master/units/${(modal as Unit).id}` : "/api/master/units",
+      isEdit ? "PATCH" : "POST",
+      form
+    );
+    setLoading(false);
+    if (err) { setError(err); return; }   // keep the modal open so the failure is visible
+    setModal(null); load();
   };
 
   return (
@@ -265,12 +298,12 @@ function UnitsSection({ onAddReady }: { onAddReady: (fn: () => void) => void }) 
         ))}
       </TableShell>
       {modal !== null && (
-        <Modal title={modal === "add" ? "Add Unit" : "Edit Unit"} onClose={() => setModal(null)} onSubmit={submit} loading={loading}>
+        <Modal title={modal === "add" ? "Add Unit" : "Edit Unit"} onClose={() => setModal(null)} onSubmit={submit} loading={loading} error={error}>
           <Field label="Unit Code">
             <input className={inputCls} value={form.unit_code} onChange={e => setForm(f => ({ ...f, unit_code: e.target.value }))} placeholder="e.g. JKT" />
           </Field>
           <Field label="Unit Name">
-            <input className={inputCls} value={form.unit_name} onChange={e => setForm(f => ({ ...f, unit_name: e.target.value }))} placeholder="e.g. Aryaduta Jakarta" />
+            <input className={inputCls} value={form.unit_name} onChange={e => setForm(f => ({ ...f, unit_name: e.target.value }))} placeholder="e.g. Downtown Tower" />
           </Field>
         </Modal>
       )}
@@ -287,6 +320,7 @@ function PrioritiesSection({ onAddReady }: SectionProps) {
   const [deleting, setDeleting] = useState<Priority | null>(null);
   const [form, setForm] = useState({ priority_code: "", priority_name: "", color_hex: "#94a3b8", level: 99 });
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const load = useCallback(async () => {
     const j = await safeFetch("/api/master/priorities");
@@ -300,13 +334,16 @@ function PrioritiesSection({ onAddReady }: SectionProps) {
 
   const submit = async () => {
     setLoading(true);
+    setError("");
     const isEdit = modal !== "add";
-    await fetch(isEdit ? `/api/master/priorities/${(modal as Priority).id}` : "/api/master/priorities", {
-      method: isEdit ? "PATCH" : "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
-    });
-    setLoading(false); setModal(null); load();
+    const err = await saveRecord(
+      isEdit ? `/api/master/priorities/${(modal as Priority).id}` : "/api/master/priorities",
+      isEdit ? "PATCH" : "POST",
+      form
+    );
+    setLoading(false);
+    if (err) { setError(err); return; }   // keep the modal open so the failure is visible
+    setModal(null); load();
   };
 
   return (
@@ -325,7 +362,7 @@ function PrioritiesSection({ onAddReady }: SectionProps) {
         ))}
       </TableShell>
       {modal !== null && (
-        <Modal title={modal === "add" ? "Add Priority" : "Edit Priority"} onClose={() => setModal(null)} onSubmit={submit} loading={loading}>
+        <Modal title={modal === "add" ? "Add Priority" : "Edit Priority"} onClose={() => setModal(null)} onSubmit={submit} loading={loading} error={error}>
           <Field label="Priority Code">
             <input className={inputCls} value={form.priority_code} onChange={e => setForm(f => ({ ...f, priority_code: e.target.value }))} placeholder="e.g. HIGH" />
           </Field>
@@ -357,6 +394,7 @@ function StatusesSection({ onAddReady }: SectionProps) {
   const [deleting, setDeleting] = useState<Status | null>(null);
   const [form, setForm] = useState({ entity_type: "project", status_code: "", status_label: "", color: "#94a3b8" });
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const load = useCallback(async () => {
     const j = await safeFetch("/api/master/statuses");
@@ -370,13 +408,16 @@ function StatusesSection({ onAddReady }: SectionProps) {
 
   const submit = async () => {
     setLoading(true);
+    setError("");
     const isEdit = modal !== "add";
-    await fetch(isEdit ? `/api/master/statuses/${(modal as Status).id}` : "/api/master/statuses", {
-      method: isEdit ? "PATCH" : "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
-    });
-    setLoading(false); setModal(null); load();
+    const err = await saveRecord(
+      isEdit ? `/api/master/statuses/${(modal as Status).id}` : "/api/master/statuses",
+      isEdit ? "PATCH" : "POST",
+      form
+    );
+    setLoading(false);
+    if (err) { setError(err); return; }   // keep the modal open so the failure is visible
+    setModal(null); load();
   };
 
   return (
@@ -395,7 +436,7 @@ function StatusesSection({ onAddReady }: SectionProps) {
         ))}
       </TableShell>
       {modal !== null && (
-        <Modal title={modal === "add" ? "Add Status" : "Edit Status"} onClose={() => setModal(null)} onSubmit={submit} loading={loading}>
+        <Modal title={modal === "add" ? "Add Status" : "Edit Status"} onClose={() => setModal(null)} onSubmit={submit} loading={loading} error={error}>
           <Field label="Status Code">
             <input className={inputCls} value={form.status_code} onChange={e => setForm(f => ({ ...f, status_code: e.target.value }))} placeholder="e.g. active" />
           </Field>
@@ -430,6 +471,7 @@ function UsersSection({ onAddReady }: SectionProps) {
   const [form, setForm] = useState({ full_name: "", email: "", password: "", department: "", job_title: "", is_active: true });
   const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const load = useCallback(async () => {
     const j = await safeFetch("/api/master/users");
@@ -453,12 +495,14 @@ function UsersSection({ onAddReady }: SectionProps) {
     const body = isEdit
       ? { full_name: form.full_name, is_active: form.is_active, ...(form.password ? { password: form.password } : {}), department: form.department, job_title: form.job_title }
       : form;
-    await fetch(isEdit ? `/api/master/users/${(modal as User).id}` : "/api/master/users", {
-      method: isEdit ? "PATCH" : "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    setLoading(false); setModal(null); load();
+    const err = await saveRecord(
+      isEdit ? `/api/master/users/${(modal as User).id}` : "/api/master/users",
+      isEdit ? "PATCH" : "POST",
+      body
+    );
+    setLoading(false);
+    if (err) { setError(err); return; }   // keep the modal open so the failure is visible
+    setModal(null); load();
   };
 
   return (
@@ -481,13 +525,13 @@ function UsersSection({ onAddReady }: SectionProps) {
         ))}
       </TableShell>
       {modal !== null && (
-        <Modal title={modal === "add" ? "Add User" : "Edit User"} onClose={() => setModal(null)} onSubmit={submit} loading={loading}>
+        <Modal title={modal === "add" ? "Add User" : "Edit User"} onClose={() => setModal(null)} onSubmit={submit} loading={loading} error={error}>
           <Field label="Full Name">
             <input className={inputCls} value={form.full_name} onChange={e => setForm(f => ({ ...f, full_name: e.target.value }))} placeholder="e.g. Budi Santoso" />
           </Field>
           {modal === "add" && (
             <Field label="Email">
-              <input type="email" className={inputCls} value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} placeholder="user@aryaduta.com" />
+              <input type="email" className={inputCls} value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} placeholder="user@company.com" />
             </Field>
           )}
           <Field label={modal === "add" ? "Password" : "New Password (blank = keep current)"}>
@@ -527,6 +571,7 @@ function StakeholdersSection({ onAddReady }: SectionProps) {
   const [deleting, setDeleting] = useState<Person | null>(null);
   const [form, setForm] = useState({ full_name: "", email: "", phone_number: "", nickname: "", department: "", job_title: "", is_active: true });
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const load = useCallback(async () => {
     const j = await safeFetch("/api/master/people?stakeholders_only=1");
@@ -543,13 +588,16 @@ function StakeholdersSection({ onAddReady }: SectionProps) {
 
   const submit = async () => {
     setLoading(true);
+    setError("");
     const isEdit = modal !== "add";
-    await fetch(isEdit ? `/api/master/people/${(modal as Person).id}` : "/api/master/people", {
-      method: isEdit ? "PATCH" : "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
-    });
-    setLoading(false); setModal(null); load();
+    const err = await saveRecord(
+      isEdit ? `/api/master/people/${(modal as Person).id}` : "/api/master/people",
+      isEdit ? "PATCH" : "POST",
+      form
+    );
+    setLoading(false);
+    if (err) { setError(err); return; }   // keep the modal open so the failure is visible
+    setModal(null); load();
   };
 
   return (
@@ -575,7 +623,7 @@ function StakeholdersSection({ onAddReady }: SectionProps) {
         ))}
       </TableShell>
       {modal !== null && (
-        <Modal title={modal === "add" ? "Add Stakeholder" : "Edit Stakeholder"} onClose={() => setModal(null)} onSubmit={submit} loading={loading}>
+        <Modal title={modal === "add" ? "Add Stakeholder" : "Edit Stakeholder"} onClose={() => setModal(null)} onSubmit={submit} loading={loading} error={error}>
           <Field label="Full Name">
             <input className={inputCls} value={form.full_name} onChange={e => setForm(f => ({ ...f, full_name: e.target.value }))} placeholder="e.g. Budi Santoso" />
           </Field>
@@ -617,8 +665,12 @@ function PhasesSection({ onAddReady }: SectionProps) {
   const [data, setData] = useState<Phase[]>([]);
   const [modal, setModal] = useState<null | "add" | Phase>(null);
   const [deleting, setDeleting] = useState<Phase | null>(null);
-  const [form, setForm] = useState({ phase_code: "", phase_name: "" });
+  const [form, setForm] = useState({ phase_code: "", phase_name: "", color: "#8b5cf6" });
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [dragId, setDragId] = useState<number | null>(null);
+  const [overId, setOverId] = useState<number | null>(null);
+  const [reorderError, setReorderError] = useState("");
 
   const load = useCallback(async () => {
     const j = await safeFetch("/api/master/phases");
@@ -626,27 +678,95 @@ function PhasesSection({ onAddReady }: SectionProps) {
   }, []);
   useEffect(() => { load(); }, [load]);
 
-  const openAdd  = () => { setForm({ phase_code: "", phase_name: "" }); setModal("add"); };
+  const openAdd  = () => { setForm({ phase_code: "", phase_name: "", color: "#8b5cf6" }); setError(""); setModal("add"); };
   useEffect(() => { onAddReady(openAdd); }, [onAddReady]); // eslint-disable-line
-  const openEdit = (p: Phase) => { setForm({ phase_code: p.phase_code, phase_name: p.phase_name }); setModal(p); };
+  const openEdit = (p: Phase) => {
+    setForm({ phase_code: p.phase_code, phase_name: p.phase_name, color: p.color || "#8b5cf6" });
+    setError(""); setModal(p);
+  };
 
   const submit = async () => {
     setLoading(true);
+    setError("");
     const isEdit = modal !== "add";
-    await fetch(isEdit ? `/api/master/phases/${(modal as Phase).id}` : "/api/master/phases", {
-      method: isEdit ? "PATCH" : "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
-    });
-    setLoading(false); setModal(null); load();
+    const err = await saveRecord(
+      isEdit ? `/api/master/phases/${(modal as Phase).id}` : "/api/master/phases",
+      isEdit ? "PATCH" : "POST",
+      form
+    );
+    setLoading(false);
+    if (err) { setError(err); return; }   // keep the modal open so the failure is visible
+    setModal(null); load();
   };
+
+  /** Commits the dragged row's new position; reverts the list if the API rejects it. */
+  async function commitReorder(fromId: number, toId: number) {
+    if (fromId === toId) return;
+    const fromIdx = data.findIndex(p => p.id === fromId);
+    const toIdx   = data.findIndex(p => p.id === toId);
+    if (fromIdx < 0 || toIdx < 0) return;
+
+    const next = [...data];
+    const [moved] = next.splice(fromIdx, 1);
+    next.splice(toIdx, 0, moved);
+
+    const prev = data;
+    setData(next);                 // optimistic
+    setReorderError("");
+    try {
+      const res = await fetch("/api/master/phases/reorder", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: next.map(p => p.id) }),
+      });
+      const j = await res.json();
+      if (!res.ok || !j?.success) { setData(prev); setReorderError(j?.error || "Failed to save the new order"); return; }
+      setData(j.data);
+    } catch {
+      setData(prev);
+      setReorderError("Failed to save the new order");
+    }
+  }
 
   return (
     <>
-      <TableShell heads={["#", "Code", "Phase Name"]} empty={!data.length}>
+      <p className="text-[11px] text-slate-400 dark:text-slate-500 mb-2 px-1">
+        Phases run in order as a milestone pipeline — drag a row to change where it sits.
+      </p>
+      {reorderError && (
+        <div className="flex items-start gap-2 mb-2 px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/25">
+          <AlertCircle size={13} className="text-red-500 mt-0.5 shrink-0" />
+          <p className="text-[11px] text-red-600 dark:text-red-400">{reorderError}</p>
+        </div>
+      )}
+      <TableShell heads={["", "#", "Color", "Code", "Phase Name"]} empty={!data.length}>
         {data.map((p, i) => (
-          <tr key={p.id}>
+          <tr
+            key={p.id}
+            draggable
+            onDragStart={() => setDragId(p.id)}
+            onDragOver={e => { e.preventDefault(); if (overId !== p.id) setOverId(p.id); }}
+            onDragEnd={() => { setDragId(null); setOverId(null); }}
+            onDrop={e => {
+              e.preventDefault();
+              if (dragId != null) commitReorder(dragId, p.id);
+              setDragId(null); setOverId(null);
+            }}
+            className={`transition-colors ${dragId === p.id ? "opacity-40" : ""} ${
+              overId === p.id && dragId !== p.id ? "bg-emerald-50 dark:bg-emerald-500/10" : ""
+            }`}
+          >
+            <td className="px-2 py-3 w-8 cursor-grab active:cursor-grabbing text-slate-300 dark:text-slate-600" title="Drag to reorder">
+              <GripVertical size={14} />
+            </td>
             <td className="px-4 py-3 text-slate-400 text-xs font-medium w-10">{i + 1}</td>
+            <td className="px-4 py-3 w-16">
+              <span
+                className="inline-block w-5 h-5 rounded-md border border-black/10 dark:border-white/15"
+                style={{ backgroundColor: p.color || "#8b5cf6" }}
+                title={p.color || "#8b5cf6"}
+              />
+            </td>
             <td className="px-4 py-3"><span className="font-mono text-xs bg-brand-cream dark:bg-white/10 text-brand-mahogany dark:text-brand-sand px-2 py-0.5 rounded-md font-semibold">{p.phase_code}</span></td>
             <td className="px-4 py-3 text-slate-700 dark:text-slate-200 font-medium">{p.phase_name}</td>
             <RowActions onEdit={() => openEdit(p)} onDelete={() => setDeleting(p)} />
@@ -654,16 +774,37 @@ function PhasesSection({ onAddReady }: SectionProps) {
         ))}
       </TableShell>
       {modal !== null && (
-        <Modal title={modal === "add" ? "Add Phase" : "Edit Phase"} onClose={() => setModal(null)} onSubmit={submit} loading={loading}>
+        <Modal title={modal === "add" ? "Add Phase" : "Edit Phase"} onClose={() => setModal(null)} onSubmit={submit} loading={loading} error={error}>
           <Field label="Phase Code">
             <input className={inputCls} value={form.phase_code} onChange={e => setForm(f => ({ ...f, phase_code: e.target.value }))} placeholder="e.g. design" />
           </Field>
           <Field label="Phase Name">
             <input className={inputCls} value={form.phase_name} onChange={e => setForm(f => ({ ...f, phase_name: e.target.value }))} placeholder="e.g. Design" />
           </Field>
+          <Field label="Color">
+            <div className="flex items-center gap-3 rounded-lg border border-slate-200/70 dark:border-white/10 bg-white dark:bg-zinc-900/60 px-3 py-2 transition-all">
+              <input type="color" value={form.color} onChange={e => setForm(f => ({ ...f, color: e.target.value }))} className="w-7 h-7 rounded-lg cursor-pointer border-0 bg-transparent p-0 shrink-0" />
+              <div className="w-px h-5 bg-slate-200 dark:bg-white/15 shrink-0" />
+              <input className="flex-1 bg-transparent outline-none text-sm text-slate-700 dark:text-slate-200 placeholder:text-slate-400" value={form.color} onChange={e => setForm(f => ({ ...f, color: e.target.value }))} placeholder="#8b5cf6" />
+            </div>
+          </Field>
         </Modal>
       )}
-      {deleting && <DeleteConfirm label={deleting.phase_name} onConfirm={async () => { await fetch(`/api/master/phases/${deleting.id}`, { method: "DELETE" }); setDeleting(null); load(); }} onCancel={() => setDeleting(null)} />}
+      {deleting && (
+        <DeleteConfirm
+          label={deleting.phase_name}
+          onConfirm={async () => {
+            const res = await fetch(`/api/master/phases/${deleting.id}`, { method: "DELETE" });
+            const j = await res.json().catch(() => null);
+            setDeleting(null);
+            // Built-in phases are refused by the API — surface that instead of
+            // silently doing nothing.
+            if (!res.ok || !j?.success) setReorderError(j?.error || "Failed to delete phase");
+            load();
+          }}
+          onCancel={() => setDeleting(null)}
+        />
+      )}
     </>
   );
 }
@@ -696,7 +837,7 @@ export default function MasterSetupPage() {
       {/* Page header */}
       <div className="flex items-center gap-2 mb-3 mt-2">
         <Database size={16} className="text-brand-sienna" />
-        <h2 className="text-lg font-bold text-slate-800 dark:text-white">Master Setup</h2>
+        <h2 className="text-xl font-bold text-slate-800 dark:text-white">Master Setup</h2>
       </div>
 
       {/* Main card */}

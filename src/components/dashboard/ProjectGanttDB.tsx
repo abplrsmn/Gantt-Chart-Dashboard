@@ -7,7 +7,8 @@ import { differenceInCalendarDays, format, addDays, isValid, startOfWeek, endOfW
 import { Search, ArrowRight, MousePointer2, Move, Trash2, Plus, CalendarRange, CheckCircle2, X as XIcon, ChevronDown } from "lucide-react";
 import DateRangePicker from "./DateRangePicker";
 import AnimatedDropdown from "./AnimatedDropdown";
-import { PHASE_LIST } from "@/lib/phases";
+import { PHASE_LIST, customPhaseColor, type CustomPhase } from "@/lib/phases";
+import { usePhases } from "@/lib/usePhases";
 import AddProjectModal from "./AddProjectModal";
 
 function getUserIdFromCookie(): string {
@@ -21,7 +22,12 @@ function dateRangeKey(): string {
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-type PhaseKey = "brief" | "design" | "control" | "pm" | "handover";
+/**
+ * The five built-in phases use their short keys; phases added via Master Setup
+ * use their `phase_code`, so this is widened to string rather than a fixed union.
+ */
+type PhaseKey = string;
+type BuiltinPhaseKey = "brief" | "design" | "control" | "pm" | "handover";
 
 const PHASES: { key: PhaseKey; label: string; color: string }[] = PHASE_LIST.map(p => ({
   key: p.key as PhaseKey,
@@ -36,13 +42,19 @@ const PRIORITY_CONFIG: Record<string, { label: string; color: string; dot: strin
   LOW:      { label: "Low",      color: "#22c55e", dot: "bg-green-500" },
 };
 
-const PHASE_DRAG_FIELDS: Record<PhaseKey, { start: string; end: string }> = {
+/**
+ * Drag-to-reschedule writes back through these flat project fields. Only the
+ * built-in phases have them — custom phases store their dates in the nested
+ * `extra_phases` payload, so they render read-only here and are edited from the
+ * project detail page / summary matrix instead. A lookup miss means "not draggable".
+ */
+const PHASE_DRAG_FIELDS: Record<string, { start: string; end: string } | undefined> = {
   brief:    { start: "brief_received", end: "brief_deadline" },
   design:   { start: "design_start",   end: "design_end" },
   control:  { start: "control_start",  end: "control_end" },
   pm:       { start: "pm_start",       end: "pm_end" },
   handover: { start: "handover_start", end: "handover_end" },
-};
+} satisfies Record<BuiltinPhaseKey, { start: string; end: string }>;
 
 type DBProject = {
   id: string;
@@ -96,6 +108,8 @@ type DBProject = {
   unit_code: string | null;
   category_code: string | null;
   category_name: string | null;
+  /** Phases added via Master Setup beyond the built-in five. */
+  extra_phases?: CustomPhase[] | null;
 };
 
 type PhaseSegment = {
@@ -152,15 +166,25 @@ const PHASE_CODE_MAP: Record<string, PhaseKey> = {
   project_control: "control", project_management: "pm", handover: "handover",
 };
 
-function buildSegments(p: DBProject, timelineStart: Date, totalDays: number): PhaseSegment[] {
+function buildSegments(p: DBProject, timelineStart: Date, totalDays: number, colorByKey?: Map<string, string>): PhaseSegment[] {
   const projectStart = toDate(p.start_date) ?? timelineStart;
 
-  const raw: { key: PhaseKey; start: Date | null; end: Date | null; progress: number }[] = [
+  const raw: { key: PhaseKey; label?: string; color?: string; start: Date | null; end: Date | null; progress: number }[] = [
     { key: "brief",    start: toDate(p.brief_received),  end: toDate(p.brief_deadline), progress: Number(p.brief_progress ?? 100) },
     { key: "design",   start: toDate(p.design_start),    end: toDate(p.design_end),     progress: Number(p.design_progress ?? 50) },
     { key: "control",  start: toDate(p.control_start),   end: toDate(p.control_end),    progress: Number(p.control_progress ?? 50) },
     { key: "pm",       start: toDate(p.pm_start),        end: toDate(p.pm_end),         progress: Number(p.pm_progress ?? 50) },
     { key: "handover", start: toDate(p.handover_start),  end: toDate(p.handover_end),   progress: Number(p.handover_progress ?? 20) },
+    // Custom (Master Setup) phases carry their own label/color since they have
+    // no entry in the built-in PHASES table.
+    ...(p.extra_phases ?? []).map(x => ({
+      key:      x.code as PhaseKey,
+      label:    x.name,
+      color:    customPhaseColor(x.code),
+      start:    toDate(x.start),
+      end:      toDate(x.end),
+      progress: Number(x.progress ?? 0),
+    })),
   ];
 
   return raw.flatMap(r => {
@@ -180,8 +204,11 @@ function buildSegments(p: DBProject, timelineStart: Date, totalDays: number): Ph
     const offsetPct  = Math.max(0, (offsetDays / totalDays) * 100);
     const widthPct   = Math.max(0.3, (widthDays / totalDays) * 100);
     const ph = PHASES.find(ph => ph.key === r.key);
-    if (!ph) return [];
-    return [{ key: r.key, label: ph.label, color: ph.color, start: s, end: e, progress: r.progress, offsetPct, widthPct }];
+    const label = ph?.label ?? r.label;
+    // Master Setup's color wins, so recoloring a phase there updates the bars.
+    const color = colorByKey?.get(r.key) ?? ph?.color ?? r.color;
+    if (!label || !color) return [];
+    return [{ key: r.key, label, color, start: s, end: e, progress: r.progress, offsetPct, widthPct }];
   });
 }
 
@@ -277,6 +304,7 @@ export default function ProjectGanttDB() {
   const handlePriorityFilter = (v: string) => { setPriorityFilter(v); try { localStorage.setItem(`gantt_priority_${getUserIdFromCookie()}`, v); } catch { /* ignore */ } };
   const handlePhaseFilter    = (v: string) => { setPhaseFilter(v);    try { localStorage.setItem(`gantt_phase_${getUserIdFromCookie()}`, v);    } catch { /* ignore */ } };
   const handleStatusFilter   = (v: string) => { setStatusFilter(v);   try { localStorage.setItem(`gantt_status_${getUserIdFromCookie()}`, v);   } catch { /* ignore */ } };
+  const { phases: dbPhases } = usePhases();
   const [dateRange, setDateRange] = useState<{ start: string; end: string }>(() => {
     try {
       const saved = typeof window !== "undefined" ? localStorage.getItem(dateRangeKey()) : null;
@@ -458,6 +486,27 @@ export default function ProjectGanttDB() {
   const rangeEnd   = useMemo(() => dateRange.end   ? new Date(dateRange.end)   : null, [dateRange.end]);
 
 
+  /**
+   * Legend/colors come from Master Setup so reordering or recoloring a phase
+   * there is reflected here. Built-in phases map their code to the short key
+   * the segment builder uses; custom phases key on their code directly.
+   */
+  const phaseLegend = useMemo(
+    () => dbPhases.map(p => ({
+      key:   PHASE_CODE_MAP[p.code] ?? p.code,
+      label: p.label,
+      color: p.color,
+    })),
+    [dbPhases]
+  );
+
+  /** Overrides the built-in PHASES colors with whatever Master Setup has. */
+  const colorByKey = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const p of phaseLegend) m.set(p.key, p.color);
+    return m;
+  }, [phaseLegend]);
+
   const filteredProjects = useMemo(() => {
     return projects.filter(p => {
       const matchSearch = [p.project_name, p.project_code, p.status_label, p.current_phase_name, p.unit_code, p.unit_name, p.brief_pic, p.design_pic, p.control_pic, p.pm_pic, p.handover_pic]
@@ -568,7 +617,7 @@ export default function ProjectGanttDB() {
     filteredProjects.forEach(p => {
       const projectStart = toDate(p.start_date);
       const projectEnd = toDate(p.end_date);
-      const segs = buildSegments(p, timeline.start, totalDays);
+      const segs = buildSegments(p, timeline.start, totalDays, colorByKey);
       const hasProjectOverlap = !!(projectStart && projectEnd && projectStart <= rangeEnd && projectEnd >= rangeStart);
       const hasSegmentOverlap = segs.some(s => s.start <= rangeEnd && s.end >= rangeStart);
       if (hasProjectOverlap || hasSegmentOverlap) totalActiveProjects++;
@@ -645,6 +694,9 @@ export default function ProjectGanttDB() {
   ) {
     e.preventDefault();
     e.stopPropagation();
+    // Custom phases have no flat write-back fields, so their bars aren't
+    // draggable — their dates are edited from the project detail page instead.
+    if (!PHASE_DRAG_FIELDS[seg.key]) return;
     const barEl = e.currentTarget.closest<HTMLElement>("[data-drag-bar]");
     if (!barEl) return;
     dragRef.current = {
@@ -701,7 +753,7 @@ export default function ProjectGanttDB() {
             className="shrink-0 text-[11px] font-bold px-2.5 py-1.5 rounded-lg whitespace-nowrap transition-colors"
             style={rangeSummary && rangeSummary.totalActiveProjects > 0
               ? { color: "#92400e", background: "rgba(251,191,36,0.18)", border: "1px solid rgba(251,191,36,0.45)" }
-              : { color: "var(--brand-mahogany)", background: "rgba(59,35,21,0.08)", border: "1px solid rgba(59,35,21,0.15)" }
+              : { color: "var(--brand-mahogany)", background: "rgba(16,185,129,0.10)", border: "1px solid rgba(16,185,129,0.18)" }
             }
           >
             {rangeSummary ? rangeSummary.totalActiveProjects : 0} ongoing
@@ -766,7 +818,7 @@ export default function ProjectGanttDB() {
       {/* Legend + tool mode selector on the same row */}
       <div className="shrink-0 flex items-center justify-between gap-4">
         <div className="flex flex-wrap gap-x-4 gap-y-1 items-center">
-          {PHASES.map(ph => (
+          {phaseLegend.map(ph => (
             <div key={ph.key} className="flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400">
               <span className="w-3 h-2.5 rounded-sm inline-block" style={{ backgroundColor: ph.color }} />
               {ph.label}
@@ -905,7 +957,7 @@ export default function ProjectGanttDB() {
                   left:        `${240 + (rangeRulers.startPct / 100) * totalWidth}px`,
                   width:       `${((rangeRulers.endPct - rangeRulers.startPct) / 100) * totalWidth}px`,
                   borderColor: "var(--brand-sand)",
-                  background:  "rgba(196,149,106,0.12)",
+                  background:  "rgba(52,211,153,0.14)",
                   zIndex:      1,
                 }}
                 onMouseMove={e => setRangeTooltip({ x: e.clientX, y: e.clientY })}
@@ -927,7 +979,7 @@ export default function ProjectGanttDB() {
                 No projects match your filter.
               </div>
             ) : filteredProjects.map(p => {
-              const allSegments = buildSegments(p, timeline.start, totalDays);
+              const allSegments = buildSegments(p, timeline.start, totalDays, colorByKey);
               const segments = phaseFilter === "ALL"
                 ? allSegments
                 : allSegments.filter(s => s.key === PHASE_CODE_MAP[phaseFilter]);
@@ -976,8 +1028,8 @@ export default function ProjectGanttDB() {
                 <div
                   key={p.id}
                   className={`border-b border-slate-100/80 dark:border-white/4 last:border-0 ${
-                    isActiveToday ? "bg-cyan-50/30 dark:bg-cyan-900/10"
-                    : isInRange   ? "bg-amber-50/40 dark:bg-amber-900/10"
+                    isActiveToday ? "bg-cyan-50/30 dark:bg-cyan-400/5"
+                    : isInRange   ? "bg-amber-50/40 dark:bg-white/3"
                     : "bg-white dark:bg-zinc-900"
                   }`}
                 >
@@ -991,11 +1043,20 @@ export default function ProjectGanttDB() {
                     <div
                       onClick={() => { if (segments.length > 0) toggleExpanded(p.id); }}
                       className={`sticky left-0 z-20 shrink-0 w-60 px-3 flex flex-col justify-center overflow-hidden border-r border-slate-200/40 dark:border-white/5 ${segments.length > 0 ? "cursor-pointer" : ""} ${
-                        isActiveToday ? "bg-cyan-50 dark:bg-cyan-950 hover:bg-cyan-100 dark:hover:bg-cyan-900"
-                        : isInRange   ? "bg-amber-50 dark:bg-amber-950 hover:bg-amber-100 dark:hover:bg-amber-900"
+                        // Sticky cells must stay fully opaque — with alpha here the
+                        // scrolling grid/bars behind them show through during
+                        // horizontal scroll. These hexes are the translucent tint
+                        // pre-blended against zinc-900, so they look identical to a
+                        // wash without the bleed-through.
+                        isActiveToday ? "bg-cyan-50 hover:bg-cyan-100 dark:bg-[#19272c] dark:hover:bg-[#193239]"
+                        : isInRange   ? "bg-amber-50 hover:bg-amber-100 dark:bg-[#212124] dark:hover:bg-[#28282b] border-l-2 border-l-amber-600/40 dark:border-l-white/14"
                         : "bg-white dark:bg-zinc-900 hover:bg-slate-50 dark:hover:bg-zinc-800"
                       }`}
-                      style={{ height: `${rowHeight}px`, transition: "height 220ms ease", ...(isActiveToday ? { borderLeft: `3px solid ${activeTodayPhase?.color ?? "#06b6d4"}` } : {}) }}
+                      style={{
+                        height: `${rowHeight}px`,
+                        transition: "height 220ms ease",
+                        ...(isActiveToday ? { borderLeft: `3px solid ${activeTodayPhase?.color ?? "#06b6d4"}` } : {}),
+                      }}
                     >
                       <div className="flex items-center gap-1.5 mb-0.5">
                         <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${pCfg.dot}`} />
@@ -1231,7 +1292,7 @@ export default function ProjectGanttDB() {
           <div className="fixed z-999 pointer-events-none" style={{ left, top, width: TIP_W }}>
             <div
               className="rounded-lg border px-3 py-2.5 shadow-xl bg-white dark:bg-zinc-900"
-              style={{ borderColor: "rgba(196,149,106,0.4)", boxShadow: "0 8px 24px rgba(0,0,0,0.12), 0 0 0 1px rgba(196,149,106,0.2)" }}
+              style={{ borderColor: "rgba(52,211,153,0.45)", boxShadow: "0 8px 24px rgba(0,0,0,0.12), 0 0 0 1px rgba(52,211,153,0.25)" }}
             >
               <div className="flex items-center gap-1.5 mb-1.5">
                 <span className="w-2 h-2 rounded-sm shrink-0" style={{ backgroundColor: "var(--brand-sand)" }} />
@@ -1261,6 +1322,7 @@ export default function ProjectGanttDB() {
 
         function confirmDelete() {
           const fields     = PHASE_DRAG_FIELDS[seg.key];
+          if (!fields) return;   // custom phase — dates are edited from project details
           const delSummary = `Cleared ${phaseName} phase dates`;
           setProjects(prev => prev.map(p => p.id !== projectId ? p : {
             ...p, [fields.start]: null, [fields.end]: null,
@@ -1319,6 +1381,7 @@ export default function ProjectGanttDB() {
           const startStr = format(newStart, "yyyy-MM-dd");
           const endStr   = format(newEnd,   "yyyy-MM-dd");
           const fields   = PHASE_DRAG_FIELDS[phaseKey];
+          if (!fields) { setDragConfirm(null); return; }
           const summary  = `Rescheduled ${phaseName}: ${format(origStart, "dd MMM")} – ${format(origEnd, "dd MMM")} → ${format(newStart, "dd MMM")} – ${format(newEnd, "dd MMM yyyy")}`;
 
           setProjects(prev => prev.map(p => p.id !== projectId ? p : {
@@ -1335,6 +1398,7 @@ export default function ProjectGanttDB() {
         function cancelDrag() {
           // restore original bar position in state
           const fields = PHASE_DRAG_FIELDS[phaseKey];
+          if (!fields) { setDragConfirm(null); return; }
           setProjects(prev => prev.map(p => p.id !== projectId ? p : {
             ...p,
             [fields.start]: format(origStart, "yyyy-MM-dd"),

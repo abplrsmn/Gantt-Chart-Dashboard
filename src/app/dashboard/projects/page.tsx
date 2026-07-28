@@ -95,7 +95,7 @@ export default function ProjectsPage() {
     <div className="space-y-6 pb-6 animate-page-enter">
       <div className="flex items-center gap-2 mb-3 mt-2">
         <FolderOpen size={16} className="text-cyan-500" />
-        <h2 className="text-lg font-bold text-slate-800 dark:text-white">Projects</h2>
+        <h2 className="text-xl font-bold text-slate-800 dark:text-white">Projects</h2>
       </div>
 
       {/* Date range picker card */}

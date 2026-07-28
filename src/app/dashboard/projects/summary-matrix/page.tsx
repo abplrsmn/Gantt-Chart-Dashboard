@@ -2,7 +2,7 @@ import ProjectSummaryMatrixPage from "@/components/dashboard/ProjectSummaryMatri
 
 export default function SummaryMatrixPage() {
   return (
-    <div className="animate-page-enter flex flex-col overflow-hidden" style={{ height: "calc(100vh - 52px)" }}>
+    <div className="animate-page-enter flex flex-col overflow-hidden" style={{ height: "calc(100vh - 96px)" }}>
       <ProjectSummaryMatrixPage />
     </div>
   );

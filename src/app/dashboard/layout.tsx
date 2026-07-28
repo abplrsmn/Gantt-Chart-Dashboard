@@ -4,9 +4,22 @@ import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
   Home, Users, CalendarRange,
-  Bell, X, Database, BarChart2, ShieldAlert, SunMoon, LogOut, Settings, TableProperties,
+  Bell, X, Database, BarChart2, ShieldAlert, SunMoon, LogOut, TableProperties,
+  MessageSquare, ChevronDown,
 } from "lucide-react";
 import { useTheme } from "@/components/ThemeProvider";
+
+/** "Dashboard Admin" → "DA"; falls back to a person glyph when the name is empty. */
+function initialsOf(name: string): string {
+  return (
+    name
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map(w => w[0]?.toUpperCase() ?? "")
+      .join("") || "?"
+  );
+}
 
 function getUserIdFromCookie(): string {
   if (typeof document === "undefined") return "default";
@@ -40,13 +53,13 @@ function SideNavItem({ icon, label, active, onClick, badge }: {
   return (
     <button
       onClick={onClick}
-      className={`relative w-full flex items-center gap-3 px-2.5 py-2.5 rounded-lg overflow-hidden transition-all duration-150 ${
+      title={label}
+      className={`relative w-full flex items-center justify-center px-2.5 py-2.5 rounded-lg transition-colors duration-150 ${
         active
           ? "glass-nav-active shadow-sm text-brand-mahogany dark:text-brand-sand"
           : "text-slate-500 dark:text-slate-400 hover:bg-white/60 dark:hover:bg-white/8 hover:text-slate-700 dark:hover:text-slate-200"
       }`}
     >
-      {/* Icon — fixed, stays put while label slides in */}
       <span className="relative shrink-0 w-5 h-5 flex items-center justify-center">
         {icon}
         {badge != null && badge > 0 && (
@@ -55,18 +68,6 @@ function SideNavItem({ icon, label, active, onClick, badge }: {
           </span>
         )}
       </span>
-
-      {/* Label — clipped by button overflow-hidden when sidebar is narrow */}
-      <span className="text-[13px] font-semibold whitespace-nowrap leading-none flex-1 text-left">
-        {label}
-      </span>
-
-      {/* Badge pill (only visible when expanded) */}
-      {badge != null && badge > 0 && (
-        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-red-500 text-white shrink-0">
-          {badge > 9 ? "9+" : badge}
-        </span>
-      )}
     </button>
   );
 }
@@ -82,32 +83,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [alertCount, setAlertCount] = useState(0);
   const [toast, setToast]         = useState<ToastState>({ visible: false, count: 0 });
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [sidebarExpanded, setSidebarExpanded] = useState(false);
   const settingsRef    = useRef<HTMLDivElement>(null);
   const mainRef        = useRef<HTMLElement>(null);
-  const expandTimerRef = useRef<number | null>(null);
   const prevAlertCountRef = useRef<number | null>(null);
   const toastTimerRef     = useRef<number | null>(null);
   const pathnameRef       = useRef(pathname);
-
-  // Only expand when cursor is clearly inside the icon column (left 44px of 56px sidebar).
-  // Prevents accidental trigger when cursor grazes the right edge heading to content.
-  function scheduleExpand(clientX: number) {
-    if (sidebarExpanded) return;
-    if (clientX > 44) {
-      if (expandTimerRef.current) { clearTimeout(expandTimerRef.current); expandTimerRef.current = null; }
-      return;
-    }
-    setSidebarExpanded(true);
-  }
-
-  function handleSidebarEnter(e: React.MouseEvent) { scheduleExpand(e.clientX); }
-  function handleSidebarMove(e: React.MouseEvent)  { scheduleExpand(e.clientX); }
-  function handleSidebarLeave() {
-    if (expandTimerRef.current) { clearTimeout(expandTimerRef.current); expandTimerRef.current = null; }
-    setSidebarExpanded(false);
-    setSettingsOpen(false);
-  }
 
   useEffect(() => { pathnameRef.current = pathname; }, [pathname]);
   // Natural document flow now scrolls the window, so reset window scroll on
@@ -195,6 +175,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { icon: <TableProperties size={16} />,  label: "Summary",       path: "/dashboard/projects/summary-matrix" },
     { icon: <BarChart2 size={16} />,        label: "Report",        path: "/dashboard/weekly-report" },
     { icon: <Users size={16} />,            label: "Team",          path: "/dashboard/team" },
+    { icon: <MessageSquare size={16} />,    label: "Chat",          path: "/dashboard/chat" },
     { icon: <ShieldAlert size={16} />,      label: "Alerts",        path: "/dashboard/alerts", badge: alertCount },
     { icon: <Database size={16} />,         label: "Master Setup",  path: "/dashboard/master" },
   ];
@@ -204,7 +185,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   // page uses natural document flow so it ends exactly at its last card.
   const fullHeightPage =
     pathname === "/dashboard/projects/gantt" ||
-    pathname === "/dashboard/projects/summary-matrix";
+    pathname === "/dashboard/projects/summary-matrix" ||
+    pathname === "/dashboard/chat";
 
   // Active match: exact for home & summary-matrix, prefix for others
   function isActive(path: string) {
@@ -225,29 +207,34 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <div className={`fixed inset-0 -z-10 pointer-events-none ${isDark ? "mesh-bg-dark" : "mesh-bg-light"}`} />
 
       {/* ── Sidebar ───────────────────────────────────────────────────────── */}
-      <aside
-        onMouseEnter={handleSidebarEnter}
-        onMouseMove={handleSidebarMove}
-        onMouseLeave={handleSidebarLeave}
-        className={`fixed left-0 top-0 h-screen z-50 flex flex-col
-                   transition-[width] duration-200 ease-out
-                   bg-white/85 dark:bg-zinc-950/85 backdrop-blur-xl
-                   border-r border-slate-200/60 dark:border-white/8
-                   select-none ${sidebarExpanded ? "w-56" : "w-14"}`}
-      >
+      <aside className="fixed left-2 top-2 bottom-2 z-50 flex flex-col items-start gap-3 select-none">
 
-        {/* Logo — display only */}
-        <div className="flex items-center gap-3 px-3.5 py-4 shrink-0 overflow-hidden border-b border-slate-200/50 dark:border-white/6">
-          <div className="w-7 h-7 rounded-lg overflow-hidden shrink-0 flex items-center justify-center bg-white">
-            <img src="/logo_perusahaan.jpg" alt="" className="w-full h-full object-contain" />
+        {/* Logo lockup — display only; the account menu lives in the top-right profile button */}
+        <div
+          className="shrink-0 px-2.5 py-2 rounded-2xl
+                     bg-white/85 dark:bg-zinc-950/85 backdrop-blur-xl
+                     border border-slate-200/60 dark:border-white/8
+                     shadow-lg shadow-slate-900/5 dark:shadow-black/30"
+        >
+          <div className="flex items-center gap-2 py-1 pr-2">
+            <div className="w-7 h-7 rounded-lg shrink-0 flex items-center justify-center bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-xs font-black">
+              K
+            </div>
+            <span className="text-[13px] font-extrabold tracking-tight text-slate-800 dark:text-white whitespace-nowrap">
+              Keystone
+            </span>
           </div>
-          <span className={`min-w-0 flex-1 text-[11px] font-extrabold tracking-widest uppercase text-slate-700 dark:text-slate-200 whitespace-nowrap overflow-hidden text-ellipsis transition-opacity duration-150 ${sidebarExpanded ? "opacity-100" : "opacity-0"}`}>
-            {userName || " "}
-          </span>
         </div>
 
-        {/* Nav */}
-        <nav className="flex-1 px-2 py-3 space-y-0.5 overflow-y-auto overflow-x-hidden">
+        {/* Nav card — icon-only width, centered in the space below the (wider) logo
+            card, so there's a clear gap between logo and rail */}
+        <div className="flex-1 min-h-0 w-14 flex items-center justify-center">
+        <nav
+          className="shrink-0 w-14 max-h-full px-2 py-3 space-y-0.5 overflow-y-auto overflow-x-hidden flex flex-col rounded-2xl
+                     bg-white/85 dark:bg-zinc-950/85 backdrop-blur-xl
+                     border border-slate-200/60 dark:border-white/8
+                     shadow-lg shadow-slate-900/5 dark:shadow-black/30"
+        >
           {navItems.map(item => (
             <SideNavItem
               key={item.path}
@@ -259,61 +246,87 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             />
           ))}
         </nav>
-
-        {/* Settings button — bottom of sidebar */}
-        <div ref={settingsRef} className="relative px-2 py-3 shrink-0 border-t border-slate-200/50 dark:border-white/6">
-          <button
-            onClick={() => setSettingsOpen(v => !v)}
-            className={`relative w-full flex items-center gap-3 px-2.5 py-2.5 rounded-lg overflow-hidden transition-all duration-150 ${
-              settingsOpen
-                ? "bg-white/60 dark:bg-white/8 text-brand-mahogany dark:text-brand-sand"
-                : "text-slate-500 dark:text-slate-400 hover:bg-white/60 dark:hover:bg-white/8 hover:text-slate-700 dark:hover:text-slate-200"
-            }`}
-          >
-            <span className="shrink-0 w-5 h-5 flex items-center justify-center">
-              <Settings size={16} className={`transition-transform duration-300 ease-out ${settingsOpen ? "rotate-90 scale-105" : "rotate-0 scale-100"}`} />
-            </span>
-            <span className={`text-[13px] font-semibold whitespace-nowrap leading-none flex-1 text-left transition-opacity duration-150 delay-75 ${sidebarExpanded ? "opacity-100" : "opacity-0"}`}>
-              Settings
-            </span>
-          </button>
-
-          {/* Dropdown — opens upward */}
-          {settingsOpen && (
-            <div className="absolute left-2 bottom-full mb-1 w-44 rounded-lg border border-slate-200 dark:border-white/10 p-1.5 z-200 bg-white dark:bg-zinc-950 shadow-2xl backdrop-blur-xl animate-dropdown-enter">
-              <button
-                onClick={() => { setTheme(isDark ? "light" : "dark"); setSettingsOpen(false); }}
-                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium text-slate-700 dark:text-white/70 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5 transition-colors"
-              >
-                <SunMoon size={14} />
-                {isDark ? "Switch to Light" : "Switch to Dark"}
-              </button>
-              <div className="my-1 border-t border-slate-100 dark:border-white/5" />
-              <button
-                onClick={handleLogout}
-                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium text-red-500 dark:text-red-400 hover:text-red-600 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
-              >
-                <LogOut size={14} />
-                Log Out
-              </button>
-            </div>
-          )}
         </div>
       </aside>
 
-      {/* ── Main content — fixed 56px left offset for collapsed sidebar ── */}
-      {/* Natural document flow: the page is exactly as tall as its content and
+      {/* ── Profile (top-right) — account menu: theme + logout ─────────────── */}
+      <div ref={settingsRef} className="fixed top-2 right-2 z-10000">
+        <button
+          onClick={() => setSettingsOpen(v => !v)}
+          title={userName || "Account"}
+          aria-haspopup="menu"
+          aria-expanded={settingsOpen}
+          className={`flex items-center gap-2 pl-2 pr-2.5 py-2 rounded-2xl
+                      bg-white/85 dark:bg-zinc-950/85 backdrop-blur-xl
+                      border border-slate-200/60 dark:border-white/8
+                      shadow-lg shadow-slate-900/5 dark:shadow-black/30
+                      transition-all duration-150 hover:bg-white dark:hover:bg-zinc-950
+                      ${settingsOpen ? "ring-2 ring-emerald-500/40" : ""}`}
+        >
+          <span className="w-7 h-7 rounded-full shrink-0 flex items-center justify-center brand-gradient text-white text-[10px] font-black">
+            {initialsOf(userName)}
+          </span>
+          <ChevronDown
+            size={14}
+            className={`text-slate-400 shrink-0 transition-transform duration-200 ${settingsOpen ? "rotate-180" : ""}`}
+          />
+        </button>
+
+        {settingsOpen && (
+          <div
+            role="menu"
+            className="absolute right-0 top-full mt-1.5 w-52 rounded-xl border border-slate-200 dark:border-white/10 p-1.5 bg-white dark:bg-zinc-950 shadow-2xl backdrop-blur-xl animate-dropdown-enter origin-top-right"
+          >
+            {userName && (
+              <>
+                <div className="flex items-center gap-2.5 px-2.5 py-2">
+                  <span className="w-8 h-8 rounded-full shrink-0 flex items-center justify-center brand-gradient text-white text-[10px] font-black">
+                    {initialsOf(userName)}
+                  </span>
+                  <p className="text-[12px] font-bold text-slate-700 dark:text-white/85 truncate">{userName}</p>
+                </div>
+                <div className="mb-1 border-t border-slate-100 dark:border-white/5" />
+              </>
+            )}
+            <button
+              role="menuitem"
+              onClick={() => { setTheme(isDark ? "light" : "dark"); setSettingsOpen(false); }}
+              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium text-slate-700 dark:text-white/70 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5 transition-colors"
+            >
+              <SunMoon size={14} />
+              {isDark ? "Switch to Light" : "Switch to Dark"}
+            </button>
+            <div className="my-1 border-t border-slate-100 dark:border-white/5" />
+            <button
+              role="menuitem"
+              onClick={handleLogout}
+              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium text-red-500 dark:text-red-400 hover:text-red-600 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
+            >
+              <LogOut size={14} />
+              Log Out
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* ── Main content ──────────────────────────────────────────────────── */}
+      {/* Indented only past the narrow icon rail (8px + 56px = 64px) and pushed
+          below the logo card (ends at 62px), so content tucks *under* the wide
+          logo instead of being shoved out past it.
+          Natural document flow: the page is exactly as tall as its content and
           the browser scrolls when needed, so there is never scrollable empty
-          space below the last card. Full-viewport pages (gantt/summary) size
-          themselves with their own calc(100vh − 52px) wrapper. */}
-      <main ref={mainRef} className={`flex-1 min-w-0 ml-14 px-4 pb-8 pt-5 ${fullHeightPage ? "overflow-hidden" : ""}`}>
+          space below the last card. Full-viewport pages (gantt/summary/chat)
+          size themselves with their own calc(100vh − 96px) wrapper — that
+          96px is this element's pt-16 + pb-8, so keep them in sync. */}
+      <main ref={mainRef} className={`flex-1 min-w-0 ml-20 px-4 pb-8 pt-16 ${fullHeightPage ? "overflow-hidden" : ""}`}>
         <div className="max-w-390 mx-auto">
           {children}
         </div>
       </main>
 
       {/* ── Alert toast ───────────────────────────────────────────────────── */}
-      <div className={`fixed top-4 right-4 z-9999 transition-all duration-300 ${
+      {/* Sits below the profile button (which occupies the top-right corner). */}
+      <div className={`fixed top-18 right-2 z-9999 transition-all duration-300 ${
         toast.visible ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-2 pointer-events-none"
       }`}>
         <div className="flex items-start gap-3 px-4 py-3 rounded-xl border shadow-xl backdrop-blur-md bg-white/90 dark:bg-zinc-900/90 border-red-200/60 dark:border-red-500/30 min-w-64 max-w-80">

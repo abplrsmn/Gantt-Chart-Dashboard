@@ -140,10 +140,10 @@ function ProjectListContent() {
           Back
         </button>
         {tabParam === "completed" && (
-          <h2 className="text-lg font-bold text-slate-800 dark:text-white">Completed Projects</h2>
+          <h2 className="text-xl font-bold text-slate-800 dark:text-white">Completed Projects</h2>
         )}
         {!tabParam && (
-          <h2 className="text-lg font-bold text-slate-800 dark:text-white">All Projects</h2>
+          <h2 className="text-xl font-bold text-slate-800 dark:text-white">All Projects</h2>
         )}
       </div>
 

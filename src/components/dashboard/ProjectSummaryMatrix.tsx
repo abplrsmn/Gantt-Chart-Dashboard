@@ -1,8 +1,9 @@
 ﻿"use client";
 
 import { format, isValid } from "date-fns";
-import { forwardRef, useRef, useState } from "react";
+import { forwardRef, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { customPhaseColor, type CustomPhase } from "@/lib/phases";
 
 type SummaryProject = {
   id: string;
@@ -46,6 +47,8 @@ type SummaryProject = {
   handover_end?: string | null;
   actual_phase_completion_date?: string | null;
   handover_notes?: string | null;
+  /** Phases added via Master Setup — generic fields only. */
+  extra_phases?: CustomPhase[] | null;
 };
 
 interface Props {
@@ -91,6 +94,14 @@ const DATA_COLUMNS: { label: string; width: number }[] = [
   { label: "Actual Completion",                   width: 140 },
   { label: "Notes",                               width: 170 },
 ];
+/** Columns a Master Setup–added phase contributes (it has only generic fields). */
+const CUSTOM_PHASE_COLUMNS: { key: "start" | "end" | "progress" | "notes"; label: string; width: number }[] = [
+  { key: "start",    label: "Start",      width: 105 },
+  { key: "end",      label: "End",        width: 105 },
+  { key: "progress", label: "Progress %", width: 100 },
+  { key: "notes",    label: "Notes",      width: 170 },
+];
+
 const DEFAULT_COL_WIDTHS = [80, 288, ...DATA_COLUMNS.map(c => c.width)];
 const MIN_COL_WIDTH = 50;
 const COL_WIDTHS_STORAGE_KEY = "summaryMatrixColWidths";
@@ -186,8 +197,9 @@ function InlineCell({
   value: string | number | null | undefined;
   type: CellType;
   projectId: string;
-  field: keyof SummaryProject;
-  onSaved: (field: keyof SummaryProject, newVal: string | null) => void;
+  /** Flat column name, or an `xphase_<phaseId>_<key>` alias for a custom phase. */
+  field: keyof SummaryProject | string;
+  onSaved: (field: string, newVal: string | null) => void;
   className?: string;
 }) {
   const [editing, setEditing] = useState(false);
@@ -298,7 +310,34 @@ const ProjectSummaryMatrix = forwardRef<HTMLDivElement, Props>(function ProjectS
     } catch { /* ignore malformed storage */ }
     return DEFAULT_COL_WIDTHS;
   });
-  const innerWidth = colWidths.reduce((sum, w) => sum + w, 0);
+  /** Custom phases present in the data, deduped and in pipeline order. */
+  const customPhases = useMemo(() => {
+    const seen = new Map<string, { phaseId: string; name: string; code: string; order: number }>();
+    for (const p of projects) {
+      for (const x of p.extra_phases ?? []) {
+        if (!seen.has(String(x.phaseId))) {
+          seen.set(String(x.phaseId), { phaseId: String(x.phaseId), name: x.name, code: x.code, order: x.order });
+        }
+      }
+    }
+    return [...seen.values()].sort((a, b) => a.order - b.order);
+  }, [projects]);
+
+  /**
+   * Effective widths, derived rather than stored: the persisted array only
+   * covers the built-in columns, so custom-phase columns fall back to their
+   * defaults. Derived (not synced via an effect) so the <colgroup> and header
+   * row can never render out of sync with the column count.
+   */
+  const effectiveColWidths = useMemo(() => {
+    const defaults = [
+      ...DEFAULT_COL_WIDTHS,
+      ...customPhases.flatMap(() => CUSTOM_PHASE_COLUMNS.map(c => c.width)),
+    ];
+    return defaults.map((w, i) => colWidths[i] ?? w);
+  }, [colWidths, customPhases]);
+
+  const innerWidth = effectiveColWidths.reduce((sum, w) => sum + w, 0);
 
   const topScrollRef  = useRef<HTMLDivElement>(null);
   const headerScrollRef = useRef<HTMLDivElement>(null);
@@ -332,9 +371,26 @@ const ProjectSummaryMatrix = forwardRef<HTMLDivElement, Props>(function ProjectS
   function onHeaderScroll() { syncScroll(headerScrollRef.current?.scrollLeft ?? 0); }
   function onBodyScroll()   { syncScroll(bodyRef.current?.scrollLeft         ?? 0); }
 
-  function onSaved(projectId: string, field: keyof SummaryProject, newVal: string | null) {
+  function onSaved(projectId: string, field: string, newVal: string | null) {
+    // Custom phase fields live in the nested extra_phases array, not as flat
+    // columns — writing them flat would leave the cell showing a stale value.
+    const custom = /^xphase_(\d+)_(start|end|progress|notes)$/.exec(field);
     setProjects(prev =>
-      prev.map(p => p.id === projectId ? { ...p, [field]: newVal } : p)
+      prev.map(p => {
+        if (p.id !== projectId) return p;
+        if (custom) {
+          const [, phaseId, key] = custom;
+          return {
+            ...p,
+            extra_phases: (p.extra_phases ?? []).map(x =>
+              String(x.phaseId) === phaseId
+                ? { ...x, [key]: key === "progress" ? (newVal === null ? null : Number(newVal)) : newVal }
+                : x
+            ),
+          };
+        }
+        return { ...p, [field]: newVal };
+      })
     );
   }
 
@@ -361,7 +417,7 @@ const ProjectSummaryMatrix = forwardRef<HTMLDivElement, Props>(function ProjectS
         {/* Sticky column headers — horizontally synced */}
         <div ref={headerScrollRef} className="overflow-x-hidden" onScroll={onHeaderScroll}>
           <table className="w-full border-separate border-spacing-0 text-[10px]" style={{ minWidth: innerWidth, tableLayout: "fixed" }}>
-            <colgroup>{colWidths.map((w, i) => <col key={i} style={{ width: w, minWidth: w }} />)}</colgroup>
+            <colgroup>{effectiveColWidths.map((w, i) => <col key={i} style={{ width: w, minWidth: w }} />)}</colgroup>
             <thead>
               <tr className="bg-slate-100 dark:bg-zinc-900 text-[9px] uppercase tracking-wider text-slate-500 dark:text-slate-400">
                 <th rowSpan={2} className="sticky left-0 z-50 w-20 min-w-20 border-r border-b border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-zinc-900 px-2 py-2 text-left">
@@ -376,11 +432,26 @@ const ProjectSummaryMatrix = forwardRef<HTMLDivElement, Props>(function ProjectS
                 <th colSpan={7} className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2 text-center bg-blue-100/70 dark:bg-blue-950/30">Design (HoD)</th>
                 <th colSpan={8} className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2 text-center bg-amber-100/80 dark:bg-amber-950/30">Project Control</th>
                 <th colSpan={7} className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2 text-center bg-teal-100/70 dark:bg-teal-950/30">Project Management Team</th>
-                <th colSpan={4} className="border-b border-slate-200 dark:border-white/10 px-2 py-2 text-center bg-emerald-100/70 dark:bg-emerald-950/30">Handover</th>
+                <th colSpan={4} className={`border-b border-slate-200 dark:border-white/10 px-2 py-2 text-center bg-emerald-100/70 dark:bg-emerald-950/30 ${customPhases.length ? "border-r" : ""}`}>Handover</th>
+                {customPhases.map(cp => (
+                  <th
+                    key={cp.phaseId}
+                    colSpan={CUSTOM_PHASE_COLUMNS.length}
+                    className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2 text-center last:border-r-0"
+                    style={{ backgroundColor: `${customPhaseColor(cp.code)}22` }}
+                  >
+                    {cp.name}
+                  </th>
+                ))}
               </tr>
               <tr className="bg-white dark:bg-zinc-950 text-[9px] uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                {DATA_COLUMNS.map(({ label }, idx) => (
-                  <th key={`${label}-${idx}`} className="relative border-r border-b border-slate-200 dark:border-white/10 px-2 py-2 align-bottom leading-tight text-left last:border-r-0">
+                {[
+                  ...DATA_COLUMNS.map(c => ({ key: c.label, label: c.label })),
+                  ...customPhases.flatMap(cp =>
+                    CUSTOM_PHASE_COLUMNS.map(c => ({ key: `${cp.phaseId}-${c.key}`, label: c.label }))
+                  ),
+                ].map(({ key, label }, idx) => (
+                  <th key={`${key}-${idx}`} className="relative border-r border-b border-slate-200 dark:border-white/10 px-2 py-2 align-bottom leading-tight text-left last:border-r-0">
                     {label}
                     <ColResizeHandle onResize={dx => resizeColumn(idx + 2, dx)} />
                   </th>
@@ -394,7 +465,7 @@ const ProjectSummaryMatrix = forwardRef<HTMLDivElement, Props>(function ProjectS
       {/* ── Body — horizontal scroll only, page handles vertical ── */}
       <div ref={bodyRef} className="flex-1 min-h-0 overflow-x-auto overflow-y-auto no-scrollbar" onScroll={onBodyScroll}>
         <table className="w-full border-separate border-spacing-0 text-[10px] text-slate-700 dark:text-slate-200" style={{ minWidth: innerWidth, tableLayout: "fixed" }}>
-          <colgroup>{colWidths.map((w, i) => <col key={i} style={{ width: w, minWidth: w }} />)}</colgroup>
+          <colgroup>{effectiveColWidths.map((w, i) => <col key={i} style={{ width: w, minWidth: w }} />)}</colgroup>
           <tbody>
             {summaryGroups.length === 0 ? (
               <tr>
@@ -505,9 +576,37 @@ const ProjectSummaryMatrix = forwardRef<HTMLDivElement, Props>(function ProjectS
                 <td className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2">
                   <InlineCell value={project.actual_phase_completion_date} type="date" projectId={project.id} field="actual_phase_completion_date" onSaved={(f, v) => onSaved(project.id, f, v)} className="font-mono whitespace-nowrap" />
                 </td>
-                <td className="border-b border-slate-200 dark:border-white/10 px-2 py-2 whitespace-pre-wrap">
+                <td className={`border-b border-slate-200 dark:border-white/10 px-2 py-2 whitespace-pre-wrap ${customPhases.length ? "border-r" : ""}`}>
                   <InlineCell value={project.handover_notes} type="text" projectId={project.id} field="handover_notes" onSaved={(f, v) => onSaved(project.id, f, v)} />
                 </td>
+
+                {/* Custom (Master Setup) phases — generic fields, saved via the
+                    xphase_<phaseId>_<key> PATCH aliases. */}
+                {customPhases.flatMap(cp => {
+                  const xp = (project.extra_phases ?? []).find(x => String(x.phaseId) === cp.phaseId);
+                  return CUSTOM_PHASE_COLUMNS.map(col => {
+                    const raw =
+                      col.key === "start"    ? xp?.start   ?? null :
+                      col.key === "end"      ? xp?.end     ?? null :
+                      col.key === "progress" ? (xp?.progress != null ? String(xp.progress) : null) :
+                                               xp?.notes   ?? null;
+                    return (
+                      <td
+                        key={`${cp.phaseId}-${col.key}`}
+                        className={`border-r border-b border-slate-200 dark:border-white/10 px-2 py-2 last:border-r-0 ${col.key === "notes" ? "whitespace-pre-wrap" : ""}`}
+                      >
+                        <InlineCell
+                          value={raw}
+                          type={col.key === "start" || col.key === "end" ? "date" : "text"}
+                          projectId={project.id}
+                          field={`xphase_${cp.phaseId}_${col.key}`}
+                          onSaved={(f, v) => onSaved(project.id, f, v)}
+                          className={col.key === "notes" ? "" : "font-mono whitespace-nowrap"}
+                        />
+                      </td>
+                    );
+                  });
+                })}
               </tr>
             )))}
           </tbody>

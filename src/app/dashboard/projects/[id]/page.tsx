@@ -14,6 +14,8 @@ import SCurveCharts from "@/components/dashboard/SCurveCharts";
 import ScurveImportModal from "@/components/dashboard/ScurveImportModal";
 import AnimatedDropdown from "@/components/dashboard/AnimatedDropdown";
 import InlineDatePicker from "@/components/dashboard/InlineDatePicker";
+import { customPhaseColor, type CustomPhase } from "@/lib/phases";
+import { usePhases } from "@/lib/usePhases";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type ProjectDetail = {
@@ -79,6 +81,12 @@ type ProjectDetail = {
   handover_progress: string | null;
   actual_phase_completion_date: string | null;
   handover_notes: string | null;
+  /**
+   * Phases added via Master Setup beyond the built-in five. They have no
+   * bespoke columns, so they carry generic start/end/progress/notes and render
+   * in their own simplified card rather than the full PhaseCard.
+   */
+  extra_phases?: CustomPhase[] | null;
 };
 
 type TaskRow = {
@@ -520,6 +528,90 @@ function dateFieldConstraint(
     const thisStart = d10(project[phaseDef.startKey] as string | null);
     return { min: thisStart || prevBound || projectStart, max: nextBound || projectEnd };
   }
+}
+
+/**
+ * Card for a Master Setup–added phase. These have no bespoke columns in
+ * project_phases, so they expose the generic start / end / progress / notes
+ * fields and save through the `xphase_<phaseId>_<key>` PATCH aliases.
+ */
+function CustomPhaseCard({
+  phase, onSave,
+}: {
+  phase: CustomPhase;
+  onSave: (field: string, value: string | null) => void | Promise<void>;
+}) {
+  const color = customPhaseColor(phase.code);
+  const [draft, setDraft] = useState({
+    start:    phase.start ?? "",
+    end:      phase.end ?? "",
+    progress: phase.progress != null ? String(phase.progress) : "",
+    notes:    phase.notes ?? "",
+  });
+
+  // Re-sync when the project reloads (e.g. after another edit).
+  useEffect(() => {
+    setDraft({
+      start:    phase.start ?? "",
+      end:      phase.end ?? "",
+      progress: phase.progress != null ? String(phase.progress) : "",
+      notes:    phase.notes ?? "",
+    });
+  }, [phase.start, phase.end, phase.progress, phase.notes]);
+
+  const commit = (key: "start" | "end" | "progress" | "notes", value: string) => {
+    onSave(`xphase_${phase.phaseId}_${key}`, value.trim() === "" ? null : value);
+  };
+
+  const inputCls =
+    "w-full rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-white/5 px-2.5 py-1.5 text-[12px] text-slate-700 dark:text-slate-200 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all";
+
+  return (
+    <div className="rounded-xl border border-slate-200/70 dark:border-white/8 bg-white dark:bg-zinc-900/40 overflow-hidden">
+      <div className="flex items-center gap-2.5 px-4 py-2.5 border-b border-slate-100 dark:border-white/6">
+        <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: color }} />
+        <h3 className="text-[13px] font-bold text-slate-800 dark:text-white flex-1 truncate">{phase.name}</h3>
+        <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-slate-100 dark:bg-white/8 text-slate-400 shrink-0">
+          Custom phase
+        </span>
+      </div>
+
+      <div className="p-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div>
+          <label className="text-[10px] uppercase tracking-wide text-slate-400 mb-1 block">Start</label>
+          <input
+            type="date" className={inputCls} value={draft.start}
+            onChange={e => setDraft(d => ({ ...d, start: e.target.value }))}
+            onBlur={e => commit("start", e.target.value)}
+          />
+        </div>
+        <div>
+          <label className="text-[10px] uppercase tracking-wide text-slate-400 mb-1 block">End</label>
+          <input
+            type="date" className={inputCls} value={draft.end}
+            onChange={e => setDraft(d => ({ ...d, end: e.target.value }))}
+            onBlur={e => commit("end", e.target.value)}
+          />
+        </div>
+        <div>
+          <label className="text-[10px] uppercase tracking-wide text-slate-400 mb-1 block">Progress %</label>
+          <input
+            type="number" min={0} max={100} className={inputCls} value={draft.progress}
+            onChange={e => setDraft(d => ({ ...d, progress: e.target.value }))}
+            onBlur={e => commit("progress", e.target.value)}
+          />
+        </div>
+        <div className="sm:col-span-3">
+          <label className="text-[10px] uppercase tracking-wide text-slate-400 mb-1 block">Notes</label>
+          <input
+            type="text" className={inputCls} value={draft.notes} placeholder="—"
+            onChange={e => setDraft(d => ({ ...d, notes: e.target.value }))}
+            onBlur={e => commit("notes", e.target.value)}
+          />
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function PhaseCard({
@@ -1002,6 +1094,7 @@ function ProjectDetailContent() {
   const [showUnitPicker, setShowUnitPicker] = useState(false);
   const unitBtnRef = useRef<HTMLButtonElement>(null);
   const [phaseNoteModal, setPhaseNoteModal] = useState<{ nextPhase: typeof PHASE_DEFS[number]; needsDates: boolean } | null>(null);
+  const { phases: dbPhases } = usePhases();
   const [phaseNote, setPhaseNote]           = useState("");
   const [phaseStartDate, setPhaseStartDate] = useState("");
   const [phaseEndDate, setPhaseEndDate]     = useState("");
@@ -1088,6 +1181,45 @@ function ProjectDetailContent() {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ field: key, value }),
+    });
+  }
+
+  /**
+   * Saves a custom phase field (`xphase_<phaseId>_<key>`). Kept separate from
+   * patchField because these live in the nested extra_phases array rather than
+   * as flat columns, so the optimistic update has to reach into that array.
+   */
+  /**
+   * Built-in phase cards, ordered by Master Setup's phase_order rather than the
+   * hardcoded PHASE_DEFS order, so dragging phases there reorders these too.
+   * Colors likewise come from the DB.
+   */
+  const orderedPhaseDefs = useMemo(() => {
+    if (!dbPhases.length) return PHASE_DEFS;
+    const rank  = new Map(dbPhases.map((p, i) => [p.code, i]));
+    const color = new Map(dbPhases.map(p => [p.code, p.color]));
+    return PHASE_DEFS
+      .map(d => ({ ...d, color: color.get(d.phaseCode) ?? d.color }))
+      .sort((a, b) => (rank.get(a.phaseCode) ?? 99) - (rank.get(b.phaseCode) ?? 99));
+  }, [dbPhases]);
+
+  async function patchCustomPhaseField(field: string, value: string | null) {
+    const m = /^xphase_(\d+)_(start|end|progress|notes)$/.exec(field);
+    if (m) {
+      const [, phaseId, key] = m;
+      setProject(prev => prev ? {
+        ...prev,
+        extra_phases: (prev.extra_phases ?? []).map(x =>
+          String(x.phaseId) === phaseId
+            ? { ...x, [key]: key === "progress" ? (value === null ? null : Number(value)) : value }
+            : x
+        ),
+      } : prev);
+    }
+    await fetch(`/api/projects/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ field, value }),
     });
   }
 
@@ -1921,7 +2053,7 @@ function ProjectDetailContent() {
 
         {/* Phase details */}
         <div className="p-4 space-y-2">
-          {PHASE_DEFS.map((ph) => {
+          {orderedPhaseDefs.map((ph) => {
             const currentIdx  = PHASE_DEFS.findIndex(p => p.phaseCode === project.current_phase_code);
             const phIdx       = PHASE_DEFS.findIndex(p => p.key === ph.key);
             const phaseRowId  = project[ph.phaseRowIdKey] as string | null;
@@ -1948,6 +2080,11 @@ function ProjectDetailContent() {
               />
             );
           })}
+
+          {/* Custom phases added via Master Setup */}
+          {(project.extra_phases ?? []).map(xp => (
+            <CustomPhaseCard key={xp.phaseId} phase={xp} onSave={patchCustomPhaseField} />
+          ))}
         </div>
       </div>
 

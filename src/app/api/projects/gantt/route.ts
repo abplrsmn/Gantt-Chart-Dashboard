@@ -1,7 +1,33 @@
 import { NextResponse } from "next/server";
 import { getDbPool } from "@/lib/db";
+import { BUILTIN_PHASE_CODES_SQL } from "@/lib/phases";
 
 export const dynamic = "force-dynamic";
+
+/**
+ * Phases added via Master Setup beyond the built-in five. They have no bespoke
+ * columns, so they carry the generic phase_start_date / phase_end_date instead.
+ * Aggregated as JSON so the number of phases stays dynamic — unlike the five
+ * hardcoded LEFT JOINs below, which can't grow.
+ */
+const EXTRA_PHASES_JSON = `
+  (
+    SELECT COALESCE(json_agg(json_build_object(
+             'phaseId',  xp.phase_id,
+             'code',     xmp.phase_code,
+             'name',     xmp.phase_name,
+             'order',    xmp.phase_order,
+             'start',    xp.phase_start_date,
+             'end',      xp.phase_end_date,
+             'progress', xp.progress_pct,
+             'notes',    xp.notes
+           ) ORDER BY xmp.phase_order, xmp.id), '[]'::json)
+      FROM project_phases xp
+      JOIN master_phases  xmp ON xmp.id = xp.phase_id
+     WHERE xp.project_id = p.id
+       AND xmp.phase_code NOT IN (${BUILTIN_PHASE_CODES_SQL})
+  ) AS extra_phases
+`;
 
 export async function GET() {
   const pool = getDbPool();
@@ -47,6 +73,8 @@ export async function GET() {
         p.project_code,
         p.project_name,
         p.overall_progress_pct,
+        p.blocker_note,
+        p.next_action_note,
         sl.target_progress AS scurve_target_progress,
         sl.actual_progress AS scurve_actual_progress,
         sl.progress_variance AS scurve_progress_variance,
@@ -167,7 +195,9 @@ export async function GET() {
         (SELECT SUBSTRING(cl.change_summary FROM POSITION(':' IN cl.change_summary) + 2)
          FROM project_change_logs cl
          WHERE cl.project_id = p.id AND cl.action_type = 'phase_advanced' AND cl.new_value = '5'
-         ORDER BY cl.created_at DESC LIMIT 1) AS pm_advance_note
+         ORDER BY cl.created_at DESC LIMIT 1) AS pm_advance_note,
+
+        ${EXTRA_PHASES_JSON}
 
       FROM projects p
       LEFT JOIN master_phases mp_phase       ON mp_phase.id = p.current_phase_id

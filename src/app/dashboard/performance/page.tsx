@@ -46,7 +46,7 @@ export default function PerformancePage() {
       <div className="flex items-start gap-2 mb-3 mt-2">
         <Activity className="text-blue-500" size={16} />
         <div>
-          <h2 className="text-lg font-bold text-slate-800 dark:text-white">Project Performance</h2>
+          <h2 className="text-xl font-bold text-slate-800 dark:text-white">Project Performance</h2>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
             S-Curve Analysis · Plan vs Actual Progress
           </p>

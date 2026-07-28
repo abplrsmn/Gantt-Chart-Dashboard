@@ -1,8 +1,29 @@
 import { NextResponse } from "next/server";
 import { getDbPool } from "@/lib/db";
 import { getAuthUserFromCookie } from "@/lib/auth";
+import { BUILTIN_PHASE_CODES_SQL } from "@/lib/phases";
 
 export const dynamic = "force-dynamic";
+
+/** Custom (Master Setup–added) phases, carrying only generic timeline fields. */
+const EXTRA_PHASES_JSON = `
+  (
+    SELECT COALESCE(json_agg(json_build_object(
+             'phaseId',  xp.phase_id,
+             'code',     xmp.phase_code,
+             'name',     xmp.phase_name,
+             'order',    xmp.phase_order,
+             'start',    xp.phase_start_date,
+             'end',      xp.phase_end_date,
+             'progress', xp.progress_pct,
+             'notes',    xp.notes
+           ) ORDER BY xmp.phase_order, xmp.id), '[]'::json)
+      FROM project_phases xp
+      JOIN master_phases  xmp ON xmp.id = xp.phase_id
+     WHERE xp.project_id = p.id
+       AND xmp.phase_code NOT IN (${BUILTIN_PHASE_CODES_SQL})
+  ) AS extra_phases
+`;
 
 type FieldMap = { table: "projects" | "project_phases"; column: string; phaseId?: number };
 
@@ -52,10 +73,32 @@ const FIELD_MAP: Record<string, FieldMap> = {
   handover_notes:               { table: "project_phases", column: "notes",                          phaseId: 5 },
 };
 
+/**
+ * Custom phases have no bespoke columns, so their editable fields are addressed
+ * dynamically as `xphase_<phaseId>_<key>` rather than via the static FIELD_MAP.
+ * The column is still resolved from a fixed whitelist and the id is coerced to a
+ * number, so nothing user-supplied reaches the SQL string.
+ */
+const CUSTOM_PHASE_FIELD_RE = /^xphase_(\d+)_(start|end|progress|notes)$/;
+const CUSTOM_PHASE_COLUMNS: Record<string, string> = {
+  start:    "phase_start_date",
+  end:      "phase_end_date",
+  progress: "progress_pct",
+  notes:    "notes",
+};
+
+function resolveField(field: string): FieldMap | null {
+  const m = CUSTOM_PHASE_FIELD_RE.exec(field);
+  if (m) {
+    return { table: "project_phases", column: CUSTOM_PHASE_COLUMNS[m[2]], phaseId: Number(m[1]) };
+  }
+  return FIELD_MAP[field] ?? null;
+}
+
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const body = await req.json() as { field: string; value: string | null; change_summary?: string; action_type?: string };
-  const map = FIELD_MAP[body.field];
+  const map = resolveField(body.field);
   if (!map) return NextResponse.json({ success: false, error: "Unknown field" }, { status: 400 });
 
   const user = await getAuthUserFromCookie();
@@ -215,7 +258,9 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
           hv.bast_2_date              AS handover_end,
           hv.progress_pct             AS handover_progress,
           hv.actual_phase_completion_date,
-          hv.notes                    AS handover_notes
+          hv.notes                    AS handover_notes,
+
+          ${EXTRA_PHASES_JSON}
 
         FROM projects p
         LEFT JOIN master_phases mp_phase       ON mp_phase.id = p.current_phase_id

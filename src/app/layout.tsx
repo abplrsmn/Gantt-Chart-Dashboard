@@ -11,8 +11,8 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Aryaduta Dashboard",
-  description: "Aryaduta Group Project Management Dashboard",
+  title: "Keystone",
+  description: "Keystone — Capital Project Dashboard, from brief to handover.",
 };
 
 export default async function RootLayout({
