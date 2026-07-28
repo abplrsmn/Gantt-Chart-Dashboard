@@ -32,7 +32,7 @@ Operational notes:
 | Database | PostgreSQL (via `pg` connection pool) |
 | Auth | Custom HMAC-SHA256 signed cookie token |
 | Password | bcryptjs (cost 12) |
-| Integrations | Google Calendar, Google Chat webhook, OpenClaw (Telegram AI gateway) |
+| Integrations | Google Calendar, Google Chat webhook, Gemini API |
 | Icons | Lucide React |
 | Date Utils | date-fns |
 
@@ -41,7 +41,7 @@ Operational notes:
 ## Architecture
 
 ```
-Browser / Telegram
+Browser
       │
       ├─ Next.js App Router (pages + API routes)
       │       ├─ /dashboard/*          → React client pages
@@ -54,7 +54,7 @@ Browser / Telegram
       └─ External APIs
               ├─ Google Calendar       → meeting scheduling
               ├─ Google Chat webhook   → push notifications
-              └─ OpenClaw gateway      → Telegram AI bot
+              └─ Gemini API            → dashboard AI assistant
 ```
 
 ---
@@ -203,7 +203,6 @@ chat_reminder_logs      — id, channel, target_type, reminder_type, message_bod
 |--------|----------|-------------|
 | POST | `/api/ops/plan` | Parse free-text ops command → structured intent |
 | POST | `/api/meetings/schedule` | Schedule Google Calendar event |
-| POST | `/api/ai-telemetry` | Track AI model usage/cost |
 | GET | `/api/reminder-logs/latest` | Latest reminder summary |
 
 ---
@@ -364,7 +363,7 @@ Cron / external trigger → POST /api/capex/reminder (or reminder-logs)
   └→ getDailyProjectSummary()
        └→ Buckets projects: handover / inProgress / nearDeadline / overdue
             └→ formatDailySummary() → markdown text
-                 └→ sendProjectSummaryToGroupChat() → currently logs the payload (Telegram send is stubbed)
+                 └→ sendProjectSummaryToGroupChat() → formats/logs the configured notification payload
                       └→ INSERT chat_reminder_logs (audit, dedupe_key)
 ```
 
@@ -375,7 +374,8 @@ Cron / external trigger → POST /api/capex/reminder (or reminder-logs)
 - **Database**: `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`, `PGDATABASE`
 - **Auth**: `AUTH_SECRET`, `AUTH_URL`, `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET`
 - **Google Calendar**: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REFRESH_TOKEN`
-- **Notifications**: `GCHAT_WEBHOOK_URL`, `TELEGRAM_SUMMARY_CHAT_IDS`, `TELEGRAM_REMINDER_CHAT_IDS`, `ALERT_NOTIFY_SECRET`
+- **Notifications**: `GCHAT_WEBHOOK_URL`, `ALERT_NOTIFY_SECRET`
+- **AI**: `GEMINI_API_KEY`, optional `GEMINI_MODEL`
 
 Never commit `.env` or other secret files.
 
@@ -474,7 +474,6 @@ Before public deployment, address the following:
 │   │   │   ├── master/options/     # Lookup data with auto-seed
 │   │   │   ├── meetings/           # Google Calendar scheduling
 │   │   │   ├── ops/plan/           # NLP intent parser
-│   │   │   ├── ai-telemetry/       # AI usage tracking
 │   │   │   └── reminder-logs/      # Reminder audit
 │   │   └── dashboard/              # Frontend pages
 │   │       ├── page.tsx            # Home / KPI dashboard
@@ -501,7 +500,7 @@ Before public deployment, address the following:
 │       ├── project-gantt.ts        # Gantt data model + phase windows
 │       ├── project-summary.ts      # Daily summary buckets
 │       ├── project-summary-format.ts # Markdown formatter
-│       ├── project-summary-send.ts # Telegram/notification dispatch
+│       ├── project-summary-send.ts # Notification dispatch helper
 │       ├── ops-intent.ts           # NLP parser (EN + ID)
 │       ├── meeting.ts              # Meeting normalization
 │       └── gchat.ts                # Google Chat sender
