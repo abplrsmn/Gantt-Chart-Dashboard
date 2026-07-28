@@ -1,102 +1,110 @@
 # Gantt Chart Dashboard
 
-Dashboard sederhana untuk memantau jadwal, progres, dan pekerjaan tim dalam satu tempat. Aplikasi ini membantu melihat proyek mana yang berjalan, yang mendekati tenggat waktu, dan bagian mana yang perlu ditindaklanjuti.
+Gantt Chart Dashboard is a web application for planning work, tracking progress, and keeping a team aligned. It gives everyone one shared place to see projects, schedules, responsibilities, updates, and possible delays.
 
-## Yang bisa dilakukan
+You do not need to be a project-management expert to use it. Create a project, add its dates and current stage, then use the dashboard to see what is on track and what needs attention.
 
-- Melihat semua proyek dalam tampilan Gantt Chart interaktif.
-- Membuat, mengubah, dan menghapus proyek.
-- Mengatur tahap pekerjaan, tanggal mulai, tenggat, prioritas, dan progres.
-- Memantau progres rencana vs realisasi dengan S-Curve.
-- Menampilkan ringkasan proyek dalam tabel dan dashboard performa.
-- Mencatat riwayat perubahan proyek.
-- Mengatur data pendukung seperti unit, prioritas, status, anggota tim, dan tahap proyek.
-- Berbagi dokumen proyek dan menggunakan chat internal.
-- Membuat pengingat serta menggunakan asisten AI untuk pertanyaan seputar data dashboard.
+## What problem does it solve?
 
-## Cocok untuk siapa?
+When a team manages work through separate spreadsheets, chats, and documents, it is hard to answer simple questions:
 
-Gantt Chart Dashboard cocok untuk tim yang mengelola beberapa pekerjaan atau proyek sekaligus dan membutuhkan gambaran jadwal yang jelas. Misalnya tim operasional, desain, konstruksi, IT, event, atau internal project management.
+- What is currently being worked on?
+- Which projects are close to their deadline?
+- Who is involved in each project?
+- Is the real progress matching the plan?
+- What changed since the last update?
 
-## Cara kerja singkat
+This dashboard brings those answers together in one place.
 
-1. Buat proyek baru dan isi informasi dasar, seperti nama, unit, prioritas, serta tanggal.
-2. Pilih tahap pekerjaan yang sedang berjalan.
-3. Perbarui progres, catatan, penanggung jawab, atau jadwal saat ada perubahan.
-4. Pantau seluruh pekerjaan dari halaman Dashboard, Gantt Chart, dan S-Curve.
-5. Gunakan riwayat perubahan untuk mengetahui apa yang berubah dan siapa yang memperbaruinya.
+## Main features
 
-## Fitur utama
+### Visual project timeline
 
-### Gantt Chart
+The Gantt Chart displays each project on a timeline. You can quickly see its start date, target end date, active stage, priority, and whether it is close to or past its deadline. Dates can also be updated directly from the dashboard.
 
-Menampilkan jadwal proyek dalam bentuk garis waktu. Kamu bisa melihat tanggal mulai, tanggal selesai, tahap aktif, risiko keterlambatan, dan prioritas proyek. Jadwal tahap dapat diperbarui langsung dari dashboard.
+### Project details in one place
 
-### Tahap proyek
+Each project has its own detail page for information such as:
 
-Setiap proyek dapat memiliki beberapa tahap kerja. Secara default aplikasi menyediakan alur berikut:
+- Project name, code, location, and priority
+- Current stage and overall status
+- Start date, target date, and actual progress
+- Team members and stakeholders
+- Notes, blockers, next actions, and supporting files
+- Change history
+
+### Flexible project stages
+
+The dashboard starts with five common stages:
 
 `Operational Brief → Design → Project Control → Project Management → Handover`
 
-Tahap tambahan juga dapat dikelola dari halaman Master Setup.
+You can manage stages, priorities, statuses, units, and people from **Master Setup**. This makes the dashboard adaptable to different kinds of teams and projects.
 
-### S-Curve
+### S-Curve progress tracking
 
-S-Curve membantu membandingkan progres rencana dengan progres aktual dari minggu ke minggu. Data dapat diisi manual atau diimpor dari file Excel dengan format jadwal yang didukung.
+S-Curve compares planned progress with actual progress over time. It helps the team spot when a project is falling behind its expected pace.
 
-### Dashboard dan laporan
+Progress can be entered manually or imported from a supported Excel schedule file.
 
-Halaman Dashboard, Performance, Alerts, Weekly Report, dan Summary Matrix membantu tim membaca kondisi proyek tanpa harus membuka satu per satu.
+### Helpful dashboard views
 
-### Team dan chat
+The application includes several ways to review work:
 
-Kelola anggota yang terlibat pada proyek, lihat tugas per tim, dan gunakan chat internal untuk berdiskusi. File pendukung juga dapat dilampirkan pada proyek atau percakapan.
-
-### Riwayat perubahan
-
-Perubahan penting pada proyek dicatat agar tim dapat menelusuri pembaruan data dengan lebih mudah.
-
-## Halaman yang tersedia
-
-| Halaman | Kegunaan |
+| Page | What it helps you do |
 | --- | --- |
-| Dashboard | Ringkasan proyek, progres, dan informasi penting. |
-| Projects | Daftar seluruh proyek. |
-| Gantt Chart | Tampilan jadwal proyek dalam timeline. |
-| Summary Matrix | Ringkasan data proyek dalam tabel. |
-| Project Detail | Detail proyek, tahap, progres, anggota, file, dan riwayat. |
-| Performance | Analisis KPI dan performa proyek. |
-| Alerts | Proyek yang perlu perhatian. |
-| Team | Pembagian pekerjaan berdasarkan tim. |
-| Weekly Report | Laporan progres mingguan. |
-| Chat | Percakapan internal dan asisten AI. |
-| Master Setup | Pengaturan unit, prioritas, status, tahap, dan pengguna. |
+| Dashboard | Get a quick overview of active projects, progress, and important updates. |
+| Projects | Browse and search all projects. |
+| Gantt Chart | View the schedule of all projects on one timeline. |
+| Summary Matrix | Compare project information in a wide table. |
+| Performance | Review project KPI and performance information. |
+| Alerts | Find projects that may need attention. |
+| Weekly Report | Review weekly progress and priorities. |
+| Team | View work by team or department. |
+| Chat | Discuss work internally and ask the built-in AI assistant about dashboard data. |
 
-## Teknologi yang digunakan
+### Team, files, and activity history
 
-- Next.js dan React untuk aplikasi web.
-- TypeScript untuk kode yang lebih aman dan mudah dirawat.
-- PostgreSQL untuk penyimpanan data.
-- Tailwind CSS untuk tampilan antarmuka.
-- Recharts dan Chart.js untuk grafik.
-- Google Calendar, Google Chat webhook, dan Gemini API sebagai integrasi opsional.
+Add people to a project, attach supporting documents, and keep notes in the project page. Important updates are recorded in the activity history so the team can understand what changed and when.
 
-## Menjalankan aplikasi di komputer sendiri
+## A simple workflow
 
-### Yang dibutuhkan
+1. Create a project and enter its basic information.
+2. Select the stage that is currently active.
+3. Add the planned dates, priority, team members, and notes.
+4. Update progress and dates whenever work changes.
+5. Review the Dashboard, Gantt Chart, Alerts, and Weekly Report regularly.
+6. Use the activity history when you need to check past changes.
 
-- Node.js 20 atau lebih baru.
-- PostgreSQL 14 atau lebih baru.
+## Technology
 
-### Instalasi
+The dashboard is built with:
+
+- Next.js and React for the web application
+- TypeScript for maintainable code
+- PostgreSQL for project data
+- Tailwind CSS for the interface
+- Recharts and Chart.js for charts
+- Optional Google Calendar, Google Chat webhook, and Gemini AI integrations
+
+## Run it locally
+
+### Requirements
+
+- Node.js 20 or newer
+- PostgreSQL 14 or newer
+
+### 1. Install dependencies
 
 ```bash
 npm install
 ```
 
-Buat file `.env` untuk konfigurasi database dan layanan opsional. Jangan pernah mengunggah file `.env` ke GitHub.
+### 2. Create your environment file
 
-Contoh variabel utama:
+Create a file named `.env` in the project root. It contains private settings such as database access and API keys. Do not upload this file to GitHub.
+
+At minimum, configure your database and authentication secret:
 
 ```env
 PGHOST=localhost
@@ -107,43 +115,49 @@ PGDATABASE=gantt_dashboard
 AUTH_SECRET=replace_with_a_long_random_value
 ```
 
-Jalankan skrip database yang diperlukan dari folder `scripts/` sesuai kebutuhan proyek, lalu mulai aplikasi:
+Optional integrations use additional variables, such as `GEMINI_API_KEY`, `GCHAT_WEBHOOK_URL`, and Google Calendar credentials.
+
+### 3. Prepare the database
+
+The `scripts/` folder contains SQL and migration scripts for the database. Run the scripts required by your environment before starting the application.
+
+### 4. Start the dashboard
 
 ```bash
 npm run dev
 ```
 
-Buka `http://localhost:3000` di browser.
+Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-## Perintah penting
+## Useful commands
 
 ```bash
-npm run dev          # Menjalankan aplikasi untuk development
-npm run build        # Membuat versi production
-npm run start        # Menjalankan versi production
-npm run lint         # Memeriksa gaya dan masalah kode
-npx tsc --noEmit     # Memeriksa tipe TypeScript
+npm run dev          # Start local development
+npm run build        # Create a production build
+npm run start        # Run the production build
+npm run lint         # Check code style and common issues
+npx tsc --noEmit     # Check TypeScript types
 ```
 
-## Catatan keamanan
+## Security notes
 
-- Simpan semua password, token, dan API key hanya di file `.env` atau secret manager.
-- Jangan mengunggah file `.env`, data sensitif, atau file pengguna ke repository publik.
-- Gunakan akun dan kata sandi yang aman untuk akses dashboard.
-- Sebelum dipakai secara publik, lakukan pengujian keamanan dan batasi akses file proyek sesuai kebutuhan organisasi.
+- Keep passwords, API keys, and database credentials in `.env` or a secure secret manager.
+- Never commit `.env` files, private documents, or sensitive user data.
+- Use strong passwords for dashboard accounts.
+- Review access permissions and file-sharing rules before making the dashboard public.
 
-## Struktur folder singkat
+## Project structure
 
 ```text
 src/
-  app/                 Halaman dan API aplikasi
-  components/          Komponen antarmuka
-  lib/                 Logika database, autentikasi, dan fitur inti
-scripts/               Skrip database dan migrasi
-public/                File statis
-docs/                  Dokumentasi tambahan
+  app/          Pages and API routes
+  components/   Reusable interface components
+  lib/          Database, authentication, and application logic
+scripts/        Database setup and migration scripts
+public/         Static files
+docs/           Additional project documentation
 ```
 
 ---
 
-Dibuat untuk membantu tim melihat pekerjaan dengan lebih jelas, terarah, dan mudah dipantau.
+Built to make project schedules easier to see, understand, and manage.
