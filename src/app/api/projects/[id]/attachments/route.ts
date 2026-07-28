@@ -5,9 +5,12 @@ import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 
 export const dynamic = "force-dynamic";
+const MAX_BYTES = 15 * 1024 * 1024;
+const ALLOWED_EXT = new Set(["png", "jpg", "jpeg", "gif", "webp", "pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "csv", "txt", "zip"]);
 
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  if (!(await getAuthUserFromCookie())) return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
   const weekKey = new URL(req.url).searchParams.get("week_key");
 
   const pool = getDbPool();
@@ -33,6 +36,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const user = await getAuthUserFromCookie();
+  if (!user) return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
 
   let formData: FormData;
   try {
@@ -47,6 +51,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   if (!file || file.size === 0) {
     return NextResponse.json({ success: false, error: "No file provided" }, { status: 400 });
   }
+  if (file.size > MAX_BYTES) return NextResponse.json({ success: false, error: "File too large (max 15MB)" }, { status: 400 });
+  const ext = (file.name.split(".").pop() ?? "").toLowerCase();
+  if (!ALLOWED_EXT.has(ext)) return NextResponse.json({ success: false, error: "File type is not allowed" }, { status: 400 });
 
   const bytes  = await file.arrayBuffer();
   const buffer = Buffer.from(bytes);
@@ -96,6 +103,7 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
   const { id } = await params;
   const { attachmentId } = await req.json() as { attachmentId: string };
   const user = await getAuthUserFromCookie();
+  if (!user) return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
 
   const pool = getDbPool();
   let client;
