@@ -682,11 +682,6 @@ function PhasesSection({ onAddReady }: SectionProps) {
 
   const openAdd  = () => { setForm({ phase_code: "", phase_name: "", color: "#8b5cf6" }); setError(""); setModal("add"); };
   useEffect(() => { onAddReady(openAdd); }, [onAddReady]); // eslint-disable-line
-  const openEdit = (p: Phase) => {
-    setForm({ phase_code: p.phase_code, phase_name: p.phase_name, color: p.color || "#8b5cf6" });
-    setError(""); setModal(p);
-  };
-
   const submit = async () => {
     setLoading(true);
     setError("");
@@ -741,7 +736,7 @@ function PhasesSection({ onAddReady }: SectionProps) {
           <p className="text-[11px] text-red-600 dark:text-red-400">{reorderError}</p>
         </div>
       )}
-      <TableShell heads={["", "#", "Color", "Code", "Phase Name", "Details"]} empty={!data.length}>
+      <TableShell heads={["", "#", "Color", "Code", "Phase Name"]} empty={!data.length}>
         {data.map((p, i) => (
           <tr
             key={p.id}
@@ -771,12 +766,7 @@ function PhasesSection({ onAddReady }: SectionProps) {
             </td>
             <td className="px-4 py-3"><span className="font-mono text-xs bg-brand-cream dark:bg-white/10 text-brand-mahogany dark:text-brand-sand px-2 py-0.5 rounded-md font-semibold">{p.phase_code}</span></td>
             <td className="px-4 py-3 text-slate-700 dark:text-slate-200 font-medium">{p.phase_name}</td>
-            <td className="px-4 py-3">
-              <button onClick={() => setDetailsFor(p)} className="text-[11px] font-semibold text-brand-sienna hover:underline underline-offset-2">
-                Manage fields
-              </button>
-            </td>
-            <RowActions onEdit={() => openEdit(p)} onDelete={() => setDeleting(p)} />
+            <RowActions onEdit={() => setDetailsFor(p)} onDelete={() => setDeleting(p)} />
           </tr>
         ))}
       </TableShell>
@@ -854,7 +844,7 @@ function PhaseDetailsModal({ phase, onClose }: { phase: Phase; onClose: () => vo
   return (
     <Modal title={`${phase.phase_name} — Custom Details`} onClose={onClose} onSubmit={save} loading={loading} error={error}>
       <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-        Add fields that should appear for this phase in Project Details and the Summary Matrix.
+        Existing fields are listed below. Add fields that should appear for this phase in Project Details and the Summary Matrix.
       </p>
       <div className="grid grid-cols-2 gap-3">
         <Field label="Field Label">
