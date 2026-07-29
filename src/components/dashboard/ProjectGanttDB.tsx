@@ -3,8 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
-import { differenceInCalendarDays, format, addDays, isValid, startOfWeek, endOfWeek, addWeeks, startOfMonth, endOfMonth } from "date-fns";
-import { Search, ArrowRight, MousePointer2, Move, Trash2, Plus, CalendarRange, CheckCircle2, X as XIcon, ChevronDown } from "lucide-react";
+import { differenceInCalendarDays, format, addDays, isValid, endOfWeek, addWeeks, startOfMonth, endOfMonth } from "date-fns";
+import { Search, ArrowRight, MousePointer2, Move, Trash2, Plus, CalendarRange, CheckCircle2, X as XIcon, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 import DateRangePicker from "./DateRangePicker";
 import AnimatedDropdown from "./AnimatedDropdown";
 import { PHASE_LIST, customPhaseColor, type CustomPhase } from "@/lib/phases";
@@ -19,6 +19,10 @@ function getUserIdFromCookie(): string {
 
 function dateRangeKey(): string {
   return `gantt_dateRange_${getUserIdFromCookie()}`;
+}
+
+function timelineYearKey(): string {
+  return `gantt_timelineYear_${getUserIdFromCookie()}`;
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -300,10 +304,20 @@ export default function ProjectGanttDB() {
     try { return typeof window !== "undefined" ? localStorage.getItem(`gantt_status_${getUserIdFromCookie()}`) ?? "ALL" : "ALL"; } catch { return "ALL"; }
   });
   const [statusOptions, setStatusOptions] = useState<{ value: string; label: string; color?: string }[]>([{ value: "ALL", label: "All Statuses" }]);
+  const [timelineYear, setTimelineYear] = useState(() => {
+    try {
+      const saved = typeof window !== "undefined" ? Number(localStorage.getItem(timelineYearKey())) : NaN;
+      return Number.isInteger(saved) && saved >= 2000 && saved <= 2100 ? saved : new Date().getFullYear();
+    } catch { return new Date().getFullYear(); }
+  });
 
   const handlePriorityFilter = (v: string) => { setPriorityFilter(v); try { localStorage.setItem(`gantt_priority_${getUserIdFromCookie()}`, v); } catch { /* ignore */ } };
   const handlePhaseFilter    = (v: string) => { setPhaseFilter(v);    try { localStorage.setItem(`gantt_phase_${getUserIdFromCookie()}`, v);    } catch { /* ignore */ } };
   const handleStatusFilter   = (v: string) => { setStatusFilter(v);   try { localStorage.setItem(`gantt_status_${getUserIdFromCookie()}`, v);   } catch { /* ignore */ } };
+  const handleTimelineYear = (year: number) => {
+    setTimelineYear(year);
+    try { localStorage.setItem(timelineYearKey(), String(year)); } catch { /* ignore */ }
+  };
   const { phases: dbPhases } = usePhases();
   const [dateRange, setDateRange] = useState<{ start: string; end: string }>(() => {
     try {
@@ -518,37 +532,14 @@ export default function ProjectGanttDB() {
     });
   }, [projects, search, priorityFilter, phaseFilter, statusFilter]);
 
-  // Timeline: spans full year(s) based on the FILTERED projects' dates, so
-  // narrowing the results (search/phase/status/priority) shrinks the ruler
-  // instead of always showing every project's full date range.
+  // Show one calendar year at a time. This keeps the chart readable even when
+  // projects span several years; use the year control above the chart to move.
   const timeline = useMemo(() => {
-    const allDates: Date[] = [];
-    for (const p of filteredProjects) {
-      [p.brief_received, p.brief_deadline, p.design_start, p.design_end,
-       p.control_start, p.control_end, p.pm_start, p.pm_end,
-       p.handover_start, p.handover_end, p.start_date, p.end_date]
-        .map(toDate).filter((d): d is Date => d !== null).forEach(d => allDates.push(d));
-    }
-
-    let s: Date;
-    let e: Date;
-    if (allDates.length === 0) {
-      const y = new Date().getFullYear();
-      s = new Date(y, 0, 1);
-      e = new Date(y, 11, 31);
-    } else {
-      const minT = Math.min(...allDates.map(d => d.getTime()));
-      const maxT = Math.max(...allDates.map(d => d.getTime()));
-      s = new Date(new Date(minT).getFullYear(), 0, 1);
-      e = new Date(new Date(maxT).getFullYear(), 11, 31);
-    }
-
-    const snappedStart = startOfWeek(s, { weekStartsOn: 1 });
     return {
-      start: snappedStart < s ? s : snappedStart,
-      end:   endOfWeek(e, { weekStartsOn: 1 }),
+      start: new Date(timelineYear, 0, 1),
+      end: new Date(timelineYear, 11, 31),
     };
-  }, [filteredProjects]);
+  }, [timelineYear]);
 
   // Ruler overlay positions for the selected date range
   const rangeRulers = useMemo(() => {
@@ -775,6 +766,27 @@ export default function ProjectGanttDB() {
           </button>
         </div>
         <DateRangePicker value={dateRange} onChange={handleDateRangeChange} />
+        <div className="shrink-0 flex items-center rounded-lg border border-slate-200/70 dark:border-white/10 bg-white/70 dark:bg-zinc-900/60 overflow-hidden">
+          <button
+            type="button"
+            onClick={() => handleTimelineYear(timelineYear - 1)}
+            aria-label={`Show ${timelineYear - 1}`}
+            className="p-2 text-slate-500 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-400 dark:hover:text-white dark:hover:bg-white/8 transition-colors"
+          >
+            <ChevronLeft size={14} />
+          </button>
+          <span className="min-w-14 px-1 text-center text-[12px] font-bold text-slate-700 dark:text-slate-200" title="Timeline year">
+            {timelineYear}
+          </span>
+          <button
+            type="button"
+            onClick={() => handleTimelineYear(timelineYear + 1)}
+            aria-label={`Show ${timelineYear + 1}`}
+            className="p-2 text-slate-500 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-400 dark:hover:text-white dark:hover:bg-white/8 transition-colors"
+          >
+            <ChevronRight size={14} />
+          </button>
+        </div>
         <AnimatedDropdown
           value={phaseFilter}
           onChange={handlePhaseFilter}
