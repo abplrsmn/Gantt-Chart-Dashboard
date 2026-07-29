@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   Home, Users, CalendarRange,
   Bell, X, Database, BarChart2, ShieldAlert, SunMoon, LogOut, TableProperties,
-  MessageSquare, ChevronDown,
+  MessageSquare,
 } from "lucide-react";
 import { useTheme } from "@/components/ThemeProvider";
 
@@ -211,10 +211,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         {/* Logo lockup — display only; the account menu lives in the top-right profile button */}
         <div
-          className="shrink-0 px-2.5 py-2 rounded-2xl
+          className="shrink-0 h-14 px-2.5 rounded-2xl
                      bg-white/85 dark:bg-zinc-950/85 backdrop-blur-xl
                      border border-slate-200/60 dark:border-white/8
-                     shadow-lg shadow-slate-900/5 dark:shadow-black/30"
+                     shadow-lg shadow-slate-900/5 dark:shadow-black/30
+                     flex items-center"
         >
           <div className="flex items-center gap-2 py-1 pr-2">
             <div className="w-7 h-7 rounded-lg shrink-0 flex items-center justify-center bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-xs font-black">
@@ -256,20 +257,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           title={userName || "Account"}
           aria-haspopup="menu"
           aria-expanded={settingsOpen}
-          className={`flex items-center gap-2 pl-2 pr-2.5 py-2 rounded-2xl
+          className={`w-14 h-14 flex items-center justify-center rounded-2xl
                       bg-white/85 dark:bg-zinc-950/85 backdrop-blur-xl
                       border border-slate-200/60 dark:border-white/8
                       shadow-lg shadow-slate-900/5 dark:shadow-black/30
                       transition-all duration-150 hover:bg-white dark:hover:bg-zinc-950
                       ${settingsOpen ? "ring-2 ring-emerald-500/40" : ""}`}
         >
-          <span className="w-7 h-7 rounded-full shrink-0 flex items-center justify-center brand-gradient text-white text-[10px] font-black">
+          <span className="w-8 h-8 rounded-full shrink-0 flex items-center justify-center brand-gradient text-white text-[10px] font-black">
             {initialsOf(userName)}
           </span>
-          <ChevronDown
-            size={14}
-            className={`text-slate-400 shrink-0 transition-transform duration-200 ${settingsOpen ? "rotate-180" : ""}`}
-          />
         </button>
 
         {settingsOpen && (
