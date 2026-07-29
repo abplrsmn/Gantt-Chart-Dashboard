@@ -17,6 +17,30 @@ type User     = { id: number; email: string; is_active: boolean; created_at: str
 type Person   = { id: number; employee_code: string | null; full_name: string; nickname: string | null; department: string | null; job_title: string | null; email: string | null; phone_number: string | null; is_active: boolean };
 type Phase    = { id: number; phase_code: string; phase_name: string; phase_order?: number; color?: string | null };
 type PhaseDetailField = { id: string; phase_id: string; field_key: string; field_label: string; field_type: string; field_order: number; is_required: boolean };
+type BuiltinPhaseDetail = { label: string; type: string };
+
+/** Fields that already exist in Project Details and the Summary Matrix. */
+const BUILTIN_PHASE_DETAILS: Record<string, BuiltinPhaseDetail[]> = {
+  operational_brief: [
+    { label: "Brief Received", type: "Date" }, { label: "Brief Deadline", type: "Date" },
+    { label: "Budget / CAPEX", type: "Currency" }, { label: "Brief Text", type: "Text" }, { label: "Notes", type: "Text" },
+  ],
+  design: [
+    { label: "Start Design", type: "Date" }, { label: "Approval Target (+1M)", type: "Date" }, { label: "Approval Real", type: "Date" },
+    { label: "Duration (+/-)", type: "Number" }, { label: "Brief", type: "Text" }, { label: "Working Drawing (+3W)", type: "Text" }, { label: "Notes", type: "Text" },
+  ],
+  project_control: [
+    { label: "Tender Start", type: "Date" }, { label: "Tender Finish Target (+3W)", type: "Date" }, { label: "Tender Finish Real", type: "Date" },
+    { label: "Duration (+/-)", type: "Number" }, { label: "APS Date", type: "Date" }, { label: "Contract Name", type: "Text" }, { label: "Contract Amount", type: "Currency" }, { label: "Notes", type: "Text" },
+  ],
+  project_management: [
+    { label: "Start", type: "Date" }, { label: "End", type: "Date" }, { label: "Completion Real Date", type: "Date" },
+    { label: "Duration (weeks)", type: "Calculated" }, { label: "+/- Deviation Days", type: "Number" }, { label: "Progress %", type: "Text" }, { label: "Notes", type: "Text" },
+  ],
+  handover: [
+    { label: "BAST 1", type: "Date" }, { label: "BAST 2", type: "Date" }, { label: "Completion Date", type: "Date" }, { label: "Notes", type: "Text" },
+  ],
+};
 
 type Tab = "units" | "priorities" | "statuses" | "users" | "stakeholders" | "phases";
 
@@ -813,6 +837,9 @@ function PhaseDetailsModal({ phase, onClose }: { phase: Phase; onClose: () => vo
   const [form, setForm] = useState({ field_key: "", field_label: "", field_type: "text", is_required: false });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const builtinDetails = BUILTIN_PHASE_DETAILS[phase.phase_code] ?? [
+    { label: "Start", type: "Date" }, { label: "End", type: "Date" }, { label: "Progress", type: "Percentage" }, { label: "Notes", type: "Text" },
+  ];
 
   const load = useCallback(async () => {
     const data = await safeFetch(`/api/master/phases/${phase.id}/details`);
@@ -844,8 +871,20 @@ function PhaseDetailsModal({ phase, onClose }: { phase: Phase; onClose: () => vo
   return (
     <Modal title={`${phase.phase_name} — Custom Details`} onClose={onClose} onSubmit={save} loading={loading} error={error}>
       <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-        Existing fields are listed below. Add fields that should appear for this phase in Project Details and the Summary Matrix.
+        These are the details shown for this phase in Project Details and the Summary Matrix. You can add extra custom details below.
       </p>
+      <div className="rounded-lg border border-slate-200/80 dark:border-white/8 bg-slate-50/70 dark:bg-white/4 p-3">
+        <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2">Current phase details</p>
+        <div className="grid grid-cols-2 gap-1.5">
+          {builtinDetails.map(detail => (
+            <div key={detail.label} className="flex items-center justify-between gap-2 rounded-md bg-white dark:bg-zinc-900/70 px-2 py-1.5">
+              <span className="min-w-0 truncate text-[11px] font-medium text-slate-700 dark:text-slate-200">{detail.label}</span>
+              <span className="shrink-0 text-[9px] font-semibold text-slate-400">{detail.type}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+      <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">Add custom detail</p>
       <div className="grid grid-cols-2 gap-3">
         <Field label="Field Label">
           <input className={inputCls} value={form.field_label} onChange={e => setForm(f => ({ ...f, field_label: e.target.value }))} placeholder="e.g. Permit Number" />
