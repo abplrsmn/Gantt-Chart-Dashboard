@@ -251,7 +251,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </aside>
 
       {/* ── Profile (top-right) — account menu: theme + logout ─────────────── */}
-      <div ref={settingsRef} className="fixed top-2 right-2 z-10000">
+      <div ref={settingsRef} className="fixed top-4 right-2 z-10000">
         <button
           onClick={() => setSettingsOpen(v => !v)}
           title={userName || "Account"}
