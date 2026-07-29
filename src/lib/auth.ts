@@ -114,31 +114,37 @@ export async function clearAuthCookie(options?: { secure?: boolean }) {
   });
 }
 
-export async function getAuthUserFromCookie(): Promise<AuthUser | null> {
+async function getCustomAuthUserFromCookie(): Promise<AuthUser | null> {
   const cookieStore = await cookies();
   const token = cookieStore.get(AUTH_COOKIE_NAME)?.value;
   if (!token) return null;
   return decodeToken(token);
 }
 
-// Works for both Google SSO (NextAuth session) and email/password (custom cookie)
-export async function getAuthUser(): Promise<AuthUser | null> {
-  // Try existing custom cookie first
-  const fromCookie = await getAuthUserFromCookie();
-  if (fromCookie) return fromCookie;
-
-  // Fall back to NextAuth Google session
+async function getGoogleAuthUser(): Promise<AuthUser | null> {
   try {
     const { auth } = await import("@/auth");
     const session = await auth();
     if (!session?.user?.accId) return null;
     return {
-      accId:    session.user.accId,
+      accId: session.user.accId,
       personId: null,
-      email:    session.user.email,
+      email: session.user.email,
       fullName: session.user.fullName,
     };
   } catch {
     return null;
   }
+}
+
+// Works for both Google SSO (NextAuth session) and email/password (custom cookie).
+// Keep the legacy export name because existing API routes use it for their caller identity.
+export async function getAuthUserFromCookie(): Promise<AuthUser | null> {
+  const fromCookie = await getCustomAuthUserFromCookie();
+  if (fromCookie) return fromCookie;
+  return getGoogleAuthUser();
+}
+
+export async function getAuthUser(): Promise<AuthUser | null> {
+  return getAuthUserFromCookie();
 }

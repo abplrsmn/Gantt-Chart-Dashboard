@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { LogIn } from "lucide-react";
 
 function LoginForm() {
   const router = useRouter();
@@ -10,7 +9,7 @@ function LoginForm() {
   const [password, setPassword] = useState("");
   const [error, setError]     = useState("");
   const [loading, setLoading] = useState(false);
-  const [quickLoading, setQuickLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
 
   const applyTheme = () => {
     try {
@@ -53,16 +52,10 @@ function LoginForm() {
     }
   };
 
-  const handleQuickLogin = async () => {
+  const handleGoogleSignIn = () => {
     setError("");
-    setQuickLoading(true);
-    try {
-      await doLogin("admin@user.com", "admin123");
-    } catch {
-      setError("Login failed. Please try again.");
-    } finally {
-      setQuickLoading(false);
-    }
+    setGoogleLoading(true);
+    window.location.assign("/api/auth/signin/google?callbackUrl=%2Fdashboard");
   };
 
   return (
@@ -76,21 +69,22 @@ function LoginForm() {
           Keystone
         </h1>
 
-        {/* Quick demo login (local only, no external auth) */}
+        {/* Google SSO */}
         <button
-          onClick={handleQuickLogin}
-          disabled={quickLoading || loading}
+          type="button"
+          onClick={handleGoogleSignIn}
+          disabled={googleLoading || loading}
           className="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 transition-all text-sm font-semibold text-slate-700 disabled:opacity-60 shadow-sm active:scale-[0.98]"
         >
-          {quickLoading ? (
+          {googleLoading ? (
             <svg className="animate-spin w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
             </svg>
           ) : (
-            <LogIn className="w-4 h-4 text-slate-500" />
+            <span className="w-4 h-4 rounded-full border-[3px] border-blue-500 border-r-red-500 border-b-yellow-400 border-l-green-500" />
           )}
-          {quickLoading ? "Signing in…" : "Continue as Admin (Demo)"}
+          {googleLoading ? "Redirecting to Google…" : "Continue with Google"}
         </button>
 
         {/* Divider */}
@@ -127,7 +121,7 @@ function LoginForm() {
 
           <button
             type="submit"
-            disabled={loading || quickLoading}
+            disabled={loading || googleLoading}
             className="w-full py-3 mt-1 disabled:opacity-60 text-white rounded-xl font-semibold text-sm transition-all active:scale-[0.98] glass-btn-primary"
           >
             {loading ? "Signing in…" : "Sign In"}
@@ -135,7 +129,7 @@ function LoginForm() {
         </form>
 
         <p className="text-xs text-slate-400 text-center mt-5 leading-relaxed">
-          Access restricted to authorized accounts.
+          Only approved accounts can access the dashboard.
         </p>
       </div>
     </div>

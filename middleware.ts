@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import crypto from 'crypto';
+import { getToken } from 'next-auth/jwt';
 
 export const runtime = 'nodejs';
 
@@ -43,7 +44,20 @@ function isProtectedApiPath(pathname: string): boolean {
   return PROTECTED_API_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
 }
 
-export function middleware(request: NextRequest) {
+async function hasGoogleSession(request: NextRequest): Promise<boolean> {
+  const secret = process.env.AUTH_SECRET;
+  if (!secret) return false;
+  try {
+    const forwardedProto = request.headers.get('x-forwarded-proto')?.split(',')[0]?.trim();
+    const secureCookie = forwardedProto === 'https' || request.nextUrl.protocol === 'https:';
+    const token = await getToken({ req: request, secret, secureCookie });
+    return typeof token?.email === 'string';
+  } catch {
+    return false;
+  }
+}
+
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   const protectsDashboard = pathname.startsWith('/dashboard');
@@ -56,8 +70,9 @@ export function middleware(request: NextRequest) {
   // --- Auth check ---
   const token = request.cookies.get(AUTH_COOKIE_NAME)?.value;
   const decoded = token ? verifyToken(token) : null;
+  const googleSession = decoded ? false : await hasGoogleSession(request);
 
-  if (!decoded?.email) {
+  if (!decoded?.email && !googleSession) {
     if (protectsApi) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     }
