@@ -170,6 +170,11 @@ const PHASE_CODE_MAP: Record<string, PhaseKey> = {
   project_control: "control", project_management: "pm", handover: "handover",
 };
 
+/** Built-in phases use short rendering keys; Master Setup phases keep their code. */
+function phaseKeyFromCode(phaseCode: string): PhaseKey {
+  return PHASE_CODE_MAP[phaseCode] ?? phaseCode;
+}
+
 function buildSegments(p: DBProject, timelineStart: Date, totalDays: number, colorByKey?: Map<string, string>): PhaseSegment[] {
   const projectStart = toDate(p.start_date) ?? timelineStart;
 
@@ -277,7 +282,7 @@ function fmtRange(start: Date | null, end: Date | null): string {
 
 function isPhaseActive(phKey: PhaseKey, phaseCode: string | null): boolean {
   if (!phaseCode) return false;
-  return PHASE_CODE_MAP[phaseCode] === phKey;
+  return phaseKeyFromCode(phaseCode) === phKey;
 }
 
 
@@ -507,7 +512,7 @@ export default function ProjectGanttDB() {
    */
   const phaseLegend = useMemo(
     () => dbPhases.map(p => ({
-      key:   PHASE_CODE_MAP[p.code] ?? p.code,
+      key:   phaseKeyFromCode(p.code),
       label: p.label,
       color: p.color,
     })),
@@ -792,11 +797,7 @@ export default function ProjectGanttDB() {
           onChange={handlePhaseFilter}
           options={[
             { value: "ALL",                  label: "All Phases" },
-            { value: "operational_brief",    label: "Operational Brief" },
-            { value: "design",               label: "Design" },
-            { value: "project_control",      label: "Project Control" },
-            { value: "project_management",   label: "Project Management" },
-            { value: "handover",             label: "Handover" },
+            ...dbPhases.map(phase => ({ value: phase.code, label: phase.label, color: phase.color })),
           ]}
           minWidth={160}
         />
@@ -994,7 +995,7 @@ export default function ProjectGanttDB() {
               const allSegments = buildSegments(p, timeline.start, totalDays, colorByKey);
               const segments = phaseFilter === "ALL"
                 ? allSegments
-                : allSegments.filter(s => s.key === PHASE_CODE_MAP[phaseFilter]);
+                : allSegments.filter(s => s.key === phaseKeyFromCode(phaseFilter));
               const phaseDates = getProjectPhaseDates(p);
               const projectRangeBar = buildProjectRangeBar(p, timeline.start, totalDays);
               const pCfg = PRIORITY_CONFIG[p.priority_code ?? ""] ?? { label: p.priority_name ?? "–", color: "#94a3b8", dot: "bg-slate-400" };
@@ -1005,7 +1006,7 @@ export default function ProjectGanttDB() {
               // at its own true dates. Highlighting (isActiveToday/isInRange below)
               // still checks the full segment list regardless of collapse state.
               const isExpanded     = expandedProjects.has(p.id);
-              const currentSegment = segments.find(s => s.key === PHASE_CODE_MAP[p.current_phase_code ?? ""]);
+              const currentSegment = segments.find(s => s.key === phaseKeyFromCode(p.current_phase_code ?? ""));
               const collapsedSegment = currentSegment && projectRangeBar
                 ? { ...currentSegment, offsetPct: projectRangeBar.offsetPct, widthPct: projectRangeBar.widthPct }
                 : currentSegment;
