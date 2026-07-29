@@ -257,14 +257,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           title={userName || "Account"}
           aria-haspopup="menu"
           aria-expanded={settingsOpen}
-          className={`w-14 h-14 flex items-center justify-center rounded-2xl
-                      bg-white/85 dark:bg-zinc-950/85 backdrop-blur-xl
-                      border border-slate-200/60 dark:border-white/8
-                      shadow-lg shadow-slate-900/5 dark:shadow-black/30
-                      transition-all duration-150 hover:bg-white dark:hover:bg-zinc-950
-                      ${settingsOpen ? "ring-2 ring-emerald-500/40" : ""}`}
+          className={`w-10 h-10 flex items-center justify-center rounded-full
+                      transition-transform duration-150 hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60
+                      ${settingsOpen ? "ring-2 ring-emerald-500/50" : ""}`}
         >
-          <span className="w-8 h-8 rounded-full shrink-0 flex items-center justify-center brand-gradient text-white text-[10px] font-black">
+          <span className="w-10 h-10 rounded-full shrink-0 flex items-center justify-center brand-gradient text-white text-[11px] font-black shadow-md shadow-emerald-950/20">
             {initialsOf(userName)}
           </span>
         </button>
