@@ -742,11 +742,11 @@ export default function ProjectGanttDB() {
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Search project, phase, status..."
-              className="w-full rounded-lg border border-slate-200/70 dark:border-white/10 bg-white/70 dark:bg-zinc-900/60 pl-8 pr-3 py-2 text-[12px] outline-none text-slate-800 dark:text-white"
+              className="w-full rounded-xl border border-slate-200 dark:border-white/10 bg-white/90 dark:bg-zinc-900/80 pl-8 pr-3 py-2 text-[12px] text-slate-800 dark:text-white shadow-sm outline-none transition-all focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
             />
           </label>
           <span
-            className="shrink-0 text-[11px] font-bold px-2.5 py-1.5 rounded-lg whitespace-nowrap transition-colors"
+            className="shrink-0 text-[11px] font-bold px-3 py-1.5 rounded-full whitespace-nowrap transition-colors"
             style={rangeSummary && rangeSummary.totalActiveProjects > 0
               ? { color: "#92400e", background: "rgba(251,191,36,0.18)", border: "1px solid rgba(251,191,36,0.45)" }
               : { color: "var(--brand-mahogany)", background: "rgba(16,185,129,0.10)", border: "1px solid rgba(16,185,129,0.18)" }
@@ -761,7 +761,7 @@ export default function ProjectGanttDB() {
               const qs = new URLSearchParams({ start: dateRange.start, end: dateRange.end });
               router.push(`/dashboard/projects/list?${qs.toString()}`);
             }}
-            className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all whitespace-nowrap ${
+            className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold transition-all whitespace-nowrap ${
               rangeSummary
                 ? "text-white shadow-sm cursor-pointer glass-btn-primary"
                 : "bg-slate-200 dark:bg-zinc-700 text-slate-400 dark:text-zinc-500 cursor-not-allowed"
@@ -771,12 +771,12 @@ export default function ProjectGanttDB() {
           </button>
         </div>
         <DateRangePicker value={dateRange} onChange={handleDateRangeChange} />
-        <div className="shrink-0 flex items-center rounded-lg border border-slate-200/70 dark:border-white/10 bg-white/70 dark:bg-zinc-900/60 overflow-hidden">
+        <div className="shrink-0 flex items-center rounded-xl border border-slate-200 dark:border-white/10 bg-white/90 dark:bg-zinc-900/80 shadow-sm overflow-hidden">
           <button
             type="button"
             onClick={() => handleTimelineYear(timelineYear - 1)}
             aria-label={`Show ${timelineYear - 1}`}
-            className="p-2 text-slate-500 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-400 dark:hover:text-white dark:hover:bg-white/8 transition-colors"
+            className="p-2 text-slate-500 hover:text-emerald-700 hover:bg-emerald-50 dark:text-slate-400 dark:hover:text-emerald-300 dark:hover:bg-emerald-500/10 transition-colors"
           >
             <ChevronLeft size={14} />
           </button>
@@ -787,7 +787,7 @@ export default function ProjectGanttDB() {
             type="button"
             onClick={() => handleTimelineYear(timelineYear + 1)}
             aria-label={`Show ${timelineYear + 1}`}
-            className="p-2 text-slate-500 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-400 dark:hover:text-white dark:hover:bg-white/8 transition-colors"
+            className="p-2 text-slate-500 hover:text-emerald-700 hover:bg-emerald-50 dark:text-slate-400 dark:hover:text-emerald-300 dark:hover:bg-emerald-500/10 transition-colors"
           >
             <ChevronRight size={14} />
           </button>
@@ -821,7 +821,7 @@ export default function ProjectGanttDB() {
         />
         <button
           onClick={() => setShowAddModal(true)}
-          className="shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-lg text-[11px] font-bold transition-all whitespace-nowrap border text-white glass-btn-primary"
+          className="shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-[11px] font-bold transition-all whitespace-nowrap text-white glass-btn-primary"
         >
           <Plus size={13} />
           Add Project
@@ -841,7 +841,7 @@ export default function ProjectGanttDB() {
 
         {/* Tool mode selector */}
         <div className="flex items-center gap-2 shrink-0">
-        <div className="flex items-center gap-1 p-1 rounded-lg bg-slate-100/80 dark:bg-white/6 border border-slate-200/60 dark:border-white/8">
+        <div className="flex items-center gap-1 p-1 rounded-xl bg-slate-100/80 dark:bg-white/6 border border-slate-200/70 dark:border-white/8 shadow-sm">
           {([
             { mode: "select", Icon: MousePointer2, title: "Select — click bar to open project" },
             { mode: "drag",   Icon: Move,          title: "Drag — move or resize phase bars" },
@@ -857,7 +857,7 @@ export default function ProjectGanttDB() {
                 toolMode === mode
                   ? mode === "delete"
                     ? "bg-rose-500 text-white shadow-sm"
-                    : "bg-white dark:bg-zinc-800 shadow-sm" + " text-brand-mahogany"
+                    : "bg-emerald-600 text-white shadow-sm shadow-emerald-500/25"
                   : "text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300"
               }`}
             >

@@ -299,10 +299,10 @@ export default function DateRangePicker({ value, onChange }: Props) {
       {/* ── Trigger ── */}
       <button
         onClick={handleOpen}
-        className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm transition-all whitespace-nowrap ${
+        className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-sm shadow-sm transition-all whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 ${
           open
-            ? "border-brand-sienna/60 bg-brand-sienna/10 text-brand-sienna"
-            : "border-slate-200/70 dark:border-white/10 bg-white/70 dark:bg-zinc-900/60 text-slate-600 dark:text-slate-300 hover:border-slate-300 dark:hover:border-white/20 hover:bg-white dark:hover:bg-zinc-900/80"
+            ? "border-brand-sienna/60 bg-brand-sienna/10 text-brand-sienna shadow-sm shadow-emerald-500/10"
+            : "border-slate-200 dark:border-white/10 bg-white/90 dark:bg-zinc-900/80 text-slate-600 dark:text-slate-300 hover:border-emerald-400/70 dark:hover:border-emerald-400/45 hover:shadow-sm hover:shadow-emerald-500/10"
         }`}
       >
         <CalendarRange size={14} className={open ? "text-brand-sienna" : "text-slate-400"} />

@@ -123,10 +123,10 @@ export default function AnimatedDropdown({
         type="button"
         onClick={() => !disabled && setOpen(o => !o)}
         disabled={disabled}
-        className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium transition-all whitespace-nowrap select-none ${
+        className={`w-full flex items-center gap-2 px-3 py-2 rounded-xl border text-sm font-medium shadow-sm transition-all whitespace-nowrap select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 ${
           disabled
             ? "border-slate-200/30 dark:border-white/5 bg-white/30 dark:bg-zinc-900/30 text-slate-400 dark:text-slate-600 cursor-not-allowed opacity-50"
-            : "border-slate-200/70 dark:border-white/10 bg-white/70 dark:bg-zinc-900/60 text-slate-700 dark:text-slate-200 hover:border-slate-300/80 dark:hover:border-white/20"
+            : "border-slate-200 dark:border-white/10 bg-white/90 dark:bg-zinc-900/80 text-slate-700 dark:text-slate-200 hover:border-emerald-400/70 dark:hover:border-emerald-400/45 hover:shadow-emerald-500/10"
         }`}
       >
         {selected?.color && (
