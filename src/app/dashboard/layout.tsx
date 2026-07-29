@@ -207,7 +207,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <div className={`fixed inset-0 -z-10 pointer-events-none ${isDark ? "mesh-bg-dark" : "mesh-bg-light"}`} />
 
       {/* ── Sidebar ───────────────────────────────────────────────────────── */}
-      <aside className="fixed left-2 top-2 bottom-2 z-50 flex flex-col items-start gap-3 select-none">
+      <aside className="fixed left-2 top-2 bottom-2 z-[10000] flex flex-col items-start gap-3 select-none">
 
         {/* Logo lockup — display only; the account menu lives in the top-right profile button */}
         <div
@@ -251,7 +251,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </aside>
 
       {/* ── Profile (top-right) — account menu: theme + logout ─────────────── */}
-      <div ref={settingsRef} className="fixed top-4 right-2 z-10000">
+      <div ref={settingsRef} className="fixed top-4 right-2 z-[10001]">
         <button
           onClick={() => setSettingsOpen(v => !v)}
           title={userName || "Account"}
