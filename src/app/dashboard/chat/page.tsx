@@ -637,7 +637,7 @@ export default function ChatPage() {
           : "";
 
   return (
-    <div className="animate-page-enter flex gap-3" style={{ height: "calc(100vh - 96px)" }}>
+    <div className="animate-page-enter flex gap-3" style={{ height: "calc(100vh - 112px)" }}>
 
       {/* ══ LEFT: people & conversations ════════════════════════════════════ */}
       <aside className="glass-panel rounded-2xl w-80 shrink-0 flex flex-col overflow-hidden">

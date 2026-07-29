@@ -310,9 +310,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           Natural document flow: the page is exactly as tall as its content and
           the browser scrolls when needed, so there is never scrollable empty
           space below the last card. Full-viewport pages (gantt/summary/chat)
-          size themselves with their own calc(100vh − 96px) wrapper — that
-          96px is this element's pt-16 + pb-8, so keep them in sync. */}
-      <main ref={mainRef} className={`flex-1 min-w-0 ml-20 px-4 pb-8 pt-16 ${fullHeightPage ? "overflow-hidden" : ""}`}>
+          size themselves with their own calc(100vh − 112px) wrapper — that
+          112px is this element's pt-20 + pb-8, so keep them in sync. */}
+      <main ref={mainRef} className={`flex-1 min-w-0 ml-20 px-4 pb-8 pt-20 ${fullHeightPage ? "overflow-hidden" : ""}`}>
         <div className="max-w-390 mx-auto">
           {children}
         </div>
