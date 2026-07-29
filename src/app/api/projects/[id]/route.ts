@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getDbPool } from "@/lib/db";
 import { getAuthUserFromCookie } from "@/lib/auth";
 import { BUILTIN_PHASE_CODES_SQL } from "@/lib/phases";
+import { phaseDetailsJson } from "@/lib/phase-details";
 
 export const dynamic = "force-dynamic";
 
@@ -98,6 +99,52 @@ function resolveField(field: string): FieldMap | null {
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const body = await req.json() as { field: string; value: string | null; change_summary?: string; action_type?: string };
+  const detailMatch = /^phase_detail_(\d+)$/.exec(body.field);
+
+  if (detailMatch) {
+    const user = await getAuthUserFromCookie();
+    const changedByName = user?.fullName ?? user?.email ?? "Unknown";
+    const pool = getDbPool();
+    const client = await pool.connect();
+    try {
+      const field = await client.query(
+        `SELECT f.id, f.field_label, f.field_type, f.is_required, f.phase_id
+           FROM master_phase_detail_fields f
+          JOIN project_phases pp ON pp.project_id = $1 AND pp.phase_id = f.phase_id
+          WHERE f.id = $2`,
+        [id, detailMatch[1]]
+      );
+      if (!field.rows[0]) return NextResponse.json({ success: false, error: "Phase detail field not found" }, { status: 404 });
+      const value = typeof body.value === "string" ? body.value.trim() || null : null;
+      if (field.rows[0].is_required && !value) {
+        return NextResponse.json({ success: false, error: `${field.rows[0].field_label} is required` }, { status: 400 });
+      }
+      if (value && ["number", "currency", "percentage"].includes(field.rows[0].field_type) && !Number.isFinite(Number(value))) {
+        return NextResponse.json({ success: false, error: `${field.rows[0].field_label} must be a valid number` }, { status: 400 });
+      }
+      if (value && field.rows[0].field_type === "percentage" && (Number(value) < 0 || Number(value) > 100)) {
+        return NextResponse.json({ success: false, error: `${field.rows[0].field_label} must be between 0 and 100` }, { status: 400 });
+      }
+      const old = await client.query(`SELECT value FROM project_phase_detail_values WHERE project_id = $1 AND field_id = $2`, [id, detailMatch[1]]);
+      await client.query(
+        `INSERT INTO project_phase_detail_values (project_id, field_id, value, updated_at)
+         VALUES ($1, $2, $3, NOW())
+         ON CONFLICT (project_id, field_id) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()`,
+        [id, detailMatch[1], value]
+      );
+      await client.query(
+        `INSERT INTO project_change_logs
+           (project_id, entity_type, field_name, old_value, new_value, change_summary, changed_by_name, action_type, created_at)
+         VALUES ($1, 'project_phase_detail', $2, $3, $4, $5, $6, 'field_updated', NOW())`,
+        [id, body.field, old.rows[0]?.value ?? null, value, body.change_summary ?? `Updated ${field.rows[0].field_label}`, changedByName]
+      );
+      return NextResponse.json({ success: true });
+    } catch (err) {
+      return NextResponse.json({ success: false, error: err instanceof Error ? err.message : "Could not update phase detail" }, { status: 500 });
+    } finally {
+      client.release();
+    }
+  }
   const map = resolveField(body.field);
   if (!map) return NextResponse.json({ success: false, error: "Unknown field" }, { status: 400 });
 
@@ -261,6 +308,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
           hv.notes                    AS handover_notes,
 
           ${EXTRA_PHASES_JSON}
+          , ${phaseDetailsJson("p.id")}
 
         FROM projects p
         LEFT JOIN master_phases mp_phase       ON mp_phase.id = p.current_phase_id

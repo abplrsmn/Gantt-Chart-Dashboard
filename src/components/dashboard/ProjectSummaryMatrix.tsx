@@ -4,6 +4,7 @@ import { format, isValid } from "date-fns";
 import { forwardRef, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { customPhaseColor, type CustomPhase } from "@/lib/phases";
+import type { PhaseDetail } from "@/lib/phase-details";
 
 type SummaryProject = {
   id: string;
@@ -49,6 +50,7 @@ type SummaryProject = {
   handover_notes?: string | null;
   /** Phases added via Master Setup — generic fields only. */
   extra_phases?: CustomPhase[] | null;
+  phase_details?: PhaseDetail[] | null;
 };
 
 interface Props {
@@ -322,6 +324,18 @@ const ProjectSummaryMatrix = forwardRef<HTMLDivElement, Props>(function ProjectS
     }
     return [...seen.values()].sort((a, b) => a.order - b.order);
   }, [projects]);
+  /** Admin-configured detail fields, grouped by their phase for the final matrix columns. */
+  const phaseDetailGroups = useMemo(() => {
+    const groups = new Map<string, { phaseId: string; phaseName: string; phaseCode: string; phaseOrder: number; fields: PhaseDetail[] }>();
+    for (const project of projects) {
+      for (const detail of project.phase_details ?? []) {
+        const current = groups.get(detail.phaseId) ?? { phaseId: detail.phaseId, phaseName: detail.phaseName, phaseCode: detail.phaseCode, phaseOrder: detail.phaseOrder, fields: [] };
+        if (!current.fields.some(f => f.id === detail.id)) current.fields.push(detail);
+        groups.set(detail.phaseId, current);
+      }
+    }
+    return [...groups.values()].map(group => ({ ...group, fields: group.fields.sort((a, b) => a.order - b.order) })).sort((a, b) => a.phaseOrder - b.phaseOrder);
+  }, [projects]);
 
   /**
    * Effective widths, derived rather than stored: the persisted array only
@@ -333,9 +347,10 @@ const ProjectSummaryMatrix = forwardRef<HTMLDivElement, Props>(function ProjectS
     const defaults = [
       ...DEFAULT_COL_WIDTHS,
       ...customPhases.flatMap(() => CUSTOM_PHASE_COLUMNS.map(c => c.width)),
+      ...phaseDetailGroups.flatMap(group => group.fields.map(field => field.type === "textarea" ? 180 : field.type === "date" ? 105 : 130)),
     ];
     return defaults.map((w, i) => colWidths[i] ?? w);
-  }, [colWidths, customPhases]);
+  }, [colWidths, customPhases, phaseDetailGroups]);
 
   const innerWidth = effectiveColWidths.reduce((sum, w) => sum + w, 0);
 
@@ -375,6 +390,7 @@ const ProjectSummaryMatrix = forwardRef<HTMLDivElement, Props>(function ProjectS
     // Custom phase fields live in the nested extra_phases array, not as flat
     // columns — writing them flat would leave the cell showing a stale value.
     const custom = /^xphase_(\d+)_(start|end|progress|notes)$/.exec(field);
+    const phaseDetail = /^phase_detail_(\d+)$/.exec(field);
     setProjects(prev =>
       prev.map(p => {
         if (p.id !== projectId) return p;
@@ -388,6 +404,9 @@ const ProjectSummaryMatrix = forwardRef<HTMLDivElement, Props>(function ProjectS
                 : x
             ),
           };
+        }
+        if (phaseDetail) {
+          return { ...p, phase_details: (p.phase_details ?? []).map(detail => detail.id === phaseDetail[1] ? { ...detail, value: newVal } : detail) };
         }
         return { ...p, [field]: newVal };
       })
@@ -443,6 +462,11 @@ const ProjectSummaryMatrix = forwardRef<HTMLDivElement, Props>(function ProjectS
                     {cp.name}
                   </th>
                 ))}
+                {phaseDetailGroups.map(group => (
+                  <th key={`details-${group.phaseId}`} colSpan={group.fields.length} className="border-r border-b border-slate-200 dark:border-white/10 px-2 py-2 text-center last:border-r-0" style={{ backgroundColor: `${customPhaseColor(group.phaseCode)}18` }}>
+                    {group.phaseName} — Custom Details
+                  </th>
+                ))}
               </tr>
               <tr className="bg-white dark:bg-zinc-950 text-[9px] uppercase tracking-wide text-slate-500 dark:text-slate-400">
                 {[
@@ -450,6 +474,7 @@ const ProjectSummaryMatrix = forwardRef<HTMLDivElement, Props>(function ProjectS
                   ...customPhases.flatMap(cp =>
                     CUSTOM_PHASE_COLUMNS.map(c => ({ key: `${cp.phaseId}-${c.key}`, label: c.label }))
                   ),
+                  ...phaseDetailGroups.flatMap(group => group.fields.map(field => ({ key: `detail-${field.id}`, label: field.label }))),
                 ].map(({ key, label }, idx) => (
                   <th key={`${key}-${idx}`} className="relative border-r border-b border-slate-200 dark:border-white/10 px-2 py-2 align-bottom leading-tight text-left last:border-r-0">
                     {label}
@@ -607,6 +632,21 @@ const ProjectSummaryMatrix = forwardRef<HTMLDivElement, Props>(function ProjectS
                     );
                   });
                 })}
+                {phaseDetailGroups.flatMap(group => group.fields.map(field => {
+                  const value = (project.phase_details ?? []).find(detail => detail.id === field.id)?.value ?? null;
+                  return (
+                    <td key={`detail-${field.id}`} className={`border-r border-b border-slate-200 dark:border-white/10 px-2 py-2 last:border-r-0 ${field.type === "textarea" ? "whitespace-pre-wrap" : ""}`}>
+                      <InlineCell
+                        value={value}
+                        type={field.type === "date" ? "date" : field.type === "currency" ? "money" : "text"}
+                        projectId={project.id}
+                        field={`phase_detail_${field.id}`}
+                        onSaved={(f, v) => onSaved(project.id, f, v)}
+                        className={field.type === "date" || field.type === "number" || field.type === "percentage" ? "font-mono whitespace-nowrap" : ""}
+                      />
+                    </td>
+                  );
+                }))}
               </tr>
             )))}
           </tbody>

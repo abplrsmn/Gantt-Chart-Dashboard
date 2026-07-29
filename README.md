@@ -41,6 +41,8 @@ The dashboard starts with five common stages:
 
 You can manage stages, priorities, statuses, units, and people from **Master Setup**. This makes the dashboard adaptable to different kinds of teams and projects.
 
+Each stage can also have its own custom detail fields. For example, a Design stage can include a drawing reference or approval number, while a Handover stage can include a handover document number. Add, edit, or remove these fields in **Master Setup → Phases → Manage fields**. The fields then appear in that stage on the Project Details page and as editable columns in the Summary Matrix.
+
 ### S-Curve progress tracking
 
 S-Curve compares planned progress with actual progress over time. It helps the team spot when a project is falling behind its expected pace.
@@ -120,6 +122,12 @@ Optional integrations use additional variables, such as `GEMINI_API_KEY`, `GCHAT
 ### 3. Prepare the database
 
 The `scripts/` folder contains SQL and migration scripts for the database. Run the scripts required by your environment before starting the application.
+
+To enable custom detail fields for phases, run this migration once:
+
+```bash
+psql -d gantt_dashboard -f scripts/create_phase_detail_fields.sql
+```
 
 ### 4. Start the dashboard
 

@@ -16,6 +16,7 @@ type Status   = { id: number; entity_type: string; status_code: string; status_l
 type User     = { id: number; email: string; is_active: boolean; created_at: string; full_name: string | null; department: string | null; job_title: string | null; employee_code: string | null; person_id: number | null };
 type Person   = { id: number; employee_code: string | null; full_name: string; nickname: string | null; department: string | null; job_title: string | null; email: string | null; phone_number: string | null; is_active: boolean };
 type Phase    = { id: number; phase_code: string; phase_name: string; phase_order?: number; color?: string | null };
+type PhaseDetailField = { id: string; phase_id: string; field_key: string; field_label: string; field_type: string; field_order: number; is_required: boolean };
 
 type Tab = "units" | "priorities" | "statuses" | "users" | "stakeholders" | "phases";
 
@@ -671,6 +672,7 @@ function PhasesSection({ onAddReady }: SectionProps) {
   const [dragId, setDragId] = useState<number | null>(null);
   const [overId, setOverId] = useState<number | null>(null);
   const [reorderError, setReorderError] = useState("");
+  const [detailsFor, setDetailsFor] = useState<Phase | null>(null);
 
   const load = useCallback(async () => {
     const j = await safeFetch("/api/master/phases");
@@ -739,7 +741,7 @@ function PhasesSection({ onAddReady }: SectionProps) {
           <p className="text-[11px] text-red-600 dark:text-red-400">{reorderError}</p>
         </div>
       )}
-      <TableShell heads={["", "#", "Color", "Code", "Phase Name"]} empty={!data.length}>
+      <TableShell heads={["", "#", "Color", "Code", "Phase Name", "Details"]} empty={!data.length}>
         {data.map((p, i) => (
           <tr
             key={p.id}
@@ -769,6 +771,11 @@ function PhasesSection({ onAddReady }: SectionProps) {
             </td>
             <td className="px-4 py-3"><span className="font-mono text-xs bg-brand-cream dark:bg-white/10 text-brand-mahogany dark:text-brand-sand px-2 py-0.5 rounded-md font-semibold">{p.phase_code}</span></td>
             <td className="px-4 py-3 text-slate-700 dark:text-slate-200 font-medium">{p.phase_name}</td>
+            <td className="px-4 py-3">
+              <button onClick={() => setDetailsFor(p)} className="text-[11px] font-semibold text-brand-sienna hover:underline underline-offset-2">
+                Manage fields
+              </button>
+            </td>
             <RowActions onEdit={() => openEdit(p)} onDelete={() => setDeleting(p)} />
           </tr>
         ))}
@@ -805,7 +812,85 @@ function PhasesSection({ onAddReady }: SectionProps) {
           onCancel={() => setDeleting(null)}
         />
       )}
+      {detailsFor && <PhaseDetailsModal phase={detailsFor} onClose={() => setDetailsFor(null)} />}
     </>
+  );
+}
+
+function PhaseDetailsModal({ phase, onClose }: { phase: Phase; onClose: () => void }) {
+  const [fields, setFields] = useState<PhaseDetailField[]>([]);
+  const [editing, setEditing] = useState<PhaseDetailField | null>(null);
+  const [form, setForm] = useState({ field_key: "", field_label: "", field_type: "text", is_required: false });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const load = useCallback(async () => {
+    const data = await safeFetch(`/api/master/phases/${phase.id}/details`);
+    if (data?.success) setFields(data.data);
+  }, [phase.id]);
+  useEffect(() => { load(); }, [load]);
+
+  const reset = () => {
+    setEditing(null);
+    setForm({ field_key: "", field_label: "", field_type: "text", is_required: false });
+    setError("");
+  };
+  const edit = (field: PhaseDetailField) => {
+    setEditing(field);
+    setForm({ field_key: field.field_key, field_label: field.field_label, field_type: field.field_type, is_required: field.is_required });
+    setError("");
+  };
+  const save = async () => {
+    setLoading(true);
+    const method = editing ? "PATCH" : "POST";
+    const url = editing ? `/api/master/phases/${phase.id}/details/${editing.id}` : `/api/master/phases/${phase.id}/details`;
+    const err = await saveRecord(url, method, form);
+    setLoading(false);
+    if (err) { setError(err); return; }
+    reset();
+    load();
+  };
+
+  return (
+    <Modal title={`${phase.phase_name} — Custom Details`} onClose={onClose} onSubmit={save} loading={loading} error={error}>
+      <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+        Add fields that should appear for this phase in Project Details and the Summary Matrix.
+      </p>
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Field Label">
+          <input className={inputCls} value={form.field_label} onChange={e => setForm(f => ({ ...f, field_label: e.target.value }))} placeholder="e.g. Permit Number" />
+        </Field>
+        <Field label="Field Key">
+          <input className={inputCls} value={form.field_key} onChange={e => setForm(f => ({ ...f, field_key: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, "_") }))} placeholder="permit_number" />
+        </Field>
+      </div>
+      <Field label="Field Type">
+        <AnimatedDropdown
+          value={form.field_type}
+          onChange={field_type => setForm(f => ({ ...f, field_type }))}
+          options={[
+            { value: "text", label: "Short text" }, { value: "textarea", label: "Long text" },
+            { value: "date", label: "Date" }, { value: "number", label: "Number" },
+            { value: "currency", label: "Currency" }, { value: "percentage", label: "Percentage" },
+          ]}
+          minWidth={180}
+        />
+      </Field>
+      <label className="flex items-center gap-2 text-xs font-medium text-slate-600 dark:text-slate-300 cursor-pointer">
+        <input type="checkbox" checked={form.is_required} onChange={e => setForm(f => ({ ...f, is_required: e.target.checked }))} className="accent-brand-sienna" />
+        Required field
+      </label>
+      {editing && <button type="button" onClick={reset} className="text-xs font-semibold text-slate-500 hover:text-slate-800 dark:hover:text-white">Cancel editing</button>}
+      <div className="border-t border-slate-200/70 dark:border-white/8 pt-3 space-y-1">
+        {fields.length === 0 ? <p className="text-xs italic text-slate-400">No custom details yet.</p> : fields.map(field => (
+          <div key={field.id} className="flex items-center gap-2 rounded-lg px-2 py-2 bg-slate-50 dark:bg-white/4">
+            <div className="min-w-0 flex-1"><p className="text-xs font-semibold text-slate-700 dark:text-slate-200 truncate">{field.field_label}</p><p className="text-[10px] text-slate-400">{field.field_key} · {field.field_type}</p></div>
+            <button type="button" onClick={() => edit(field)} className="p-1 text-slate-400 hover:text-brand-sienna"><Pencil size={13} /></button>
+            <button type="button" onClick={async () => { await fetch(`/api/master/phases/${phase.id}/details/${field.id}`, { method: "DELETE" }); if (editing?.id === field.id) reset(); load(); }} className="p-1 text-slate-400 hover:text-red-500"><Trash2 size={13} /></button>
+          </div>
+        ))}
+      </div>
+    </Modal>
   );
 }
 

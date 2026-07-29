@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getDbPool } from "@/lib/db";
 import { BUILTIN_PHASE_CODES_SQL } from "@/lib/phases";
+import { phaseDetailsJson } from "@/lib/phase-details";
 
 export const dynamic = "force-dynamic";
 
@@ -197,7 +198,8 @@ export async function GET() {
          WHERE cl.project_id = p.id AND cl.action_type = 'phase_advanced' AND cl.new_value = '5'
          ORDER BY cl.created_at DESC LIMIT 1) AS pm_advance_note,
 
-        ${EXTRA_PHASES_JSON}
+        ${EXTRA_PHASES_JSON},
+        ${phaseDetailsJson("p.id")}
 
       FROM projects p
       LEFT JOIN master_phases mp_phase       ON mp_phase.id = p.current_phase_id

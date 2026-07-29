@@ -15,6 +15,7 @@ import ScurveImportModal from "@/components/dashboard/ScurveImportModal";
 import AnimatedDropdown from "@/components/dashboard/AnimatedDropdown";
 import InlineDatePicker from "@/components/dashboard/InlineDatePicker";
 import { customPhaseColor, type CustomPhase } from "@/lib/phases";
+import type { PhaseDetail } from "@/lib/phase-details";
 import { usePhases } from "@/lib/usePhases";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -87,6 +88,7 @@ type ProjectDetail = {
    * in their own simplified card rather than the full PhaseCard.
    */
   extra_phases?: CustomPhase[] | null;
+  phase_details?: PhaseDetail[] | null;
 };
 
 type TaskRow = {
@@ -536,10 +538,11 @@ function dateFieldConstraint(
  * fields and save through the `xphase_<phaseId>_<key>` PATCH aliases.
  */
 function CustomPhaseCard({
-  phase, onSave,
+  phase, onSave, customDetails = [],
 }: {
   phase: CustomPhase;
   onSave: (field: string, value: string | null) => void | Promise<void>;
+  customDetails?: PhaseDetail[];
 }) {
   const color = customPhaseColor(phase.code);
   const [draft, setDraft] = useState({
@@ -609,6 +612,24 @@ function CustomPhaseCard({
             onBlur={e => commit("notes", e.target.value)}
           />
         </div>
+        {customDetails.map(detail => (
+          <div key={detail.id} className={detail.type === "textarea" ? "sm:col-span-3" : ""}>
+            <label className="text-[10px] uppercase tracking-wide text-slate-400 mb-1 block">{detail.label}</label>
+            {detail.type === "textarea" ? (
+              <textarea
+                rows={3} className={inputCls} defaultValue={detail.value ?? ""}
+                onBlur={e => onSave(`phase_detail_${detail.id}`, e.target.value.trim() || null)}
+              />
+            ) : (
+              <input
+                type={detail.type === "date" ? "date" : detail.type === "number" || detail.type === "currency" || detail.type === "percentage" ? "number" : "text"}
+                step={detail.type === "number" || detail.type === "currency" || detail.type === "percentage" ? "any" : undefined}
+                className={inputCls} defaultValue={detail.type === "date" ? (detail.value ?? "").slice(0, 10) : detail.value ?? ""}
+                onBlur={e => onSave(`phase_detail_${detail.id}`, e.target.value.trim() || null)}
+              />
+            )}
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -618,7 +639,7 @@ function PhaseCard({
   ph, project, isCurrent, isPast, people, picOptions, onSave,
   phaseRowId, onAssignPic, onRemovePerson, tasks, attachments,
   onTaskAdd, onTaskToggle, onTaskDelete,
-  onFileUpload, onFileDelete,
+  onFileUpload, onFileDelete, customDetails,
 }: {
   ph: PhaseDef;
   project: ProjectDetail;
@@ -626,7 +647,7 @@ function PhaseCard({
   isPast: boolean;
   people: PersonRow[];
   picOptions: { id: number; full_name: string; job_title: string | null }[];
-  onSave: (key: keyof ProjectDetail, value: string | null) => Promise<void>;
+  onSave: (key: keyof ProjectDetail | string, value: string | null) => Promise<void>;
   phaseRowId: string | null;
   onAssignPic: (person: { id: number; full_name: string; job_title: string | null }) => void;
   onRemovePerson: (personRowId: string) => void;
@@ -637,6 +658,7 @@ function PhaseCard({
   onTaskDelete: (taskId: string) => Promise<void>;
   onFileUpload: (file: File) => Promise<void>;
   onFileDelete: (attachmentId: string) => Promise<void>;
+  customDetails: PhaseDetail[];
 }) {
   const isLocked    = !isCurrent;
   const phasePeople = people.filter(p => Number(p.phase_id) === ph.phaseId);
@@ -741,6 +763,18 @@ function PhaseCard({
               />
             );
           })}
+
+          {customDetails.map(detail => (
+            <InlineField
+              key={`detail-${detail.id}`}
+              label={detail.label}
+              value={detail.value}
+              format={detail.type === "date" ? "date" : detail.type === "currency" ? "currency" : "text"}
+              fullWidth={detail.type === "textarea"}
+              readOnly={isLocked}
+              onSave={v => onSave(`phase_detail_${detail.id}`, v)}
+            />
+          ))}
 
         </div>
 
@@ -1175,8 +1209,15 @@ function ProjectDetailContent() {
       .finally(() => setLoading(false));
   }, [id]);
 
-  async function patchField(key: keyof ProjectDetail, value: string | null) {
-    setProject(prev => prev ? { ...prev, [key]: value } : prev);
+  async function patchField(key: keyof ProjectDetail | string, value: string | null) {
+    const detail = /^phase_detail_(\d+)$/.exec(key);
+    setProject(prev => {
+      if (!prev) return prev;
+      if (detail) {
+        return { ...prev, phase_details: (prev.phase_details ?? []).map(d => d.id === detail[1] ? { ...d, value } : d) };
+      }
+      return { ...prev, [key]: value };
+    });
     await fetch(`/api/projects/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -2077,13 +2118,14 @@ function ProjectDetailContent() {
                 onTaskDelete={handleTaskDelete}
                 onFileUpload={file => handleFileUpload(phaseRowId!, file)}
                 onFileDelete={handleFileDelete}
+                customDetails={(project.phase_details ?? []).filter(detail => Number(detail.phaseId) === ph.phaseId)}
               />
             );
           })}
 
           {/* Custom phases added via Master Setup */}
           {(project.extra_phases ?? []).map(xp => (
-            <CustomPhaseCard key={xp.phaseId} phase={xp} onSave={patchCustomPhaseField} />
+            <CustomPhaseCard key={xp.phaseId} phase={xp} onSave={(field, value) => field.startsWith("phase_detail_") ? patchField(field, value) : patchCustomPhaseField(field, value)} customDetails={(project.phase_details ?? []).filter(detail => String(detail.phaseId) === String(xp.phaseId))} />
           ))}
         </div>
       </div>
