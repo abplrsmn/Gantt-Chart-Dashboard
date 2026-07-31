@@ -545,6 +545,9 @@ function CustomPhaseCard({
   customDetails?: PhaseDetail[];
 }) {
   const color = customPhaseColor(phase.code);
+  // Collapsible like the built-in PhaseCards. Defaults open so adding the
+  // toggle doesn't hide fields that were previously always visible.
+  const [open, setOpen] = useState(true);
   const [draft, setDraft] = useState({
     start:    phase.start ?? "",
     end:      phase.end ?? "",
@@ -571,14 +574,20 @@ function CustomPhaseCard({
 
   return (
     <div className="rounded-xl border border-slate-200/70 dark:border-white/8 bg-white dark:bg-zinc-900/40 overflow-hidden">
-      <div className="flex items-center gap-2.5 px-4 py-2.5 border-b border-slate-100 dark:border-white/6">
+      <button
+        onClick={() => setOpen(v => !v)}
+        className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-left transition-colors hover:bg-slate-50 dark:hover:bg-white/4 ${open ? "border-b border-slate-100 dark:border-white/6" : ""}`}
+      >
         <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: color }} />
-        <h3 className="text-[13px] font-bold text-slate-800 dark:text-white flex-1 truncate">{phase.name}</h3>
+        <span className="text-[13px] font-bold text-slate-800 dark:text-white flex-1 truncate">{phase.name}</span>
         <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-slate-100 dark:bg-white/8 text-slate-400 shrink-0">
           Custom phase
         </span>
-      </div>
+        <ChevronDown size={13} className="shrink-0 transition-transform duration-200" style={{ color: `${color}99`, transform: open ? "rotate(0deg)" : "rotate(-90deg)" }} />
+      </button>
 
+      <div style={{ display: "grid", gridTemplateRows: open ? "1fr" : "0fr", transition: "grid-template-rows 0.25s cubic-bezier(0.4,0,0.2,1)" }}>
+      <div style={{ overflow: "hidden" }}>
       <div className="p-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div>
           <label className="text-[10px] uppercase tracking-wide text-slate-400 mb-1 block">Start</label>
@@ -630,6 +639,8 @@ function CustomPhaseCard({
             )}
           </div>
         ))}
+      </div>
+      </div>
       </div>
     </div>
   );
@@ -2199,7 +2210,10 @@ function ProjectDetailContent() {
         document.body
       )}
 
-      {project.current_phase_code === "project_management" && scProject ? (
+      {/* Phase-independent: every project gets the S-Curve. With no steps yet,
+          SCurveCharts renders its own setup wizard, so there is no separate
+          "not available" state to fall back to. */}
+      {scProject && (
         <div>
           <div className="flex items-center justify-end gap-2 mb-2">
             <button
@@ -2218,20 +2232,6 @@ function ProjectDetailContent() {
             </button>
           </div>
           <SCurveCharts projects={[scProject]} />
-        </div>
-      ) : (
-        <div className="glass-card p-8 flex flex-col items-center justify-center gap-3 text-center min-h-40 border-dashed opacity-60">
-          <div className="w-10 h-10 rounded-lg bg-teal-500/10 flex items-center justify-center">
-            <svg className="w-5 h-5 text-teal-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3 17l4-8 4 4 4-6 4 10" />
-            </svg>
-          </div>
-          <div>
-            <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">S-Curve</p>
-            <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
-              Available when project reaches <span className="font-medium text-teal-500">Project Management</span> phase
-            </p>
-          </div>
         </div>
       )}
 

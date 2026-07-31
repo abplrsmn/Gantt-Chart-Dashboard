@@ -1061,8 +1061,8 @@ export default function ProjectGanttDB() {
                         // horizontal scroll. These hexes are the translucent tint
                         // pre-blended against zinc-900, so they look identical to a
                         // wash without the bleed-through.
-                        isActiveToday ? "bg-cyan-50 hover:bg-cyan-100 dark:bg-[#19272c] dark:hover:bg-[#193239]"
-                        : isInRange   ? "bg-amber-50 hover:bg-amber-100 dark:bg-[#212124] dark:hover:bg-[#28282b] border-l-2 border-l-amber-600/40 dark:border-l-white/14"
+                        isActiveToday ? "bg-cyan-50 hover:bg-cyan-100 dark:bg-[#2c4049] dark:hover:bg-[#2b4954]"
+                        : isInRange   ? "bg-amber-50 hover:bg-amber-100 dark:bg-[#353b43] dark:hover:bg-[#3c4149] border-l-2 border-l-amber-600/40 dark:border-l-white/14"
                         : "bg-white dark:bg-zinc-900 hover:bg-slate-50 dark:hover:bg-zinc-800"
                       }`}
                       style={{

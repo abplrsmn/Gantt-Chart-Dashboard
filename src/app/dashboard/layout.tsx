@@ -56,7 +56,7 @@ function SideNavItem({ icon, label, active, onClick, badge }: {
       title={label}
       className={`relative w-full flex items-center justify-center px-2.5 py-2.5 rounded-lg transition-colors duration-150 ${
         active
-          ? "glass-nav-active shadow-sm text-brand-mahogany dark:text-brand-sand"
+          ? "glass-nav-active text-brand-mahogany dark:text-brand-sand"
           : "text-slate-500 dark:text-slate-400 hover:bg-white/60 dark:hover:bg-white/8 hover:text-slate-700 dark:hover:text-slate-200"
       }`}
     >
@@ -180,6 +180,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { icon: <Database size={16} />,         label: "Master Setup",  path: "/dashboard/master" },
   ];
 
+  // The logo lockup and the profile button belong to the top-level destinations
+  // only — exactly the nav rail's own paths. On a drill-down page (a project, a
+  // team, one weekly report) they would hover over that page's own header and
+  // its scrolling content, so there only the nav rail follows you in.
+  const isMainPage = navItems.some(item => item.path === pathname);
+
   // Gantt & Summary are single-screen views with their own internal scroll, so
   // the app shell is locked to the viewport (no browser scroll). Every other
   // page uses natural document flow so it ends exactly at its last card.
@@ -199,21 +205,22 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }
 
   return (
-    <div className={`flex transition-colors duration-500 ${fullHeightPage ? "h-screen overflow-hidden" : "min-h-screen"}`}>
+    <div className={`relative flex transition-colors duration-500 ${fullHeightPage ? "h-screen overflow-hidden" : "min-h-screen"}`}>
 
       {/* Full-viewport background — fixed so it always covers the screen even
           when a page's content is shorter than the viewport, and so it never
           adds scrollable empty space below the last card. */}
       <div className={`fixed inset-0 -z-10 pointer-events-none ${isDark ? "mesh-bg-dark" : "mesh-bg-light"}`} />
 
-      {/* ── Sidebar ───────────────────────────────────────────────────────── */}
-      <aside className="fixed left-2 top-2 bottom-2 z-[10000] flex flex-col items-start gap-3 select-none">
-
-        {/* Logo lockup — display only; the account menu lives in the top-right profile button */}
+      {/* Logo lockup — main pages only. Absolute, not fixed: it is anchored to
+          the top of the page and scrolls away with the content rather than
+          staying pinned to the viewport. Display only — the account menu lives
+          in the top-right profile button. */}
+      {isMainPage && (
         <div
-          className="shrink-0 h-14 px-2.5 rounded-2xl
-                     bg-white/85 dark:bg-zinc-950/85 backdrop-blur-xl
-                     border border-slate-200/60 dark:border-white/8
+          className="absolute left-2 top-2 z-10000 select-none h-14 px-2.5 rounded-2xl
+                     bg-white/85 dark:bg-(--gh-surface) backdrop-blur-xl
+                     border border-slate-200/60 dark:border-(--gh-border)
                      shadow-lg shadow-slate-900/5 dark:shadow-black/30
                      flex items-center"
         >
@@ -226,14 +233,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </span>
           </div>
         </div>
+      )}
 
-        {/* Nav card — icon-only width, centered in the space below the (wider) logo
-            card, so there's a clear gap between logo and rail */}
+      {/* ── Sidebar ───────────────────────────────────────────────────────── */}
+      {/* The rail itself stays fixed — it is the navigation, so it has to remain
+          reachable no matter how far down the page you are. */}
+      <aside className="fixed left-2 top-2 bottom-2 z-10000 flex flex-col items-start gap-3 select-none">
+
+        {/* Nav card — icon-only width, centered in the rail's full height */}
         <div className="flex-1 min-h-0 w-14 flex items-center justify-center">
         <nav
           className="shrink-0 w-14 max-h-full px-2 py-3 space-y-0.5 overflow-y-auto overflow-x-hidden flex flex-col rounded-2xl
-                     bg-white/85 dark:bg-zinc-950/85 backdrop-blur-xl
-                     border border-slate-200/60 dark:border-white/8
+                     bg-white/85 dark:bg-(--gh-surface) backdrop-blur-xl
+                     border border-slate-200/60 dark:border-(--gh-border)
                      shadow-lg shadow-slate-900/5 dark:shadow-black/30"
         >
           {navItems.map(item => (
@@ -250,8 +262,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </div>
       </aside>
 
-      {/* ── Profile (top-right) — account menu: theme + logout ─────────────── */}
-      <div ref={settingsRef} className="fixed top-4 right-2 z-[10001]">
+      {/* ── Profile (top-right) — main pages only; account menu: theme + logout.
+             Absolute like the logo, so it scrolls away instead of sticking. ── */}
+      {isMainPage && (
+      <div ref={settingsRef} className="absolute top-4 right-2 z-10001">
         <button
           onClick={() => setSettingsOpen(v => !v)}
           title={userName || "Account"}
@@ -302,6 +316,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
         )}
       </div>
+      )}
 
       {/* ── Main content ──────────────────────────────────────────────────── */}
       {/* Indented only past the narrow icon rail (8px + 56px = 64px) and pushed

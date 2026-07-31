@@ -29,7 +29,7 @@ export default async function RootLayout({
   return (
     <html lang="en" className={resolvedTheme} suppressHydrationWarning>
       <body
-        className={`${inter.variable} antialiased bg-slab-bg dark:bg-slate-900 text-slate-900 dark:text-white transition-colors duration-500`}
+        className={`${inter.variable} antialiased bg-slab-bg dark:bg-zinc-950 text-slate-900 dark:text-white transition-colors duration-500`}
       >
         <ThemeProvider>
           {children}

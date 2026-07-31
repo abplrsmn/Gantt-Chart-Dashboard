@@ -134,7 +134,6 @@ export default function DashboardHome() {
   const [loading, setLoading] = useState(true);
   const [barMounted, setBarMounted] = useState(false);
   const [donutHover, setDonutHover] = useState<{ label: string; count: number; color: string } | null>(null);
-  const [lastSynced, setLastSynced] = useState<Date | null>(null);
   const [userCount, setUserCount] = useState(0);
   const [stakeholderCount, setStakeholderCount] = useState(0);
   const [dateRange, setDateRange] = useState<DateRange>({ start: "", end: "" });
@@ -154,7 +153,6 @@ export default function DashboardHome() {
 
       if (projectsData.success) {
         setProjects(projectsData.data);
-        setLastSynced(new Date());
       }
       if (usersData.success) {
         setUserCount(usersData.data.length);
@@ -258,10 +256,16 @@ export default function DashboardHome() {
       : buckets;
   }, [activeProjects, allPhases]);
 
+  // Three states, three distinct meanings: done (green), failing (red),
+  // in-flight (purple). "On Track" used to be a second green — only ΔE 6.3
+  // from Completed, so even full-color-vision readers couldn't separate the
+  // two arcs. Purple is deliberately outside both PHASE_COLORS and
+  // CUSTOM_PHASE_PALETTE so this status can never be mistaken for a phase in
+  // the Phase Distribution chart beside it.
   const DONUT_ITEMS = [
     { label: "Completed", color: "#22c55e", onClick: () => router.push("/dashboard/projects/list?tab=completed") },
     { label: "Overdue",   color: "#ef4444", onClick: () => router.push("/dashboard/alerts?tab=overdue") },
-    { label: "On Track",  color: "#10b981", onClick: () => router.push("/dashboard/projects/list") },
+    { label: "On Track",  color: "#a855f7", onClick: () => router.push("/dashboard/projects/list") },
   ] as const;
 
   const donutData = useMemo(() => {
@@ -330,14 +334,9 @@ export default function DashboardHome() {
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <DateRangePicker value={dateRange} onChange={setDateRange} />
-          {loading ? (
+          {loading && (
             <span className="text-blue-500 flex items-center gap-1.5 font-medium text-[11px]">
               <Loader2 size={11} className="animate-spin" /> Loading...
-            </span>
-          ) : (
-            <span className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400 font-medium text-[11px]">
-              <CheckCircle2 size={11} className="text-green-500" />
-              Synced {lastSynced?.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
             </span>
           )}
         </div>

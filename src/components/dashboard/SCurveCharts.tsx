@@ -149,21 +149,21 @@ function cumActualSeries(weeks: string[], cumActuals: Record<string, number>): (
   return out;
 }
 
-function buildChartData(steps: SStep[], weeks: string[], cumActuals: Record<string, number>, pmStart?: Date, pmEnd?: Date): ChartPoint[] {
+function buildChartData(steps: SStep[], weeks: string[], cumActuals: Record<string, number>, rangeStart?: Date, rangeEnd?: Date): ChartPoint[] {
   if (!weeks.length) return [];
   const weeklyPlan = calcWeeklyPlan(steps, weeks);
   const actualCum = cumActualSeries(weeks, cumActuals);
   const hasAnyActual = actualCum.some(v => v != null);
   let cumPlan = 0;
   // Origin = project start at 0%. Each week point is labelled by its END date
-  // (Sunday, capped to pm_end) — the cumulative value reached by that date.
-  const points: ChartPoint[] = [{ label: pmStart ? format(pmStart, "d MMM") : "", plan: 0, actual: hasAnyActual ? 0 : null, actualAhead: null, actualBehind: null }];
+  // (Sunday, capped to the project end) — the cumulative value reached by then.
+  const points: ChartPoint[] = [{ label: rangeStart ? format(rangeStart, "d MMM") : "", plan: 0, actual: hasAnyActual ? 0 : null, actualAhead: null, actualBehind: null }];
   for (let i = 0; i < weeks.length; i++) {
     const w = weeks[i];
     cumPlan = cumPlan + (weeklyPlan[w] ?? 0);
     const a = actualCum[i];
     const weekEnd = addDays(parseISO(w), 6);
-    const labelDate = pmEnd && pmEnd < weekEnd ? pmEnd : weekEnd;
+    const labelDate = rangeEnd && rangeEnd < weekEnd ? rangeEnd : weekEnd;
     points.push({
       label: format(labelDate, "d MMM"),
       plan: Number(cumPlan.toFixed(2)),
@@ -275,15 +275,17 @@ export default function SCurveCharts({ projects }: { projects: DBProject[] }) {
   const projectId = selectedProject?.id ?? null;
 
   // ── Weeks ─────────────────────────────────────────────────────────────────────
-  const hasPmDates = !!(parseDate(selectedProject?.pm_start) && parseDate(selectedProject?.pm_end));
-  const pmStartDate = useMemo(() => parseDate(selectedProject?.pm_start), [selectedProject]);
-  const pmEndDate   = useMemo(() => parseDate(selectedProject?.pm_end),   [selectedProject]);
+  // The timeline spans the project's own date range. It is deliberately NOT tied
+  // to the PM phase: the S-curve is phase-independent, so a project can plot a
+  // curve whatever phase it sits in.
+  const hasRangeDates = !!(parseDate(selectedProject?.start_date) && parseDate(selectedProject?.end_date));
+  const rangeStartDate = useMemo(() => parseDate(selectedProject?.start_date), [selectedProject]);
+  const rangeEndDate   = useMemo(() => parseDate(selectedProject?.end_date),   [selectedProject]);
 
   const weeks = useMemo(() => {
     if (!selectedProject) return [];
-    // Strictly require PM phase dates — no fallback to start_date/end_date
-    const start = parseDate(selectedProject.pm_start);
-    const end   = parseDate(selectedProject.pm_end);
+    const start = parseDate(selectedProject.start_date);
+    const end   = parseDate(selectedProject.end_date);
     if (!start || !end || start > end) return [];
     return generateWeeks(start, end);
   }, [selectedProject]);
@@ -665,9 +667,8 @@ export default function SCurveCharts({ projects }: { projects: DBProject[] }) {
 
   // ── Chart ─────────────────────────────────────────────────────────────────────
   const chartData = useMemo(() => {
-    const pmStart = parseDate(selectedProject?.pm_start) ?? undefined;
-    return buildChartData(steps, weeks, cumActuals, pmStart, pmEndDate ?? undefined);
-  }, [steps, weeks, cumActuals, selectedProject, pmEndDate]);
+    return buildChartData(steps, weeks, cumActuals, rangeStartDate ?? undefined, rangeEndDate ?? undefined);
+  }, [steps, weeks, cumActuals, rangeStartDate, rangeEndDate]);
   const hasChart  = chartData.some(p => p.plan > 0);
 
   // ── Render ────────────────────────────────────────────────────────────────────
@@ -732,7 +733,7 @@ export default function SCurveCharts({ projects }: { projects: DBProject[] }) {
             <div className="flex items-center justify-center p-12 gap-2 text-slate-400 text-sm">
               <Loader2 size={16} className="animate-spin" /> Loading...
             </div>
-          ) : !parseDate(selectedProject.pm_start) || !parseDate(selectedProject.pm_end) ? (
+          ) : !hasRangeDates ? (
             <div className="relative overflow-hidden" style={{ height: 320 }}>
               {/* Blurred fake chart */}
               <div className="absolute inset-0 pointer-events-none opacity-30" style={{ filter: "blur(4px)" }}>
@@ -748,9 +749,9 @@ export default function SCurveCharts({ projects }: { projects: DBProject[] }) {
                   </svg>
                 </div>
                 <div>
-                  <p className="text-sm font-bold text-slate-700 dark:text-slate-100">Set PM Phase dates to enable S-Curve</p>
+                  <p className="text-sm font-bold text-slate-700 dark:text-slate-100">Set project dates to enable S-Curve</p>
                   <p className="text-xs text-slate-400 dark:text-slate-500 mt-1 max-w-xs">
-                    Open <span className="font-semibold text-amber-500">Project Details</span>, go to <span className="font-semibold text-amber-500">Phase Progress → PM</span>, and fill in the Start &amp; End dates.
+                    Open <span className="font-semibold text-amber-500">Project Details</span> and fill in the project&apos;s <span className="font-semibold text-amber-500">Start &amp; End dates</span>.
                   </p>
                 </div>
               </div>
@@ -785,9 +786,9 @@ export default function SCurveCharts({ projects }: { projects: DBProject[] }) {
                     const rawStart = parseISO(w);
                     const rawEnd = addDays(rawStart, 6);
                     // Clamp the shown range to the PM phase: the first week can't
-                    // start before pm_start and the last can't end after pm_end.
-                    const startD = pmStartDate && pmStartDate > rawStart ? pmStartDate : rawStart;
-                    const endD = pmEndDate && pmEndDate < rawEnd ? pmEndDate : rawEnd;
+                    // start before the project start and the last can't end after it.
+                    const startD = rangeStartDate && rangeStartDate > rawStart ? rangeStartDate : rawStart;
+                    const endD = rangeEndDate && rangeEndDate < rawEnd ? rangeEndDate : rawEnd;
                     return (
                       <div
                         key={i}
@@ -1089,7 +1090,7 @@ export default function SCurveCharts({ projects }: { projects: DBProject[] }) {
           )}
 
           {/* ── S-Curve Chart ─────────────────────────────────────────────────── */}
-          {!loading && hasPmDates && weeks.length > 0 && (
+          {!loading && hasRangeDates && weeks.length > 0 && (
             <div className="border-t border-slate-200/60 dark:border-white/8 relative" style={{ height: 440 }}>
               {!hasChart ? (
                 <>

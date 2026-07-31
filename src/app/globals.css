@@ -16,6 +16,16 @@
   --color-slab-border:    #E5E7EB;
   --color-growth-green:   #10B981;
   --color-alert-red:      #E11D48;
+
+  /* Zinc is remapped onto GitHub's "Dark Dimmed" ramp. Every zinc utility in
+     this codebase is dark:-scoped, so redefining the scale here recolors all
+     dark surfaces at once while leaving light mode untouched. Relative order
+     (950 deepest → 700 lightest) is preserved, so existing layering still
+     reads correctly. Keep these in sync with the --gh-* tokens on .dark. */
+  --color-zinc-950: #22272e;  /* canvas  */
+  --color-zinc-900: #2d333b;  /* surface */
+  --color-zinc-800: #373e47;  /* raised  */
+  --color-zinc-700: #444c56;  /* border  */
 }
 
 :root {
@@ -42,10 +52,22 @@
   --sb-thumb-hover: rgba(16, 185, 129, 0.55);
 }
 
+/* GitHub "Dark Dimmed" surface scale — a gray-blue ramp, deliberately not
+   near-black. Every dark surface below is built from these four tokens so the
+   whole app shifts together if the ramp is ever retuned. */
 .dark {
-  --background: #020617;
-  --foreground: #f8fafc;
-  --sb-thumb: rgba(255, 255, 255, 0.12);
+  --gh-canvas:        #22272e;  /* page background            */
+  --gh-inset:         #1c2128;  /* recessed areas, track fills */
+  --gh-surface:       #2d333b;  /* cards, panels, menus       */
+  --gh-surface-hover: #373e47;  /* hover / raised state       */
+  --gh-border:        #444c56;  /* default border             */
+  --gh-border-muted:  #373e47;  /* subtle divider             */
+  --gh-fg:            #adbac7;  /* body text                  */
+  --gh-fg-muted:      #768390;  /* secondary text             */
+
+  --background: var(--gh-canvas);
+  --foreground: var(--gh-fg);
+  --sb-thumb: rgba(173, 186, 199, 0.16);
   --sb-thumb-hover: rgba(52, 211, 153, 0.45);
 }
 
@@ -94,10 +116,10 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .dark .glass-panel {
-  background: rgba(15, 15, 20, 0.92);
-  border-color: rgba(255, 255, 255, 0.10);
+  background: var(--gh-surface);
+  border-color: var(--gh-border);
   box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.30);
-  @apply text-gray-100;
+  color: var(--gh-fg);
 }
 
 .glass-panel-elevated {
@@ -108,8 +130,8 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .dark .glass-panel-elevated {
-  background: rgba(15, 15, 20, 0.95);
-  border-color: rgba(255, 255, 255, 0.10);
+  background: var(--gh-surface);
+  border-color: var(--gh-border);
 }
 
 .glass-panel-card-header {
@@ -122,8 +144,8 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .dark .glass-panel-card-header {
-  background: rgba(255, 255, 255, 0.03);
-  border-bottom-color: rgba(255, 255, 255, 0.08);
+  background: var(--gh-surface-hover);
+  border-bottom-color: var(--gh-border-muted);
 }
 
 /* keep .glass-card for components still using it */
@@ -163,9 +185,9 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .dark .glass-card {
-  background: rgba(15, 15, 20, 0.92);
-  border-color: rgba(255, 255, 255, 0.10);
-  @apply text-gray-100;
+  background: var(--gh-surface);
+  border-color: var(--gh-border);
+  color: var(--gh-fg);
 }
 
 /* ── Buttons ──────────────────────────────────────────────────────────────── */
@@ -181,8 +203,9 @@ h1, h2, h3, h4, h5, h6 {
   transform: translateY(-2px);
 }
 .dark .glass-btn {
-  background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(255, 255, 255, 0.12);
+  background: var(--gh-surface-hover);
+  border-color: var(--gh-border);
+  color: var(--gh-fg);
 }
 
 .glass-btn-primary {
@@ -205,17 +228,22 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 /* ── Navigation active state ──────────────────────────────────────────────── */
+/* Marked by a short green underline rather than a filled pill, so the rail
+   stays quiet and the icons read as one column. Icon color comes from the
+   brand text classes the sidebar applies alongside this one. */
 .glass-nav-active {
-  background: var(--brand-gradient) !important;
-  color: #FFFFFF !important;
   border-radius: 12px;
-  box-shadow: 0 4px 14px var(--brand-glow);
 }
-/* Nav label/icon must stay white on the gradient, overriding the token-colored
-   text classes the sidebar applies for the active state. */
-.glass-nav-active span,
-.glass-nav-active svg {
-  color: #FFFFFF !important;
+.glass-nav-active::after {
+  content: "";
+  position: absolute;
+  bottom: 3px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 16px;
+  height: 2px;
+  border-radius: 999px;
+  background: var(--brand-gradient-vivid);
 }
 
 /* ── Brand gradient helpers ───────────────────────────────────────────────── */
@@ -245,9 +273,9 @@ h1, h2, h3, h4, h5, h6 {
   box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.18);
 }
 .dark .glass-input {
-  background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(255, 255, 255, 0.12);
-  color: #f1f5f9;
+  background: var(--gh-inset);
+  border-color: var(--gh-border);
+  color: var(--gh-fg);
 }
 
 .glass-dropdown {
@@ -257,8 +285,8 @@ h1, h2, h3, h4, h5, h6 {
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.10);
 }
 .dark .glass-dropdown {
-  background: #18181b;
-  border-color: rgba(255, 255, 255, 0.10);
+  background: var(--gh-surface);
+  border-color: var(--gh-border);
 }
 
 /* ── Tables ───────────────────────────────────────────────────────────────── */
@@ -281,15 +309,15 @@ h1, h2, h3, h4, h5, h6 {
   border-bottom: 1px solid #E5E7EB;
 }
 .dark .glass-table thead th {
-  background: rgba(255, 255, 255, 0.04);
-  color: #94a3b8;
-  border-bottom-color: rgba(255, 255, 255, 0.08);
+  background: var(--gh-surface-hover);
+  color: var(--gh-fg-muted);
+  border-bottom-color: var(--gh-border-muted);
 }
 .glass-table tbody tr:hover {
   background: #EEF0F7;
 }
 .dark .glass-table tbody tr:hover {
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--gh-surface-hover);
 }
 .glass-table tbody td:first-child {
   text-align: left;
@@ -297,7 +325,7 @@ h1, h2, h3, h4, h5, h6 {
   color: #0f172a;
 }
 .dark .glass-table tbody td:first-child {
-  color: #f1f5f9;
+  color: #cdd9e5;
 }
 
 .row-total {
@@ -319,8 +347,8 @@ h1, h2, h3, h4, h5, h6 {
 /* ── Text helpers ─────────────────────────────────────────────────────────── */
 .text-glass           { color: #334155; }
 .text-glass-secondary { color: #64748b; }
-.dark .text-glass           { color: #e2e8f0; }
-.dark .text-glass-secondary { color: #94a3b8; }
+.dark .text-glass           { color: #cdd9e5; }
+.dark .text-glass-secondary { color: var(--gh-fg-muted); }
 
 /* ── Scrollbar ────────────────────────────────────────────────────────────── */
 .glass-scrollbar::-webkit-scrollbar       { width: 5px; height: 5px; }
@@ -337,7 +365,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .mesh-bg-dark {
-  background-color: #09090b;
+  background-color: var(--gh-canvas);
   background-image: none;
 }
 

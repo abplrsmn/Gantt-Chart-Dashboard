@@ -170,19 +170,19 @@ function cumActualSeries(weeks: string[], cumActuals: Record<string, number>): (
   return out;
 }
 
-function buildChartData(steps: SStep[], weeks: string[], cumActuals: Record<string, number>, pmStart?: Date, pmEnd?: Date): ChartPoint[] {
+function buildChartData(steps: SStep[], weeks: string[], cumActuals: Record<string, number>, rangeStart?: Date, rangeEnd?: Date): ChartPoint[] {
   if (!weeks.length) return [];
   const weeklyPlan = calcWeeklyPlan(steps, weeks);
   const actualCum = cumActualSeries(weeks, cumActuals);
   const hasAnyActual = actualCum.some(v => v != null);
   let cumPlan = 0;
-  const points: ChartPoint[] = [{ label: pmStart ? format(pmStart, "d MMM") : "", plan: 0, actual: hasAnyActual ? 0 : null, actualAhead: null, actualBehind: null }];
+  const points: ChartPoint[] = [{ label: rangeStart ? format(rangeStart, "d MMM") : "", plan: 0, actual: hasAnyActual ? 0 : null, actualAhead: null, actualBehind: null }];
   for (let i = 0; i < weeks.length; i++) {
     const w = weeks[i];
     cumPlan = cumPlan + (weeklyPlan[w] ?? 0);
     const a = actualCum[i];
     const weekEnd = addDays(parseISO(w), 6);
-    const labelDate = pmEnd && pmEnd < weekEnd ? pmEnd : weekEnd;
+    const labelDate = rangeEnd && rangeEnd < weekEnd ? rangeEnd : weekEnd;
     points.push({
       label: format(labelDate, "d MMM"),
       plan: Number(cumPlan.toFixed(2)),
@@ -285,11 +285,10 @@ function ProjectReportContent() {
     }).catch(() => {}).finally(() => setLoading(false));
   }, [projectId]);
 
-  // Fetch S-curve (PM phase only) — same two endpoints Project Details reads,
-  // so the chart here matches exactly: plan schedule + cumulative actual.
+  // Fetch S-curve — same two endpoints Project Details reads, so the chart
+  // here matches exactly: plan schedule + cumulative actual. Phase-independent.
   useEffect(() => {
     if (!project) return;
-    if (project.current_phase_code !== "project_management") { setScSteps([]); setCumActuals({}); return; }
     fetch(`/api/projects/${projectId}/scurve-steps`, { cache: "no-store" })
       .then(r => r.json()).then(j => { if (j.success) setScSteps(parseApiSteps(j.data)); }).catch(() => {});
     fetch(`/api/projects/${projectId}/scurve-week-actuals`, { cache: "no-store" })
@@ -306,7 +305,6 @@ function ProjectReportContent() {
   // Fetch week photos + progress when week or project changes
   useEffect(() => {
     if (!project) return;
-    if (project.current_phase_code !== "project_management") { setPhotos([]); setWeekProg(null); return; }
     Promise.all([
       fetch(`/api/projects/${projectId}/attachments?week_key=${selectedWeekKey}`).then(r => r.json()),
       fetch(`/api/projects/${projectId}/week-progress`).then(r => r.json()),
@@ -321,8 +319,10 @@ function ProjectReportContent() {
     }).catch(() => {});
   }, [project, projectId, selectedWeekKey]);
 
+  // Weeks span the project's own date range, not the PM phase — the S-curve and
+  // the weekly picker are phase-independent.
   const weeks = useMemo(() =>
-    project ? buildWeeks(project.pm_start ?? project.start_date, project.pm_end ?? project.end_date) : [],
+    project ? buildWeeks(project.start_date, project.end_date) : [],
   [project]);
 
   // Once the project's weeks are known, lock the view to Week 1 — unless the
@@ -337,18 +337,17 @@ function ProjectReportContent() {
   const scWeeks = useMemo(() => weeks.map(w => format(w.monday, "yyyy-MM-dd")), [weeks]);
 
   const chartData = useMemo(() => {
-    const pmStart = project?.pm_start ? parseISO(project.pm_start) : undefined;
-    const pmEnd   = project?.pm_end   ? parseISO(project.pm_end)   : undefined;
+    const rangeStart = project?.start_date ? parseISO(project.start_date) : undefined;
+    const rangeEnd   = project?.end_date   ? parseISO(project.end_date)   : undefined;
     return buildChartData(
       scSteps, scWeeks, cumActuals,
-      pmStart && isValid(pmStart) ? pmStart : undefined,
-      pmEnd && isValid(pmEnd) ? pmEnd : undefined,
+      rangeStart && isValid(rangeStart) ? rangeStart : undefined,
+      rangeEnd && isValid(rangeEnd) ? rangeEnd : undefined,
     );
   }, [scSteps, scWeeks, cumActuals, project]);
 
   const currentWeekIdx = weeks.findIndex(w => w.weekKey === selectedWeekKey);
   const currentWeek    = weeks[currentWeekIdx];
-  const isPM = project?.current_phase_code === "project_management";
 
   // Grouped tasks
   const PHASE_ORDER = ["Operational Brief", "Design", "Project Control", "Project Management", "Handover"];
@@ -595,99 +594,97 @@ function ProjectReportContent() {
         </div>
       </div>
 
-      {/* ── 3. Weekly Progress (PM only) ── */}
-      {isPM && (
-        <div className="glass-card overflow-hidden">
-          {/* Week nav header */}
-          <div className="flex items-center gap-3 px-5 py-3 border-b border-slate-100 dark:border-white/6">
-            <div className="w-1 h-4 rounded-full shrink-0" style={{ background: "var(--brand-espresso)" }} />
-            <span className="text-base font-bold text-slate-700 dark:text-slate-200 flex-1">Weekly Progress</span>
-            <div className="flex items-center gap-1.5">
-              <button
-                aria-label="Previous week"
-                onClick={() => { const w = weeks[currentWeekIdx - 1]; if (w) { userMovedWeek.current = true; setSelectedWeekVal(toWeekVal(w.monday)); } }}
-                disabled={currentWeekIdx <= 0}
-                className="w-7 h-7 flex items-center justify-center rounded-lg border border-slate-200/70 dark:border-white/10 text-slate-400 hover:text-brand-sienna hover:border-brand-sienna/40 disabled:opacity-30 transition-all"
-              >
-                <ChevronLeft size={13} />
-              </button>
-              <WeekPicker value={selectedWeekVal} onChange={v => { userMovedWeek.current = true; setSelectedWeekVal(v); }} />
-              <button
-                aria-label="Next week"
-                onClick={() => { const w = weeks[currentWeekIdx + 1]; if (w) { userMovedWeek.current = true; setSelectedWeekVal(toWeekVal(w.monday)); } }}
-                disabled={currentWeekIdx >= weeks.length - 1}
-                className="w-7 h-7 flex items-center justify-center rounded-lg border border-slate-200/70 dark:border-white/10 text-slate-400 hover:text-brand-sienna hover:border-brand-sienna/40 disabled:opacity-30 transition-all"
-              >
-                <ChevronRight size={13} />
-              </button>
-            </div>
+      {/* ── 3. Weekly Progress ── */}
+      <div className="glass-card overflow-hidden">
+        {/* Week nav header */}
+        <div className="flex items-center gap-3 px-5 py-3 border-b border-slate-100 dark:border-white/6">
+          <div className="w-1 h-4 rounded-full shrink-0" style={{ background: "var(--brand-espresso)" }} />
+          <span className="text-base font-bold text-slate-700 dark:text-slate-200 flex-1">Weekly Progress</span>
+          <div className="flex items-center gap-1.5">
+            <button
+              aria-label="Previous week"
+              onClick={() => { const w = weeks[currentWeekIdx - 1]; if (w) { userMovedWeek.current = true; setSelectedWeekVal(toWeekVal(w.monday)); } }}
+              disabled={currentWeekIdx <= 0}
+              className="w-7 h-7 flex items-center justify-center rounded-lg border border-slate-200/70 dark:border-white/10 text-slate-400 hover:text-brand-sienna hover:border-brand-sienna/40 disabled:opacity-30 transition-all"
+            >
+              <ChevronLeft size={13} />
+            </button>
+            <WeekPicker value={selectedWeekVal} onChange={v => { userMovedWeek.current = true; setSelectedWeekVal(v); }} />
+            <button
+              aria-label="Next week"
+              onClick={() => { const w = weeks[currentWeekIdx + 1]; if (w) { userMovedWeek.current = true; setSelectedWeekVal(toWeekVal(w.monday)); } }}
+              disabled={currentWeekIdx >= weeks.length - 1}
+              className="w-7 h-7 flex items-center justify-center rounded-lg border border-slate-200/70 dark:border-white/10 text-slate-400 hover:text-brand-sienna hover:border-brand-sienna/40 disabled:opacity-30 transition-all"
+            >
+              <ChevronRight size={13} />
+            </button>
           </div>
+        </div>
 
-          {/* Week label */}
-          {currentWeek && weekProg && (
-            <div className="flex items-center gap-3 px-5 py-2.5 border-b border-slate-100 dark:border-white/6 bg-amber-50/40 dark:bg-amber-950/10">
-              <span className="text-[11px] font-bold text-amber-700 dark:text-amber-400">Week {currentWeek.weekNum}</span>
-              <span className="text-[11px] text-amber-600/70 dark:text-amber-500/70">{currentWeek.range}</span>
-            </div>
-          )}
+        {/* Week label */}
+        {currentWeek && weekProg && (
+          <div className="flex items-center gap-3 px-5 py-2.5 border-b border-slate-100 dark:border-white/6 bg-amber-50/40 dark:bg-amber-950/10">
+            <span className="text-[11px] font-bold text-amber-700 dark:text-amber-400">Week {currentWeek.weekNum}</span>
+            <span className="text-[11px] text-amber-600/70 dark:text-amber-500/70">{currentWeek.range}</span>
+          </div>
+        )}
 
-          {/* Photos & Files */}
-          {photos.length > 0 ? (
-            <div className="p-5">
-              <p className="text-[9px] uppercase tracking-widest text-slate-400 font-semibold mb-3">Photos &amp; Files</p>
-              <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2">
-                {photos.map((photo, pi) => (
-                  <div key={photo.id} className="relative aspect-square cursor-zoom-in rounded-xl overflow-hidden border border-slate-200/60 dark:border-white/8 group bg-slate-50 dark:bg-white/4 flex items-center justify-center"
-                    onClick={() => setLightbox(photo)}>
-                    {isImageFile(photo) ? (
-                      <img src={photo.file_url} alt={photo.file_name}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                        onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
-                    ) : (
-                      <div className="flex flex-col items-center gap-1 px-1.5 text-center">
-                        <FileText size={20} className={isPdfFile(photo) ? "text-red-500" : "text-slate-400 dark:text-slate-500"} />
-                        <span className="text-[8px] font-semibold text-slate-400 dark:text-slate-500 truncate w-full leading-tight">
-                          {photo.file_name.split(".").pop()?.toUpperCase()}
-                        </span>
-                      </div>
-                    )}
-                    {pi === 7 && photos.length > 8 && (
-                      <div className="absolute inset-0 bg-black/55 flex items-center justify-center rounded-xl">
-                        <span className="text-white text-xs font-bold">+{photos.length - 8}</span>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : (
-            <div className="px-5 py-6 flex items-center gap-2 text-slate-300 dark:text-slate-700 text-sm">
-              <Camera size={14} /><span>No photos for this week</span>
-            </div>
-          )}
-
-          {/* Progress stats */}
-          {weekProg && (
-            <div className="grid grid-cols-3 divide-x divide-slate-100 dark:divide-white/6 border-t border-slate-100 dark:border-white/6">
-              {[
-                { label: "Plan",     val: weekProg.plan_pct,   cls: "text-blue-600 dark:text-blue-400",     pre: "" },
-                { label: "Actual",   val: weekProg.actual_pct, cls: weekProg.actual_pct >= weekProg.plan_pct ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400", pre: "" },
-                { label: "Variance", val: variance,            cls: variance > 0 ? "text-emerald-600 dark:text-emerald-400" : variance < 0 ? "text-rose-500" : "text-slate-400", pre: variance > 0 ? "+" : "" },
-              ].map(item => (
-                <div key={item.label} className="px-6 py-4">
-                  <p className="text-[9px] uppercase tracking-widest text-slate-400 mb-1">{item.label}</p>
-                  <p className={`text-2xl font-bold ${item.cls}`}>
-                    {item.val !== 0 ? `${item.pre}${item.val.toFixed(1)}%` : <span className="text-slate-300 dark:text-slate-600 text-lg">—</span>}
-                  </p>
+        {/* Photos & Files */}
+        {photos.length > 0 ? (
+          <div className="p-5">
+            <p className="text-[9px] uppercase tracking-widest text-slate-400 font-semibold mb-3">Photos &amp; Files</p>
+            <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2">
+              {photos.map((photo, pi) => (
+                <div key={photo.id} className="relative aspect-square cursor-zoom-in rounded-xl overflow-hidden border border-slate-200/60 dark:border-white/8 group bg-slate-50 dark:bg-white/4 flex items-center justify-center"
+                  onClick={() => setLightbox(photo)}>
+                  {isImageFile(photo) ? (
+                    <img src={photo.file_url} alt={photo.file_name}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                  ) : (
+                    <div className="flex flex-col items-center gap-1 px-1.5 text-center">
+                      <FileText size={20} className={isPdfFile(photo) ? "text-red-500" : "text-slate-400 dark:text-slate-500"} />
+                      <span className="text-[8px] font-semibold text-slate-400 dark:text-slate-500 truncate w-full leading-tight">
+                        {photo.file_name.split(".").pop()?.toUpperCase()}
+                      </span>
+                    </div>
+                  )}
+                  {pi === 7 && photos.length > 8 && (
+                    <div className="absolute inset-0 bg-black/55 flex items-center justify-center rounded-xl">
+                      <span className="text-white text-xs font-bold">+{photos.length - 8}</span>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
-          )}
-        </div>
-      )}
+          </div>
+        ) : (
+          <div className="px-5 py-6 flex items-center gap-2 text-slate-300 dark:text-slate-700 text-sm">
+            <Camera size={14} /><span>No photos for this week</span>
+          </div>
+        )}
 
-      {/* ── 4. S-Curve (PM only) — same data + look as Project Details ── */}
-      {isPM && scSteps.length > 0 && chartData.length > 0 && (
+        {/* Progress stats */}
+        {weekProg && (
+          <div className="grid grid-cols-3 divide-x divide-slate-100 dark:divide-white/6 border-t border-slate-100 dark:border-white/6">
+            {[
+              { label: "Plan",     val: weekProg.plan_pct,   cls: "text-blue-600 dark:text-blue-400",     pre: "" },
+              { label: "Actual",   val: weekProg.actual_pct, cls: weekProg.actual_pct >= weekProg.plan_pct ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400", pre: "" },
+              { label: "Variance", val: variance,            cls: variance > 0 ? "text-emerald-600 dark:text-emerald-400" : variance < 0 ? "text-rose-500" : "text-slate-400", pre: variance > 0 ? "+" : "" },
+            ].map(item => (
+              <div key={item.label} className="px-6 py-4">
+                <p className="text-[9px] uppercase tracking-widest text-slate-400 mb-1">{item.label}</p>
+                <p className={`text-2xl font-bold ${item.cls}`}>
+                  {item.val !== 0 ? `${item.pre}${item.val.toFixed(1)}%` : <span className="text-slate-300 dark:text-slate-600 text-lg">—</span>}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* ── 4. S-Curve — same data + look as Project Details ── */}
+      {scSteps.length > 0 && chartData.length > 0 && (
         <div className="glass-card p-6">
           <SectionHeader icon={TrendingUp} title="S-Curve" />
           <div className="relative" style={{ height: 320 }}>

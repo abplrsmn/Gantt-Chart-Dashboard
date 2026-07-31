@@ -17,22 +17,9 @@ export async function GET(
     client = await pool.connect();
     await client.query("SET jit = off");
 
-    const phaseCheck = await client.query<{ current_phase_code: string | null }>(`
-      SELECT mp.phase_code AS current_phase_code
-      FROM projects p
-      LEFT JOIN master_phases mp ON mp.id = p.current_phase_id
-      WHERE p.id = $1
-    `, [projectId]);
-
-    if (phaseCheck.rows[0]?.current_phase_code !== "project_management") {
-      return NextResponse.json({
-        success: true,
-        source: "not_project_management",
-        summary: { target_progress: 0, actual_progress: 0, variance: 0, total_task_weight: 0 },
-        tasks: [],
-        data: [],
-      });
-    }
+    // The S-curve is phase-independent: any project can carry a WBS and report
+    // against it, so there is no current-phase check here. A project with no
+    // task/period rows falls through to the phase-level fallback below.
 
     // ── 1. Task/period based S-curve ───────────────────────────────────────
     // Formula:
