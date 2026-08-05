@@ -506,25 +506,16 @@ export default function ProjectGanttDB() {
 
 
   /**
-   * Legend/colors come from Master Setup so reordering or recoloring a phase
-   * there is reflected here. Built-in phases map their code to the short key
-   * the segment builder uses; custom phases key on their code directly.
+   * Phase colors come from Master Setup so recoloring a phase there is
+   * reflected here. Built-in phases map their code to the short key the
+   * segment builder uses; custom phases key on their code directly.
+   * Overrides the built-in PHASES colors with whatever Master Setup has.
    */
-  const phaseLegend = useMemo(
-    () => dbPhases.map(p => ({
-      key:   phaseKeyFromCode(p.code),
-      label: p.label,
-      color: p.color,
-    })),
-    [dbPhases]
-  );
-
-  /** Overrides the built-in PHASES colors with whatever Master Setup has. */
   const colorByKey = useMemo(() => {
     const m = new Map<string, string>();
-    for (const p of phaseLegend) m.set(p.key, p.color);
+    for (const p of dbPhases) m.set(phaseKeyFromCode(p.code), p.color);
     return m;
-  }, [phaseLegend]);
+  }, [dbPhases]);
 
   const filteredProjects = useMemo(() => {
     return projects.filter(p => {
@@ -828,18 +819,9 @@ export default function ProjectGanttDB() {
         </button>
       </div>
 
-      {/* Legend + tool mode selector on the same row */}
-      <div className="shrink-0 flex items-center justify-between gap-4">
-        <div className="flex flex-wrap gap-x-4 gap-y-1 items-center">
-          {phaseLegend.map(ph => (
-            <div key={ph.key} className="flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400">
-              <span className="w-3 h-2.5 rounded-sm inline-block" style={{ backgroundColor: ph.color }} />
-              {ph.label}
-            </div>
-          ))}
-        </div>
+      {/* Tool mode selector */}
+      <div className="shrink-0 flex items-center justify-end gap-4">
 
-        {/* Tool mode selector */}
         <div className="flex items-center gap-2 shrink-0">
         <div className="flex items-center gap-1 p-1 rounded-xl bg-slate-100/80 dark:bg-white/6 border border-slate-200/70 dark:border-white/8 shadow-sm">
           {([
